@@ -93,6 +93,7 @@
 			},
 			onShareAppMessage() {return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl:'../../static/logo_small.jpg', path:'/pages/index/index'}},
 			onShareTimeline() {return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl:'../../static/logo_small.jpg'}},
+			onAddToFavorites() {return { title: '偷偷马住别被老板看到！', imageUrl:'../../static/logo_small.jpg'}},
 		},
 	}
 </script>
