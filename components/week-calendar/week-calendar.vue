@@ -15,7 +15,7 @@
 		   <swiper class="calendar-swiper" :style="{
 			   width: '100%',
 			   height: sheight
-		   }" :indicator-dots="false" :autoplay="false" :duration="duration" :current="current" @change="changeSwp" :circular="true">
+		   }" :indicator-dots="false" :autoplay="false" :duration="duration" :current="current" :circular="true">
 				<swiper-item class="calendar-item" v-for="sitem in swiper" :key="sitem">
 					<view class="calendar-days">
 						<template v-if="sitem === current">
