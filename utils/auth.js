@@ -83,7 +83,7 @@ async function checkHasLogined() {
   //   uni.removeStorageSync('token')
   //   return false
   // }
-  return false
+  return true
 }
 
 async function wxaCode(){
@@ -347,7 +347,7 @@ async function getOrderList(status ,token) {
 		if (status >= 0){
 			data = {order_status:status};
 		}
-		request('/users/appointments/', 'get', data, token).then(function (res){
+		request('/users/appointments/'+(data? ("?order_status="+status) : ""), 'GET', data, token).then(function (res){
 			if (res._status != 0) {
 				// 登录错误
 				uni.showModal({

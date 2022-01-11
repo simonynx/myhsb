@@ -47,6 +47,16 @@
 							</view>
 						</view>
 						
+						<text>选择时段: </text>
+						<view class="item-list">
+							<text 
+								v-for="(childItem, childIndex) in item.appointment.time_list" 
+								:key="childIndex" class="tit"
+							>
+								{{childItem[0]}}:00 - {{childItem[1]}}:00
+							</text>
+						</view>
+						
 						<view class="price-box">
 							共
 							<text class="num">1</text>
@@ -143,7 +153,7 @@
 				
 				navItem.loadingType = 'loading';
 				AUTH.getOrderList(state-1, uni.getStorageSync("token")).then(function(res){
-					console.log("=================================>fucking", res, state);
+					// console.log("=================================>fucking", res, state);
 					res.data.forEach(item=>{
 						item = Object.assign(item, _this.orderStateExp(state));
 						navItem.orderList.push(item);
@@ -357,6 +367,26 @@
 						margin: 0 2upx 0 8upx;
 					}
 				}
+			}
+		}
+		
+		.item-list{
+			padding: 20upx 0 0;
+			display: flex;
+			flex-wrap: wrap;
+			text{
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				background: #eee;
+				margin-right: 20upx;
+				margin-bottom: 20upx;
+				border-radius: 100upx;
+				min-width: 60upx;
+				height: 60upx;
+				padding: 0 20upx;
+				font-size: $font-base;
+				color: $font-color-dark;
 			}
 		}
 		

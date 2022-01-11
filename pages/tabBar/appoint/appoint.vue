@@ -188,7 +188,7 @@
 					if (appointments[i].room == id){
 						for (var j = 0; j < appointments[i].time_list.length; j++) {
 							let interval = appointments[i].time_list[j];
-							if(interval[0] == hour && appointments[i].callback_data){
+							if(interval[0] == hour && appointments[i].order_status == 1){ //1 for success
 								return true;
 							}
 						}
@@ -267,7 +267,9 @@
 				date.setHours(today.getHours());
 				this.getList(date);
 			},
-			stopPrevent() {}
+			stopPrevent() {},
+			onShareAppMessage() {return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl:'../../../static/logo_small.jpg', path:'/pages/index/index'}},
+			onShareTimeline() {return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl:'../../../static/logo_small.jpg'}},
 		},
 	};
 </script>
