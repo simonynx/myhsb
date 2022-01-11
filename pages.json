@@ -94,22 +94,6 @@
 			}
 		},
 		{
-			"path": "pages/money/money",
-			"style": {}
-		},
-		{
-			"path": "pages/money/pay",
-			"style": {
-				"navigationBarTitleText": "支付"
-			}
-		},
-		{
-			"path": "pages/money/paySuccess",
-			"style": {
-				"navigationBarTitleText": "支付成功"
-			}
-		},
-		{
 			"path": "pages/user/user",
 			"style": {
 				"navigationBarTitleText": "我的",

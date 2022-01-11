@@ -5,9 +5,6 @@
         "pages/product/product",
         "pages/order/order",
         "pages/order/createOrder",
-        "pages/money/money",
-        "pages/money/pay",
-        "pages/money/paySuccess",
         "pages/user/user"
     ],
     "subPackages": [],

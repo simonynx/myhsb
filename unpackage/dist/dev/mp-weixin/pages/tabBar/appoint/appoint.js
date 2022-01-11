@@ -96,10 +96,10 @@ var components
 try {
   components = {
     weekCalendar: function() {
-      return Promise.all(/*! import() | components/week-calendar/week-calendar */[__webpack_require__.e("common/vendor"), __webpack_require__.e("components/week-calendar/week-calendar")]).then(__webpack_require__.bind(null, /*! @/components/week-calendar/week-calendar.vue */ 91))
+      return Promise.all(/*! import() | components/week-calendar/week-calendar */[__webpack_require__.e("common/vendor"), __webpack_require__.e("components/week-calendar/week-calendar")]).then(__webpack_require__.bind(null, /*! @/components/week-calendar/week-calendar.vue */ 69))
     },
     uniLoadMore: function() {
-      return __webpack_require__.e(/*! import() | uni_modules/uni-load-more/components/uni-load-more/uni-load-more */ "uni_modules/uni-load-more/components/uni-load-more/uni-load-more").then(__webpack_require__.bind(null, /*! @/uni_modules/uni-load-more/components/uni-load-more/uni-load-more.vue */ 99))
+      return __webpack_require__.e(/*! import() | uni_modules/uni-load-more/components/uni-load-more/uni-load-more */ "uni_modules/uni-load-more/components/uni-load-more/uni-load-more").then(__webpack_require__.bind(null, /*! @/uni_modules/uni-load-more/components/uni-load-more/uni-load-more.vue */ 77))
     }
   }
 } catch (e) {

@@ -10860,6 +10860,162 @@ function resolveLocaleChain(locale) {
 
 /***/ }),
 
+/***/ 74:
+/*!*************************************************************************************************************!*\
+  !*** C:/Users/Girl Boooom/Documents/HBuilderProjects/MoyuHuashui/components/week-calendar/generateDates.js ***!
+  \*************************************************************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });exports.gegerateDates = exports.generateWeekDays = exports.dateEqual = exports.equalDate = exports.judgeType = exports.formatDate = void 0; /*
+                                                                                                                                                                                                                       *此函数的作用是根据传入的一个日期，返回这一周的日期或者这一个月的日期，
+                                                                                                                                                                                                                       * 如果是月的话注意还包含上个月和下个月的日期，月的话总共数据有 6 * 7 = 42个
+                                                                                                                                                                                                                       *
+                                                                                                                                                                                                                       */
+/* 
+                                                                                                                                                                                                                          * 时间格式化函数
+                                                                                                                                                                                                                          * 重要提示，微信小程序new Date('2020-04-16')在ios中无法获取时间对象
+                                                                                                                                                                                                                          * 解决方式: 建议将时间都格式化成'2020/04/16 00:00:00'的格式
+                                                                                                                                                                                                                          * 函数示例: formatDate(new Date(), 'YYYY/MM/dd hh:mm:ss')
+                                                                                                                                                                                                                          */
+var formatDate = function formatDate(date, fmt) {
+  if (/(y+)/.test(fmt)) {
+    fmt = fmt.replace(RegExp.$1, (date.getFullYear() + '').substr(4 - RegExp.$1.length));
+  }
+  var o = {
+    'M+': date.getMonth() + 1,
+    'd+': date.getDate(),
+    'h+': date.getHours(),
+    'm+': date.getMinutes(),
+    's+': date.getSeconds() };
+
+  for (var k in o) {
+    if (new RegExp("(".concat(k, ")")).test(fmt)) {
+      var str = o[k] + '';
+      fmt = fmt.replace(RegExp.$1, RegExp.$1.length === 1 ? str : padLeftZero(str));
+    }
+  }
+  return fmt;
+};exports.formatDate = formatDate;
+var padLeftZero = function padLeftZero(str) {
+  return ('00' + str).substr(str.length);
+};
+var judgeType = function judgeType(s) {
+  // 函数返回数据的具体类型
+  return Object.prototype.toString.call(s).slice(8, -1);
+};exports.judgeType = judgeType;
+var equalDate = function equalDate(d1, d2) {
+  var result = false;
+  if (d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate()) {
+    result = true;
+  }
+  return result;
+};
+/* 比较时间,时间格式为2020-04-04
+   */exports.equalDate = equalDate;
+var dateEqual = function dateEqual(before, after) {
+  before = new Date(before.replace('-', '/').replace('-', '/'));
+  after = new Date(after.replace('-', '/').replace('-', '/'));
+  if (before.getTime() - after.getTime() === 0) {
+    return true;
+  } else {
+    return false;
+  }
+};exports.dateEqual = dateEqual;
+
+var generateWeekDays = function generateWeekDays(weekStr, days) {
+  var result = [];
+  for (var i = 0; i < days.length; i++) {
+    var dayData = days[i];
+    if (dayData.isToday) {
+      result.push("今");
+    } else {
+      result.push(weekStr[dayData.weekDay - 1]);
+    }
+  }
+  return result;
+};exports.generateWeekDays = generateWeekDays;
+
+var gegerateDates = function gegerateDates() {var date = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : new Date();var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'week';
+  var result = [];
+  if (judgeType(date) === 'Date') {
+    // 年，月，日
+    var y = date.getFullYear();
+    var m = date.getMonth();
+    var d = date.getDate();
+    var days = new Date(y, m + 1, 0).getDate();
+    // 获取日期是星期几
+    var weekIndex = date.getDay() === 0 ? 7 : date.getDay();
+    if (type === 'month') {
+      var dobj = new Date(y, m, 1);
+      weekIndex = dobj.getDay() === 0 ? 7 : dobj.getDay();
+    }
+    if (type === 'week') {
+      // for(let i = weekIndex - 1; i >0; i--) {
+      // 	const dtemp = new Date(y,m,d);
+      // 	dtemp.setDate(dtemp.getDate() - i);
+      // 	result.push({
+      // 		time: dtemp,
+      // 		show: true,
+      // 		fullDate: formatDate(dtemp, 'yyyy-MM-dd'),
+      // 		isToday: equalDate(new Date(), dtemp)
+      // 	})
+      // }
+      for (var i = 0; i < 7; i++) {
+        var dtemp = new Date(y, m, d);
+        dtemp.setDate(dtemp.getDate() + i);
+        var weekDay = dtemp.getDay() === 0 ? 7 : dtemp.getDay();
+        result.push({
+          time: dtemp,
+          show: true,
+          fullDate: formatDate(dtemp, 'yyyy-MM-dd'),
+          isToday: equalDate(new Date(), dtemp),
+          weekDay: weekDay });
+
+      }
+    } else if (type === 'month') {
+      // 上个月
+      for (var _i = weekIndex - 1; _i > 0; _i--) {
+        var _dtemp = new Date(y, m, 1);
+        _dtemp.setDate(_dtemp.getDate() - _i);
+        result.push({
+          time: _dtemp,
+          show: false,
+          fullDate: formatDate(_dtemp, 'yyyy-MM-dd'),
+          isToday: equalDate(new Date(), _dtemp) });
+
+      }
+      // 这个月的日期
+      for (var _i2 = 0; _i2 < days; _i2++) {
+        var _dtemp2 = new Date(y, m, 1);
+        _dtemp2.setDate(_dtemp2.getDate() + _i2);
+        result.push({
+          time: _dtemp2,
+          show: true,
+          fullDate: formatDate(_dtemp2, 'yyyy-MM-dd'),
+          isToday: equalDate(new Date(), _dtemp2) });
+
+      }
+      var len = 42 - result.length;
+      // 下个月的日期
+      for (var _i3 = 1; _i3 <= len; _i3++) {
+        var _dtemp3 = new Date(y, m + 1, 0);
+        _dtemp3.setDate(_dtemp3.getDate() + _i3);
+        result.push({
+          time: _dtemp3,
+          show: false,
+          fullDate: formatDate(_dtemp3, 'yyyy-MM-dd'),
+          isToday: equalDate(new Date(), _dtemp3) });
+
+      }
+    }
+  }
+  return result;
+};exports.gegerateDates = gegerateDates;
+
+/***/ }),
+
 /***/ 9:
 /*!**************************************************************************************!*\
   !*** ./node_modules/@dcloudio/vue-cli-plugin-uni/packages/vuex3/dist/vuex.common.js ***!
@@ -12114,162 +12270,6 @@ var index_cjs = {
 module.exports = index_cjs;
 
 /* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(/*! ./../../../../../webpack/buildin/global.js */ 2)))
-
-/***/ }),
-
-/***/ 96:
-/*!*************************************************************************************************************!*\
-  !*** C:/Users/Girl Boooom/Documents/HBuilderProjects/MoyuHuashui/components/week-calendar/generateDates.js ***!
-  \*************************************************************************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });exports.gegerateDates = exports.generateWeekDays = exports.dateEqual = exports.equalDate = exports.judgeType = exports.formatDate = void 0; /*
-                                                                                                                                                                                                                       *此函数的作用是根据传入的一个日期，返回这一周的日期或者这一个月的日期，
-                                                                                                                                                                                                                       * 如果是月的话注意还包含上个月和下个月的日期，月的话总共数据有 6 * 7 = 42个
-                                                                                                                                                                                                                       *
-                                                                                                                                                                                                                       */
-/* 
-                                                                                                                                                                                                                          * 时间格式化函数
-                                                                                                                                                                                                                          * 重要提示，微信小程序new Date('2020-04-16')在ios中无法获取时间对象
-                                                                                                                                                                                                                          * 解决方式: 建议将时间都格式化成'2020/04/16 00:00:00'的格式
-                                                                                                                                                                                                                          * 函数示例: formatDate(new Date(), 'YYYY/MM/dd hh:mm:ss')
-                                                                                                                                                                                                                          */
-var formatDate = function formatDate(date, fmt) {
-  if (/(y+)/.test(fmt)) {
-    fmt = fmt.replace(RegExp.$1, (date.getFullYear() + '').substr(4 - RegExp.$1.length));
-  }
-  var o = {
-    'M+': date.getMonth() + 1,
-    'd+': date.getDate(),
-    'h+': date.getHours(),
-    'm+': date.getMinutes(),
-    's+': date.getSeconds() };
-
-  for (var k in o) {
-    if (new RegExp("(".concat(k, ")")).test(fmt)) {
-      var str = o[k] + '';
-      fmt = fmt.replace(RegExp.$1, RegExp.$1.length === 1 ? str : padLeftZero(str));
-    }
-  }
-  return fmt;
-};exports.formatDate = formatDate;
-var padLeftZero = function padLeftZero(str) {
-  return ('00' + str).substr(str.length);
-};
-var judgeType = function judgeType(s) {
-  // 函数返回数据的具体类型
-  return Object.prototype.toString.call(s).slice(8, -1);
-};exports.judgeType = judgeType;
-var equalDate = function equalDate(d1, d2) {
-  var result = false;
-  if (d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate()) {
-    result = true;
-  }
-  return result;
-};
-/* 比较时间,时间格式为2020-04-04
-   */exports.equalDate = equalDate;
-var dateEqual = function dateEqual(before, after) {
-  before = new Date(before.replace('-', '/').replace('-', '/'));
-  after = new Date(after.replace('-', '/').replace('-', '/'));
-  if (before.getTime() - after.getTime() === 0) {
-    return true;
-  } else {
-    return false;
-  }
-};exports.dateEqual = dateEqual;
-
-var generateWeekDays = function generateWeekDays(weekStr, days) {
-  var result = [];
-  for (var i = 0; i < days.length; i++) {
-    var dayData = days[i];
-    if (dayData.isToday) {
-      result.push("今");
-    } else {
-      result.push(weekStr[dayData.weekDay - 1]);
-    }
-  }
-  return result;
-};exports.generateWeekDays = generateWeekDays;
-
-var gegerateDates = function gegerateDates() {var date = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : new Date();var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'week';
-  var result = [];
-  if (judgeType(date) === 'Date') {
-    // 年，月，日
-    var y = date.getFullYear();
-    var m = date.getMonth();
-    var d = date.getDate();
-    var days = new Date(y, m + 1, 0).getDate();
-    // 获取日期是星期几
-    var weekIndex = date.getDay() === 0 ? 7 : date.getDay();
-    if (type === 'month') {
-      var dobj = new Date(y, m, 1);
-      weekIndex = dobj.getDay() === 0 ? 7 : dobj.getDay();
-    }
-    if (type === 'week') {
-      // for(let i = weekIndex - 1; i >0; i--) {
-      // 	const dtemp = new Date(y,m,d);
-      // 	dtemp.setDate(dtemp.getDate() - i);
-      // 	result.push({
-      // 		time: dtemp,
-      // 		show: true,
-      // 		fullDate: formatDate(dtemp, 'yyyy-MM-dd'),
-      // 		isToday: equalDate(new Date(), dtemp)
-      // 	})
-      // }
-      for (var i = 0; i < 7; i++) {
-        var dtemp = new Date(y, m, d);
-        dtemp.setDate(dtemp.getDate() + i);
-        var weekDay = dtemp.getDay() === 0 ? 7 : dtemp.getDay();
-        result.push({
-          time: dtemp,
-          show: true,
-          fullDate: formatDate(dtemp, 'yyyy-MM-dd'),
-          isToday: equalDate(new Date(), dtemp),
-          weekDay: weekDay });
-
-      }
-    } else if (type === 'month') {
-      // 上个月
-      for (var _i = weekIndex - 1; _i > 0; _i--) {
-        var _dtemp = new Date(y, m, 1);
-        _dtemp.setDate(_dtemp.getDate() - _i);
-        result.push({
-          time: _dtemp,
-          show: false,
-          fullDate: formatDate(_dtemp, 'yyyy-MM-dd'),
-          isToday: equalDate(new Date(), _dtemp) });
-
-      }
-      // 这个月的日期
-      for (var _i2 = 0; _i2 < days; _i2++) {
-        var _dtemp2 = new Date(y, m, 1);
-        _dtemp2.setDate(_dtemp2.getDate() + _i2);
-        result.push({
-          time: _dtemp2,
-          show: true,
-          fullDate: formatDate(_dtemp2, 'yyyy-MM-dd'),
-          isToday: equalDate(new Date(), _dtemp2) });
-
-      }
-      var len = 42 - result.length;
-      // 下个月的日期
-      for (var _i3 = 1; _i3 <= len; _i3++) {
-        var _dtemp3 = new Date(y, m + 1, 0);
-        _dtemp3.setDate(_dtemp3.getDate() + _i3);
-        result.push({
-          time: _dtemp3,
-          show: false,
-          fullDate: formatDate(_dtemp3, 'yyyy-MM-dd'),
-          isToday: equalDate(new Date(), _dtemp3) });
-
-      }
-    }
-  }
-  return result;
-};exports.gegerateDates = gegerateDates;
 
 /***/ })
 
