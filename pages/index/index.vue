@@ -26,14 +26,10 @@
 				class="loaded" 
 				mode="aspectFill"
 			></image>
+			<text class="note">1. 本店禁止从事黄赌毒行为。\n2. WIFI账号：HUAWEI-C01 密码：Aa111222\n3. 本店只收取房间大厅场地费用。游戏开机、选游、租借漫画小说、桌游、观看电影等都再不收取额外费用。\n4. 本店可提供包场服务，如有需要请电话联系。\n5. 因防疫需要到店请出示健康码。\n6. 本店会不断更新游戏、漫画、小说、桌游、电影等。</text>
 			<image
-				src="/static/contact.jpg" 
-				class="loaded" 
-				mode="aspectFill"
-			></image>
-			<image
-				src="/static/head2.jpg" 
-				class="loaded" 
+				src="/static/tail.jpg" 
+				class="tail" 
 				mode="aspectFill"
 			></image>
 		</view>
@@ -219,9 +215,26 @@
 		}
 	}
 	
-	.loaded {
-		height: 500upx;
+	.image-wrapper{
 		width: 100%;
+		height: 100%;
+		
+		.note {
+			font-size: 30upx;
+			color: #000;
+		}
+		
+		.loaded {
+			height: 500upx;
+			width: 100%;
+		}
+		
+		.tail {
+			height: 1000upx;
+			width: 100%;
+		}
+		
 	}
+	
 
 </style>
