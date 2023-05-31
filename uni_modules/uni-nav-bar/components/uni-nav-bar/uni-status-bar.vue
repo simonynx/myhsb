@@ -9,16 +9,13 @@
 		name: 'UniStatusBar',
 		data() {
 			return {
-				statusBarHeight: 20
+				statusBarHeight: uni.getSystemInfoSync().statusBarHeight + 'px'
 			}
-		},
-		mounted() {
-			this.statusBarHeight = uni.getSystemInfoSync().statusBarHeight + 'px'
 		}
 	}
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss" >
 	.uni-status-bar {
 		// width: 750rpx;
 		height: 20px;

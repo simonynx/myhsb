@@ -1,3 +1,32 @@
+## 1.3.11（2023-03-29）
+- 修复 自定义状态栏高度闪动BUG
+## 1.3.10（2023-03-29）
+- 修复 暗黑模式下边线颜色错误的bug
+## 1.3.9（2022-10-13）
+- 修复 条件编译错误的bug
+## 1.3.8（2022-10-12）
+- 修复 nvue 环境 fixed 为 true 的情况下，无法置顶的 bug
+## 1.3.7（2022-08-11）
+- 修复 nvue 环境下 fixed 为 true 的情况下，无法置顶的 bug
+## 1.3.6（2022-06-30）
+- 修复 组件示例中插槽用法无法显示内容的bug
+## 1.3.5（2022-05-24）
+- 新增 stat 属性 ，可开启统计title 上报 ，仅使用了title 属性且项目开启了uni统计生效
+## 1.3.4（2022-01-24）
+- 更新 组件示例
+## 1.3.3（2022-01-24）
+- 新增 left-width/right-width属性 ，可修改左右两侧的宽度
+## 1.3.2（2022-01-18）
+- 修复 在vue下，标题不垂直居中的bug
+## 1.3.1（2022-01-18）
+- 修复 height 属性类型错误
+## 1.3.0（2022-01-18）
+- 新增 height 属性,可修改组件高度
+- 新增 dark 属性可可开启暗黑模式
+- 优化 标题字数过多显示省略号
+- 优化 插槽，插入内容可完全覆盖
+## 1.2.1（2022-01-10）
+- 修复 color 属性不生效的bug
 ## 1.2.0（2021-11-19）
 - 优化 组件UI，并提供设计资源，详见:[https://uniapp.dcloud.io/component/uniui/resource](https://uniapp.dcloud.io/component/uniui/resource)
 - 文档迁移，详见:[https://uniapp.dcloud.io/component/uniui/uni-nav-bar](https://uniapp.dcloud.io/component/uniui/uni-nav-bar)

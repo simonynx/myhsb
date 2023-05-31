@@ -1,25 +1,29 @@
 <template>
   <view class="uni-data-pickerview">
-    <scroll-view class="selected-area" scroll-x="true" scroll-y="false" :show-scrollbar="false">
+    <scroll-view v-if="!isCloudDataList" class="selected-area" scroll-x="true">
       <view class="selected-list">
-	    <template v-for="(item,index) in selected">
-			<view class="selected-item" :class="{'selected-item-active':index==selectedIndex}"
-				:key="index" v-if="item.text" @click="handleSelect(index)">
-				<text class="">{{item.text}}</text>
-			</view>
-	    </template>
+          <view 
+            class="selected-item"
+            v-for="(item,index) in selected"
+            :key="index"
+            :class="{
+              'selected-item-active':index == selectedIndex
+            }"
+            @click="handleSelect(index)"
+          >
+            <text>{{item.text || ''}}</text>
+          </view>
       </view>
     </scroll-view>
     <view class="tab-c">
-		<template v-for="(child, i) in dataList">
-			<scroll-view class="list"  :key="i" v-if="i==selectedIndex" :scroll-y="true">
-			  <view class="item" :class="{'is-disabled': !!item.disable}" v-for="(item, j) in child" :key="j" @click="handleNodeClick(item, i, j)">
-			    <text class="item-text">{{item.text}}</text>
-			    <view class="check" v-if="selected.length > i && item.value == selected[i].value"></view>
-			  </view>
-			</scroll-view>
-		</template>
-      
+      <scroll-view class="list" :scroll-y="true">
+        <view class="item" :class="{'is-disabled': !!item.disable}" v-for="(item, j) in dataList[selectedIndex]" :key="j"
+          @click="handleNodeClick(item, selectedIndex, j)">
+          <text class="item-text">{{item[map.text]}}</text>
+          <view class="check" v-if="selected.length > selectedIndex && item[map.value] == selected[selectedIndex].value"></view>
+        </view>
+      </scroll-view>
+
       <view class="loading-cover" v-if="loading">
         <uni-load-more class="load-more" :contentText="loadMore" status="loading"></uni-load-more>
       </view>
@@ -50,60 +54,56 @@
    */
   export default {
     name: 'UniDataPickerView',
-	emits:['nodeclick','change','datachange','update:modelValue'],
+    emits: ['nodeclick', 'change', 'datachange', 'update:modelValue'],
     mixins: [dataPicker],
     props: {
       managedMode: {
         type: Boolean,
         default: false
+      },
+      ellipsis: {
+        type: Boolean,
+        default: true
       }
-    },
-    data() {
-      return {}
     },
     created() {
-      if (this.managedMode) {
-        return
+      if (!this.managedMode) {
+        this.$nextTick(() => {
+          this.loadData();
+        })
       }
-
-      this.$nextTick(() => {
-        this.load()
-      })
     },
     methods: {
       onPropsChange() {
-        this._treeData = []
-        this.selectedIndex = 0
-        this.load()
-      },
-      load() {
-        if (this.isLocaldata) {
-          this.loadData()
-        } else if (this.dataValue.length) {
-          this.getTreePath((res) => {
-            this.loadData()
-          })
-        }
+        this._treeData = [];
+        this.selectedIndex = 0;
+        this.$nextTick(() => {
+          this.loadData();
+        })
       },
       handleSelect(index) {
-        this.selectedIndex = index
+        this.selectedIndex = index;
       },
       handleNodeClick(item, i, j) {
         if (item.disable) {
-          return
+          return;
         }
 
-        const node = this.dataList[i][j]
-        const {
-          value,
-          text
-        } = node
+        const node = this.dataList[i][j];
+        const text = node[this.map.text];
+        const value = node[this.map.value];
 
         if (i < this.selected.length - 1) {
           this.selected.splice(i, this.selected.length - i)
-          this.selected.push(node)
+          this.selected.push({
+            text,
+            value
+          })
         } else if (i === this.selected.length - 1) {
-          this.selected[i] = node
+          this.selected.splice(i, 1, {
+            text,
+            value
+          })
         }
 
         if (node.isleaf) {
@@ -116,30 +116,26 @@
           hasNodes
         } = this._updateBindData()
 
-        if (!this._isTreeView() && !hasNodes) {
+        // 本地数据
+        if (this.isLocalData) {
+          this.onSelectedChange(node, (!hasNodes || isleaf))
+        } else if (this.isCloudDataList) { // Cloud 数据 (单列)
           this.onSelectedChange(node, true)
-          return
-        }
-
-        if (this.isLocaldata && (!hasNodes || isleaf)) {
-          this.onSelectedChange(node, true)
-          return
-        }
-
-        if (!isleaf && !hasNodes) {
-          this._loadNodeData((data) => {
-            if (!data.length) {
-              node.isleaf = true
-            } else {
-              this._treeData.push(...data)
-              this._updateBindData(node)
-            }
+        } else if (this.isCloudDataTree) { // Cloud 数据 (树形)
+          if (isleaf) {
             this.onSelectedChange(node, node.isleaf)
-          }, this._nodeWhere())
-          return
+          } else if (!hasNodes) { // 请求一次服务器以确定是否为叶子节点
+            this.loadCloudDataNode((data) => {
+              if (!data.length) {
+                node.isleaf = true
+              } else {
+                this._treeData.push(...data)
+                this._updateBindData(node)
+              }
+              this.onSelectedChange(node, node.isleaf)
+            })
+          }
         }
-
-        this.onSelectedChange(node, false)
       },
       updateData(data) {
         this._treeData = data.treeData
@@ -152,16 +148,16 @@
         }
       },
       onDataChange() {
-        this.$emit('datachange')
+        this.$emit('datachange');
       },
       onSelectedChange(node, isleaf) {
         if (isleaf) {
           this._dispatchEvent()
         }
 
-		if (node) {
-			this.$emit('nodeclick', node)
-		}
+        if (node) {
+          this.$emit('nodeclick', node)
+        }
       },
       _dispatchEvent() {
         this.$emit('change', this.selected.slice(0))
@@ -170,16 +166,18 @@
   }
 </script>
 
-<style scoped>
-  .uni-data-pickerview {
-    flex: 1;
-    /* #ifndef APP-NVUE */
-    display: flex;
-    /* #endif */
-    flex-direction: column;
-    overflow: hidden;
-    height: 100%;
-  }
+<style lang="scss">
+	$uni-primary: #007aff !default;
+
+	.uni-data-pickerview {
+		flex: 1;
+		/* #ifndef APP-NVUE */
+		display: flex;
+		/* #endif */
+		flex-direction: column;
+		overflow: hidden;
+		height: 100%;
+	}
 
   .error-text {
     color: #DD524D;
@@ -201,9 +199,9 @@
   }
 
   .load-more {
-		/* #ifndef APP-NVUE */
+    /* #ifndef APP-NVUE */
     margin: auto;
-		/* #endif */
+    /* #endif */
   }
 
   .error-message {
@@ -222,15 +220,14 @@
   .selected-area {
     width: 750rpx;
   }
-
   /* #endif */
 
   .selected-list {
     /* #ifndef APP-NVUE */
     display: flex;
+    flex-wrap: nowrap;
     /* #endif */
     flex-direction: row;
-    flex-wrap: nowrap;
     padding: 0 5px;
     border-bottom: 1px solid #f8f8f8;
   }
@@ -239,18 +236,31 @@
     margin-left: 10px;
     margin-right: 10px;
     padding: 12px 0;
-		/* #ifndef APP-NVUE */
-		white-space: nowrap;
-		/* #endif */
+    text-align: center;
+    /* #ifndef APP-NVUE */
+    white-space: nowrap;
+    /* #endif */
   }
 
-  .selected-item-active {
-    border-bottom: 2px solid #007aff;
+  .selected-item-text-overflow {
+    width: 168px;
+    /* fix nvue */
+    overflow: hidden;
+    /* #ifndef APP-NVUE */
+    width: 6em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -o-text-overflow: ellipsis;
+    /* #endif */
   }
 
-  .selected-item-text {
-    color: #007aff;
-  }
+	.selected-item-active {
+		border-bottom: 2px solid $uni-primary;
+	}
+
+	.selected-item-text {
+		color: $uni-primary;
+	}
 
   .tab-c {
     position: relative;
@@ -273,6 +283,7 @@
     display: flex;
     /* #endif */
     flex-direction: row;
+    justify-content: space-between;
   }
 
   .is-disabled {
@@ -280,21 +291,33 @@
   }
 
   .item-text {
-    flex: 1;
+    /* flex: 1; */
     color: #333333;
   }
 
-  .check {
-    margin-right: 5px;
-    border: 2px solid #007aff;
-    border-left: 0;
-    border-top: 0;
-    height: 12px;
-    width: 6px;
-    transform-origin: center;
+  .item-text-overflow {
+    width: 280px;
+    /* fix nvue */
+    overflow: hidden;
     /* #ifndef APP-NVUE */
-    transition: all 0.3s;
+    width: 20em;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -o-text-overflow: ellipsis;
     /* #endif */
-    transform: rotate(45deg);
   }
+
+	.check {
+		margin-right: 5px;
+		border: 2px solid $uni-primary;
+		border-left: 0;
+		border-top: 0;
+		height: 12px;
+		width: 6px;
+		transform-origin: center;
+		/* #ifndef APP-NVUE */
+		transition: all 0.3s;
+		/* #endif */
+		transform: rotate(45deg);
+	}
 </style>

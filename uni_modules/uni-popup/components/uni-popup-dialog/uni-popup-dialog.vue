@@ -10,12 +10,12 @@
 		</view>
 		<view v-else class="uni-dialog-content">
 			<slot>
-				<input class="uni-dialog-input" v-model="val" type="text" :placeholder="placeholderText" :focus="focus" >
+				<input class="uni-dialog-input" v-model="val" :type="inputType" :placeholder="placeholderText" :focus="focus" >
 			</slot>
 		</view>
 		<view class="uni-dialog-button-group">
 			<view class="uni-dialog-button" @click="closeDialog">
-				<text class="uni-dialog-button-text">{{cancelText}}</text>
+				<text class="uni-dialog-button-text">{{closeText}}</text>
 			</view>
 			<view class="uni-dialog-button uni-border-left" @click="onOk">
 				<text class="uni-dialog-button-text uni-button-color">{{okText}}</text>
@@ -31,7 +31,7 @@
 	initVueI18n
 	} from '@dcloudio/uni-i18n'
 	import messages from '../uni-popup/i18n/index.js'
-	const {	t	} = initVueI18n(messages)
+	const {	t } = initVueI18n(messages)
 	/**
 	 * PopUp 弹出层-对话框样式
 	 * @description 弹出层-对话框样式
@@ -57,6 +57,10 @@
 		mixins: [popup],
 		emits:['confirm','close'],
 		props: {
+			inputType:{
+				type: String,
+				default: 'text'
+			},
 			value: {
 				type: [String, Number],
 				default: ''
@@ -84,6 +88,14 @@
 			beforeClose: {
 				type: Boolean,
 				default: false
+			},
+			cancelText:{
+				type: String,
+				default: ''
+			},
+			confirmText:{
+				type: String,
+				default: ''
 			}
 		},
 		data() {
@@ -95,10 +107,10 @@
 		},
 		computed: {
 			okText() {
-				return t("uni-popup.ok")
+				return this.confirmText || t("uni-popup.ok")
 			},
-			cancelText() {
-				return t("uni-popup.cancel")
+			closeText() {
+				return this.cancelText || t("uni-popup.cancel")
 			},
 			placeholderText() {
 				return this.placeholder || t("uni-popup.placeholder")
@@ -162,7 +174,7 @@
 	}
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss" >
 	.uni-popup-dialog {
 		width: 300px;
 		border-radius: 11px;

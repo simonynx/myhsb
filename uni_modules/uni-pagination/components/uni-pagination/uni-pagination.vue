@@ -1,5 +1,15 @@
 <template>
 	<view class="uni-pagination">
+		<!-- #ifndef MP -->
+		<picker v-if="showPageSize === true || showPageSize === 'true'" class="select-picker" mode="selector"
+			:value="pageSizeIndex" :range="pageSizeRange" @change="pickerChange" @cancel="pickerClick"
+			@click.native="pickerClick">
+			<button type="default" size="mini" :plain="true">
+				<text>{{pageSizeRange[pageSizeIndex]}} {{piecePerPage}}</text>
+				<uni-icons class="select-picker-icon" type="arrowdown" size="12" color="#999"></uni-icons>
+			</button>
+		</picker>
+		<!-- #endif -->
 		<!-- #ifndef APP-NVUE -->
 		<view class="uni-pagination__total is-phone-hide">共 {{ total }} 条</view>
 		<!-- #endif -->
@@ -16,8 +26,7 @@
 		</view>
 		<view class="uni-pagination__num uni-pagination__num-flex-none">
 			<view class="uni-pagination__num-current">
-				<text class="uni-pagination__num-current-text is-pc-hide"
-					style="color:#409EFF">{{ currentIndex }}</text>
+				<text class="uni-pagination__num-current-text is-pc-hide current-index-text">{{ currentIndex }}</text>
 				<text class="uni-pagination__num-current-text is-pc-hide">/{{ maxPage || 0 }}</text>
 				<!-- #ifndef APP-NVUE -->
 				<view v-for="(item, index) in paper" :key="index" :class="{ 'page--active': item === currentIndex }"
@@ -49,11 +58,15 @@
 	 * @tutorial https://ext.dcloud.net.cn/plugin?id=32
 	 * @property {String} prevText 左侧按钮文字
 	 * @property {String} nextText 右侧按钮文字
+	 * @property {String} piecePerPageText 条/页文字
 	 * @property {Number} current 当前页
 	 * @property {Number} total 数据总量
 	 * @property {Number} pageSize 每页数据量
-	 * @property {Number} showIcon = [true|false] 是否以 icon 形式展示按钮
+	 * @property {Boolean} showIcon = [true|false] 是否以 icon 形式展示按钮
+	 * @property {Boolean} showPageSize = [true|false] 是否展示每页条数
+	 * @property {Array} pageSizeRange = [20, 50, 100, 500] 每页条数选框
 	 * @event {Function} change 点击页码按钮时触发 ,e={type,current} current为当前页，type值为：next/prev，表示点击的是上一页还是下一个
+	 * * @event {Function} pageSizeChange 当前每页条数改变时触发 ,e={pageSize} pageSize 为当前所选的每页条数
 	 */
 
 	import {
@@ -65,7 +78,7 @@
 	} = initVueI18n(messages)
 	export default {
 		name: 'UniPagination',
-		emits: ['update:modelValue', 'input', 'change'],
+		emits: ['update:modelValue', 'input', 'change', 'pageSizeChange'],
 		props: {
 			value: {
 				type: [Number, String],
@@ -80,6 +93,9 @@
 			},
 			nextText: {
 				type: String,
+			},
+			piecePerPageText: {
+				type: String
 			},
 			current: {
 				type: [Number, String],
@@ -100,18 +116,32 @@
 				type: [Boolean, String],
 				default: false
 			},
+			showPageSize: {
+				// 是否以 icon 形式展示按钮
+				type: [Boolean, String],
+				default: false
+			},
 			pagerCount: {
 				type: Number,
 				default: 7
+			},
+			pageSizeRange: {
+				type: Array,
+				default: () => [20, 50, 100, 500]
 			}
 		},
 		data() {
 			return {
+				pageSizeIndex: 0,
 				currentIndex: 1,
-				paperData: []
+				paperData: [],
+				pickerShow: false
 			}
 		},
 		computed: {
+			piecePerPage() {
+				return this.piecePerPageText || t('uni-pagination.piecePerPage')
+			},
 			prevPageText() {
 				return this.prevText || t('uni-pagination.prevText')
 			},
@@ -199,9 +229,31 @@
 						this.currentIndex = val
 					}
 				}
+			},
+			pageSizeIndex(val) {
+				this.$emit('pageSizeChange', this.pageSizeRange[val])
 			}
 		},
 		methods: {
+			pickerChange(e) {
+				this.pageSizeIndex = e.detail.value
+				this.pickerClick()
+			},
+			pickerClick() {
+				// #ifdef H5
+				const body = document.querySelector('body')
+				if (!body) return
+
+				const className = 'uni-pagination-picker-show'
+				this.pickerShow = !this.pickerShow
+
+				if (this.pickerShow) {
+					body.classList.add(className)
+				} else {
+					setTimeout(() => body.classList.remove(className), 300)
+				}
+				// #endif
+			},
 			// 选择标签
 			selectPage(e, index) {
 				if (parseInt(e)) {
@@ -257,6 +309,7 @@
 </script>
 
 <style lang="scss" scoped>
+	$uni-primary: #2979ff !default;
 	.uni-pagination {
 		/* #ifndef APP-NVUE */
 		display: flex;
@@ -281,7 +334,7 @@
 		/* #endif */
 		padding: 0 8px;
 		line-height: 30px;
-		font-size: $uni-font-size-base;
+		font-size: 12px;
 		position: relative;
 		background-color: #F0F0F0;
 		flex-direction: row;
@@ -298,13 +351,13 @@
 		/* #ifndef APP-NVUE */
 		display: flex;
 		/* #endif */
-		font-size: $uni-font-size-base;
+		font-size: 12px;
 		position: relative;
 		flex-direction: row;
 		justify-content: center;
 		align-items: center;
 		text-align: center;
-		color: #0F1214;
+		color: #666;
 		font-size: 12px;
 	}
 
@@ -318,8 +371,8 @@
 		align-items: center;
 		height: 30px;
 		line-height: 30px;
-		font-size: $uni-font-size-base;
-		color: $uni-text-color;
+		font-size: 12px;
+		color: #666;
 		margin: 0 5px;
 	}
 
@@ -333,7 +386,7 @@
 		text-align: center;
 		line-height: 30px;
 		// border: 1px red solid;
-		color: #666;
+		color: #999;
 		border-radius: 4px;
 		// border-width: 1px;
 		// border-style: solid;
@@ -351,6 +404,10 @@
 		font-size: 15px;
 	}
 
+	.current-index-text{
+		color: $uni-primary;
+	}
+
 	.uni-pagination--enabled {
 		color: #333333;
 		opacity: 1;
@@ -365,16 +422,16 @@
 
 	.uni-pagination--hover {
 		color: rgba(0, 0, 0, 0.6);
-		background-color: $uni-bg-color-hover;
+		background-color: #eee;
 	}
 
 	.tag--active:hover {
-		color: $uni-color-primary;
+		color: $uni-primary;
 	}
 
 	.page--active {
 		color: #fff;
-		background-color: $uni-color-primary;
+		background-color: $uni-primary;
 	}
 
 	.page--active:hover {

@@ -1,3 +1,12 @@
+## 1.2.4（2022-09-19）
+- 修复，未对主题色设置默认色，导致未引入 uni-scss 变量文件报错。
+- 修复，未对移动端当前页文字做主题色适配。
+## 1.2.3（2022-09-15）
+- 修复未使用 uni-scss 主题色的 bug。
+## 1.2.2（2022-07-06）
+- 修复 es 语言 i18n 错误
+## 1.2.1（2021-11-22）
+- 修复 vue3中某些scss变量无法找到的问题
 ## 1.2.0（2021-11-19）
 - 优化 组件UI，并提供设计资源，详见:[https://uniapp.dcloud.io/component/uniui/resource](https://uniapp.dcloud.io/component/uniui/resource)
 - 文档迁移，详见:[https://uniapp.dcloud.io/component/uniui/uni-pagination](https://uniapp.dcloud.io/component/uniui/uni-pagination)

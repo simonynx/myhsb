@@ -1,5 +1,10 @@
 <template>
-	<view v-if="isShow" ref="ani" :animation="animationData" :class="customClass" :style="transformStyles" @click="onClick"><slot></slot></view>
+  <!-- #ifndef APP-NVUE -->
+  <view v-show="isShow" ref="ani" :animation="animationData" :class="customClass" :style="transformStyles" @click="onClick"><slot></slot></view>
+  <!-- #endif -->
+  <!-- #ifdef APP-NVUE -->
+  <view v-if="isShow" ref="ani" :animation="animationData" :class="customClass" :style="transformStyles" @click="onClick"><slot></slot></view>
+  <!-- #endif -->
 </template>
 
 <script>
@@ -48,7 +53,11 @@ export default {
 		customClass:{
 			type: String,
 			default: ''
-		}
+		},
+		onceRender:{
+			type:Boolean,
+			default:false
+		},
 	},
 	data() {
 		return {
@@ -112,7 +121,7 @@ export default {
 			if (obj.duration) {
 				this.durationTime = obj.duration
 			}
-			this.animation = createAnimation(Object.assign(this.config, obj))
+			this.animation = createAnimation(Object.assign(this.config, obj),this)
 		},
 		/**
 		 * 点击组件触发回调

@@ -76,10 +76,20 @@ class Calendar {
 				dd.setDate(dd.getDate() + AddDayCount) // 获取AddDayCount天后的日期
 				break
 			case 'month':
-				if (dd.getDate() === 31) {
+				if (dd.getDate() === 31 && AddDayCount>0) {
 					dd.setDate(dd.getDate() + AddDayCount)
 				} else {
-					dd.setMonth(dd.getMonth() + AddDayCount) // 获取AddDayCount天后的日期
+					const preMonth = dd.getMonth()
+					dd.setMonth(preMonth + AddDayCount) // 获取AddDayCount天后的日期
+					const nextMonth = dd.getMonth()
+					// 处理 pre 切换月份目标月份为2月没有当前日(30 31) 切换错误问题
+					if(AddDayCount<0 && preMonth!==0 && nextMonth-preMonth>AddDayCount){
+						dd.setMonth(nextMonth+(nextMonth-preMonth+AddDayCount))
+					}
+					// 处理 next 切换月份目标月份为2月没有当前日(30 31) 切换错误问题
+					if(AddDayCount>0 && nextMonth-preMonth>AddDayCount){
+						dd.setMonth(nextMonth-(nextMonth-preMonth-AddDayCount))
+					}
 				}
 				break
 			case 'year':
@@ -122,7 +132,6 @@ class Calendar {
 		let dateArr = []
 		let fullDate = this.date.fullDate
 		for (let i = 1; i <= dateData; i++) {
-			let isinfo = false
 			let nowDate = full.year + '-' + (full.month < 10 ?
 				full.month : full.month) + '-' + (i < 10 ?
 				'0' + i : i)
@@ -311,11 +320,8 @@ class Calendar {
 	 */
 	_getWeek(dateData) {
 		const {
-			fullDate,
 			year,
-			month,
-			date,
-			day
+			month
 		} = this.getDate(dateData)
 		let firstDay = new Date(year, month - 1, 1).getDay()
 		let currentDay = new Date(year, month, 0).getDate()
