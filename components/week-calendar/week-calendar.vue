@@ -16,7 +16,27 @@
 			   width: '100%',
 			   height: sheight
 		   }" :indicator-dots="false" :autoplay="false" :duration="duration" :current="current" :circular="true">
-				<swiper-item class="calendar-item" v-for="sitem in swiper" :key="sitem">
+				<swiper-item class="calendar-item">
+					<view class="calendar-days">
+					<view class="calendar-day" v-for="(item,index) in days" :key="index"
+					:class="{
+						'day-hidden': !item.show
+					}" @click="clickItem(item)">
+					<view
+						class="date"
+						:class="[
+							item.isToday ? todayClass : '',
+							item.fullDate === selectedDate ? checkedClass : ''
+							]"
+					>
+					{{item.time.getDate()}}
+					</view>
+					<view class="dot-show" v-if="item.info" :style="dotStyle">		
+					</view>
+					</view>
+					</view>
+				</swiper-item>
+<!-- 				<swiper-item class="calendar-item" v-for="sitem in swiper" :key="sitem">
 					<view class="calendar-days">
 						<template v-if="sitem === current">
 							<view class="calendar-day" v-for="(item,index) in days" :key="index"
@@ -70,7 +90,7 @@
 							
 						</template>
 					</view>				
-				</swiper-item>			
+				</swiper-item> -->			
 			</swiper>
 			<view class="mode-change" @click="changeMode" v-if="showChangeMode">
 				<view :class="weekMode ? 'mode-arrow-bottom' : 'mode-arrow-top'">	
@@ -186,7 +206,7 @@
 		data() {
 			return {
 				weeks: ['一', '二', '三', '四', '五', '六', '日'],
-				current: 1,
+				current: 0,
 				currentYear: '',
 				currentMonth: '',
 				currentDate: '',
