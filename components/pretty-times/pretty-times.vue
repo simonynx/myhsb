@@ -46,8 +46,9 @@
 			<view class="show-time" v-if="!isMultiple && !isSection && !isQuantum">
 				预约时间：{{orderDateTime}}
 			</view>
-			<button form-type="submit" type="default" size="mini" class="submit-btn" @click="handleSubmit">
-				确认预约
+			<button form-type="submit" type="default" class="submit-btn" @click="handleSubmit">
+				<span class="icon"></span>
+				<span class="text">确认预约</span>
 			</button>
 
 		</view>
@@ -421,16 +422,79 @@
 		text-align: center;
 	}
 
+	// .submit-btn {
+	// 	width: 25%;
+	// 	height: 40px;
+	// 	color: white;
+	// 	background-color: #CA89FF;
+	// 	font-size: 15px;
+	// 	line-height: 40px;
+	// 	text-align: center;
+	// 	margin: auto;
+	// 	padding: 0;
+	// }
+	
 	.submit-btn {
-		width: 25%;
-		height: 40px;
-		color: white;
-		background-color: #CA89FF;
-		font-size: 15px;
-		line-height: 40px;
-		text-align: center;
-		margin: auto;
-		padding: 0;
+	  position: relative;
+	  display: inline-block;
+	  min-width: 125px;
+	  padding: 15px 40px;
+	  font-size: 20px;
+	  font-weight: 600;
+	  color: #fff;
+	  background-color: #00AEFF;
+	  border-radius: 50px;
+	  border: none;
+	  cursor: pointer;
+	  overflow: hidden;
+      display: flex; 
+	  align-items: center; /* 当子元素的高度不一致时，将它们垂直居中对齐 */
+	  justify-content: center; 
+	  
+	  &:hover {
+	    background-color: #FFCB00;
+	  }
+	
+	  .icon {
+	    display: inline-block;
+	    width: 32px;
+	    height: 32px;
+	    border-radius: 50%;
+	    border: 3px solid #fff;
+	    position: relative;
+	    margin-right: 10px;
+	    vertical-align: middle;
+	  }
+	
+	  .icon:after {
+	    content: "";
+	    display: block;
+	    width: 20px;
+	    height: 10px;
+	    border-bottom: 4px solid #fff;
+	    position: absolute;
+	    bottom: 0px;
+	    left: 50%;
+	    transform: translate(-50%, 0) rotate(-45deg);
+	    transform-origin: 0% 100%;
+	  }
+	
+	  .icon:before {
+	    content: "";
+	    display: block;
+	    width: 15px;
+	    height: 5px;
+	    background-color: #fff;
+	    position: absolute;
+	    top: 50%;
+	    left: 50%;
+	    transform: translate(-50%, -50%);
+	  }
+	
+	  .text {
+	    position: relative;
+	    z-index: 2;
+	  }
 	}
 
 	.fontw {
