@@ -422,28 +422,16 @@
 		text-align: center;
 	}
 
-	// .submit-btn {
-	// 	width: 25%;
-	// 	height: 40px;
-	// 	color: white;
-	// 	background-color: #CA89FF;
-	// 	font-size: 15px;
-	// 	line-height: 40px;
-	// 	text-align: center;
-	// 	margin: auto;
-	// 	padding: 0;
-	// }
-	
 	.submit-btn {
 	  position: relative;
 	  display: inline-block;
-	  min-width: 125px;
+	  min-width: 100px;
 	  padding: 15px 40px;
 	  font-size: 20px;
 	  font-weight: 600;
 	  color: #fff;
 	  background-color: #00AEFF;
-	  border-radius: 50px;
+	  border-radius: 20px;
 	  border: none;
 	  cursor: pointer;
 	  overflow: hidden;
