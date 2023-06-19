@@ -1,9 +1,10 @@
 <template>
 	<view class="container">
 		<!-- 头部轮播 -->
+		<uni-notice-bar show-icon scrollable text="开业大酬宾啦,快点到店来体验!小程序自己写的啊,有问题多多包涵～"/>
 		<view class="carousel-section">
 			<!-- 标题栏和状态栏占位符 -->
-			<view class="titleNview-placing"></view>
+			<!-- <view class="titleNview-placing"></view> -->
 			<!-- 背景色区域 -->
 			<view class="titleNview-background" :style="{backgroundColor:titleNViewBackground}"></view>
 			<swiper class="carousel" circular @change="swiperChange">
@@ -19,50 +20,131 @@
 			</view>
 
 		</view>
-		
-		<view class="image-wrapper">
-			<image
-				src="/static/moyu.png" 
-				class="loaded" 
-				mode="aspectFill"
-			></image>
-			<text class="note">1. 本店禁止从事黄赌毒行为。\n2. WIFI账号：HUAWEI-C01 密码：Aa111222\n3. 本店只收取房间大厅场地费用。游戏开机、选游、租借漫画小说、桌游、观看电影等都再不收取额外费用。\n4. 本店可提供包场服务，如有需要请电话联系。\n5. 因防疫需要到店请出示健康码。\n6. 本店会不断更新游戏、漫画、小说、桌游、电影等。</text>
-			<image
-				src="/static/tail.jpg" 
-				class="tail" 
-				mode="aspectFill"
-			></image>
+		<view>
+					
+			<view class="shop-container">
+			  <view class="shop-info-container" @tap="openLocation">
+			    <view class="shop-info">
+			      <text class="shop-name">摸鱼划水吧</text>
+			      <view class="shop-address">
+			       <uni-icons type='location-filled' color="" size="18" class="address-icon"></uni-icons>
+			        <text class="address-text">{{addressData.address+ addressData.area}}</text>
+			      </view>
+			      <view class="shop-intro">
+			        <text class="intro-text">
+			           欢迎来到摸鱼划水吧，我们是一家ACG文化的综合体验馆，提供主机游戏游玩、漫画小说阅读及咖啡甜品等服务。在这里我们可以一起玩游戏，聊漫画，品味美食，享受属于你自己的空间。什么？你还在996？赶紧快来摸鱼加入我们吧！
+			        </text>
+			      </view>
+			      <view class="shop-service">
+					<view class="show-items">
+						<view class="item" v-for="(item, index) in showItems" :key="index">
+						  <FontAwesomeIcon :type="item.icon" size="60" :color="item.color" />
+						  <text class="label">{{ item.label }}</text>
+						</view>
+					</view>
+			      </view>
+			    </view>
+			  </view>
+			</view>
+			
+			<!-- 这里放置 WiFi 显示区域 -->			
+			 <view class="wifi-info-container">
+			    <view class="wifi-info-box">
+			      <view class="wifi-info-item">
+					<FontAwesomeIcon type="fas fa-wifi" class="wifi-info-icon"/>
+			        <span class="wifi-info-text">摸鱼划水吧</span>
+			      </view>
+			      <view class="wifi-info-item">
+					<FontAwesomeIcon type="fas fa-lock" class="wifi-info-icon"/>
+			        <span class="wifi-info-text">myhsb1688</span>
+			      </view>
+			    </view>
+			    <view class="phone-info-box">
+			      <view class="phone-info-item">
+					<FontAwesomeIcon type="fas fa-phone-alt" class="phone-info-icon"/>
+			        <span class="phone-info-text">83596103</span>
+			      </view>
+			    </view>
+			  </view>
+			</view>
+			
+		<view>
+			<template>
+			  <view class="tips-container">
+			    <view class="tips-title">温馨提示</view>
+			    <view class="tips-box" v-for="(item,index) in tips" wx:key="index">
+			      <view class="tip-text">{{item}}</view>
+			    </view>
+			  </view>
+			</template>
 		</view>
 		
 	</view>
 </template>
 
 <script>
+	import {
+		mapState,
+		mapActions
+	} from 'vuex';
 	import Json from './../../Json'
-	const AUTH = require('../../utils/auth')
+	import FontAwesomeIcon from '@/components/Am-FontAwesome/index.vue'
 	export default {
-
+		components: {
+			FontAwesomeIcon
+		},
+		computed: {
+			...mapState(['hasLogin'])
+		},
 		data() {
 			return {
 				titleNViewBackground: '',
 				swiperCurrent: 0,
 				swiperLength: 0,
 				carouselList: [],
+				addressData: {
+					name: '摸水划水吧',
+					mobile: '83596103',
+					addressName: '上海街道',
+					address: '福建省福州市台江区交通路',
+					area: '6号儒商楼08店面',
+					default: false,
+				},
+				showItems: [
+					{ icon: 'fas fa-gamepad', label: '游戏', color:'#4285F4'},
+					{ icon: 'fas fa-book-open', label: '漫画', color:'#DB4437'},
+					{ icon: 'fas fa-palette', label: '美容', color:'#F4B400'},
+					{ icon: 'fas fa-glass-martini', label: '休闲', color:'#0F9D58'}
+				],
+				tips: [
+					'本店禁止从事黄赌毒行为。',
+					'本店只收取房间大厅场地费用，不再收取额外费用。',
+					'本店可提供包场服务，如还有其它商业合作需要请电话联系。',
+					'本店入内都需要换拖鞋，或者穿戴鞋套。',
+					'本店会不断更新游戏、漫画、小说、桌游、电影等。',
+				  ],
 			};
 		},
 		onShow() {
-			
+			if(!this.hasLogin){
+				this.loginAndRegister();
+			}
 		},
 		onLoad() {
-			let _this = this;
-			AUTH.checkHasLogined().then(isLogined => {
-			  if (!isLogined) {
-				AUTH.login(_this);
-			  }
-			});
 			this.loadData();
 		},
 		methods: {
+			...mapActions(['loginAndRegister']),
+			
+			openLocation(e){
+				uni.openLocation({
+					latitude:26.068525,
+					longitude:119.303882,
+					scale:5,
+					name:this.addressData.name,
+					address:this.addressData.address + this.addressData.area
+				});
+			},
 			/**
 			 * 请求静态数据只是为了代码不那么乱
 			 * 分次请求未作整合
@@ -95,52 +177,7 @@
 </script>
 
 <style lang="scss">
-	/* #ifdef MP */
-	.mp-search-box{
-		position:absolute;
-		left: 0;
-		top: 30upx;
-		z-index: 9999;
-		width: 100%;
-		padding: 0 80upx;
-		.ser-input{
-			flex:1;
-			height: 56upx;
-			line-height: 56upx;
-			text-align: center;
-			font-size: 28upx;
-			color:$font-color-base;
-			border-radius: 20px;
-			background: rgba(255,255,255,.6);
-		}
-	}
-	page{
-		.cate-section{
-			position:relative;
-			z-index:5;
-			border-radius:16upx 16upx 0 0;
-			margin-top:-20upx;
-		}
-		.carousel-section{
-			padding: 0;
-			.titleNview-placing {
-				padding-top: 0;
-				height: 0;
-			}
-			.carousel{
-				.carousel-item{
-					padding: 0;
-				}
-			}
-			.swiper-dots{
-				left:45upx;
-				bottom:40upx;
-			}
-		}
-	}
-	/* #endif */
-	
-	
+
 	page {
 		background: #f5f5f5;
 	}
@@ -218,23 +255,278 @@
 	.image-wrapper{
 		width: 100%;
 		height: 100%;
-		
-		.note {
-			font-size: 30upx;
-			color: #000;
+		padding: 10px;
+	}
+	.f-header{
+		display:flex;
+		align-items:center;
+		height: 140upx;
+		padding: 6upx 30upx 8upx;
+		background: #fff;
+		image{
+			flex-shrink: 0;
+			width: 80upx;
+			height: 80upx;
+			margin-right: 20upx;
 		}
-		
-		.loaded {
-			height: 500upx;
-			width: 100%;
+		.tit-box{
+			flex: 1;
+			display: flex;
+			flex-direction: column;
 		}
-		
-		.tail {
-			height: 1000upx;
-			width: 100%;
+		.tit{
+			font-size: $font-lg +2upx;
+			color: #font-color-dark;
+			line-height: 1.3;
 		}
-		
+		.tit2{
+			font-size: $font-sm;
+			color: $font-color-light;
+		}
+		.icon-you{
+			font-size: $font-lg +2upx;
+			color: $font-color-light;
+		}
+	}
+// 定义主题色
+$primary-color: #8c00ff;
+
+// 定义辅助色
+$secondary-color: #ffd800;
+
+// 定义文本颜色
+$text-color: #333;
+
+// 定义间距
+$gap: 16rpx;
+
+// 定义阴影
+$box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
+
+.shop-container {
+  padding:20rpx;
+  background-color:#f7f7f7;
+
+  .shop-info {
+    background-color: #FFF;
+    border: 2rpx solid $secondary-color;
+    border-radius: 10rpx;
+    box-shadow: $box-shadow;
+    color: $text-color;
+    padding: $gap;
+
+    .shop-name {
+      color: $secondary-color;
+      font-size: 36rpx;
+      font-weight: bold;
+      margin-bottom: $gap;
+      text-align: center;
+    }
+
+    .shop-address {
+      align-items: center;
+      color: $secondary-color;
+      display: flex;
+      font-size: 28rpx;
+      justify-content: center;
+      margin-bottom: $gap;
+      text-align: center;
+
+      .address-icon {
+        margin-right: 10rpx;
+      }
+    }
+
+    .shop-intro {
+      margin-bottom: $gap;
+
+      .intro-text {
+        color: $text-color;
+        font-size: 32rpx;
+        text-align: justify;
+		line-height: 1.6;
+		text-shadow: 2rpx 2rpx rgba(0, 0, 0, 0.1);
+      }
+    }
+
+    .shop-service {
+      margin-bottom: $gap;
+
+      .show-items {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+
+        .item {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          margin-right: 48rpx;
+          margin-bottom: 32rpx;
+		  border-radius: 50%;
+		  box-shadow: 0 3px 3px rgba(189, 189, 189, 0.3);
+		  width: 50px;
+		  height: 50px;
+
+          .label {
+            color: #333;
+            font-size: 26rpx;
+            margin-top: 10rpx;
+            text-align: center;
+          }
+
+          .icon {
+            color: $secondary-color;
+            font-size: 60rpx;
+            margin-bottom: 10px;
+          }
+        }
+      }
+    }
+  }
+}
+	
+	.wifi-info-container {
+	  display: flex;
+	  flex-direction: row;
+	  justify-content: center;
+	  align-items: center;
+	  padding: 20px;
+	  background-color: #f6c400;
+	  border-radius: 6px;
+	  box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.1);
 	}
 	
+	.wifi-info-box {
+	  display: flex;
+	  flex-direction: column;
+	  justify-content: flex-start;
+	  align-items: flex-start;
+	  margin-right: 20px;
+	}
+	
+	.wifi-info-item,
+	.phone-info-item {
+	  display: flex;
+	  flex-direction: row;
+	  justify-content: flex-start;
+	  align-items: center;
+	  margin-bottom: 10px;
+	}
+	
+	.wifi-info-icon,
+	.phone-info-icon {
+	  width: 24px;
+	  height: 24px;
+	  margin-right: 10px;
+	}
+	
+	.wifi-info-text,
+	.phone-info-text {
+	  font-size: 14px;
+	  font-weight: bold;
+	  color: #fff;
+	  text-shadow: 1px 1px rgba(0, 0, 0, 0.2);
+	}
+	
+	.phone-info-item:last-of-type {
+	  margin-bottom: 0;
+	}
+	
+	@media (max-width: 767px) {
+	  .wifi-info-container {
+	    padding: 10px;
+	  }
+	
+	  .wifi-info-box {
+	    margin-right: 10px;
+	  }
+	
+	  .wifi-info-text,
+	  .phone-info-text {
+	    font-size: 12px;
+	  }
+	}
+
+	.tips-container {
+	  display: flex;
+	  flex-direction: column;
+	  justify-content: center;
+	  align-items: center;
+	  padding: 20px;
+	  background-color: #f3f3f3;
+	  border-radius: 6px;
+	  box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.1);
+	}
+	
+	.tips-title {
+	  font-size: 16px;
+	  font-weight: bold;
+	  color: #333;
+	  margin-bottom: 20px;
+	  text-align: center;
+	}
+	
+	.tips-box {
+	  display: flex;
+	  justify-content: flex-start;
+	  align-items: center;
+	  padding: 10px 20px;
+	  border-left: 3px solid #ff9330;
+	  background-color: #fff;
+	  font-size: 14px;
+	  color: #444;
+	  margin-bottom: 15px;
+	  width: 100%;
+	}
+	
+	.tips-box:hover {
+	  color: #ff9330;
+	  border-left-color: #ff9330;
+	}
+	
+	.tips-box:nth-child(2n) {
+	  border-left-color: #2f9fcc;
+	  color: #555;
+	}
+	
+	.tips-box:nth-child(3n) {
+	  border-left-color: #e53935;
+	  color: #555;
+	}
+	
+	.tips-box:nth-child(4n) {
+	  border-left-color: #ad2e24;
+	  color: #fff;
+	  background-color: #ad2e24;
+	}
+	
+	.tips-box:nth-child(5n) {
+	  border-left-color: #ffa500;
+	  color: #fff;
+	  background-color: #ffa500;
+	}
+	
+	.tip-text {
+	  text-align: left;
+	  line-height: 1.5;
+	}
+	
+	@media (max-width: 767px) {
+	  .tips-container {
+	    padding: 10px;
+	  }
+	  .tips-title {
+	    font-size: 14px;
+	    margin-bottom: 15px;
+	  }
+	  .tips-box {
+	    font-size: 12px;
+	    padding: 10px;
+	    margin-bottom: 10px;
+	  }
+	}
 
 </style>

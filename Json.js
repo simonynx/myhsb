@@ -13,6 +13,10 @@ const userInfo = {
 const carouselList = [{
 		src: "/static/head.jpg",
 		background: "rgb(203, 87, 60)",
+	},
+	{
+		src: "/static/moyu.png",
+		background: "rgb(203, 87, 60)",
 	}
 ]
 /* 商品列表 */

@@ -1,18 +1,14 @@
-// #ifndef VUE3
 import Vue from 'vue'
 import Vuex from 'vuex'
+import AUTH from '../utils/auth.js'
 Vue.use(Vuex)
 const store = new Vuex.Store({
-// #endif
-
-// #ifdef VUE3
-import { createStore } from 'vuex'
-const store = createStore({
-// #endif
 	state: {
 		hasLogin: false,
+		userInfo: null,
 		isUniverifyLogin: false,
 		loginProvider: "",
+		token:null,
 		openid: null,
 		testvuex: false,
 		colorIndex: 0,
@@ -33,8 +29,18 @@ const store = createStore({
 			state.hasLogin = false
 			state.openid = null
 		},
+		setUserInfo(state, payload){
+			state.userInfo = payload;
+		},
+		updateUserInfo(state, userInfo){
+			state.userInfo.avatar = userInfo.avatar;
+			state.userInfo.nickname = userInfo.nickname;
+		},
 		setOpenid(state, openid) {
 			state.openid = openid
+		},
+		setToken(state, token) {
+			state.token = token
 		},
 		setTestTrue(state) {
 			state.testvuex = true
@@ -75,7 +81,7 @@ const store = createStore({
 	},
 	actions: {
 		// lazy loading openid
-		getUserOpenId: async function({
+		loginAndRegister: async function({
 			commit,
 			state
 		}) {
@@ -84,46 +90,83 @@ const store = createStore({
 					resolve(state.openid)
 				} else {
 					uni.login({
-						success: (data) => {
-							commit('login')
-							setTimeout(function() { //模拟异步请求服务器获取 openid
-								const openid = '123456789'
-								console.log('uni.request mock openid[' + openid + ']');
-								commit('setOpenid', openid)
-								resolve(openid)
-							}, 1000)
-						},
-						fail: (err) => {
-							console.log('uni.login 接口调用失败，将无法正常使用开放接口等服务', err)
+						provider: 'weixin',
+					}).then(resArray=>{
+						  var [err, loginRes] = resArray;
+						  if(err){
+							uni.showModal({
+								title: '无法登录',
+								content: err,
+								showCancel: false
+							});
 							reject(err)
+							return;
+						  }
+						  commit("login", 'weixin');
+						return AUTH.univerifyLogin(loginRes.code);
+					}).then(res=>{
+						if (res._status == 10000) {
+							// 去注册
+							reject(res._reason)
+							return;
 						}
-					})
+						if (res._status != 0) {
+							// 登录错误
+							uni.showModal({
+							  title: '无法登录',
+							  content: res._reason,
+							  showCancel: false
+							});
+							reject(res._reason)
+							return;
+						}
+						commit("setUniverifyLogin", true);
+						commit("setToken", res.data.token);
+						commit("setOpenid", res.data.user.weixin_openid);
+						resolve(state.openid)
+					}).catch((error)=>{
+						// 登录错误
+						uni.showModal({
+						  title: '无法登录',
+						  content: error,
+						  showCancel: false
+						});
+					});
 				}
 			})
 		},
-		getPhoneNumber: function({
-			commit
-		}, univerifyInfo) {
-			return new Promise((resolve, reject) => {
-				uni.request({
-					url: 'https://97fca9f2-41f6-449f-a35e-3f135d4c3875.bspapp.com/http/univerify-login',
-					method: 'POST',
-					data: univerifyInfo,
-					success: (res) => {
-						const data = res.data
-						if (data.success) {
-							resolve(data.phoneNumber)
-						} else {
-							reject(res)
-						}
-
-					},
-					fail: (err) => {
-						reject(res)
-					}
-				})
+		getUserInfo: function({
+			commit,
+			state,
+		}) {
+			return AUTH.getUserProfile(state.token).then((res)=>{
+				if(!res) return;
+				commit('setUserInfo', res.data);
 			})
-		}
+		},
+		requestUpdateUserInfo:function({
+			state,
+			commit,
+		}){
+			return AUTH.setUserProflie(state.token, state.userInfo.phone, state.userInfo.nickname, state.userInfo.avatar, state.userInfo.gender).then((res)=>{
+				if (res._status != 0) {
+					uni.showModal({
+					  title: '更新远程用户信息失败',
+					  content: res._reason,
+					  showCancel: false
+					});
+					return;
+				}
+				commit('setUserInfo', res.data);
+				return res;
+			}).catch((err)=>{
+				uni.showModal({
+				  title: '更新远程用户信息失败',
+				  content: err,
+				  showCancel: false
+				});
+			});
+		},
 	}
 })
 

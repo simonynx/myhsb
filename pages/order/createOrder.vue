@@ -30,24 +30,37 @@
 					<!-- <text class="spec">（4-5人）</text> -->
 					<view class="price-box">
 						<text class="price">￥{{currentProduct.price_per_hour / 100}}</text>
-						<text class="number">x {{currentProduct.selects.length}}</text>
+						<text class="number">x {{selectTimes.length}}</text>
 					</view>
 					<text>选择时段: {{selectDate}}</text>
 					<view class="item-list">
 						<text 
-							v-for="(childItem, childIndex) in currentProduct.selects" 
+							v-for="(childItem, childIndex) in selectTimes" 
 							:key="childIndex" class="tit"
 						>
-							{{childItem.interval}}
+							{{childItem}}
 						</text>
 					</view>
+				</view>
+			</view>
+			<view class="g-item">
+				<image src="../../static/logo_small.jpg"></image>
+				<view class="right">
+					<text class="title clamp">按照人数购买入场券</text>
+					<!-- <text class="spec">（4-5人）</text> -->
+					<view class="price-box">
+						<text class="price">￥{{singlePersonPrice}}</text>
+						<text class="number">x {{numOfPeople}}</text>
+					</view>
+					<text>选择入场人数: </text>
+					<uni-number-box :min="1" :max="99" :value="numOfPeople" @change="handleNumChange"/>
 				</view>
 			</view>
 		</view>
 
 		<!-- 优惠明细 -->
 		<view class="yt-list">
-			<view class="yt-list-cell b-b">
+			<view class="yt-list-cell b-b" @click="toggleMask('show')">
 				<view class="cell-icon">
 					券
 				</view>
@@ -69,11 +82,11 @@
 		<view class="yt-list">
 			<view class="yt-list-cell b-b">
 				<text class="cell-tit clamp">商品金额</text>
-				<text class="cell-tip">￥{{currentProduct.price_per_hour * currentProduct.selects.length/ 100 }}</text>
+				<text class="cell-tip">￥{{totalPrice}}</text>
 			</view>
 			<view class="yt-list-cell b-b">
 				<text class="cell-tit clamp">优惠金额</text>
-				<text class="cell-tip red">0</text>
+				<text class="cell-tip red">{{discountAmount}}</text>
 			</view>
 			<view class="yt-list-cell desc-cell">
 				<text class="cell-tit clamp">备注</text>
@@ -86,7 +99,7 @@
 			<view class="price-content">
 				<text>实付款</text>
 				<text class="price-tip">￥</text>
-				<text class="price">{{currentProduct.price_per_hour * currentProduct.selects.length/ 100 }}</text>
+				<text class="price">{{actualPrice}}</text>
 			</view>
 			<text class="submit" @click="submit">提交订单</text>
 		</view>
@@ -99,17 +112,17 @@
 					<view class="con">
 						<view class="left">
 							<text class="title">{{item.title}}</text>
-							<text class="time">有效期至2019-06-30</text>
+							<text class="time">有效期至:{{item.expiryDate}}</text>
 						</view>
 						<view class="right">
 							<text class="price">{{item.price}}</text>
-							<text>满30可用</text>
+							<text>满{{item.limit}}可用</text>
 						</view>
 						
 						<view class="circle l"></view>
 						<view class="circle r"></view>
 					</view>
-					<text class="tips">限新用户使用</text>
+					<text class="tips">{{item.tips}}</text>
 				</view>
 			</view>
 		</view>
@@ -118,7 +131,11 @@
 </template>
 
 <script>
-	const AUTH = require('../../utils/auth')
+	import {
+		mapState,
+		mapActions
+	} from 'vuex';
+	import AUTH from '../../utils/auth.js'
 	export default {
 		data() {
 			return {
@@ -130,28 +147,42 @@
 					{
 						title: '新用户专享优惠券',
 						price: 5,
+						limit: 80,
+						expiryDate: "2023-08-01",
+						tips: "",
 					},
 					{
 						title: '庆五一发一波优惠券',
 						price: 10,
+						expiryDate: "2023-08-01",
+						limit: 160,
+						tips: "",
 					},
 					{
 						title: '优惠券优惠券优惠券优惠券',
 						price: 15,
+						expiryDate: "2023-08-01",
+						limit: 240,
+						tips: "",
 					}
 				],
 				addressData: {
 					name: '摸水划水吧',
 					mobile: '83596103',
-					addressName: '水部街道',
-					address: '福建省福州市鼓楼区五一北路',
-					area: '186号利嘉大世界6层C01',
+					addressName: '上海街道',
+					address: '福建省福州市台江区交通路',
+					area: '6号儒商楼08店面',
 					default: false,
 				},
+				discountAmount:0,
 				currentSelectDate:null,
+				selectTimes:[],
+				numOfPeople:1, //入场券人数
+				singlePersonPrice:38
 			}
 		},
 		computed: {
+			...mapState(['hasLogin', 'token', 'userInfo']),
 			selectDate: {
 				get() {
 					return this.currentSelectDate;
@@ -159,16 +190,40 @@
 				set(v) {
 					this.currentSelectDate = v;
 				}
+			},
+			totalPrice:{
+				get(){
+					if(!this.currentProduct) return 0;
+					return (this.currentProduct.price_per_hour * this.selectTimes.length)/100 + this.peoplePrice;
+				}
+			},
+			actualPrice:{
+				get(){
+					return this.totalPrice - this.discountAmount;
+				}
+			},
+			peoplePrice:{
+				get(){
+					return this.singlePersonPrice * this.numOfPeople;
+				}
 			}
 		},
 		onLoad(option){
 			//商品数据
 			let data = JSON.parse(option.data);
 			this.currentProduct = data;
-			this.currentSelectDate = option.date;
-			console.log("================>fucking date:", this.selectDate);
+			for (var i = 0; i < data.selects.length; i++) {
+				const [begin_time="", end_time=""] = data.selects[i];
+				const [begin_date, pre_time] = begin_time.split(" ");
+				const [end_date, next_time] = end_time.split(" ");
+				this.currentSelectDate = begin_date;
+				const pre = pre_time.slice(0,-3);
+				const next = next_time.slice(0,-3);
+				this.selectTimes.push(`${pre}~${next}`);
+			}
 		},
 		methods: {
+			...mapActions(['loginAndRegister']),
 			//显示优惠券面板
 			toggleMask(type){
 				let timer = type === 'show' ? 10 : 300;
@@ -185,22 +240,27 @@
 				this.payType = type;
 			},
 			submit(){
-				// uni.redirectTo({
-				// 	url: '/pages/money/pay'
-				// })
-				// var today = new Date();
-				// var date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
+				if(!this.hasLogin){
+					this.loginAndRegister();
+				}else{
+					this.requestAppoint();
+				}
+			},
+			requestAppoint(){
+				let _this = this;
 				var timeList = [];
 				this.currentProduct.selects.forEach(item=>{
 					var interval = [];
-					interval.push(item.start);
-					interval.push(item.end);
+					const [, pre_time] = item[0].split(" ");
+					const [, next_time] = item[1].split(" ");
+					const pre = pre_time.slice(0,-6);
+					const next = next_time.slice(0,-6);
+					interval.push(pre);
+					interval.push(next);
 					timeList.push(interval);
 				});
-				let _this = this;
-				let nickName = uni.getStorageSync("nickName");
-				AUTH.bookingRoom(uni.getStorageSync("token"), this.currentProduct.object_id, this.currentSelectDate, nickName, 2, timeList, this.desc).then(function(res){
-					// console.log("=====================================>fucking", res);
+				AUTH.bookingRoom(this.token, this.currentProduct.object_id, this.currentSelectDate, this.userInfo.nickname, this.numOfPeople, timeList, this.desc).then(function(res){
+					if(!res) return;
 					wx.requestPayment({
 						// provider: 'wxpay',
 						timeStamp: res.data.timeStamp,
@@ -231,6 +291,10 @@
 						}
 					})
 				});
+			},
+			
+			handleNumChange(num){
+				this.numOfPeople = num;
 			},
 			stopPrevent(){}
 		}

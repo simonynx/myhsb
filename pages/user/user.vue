@@ -2,27 +2,26 @@
     <view class="container">  
 		
 		<view class="user-section">
-			<!-- <image class="bg" src="/static/user-bg.jpg"></image> -->
-			<view class="user-info-box" @click="getUserProfile">
+			<image class="bg" src="/static/user-bg.jpg"></image>
+			<view class="user-info-box" >
 				<view class="portrait-box">
-					<image class="portrait" :src="userInfo.avatarUrl || '/static/missing-face.png'"></image>
+					<image class="portrait" :src="userInfo.avatar || '/static/missing-face.png'"></image>
 				</view>
 				<view class="info-box">
-					<text class="username">{{userInfo.nickName || '游客'}}</text>
-					<!-- <button @click="getUserProfile">授权使用微信数据</button> -->
+					<text class="username">{{userInfo.nickname || '游客'}}</text>
 				</view>
 			</view>
 			<view class="vip-card-box">
-<!-- 				<image class="card-bg" src="/static/vip-card-bg.png" mode=""></image>
-				<view class="b-btn">
-					立即开通
-				</view> -->
+				<image class="card-bg" src="/static/vip-card-bg.png" mode=""></image>
+				<view class="b-btn" @click="openAuthorizationModal">
+					点击修改个人信息
+				</view>
 				<view class="tit">
 					<text class="yticon icon-iLinkapp-"></text>
 					让摸鱼卷起来吧！
 				</view>
-				<text class="e-m">点击授权微信数据</text>
-				<!-- <text class="e-b">开通会员开发无bug 一测就上线</text> -->
+				<text class="e-m">偷偷写在这里的</text>
+				<text class="e-b">拉下来也没有彩蛋</text>
 			</view>
 		</view>
 		
@@ -93,46 +92,48 @@
 				<list-cell icon="icon-shezhi1" iconColor="#e07472" title="设置" border="" @eventClick="navTo('/pages/set/set')"></list-cell>
 			</view>
 		</view>
-			
 		
+		<wx-user-info-modal
+		  v-model="showAuthorizationModal"
+		  @updated="updatedUserInfoEvent"
+		></wx-user-info-modal>
     </view>  
 </template>  
-<script>  
+<script>
+	import AUTH from '../../utils/auth.js'
 	import listCell from '@/components/mix-list-cell';
-    import {  
-        mapState 
-    } from 'vuex';  
-	const AUTH = require('../../utils/auth')
+	import {  
+		mapState,
+		mapActions,
+		mapMutations
+	} from 'vuex'; 
+	import WxUserInfoModal from '@/uni_modules/tuniaoui-wx-user-info/components/tuniaoui-wx-user-info/tuniaoui-wx-user-info.vue'
 	let startY = 0, moveY = 0, pageAtTop = true;
     export default {
 		components: {
-			listCell
+			listCell,
+			WxUserInfoModal
+		},
+		computed: {
+			...mapState(['hasLogin','userInfo', 'token', 'openid'])
 		},
 		data(){
 			return {
-				hasUserInfo: false,
 				coverTransform: 'translateY(0px)',
 				coverTransition: '0s',
 				moving: false,
-				wxUserInfo: null,
+				showAuthorizationModal:false,
 			}
 		},
 		onShow() {
-			var _this = this;
-			AUTH.checkHasLogined().then(isLogined => {
-				_this.hasLogin = isLogined;
-				if (isLogined) {
-					if (uni.getStorageSync('storage_info')){
-						
-					}
-				}
-			});
+			if(!this.hasLogin){
+				this.loginAndRegister();
+			}else if(!this.userInfo){
+				this.getUserInfo();
+			}
 		},
 		onLoad(){
-			if (uni.getStorageSync('storage_info')){
-				this.userInfo = {avatarUrl:uni.getStorageSync("avartarUrl"), gender:uni.getStorageSync("gender"), nickName:uni.getStorageSync("nickName")};
-				this.hasUserInfo = true;
-			}
+
 		},
 		// #ifndef MP
 		onNavigationBarButtonTap(e) {
@@ -155,30 +156,28 @@
 		},
 		
 		// #endif
-        computed: {
-			userInfo: {
-				get() {
-					return this.wxUserInfo;
-				},
-				set(v) {
-					this.wxUserInfo = v;
-				}
-			}
-		},
         methods: {
-			getUserProfile:function(e){
-				if (uni.getStorageSync('storage_info')){
-					this.userInfo = {avatarUrl:uni.getStorageSync("avartarUrl"), gender:uni.getStorageSync("gender"), nickName:uni.getStorageSync("nickName")};
-					this.hasUserInfo = true;
-				}else{
-					AUTH.getUserProfile().then(res=>{
-						this.userInfo = res.userInfo;
-						this.hasUserInfo = true;
-					});
-				}
-			},
+			...mapActions(['loginAndRegister', 'getUserInfo', 'requestUpdateUserInfo']),
+			...mapMutations(['updateUserInfo']),
 			setTemp(data){
 				this.setData(data);
+			},
+			
+			// 打开获取用户信息弹框
+			openAuthorizationModal() {
+				this.showAuthorizationModal = true;
+			},
+		
+			// 获取到的用户信息
+			updatedUserInfoEvent(info) {
+				const _this = this;
+				AUTH.uploadFile(this.token, info.avatar, 'avatar_'+ this.openid).then(res=>{
+					if(!res) return;
+					info.avatar = res.url;
+					_this.updateUserInfo(info);
+					_this.requestUpdateUserInfo();
+				});
+				this.showAuthorizationModal = false;
 			},
 			/**
 			 * 统一跳转接口,拦截未登录路由
@@ -290,7 +289,8 @@
 		flex-direction: column;
 		/* color: #f7d680; */
 		height: 240upx;
-		background: linear-gradient(left, rgba(0,0,0,.7), rgba(0,0,0,.8));
+		background: linear-gradient(to left, rgba(0,0,0,.7), rgba(0,0,0,.8));
+		box-shadow: 0upx 0upx 25upx rgba(0,0,0,0.2);
 		border-radius: 16upx 16upx 0 0;
 		overflow: hidden;
 		position: relative;
@@ -306,28 +306,28 @@
 			position: absolute;
 			right: 20upx;
 			top: 16upx;
-			width: 132upx;
+			width: 220upx;
 			height: 40upx;
 			text-align: center;
 			line-height: 40upx;
-			font-size: 22upx;
+			font-size: 26upx;
 			color: #36343c;
 			border-radius: 20px;
-			background: linear-gradient(left, #f9e6af, #ffd465);
+			background: linear-gradient(to left, #f9e6af, #ffd465);
 			z-index: 1;
 		}
 		.tit{
 			font-size: $font-base+2upx;
-			/* color: #f7d680; */
+			color: #f7d680;
 			margin-bottom: 28upx;
 			.yticon{
-				/* color: #f6e5a3; */
+				color: #f6e5a3;
 				margin-right: 16upx;
 			}
 		}
 		.e-b{
 			font-size: $font-sm;
-			/* color: #d8cba9; */
+			color: #d8cba9;
 			margin-top: 10upx;
 		}
 	}

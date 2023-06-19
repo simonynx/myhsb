@@ -12,36 +12,58 @@
 		<!-- 当前弹出内容没有实际逻辑 ，可根据当前业务修改弹出提示 -->
 		<!-- <view class="tips" :class="{ 'tips-ani': tipShow }">为您更新了10条最新新闻动态</view> -->
 		<!-- 页面分类标题 -->
-		<!-- <uni-section title="最热商品" type="line"><button class="button-box" @click="select">切换视图</button></uni-section> -->
-
-		<view class="uni-list">
-			<view class="uni-list-cell" hover-class="uni-list-cell-hover" v-for="(value, index) in roomList" :key="index">
-				<view class="uni-media-list">
-					<image class="uni-media-list-logo" :src="value.image1" @click="goDetail(value)"></image>
-					<view class="uni-media-list-body">
-						<view class="uni-media-list-text-top">{{ value.name }}</view>
-						<view class="uni-media-list-text-bottom">
-							<text>{{ value.author_name }}</text>
-							<!-- <text>{{ value.published_at }}</text> -->
+		<uni-section title="包厢列表" type="line"></uni-section>
+		<template>
+		<uni-list>
+				<!-- to 属性携带参数跳转详情页面，当前只为参考 -->
+				<uni-list-item :border="false" class="uni-list-item--waterfall" title="自定义商品列表" v-for="(item, index) in roomList" :key="index" clickable  @click="handleListItemClick(item)">
+					<!-- 通过header插槽定义列表左侧图片 -->
+					<template v-slot:header>
+						<view class="uni-thumb shop-picture">
+							<image :src="item.image1" mode="aspectFill"></image>
 						</view>
-						<view class="uni-media-list-text-right">
-							<button type="primary" size="mini" @click="goToAppoint(value)">预约</button>
+					</template>
+					<template v-slot:body>
+						<view class="shop">
+							<view>
+								<view class="uni-title">
+									<text class="uni-ellipsis-2">{{ item.name }}</text>
+								</view>
+								<view>
+									<text class="uni-tag hot-tag">落地玻璃</text>
+									<!-- <text v-for="tag in item.tag" :key="tag" class="uni-tag">{{ tag }}</text> -->
+									<text class="uni-tag">wifi</text>
+									<text class="uni-tag">有空调</text>
+									<text class="uni-tag">switch</text>
+								</view>
+							</view>
+							<view>
+								<view class="shop-price">
+									<text>¥</text>
+									<text class="shop-price-text">{{item.price_per_hour/100}}</text>
+									<text>/小时</text>
+								</view>	
+								<view class="appoint-button">
+									<!-- click.stop能够正确处理event.stopPrepagation，阻止冒泡，而在回调里使用event是不行的。 -->
+									<button class="nintendo-btn" @click.stop="handleButtonClick(item)">
+									  <view class="text">预约</view>
+									  <view class="circle"></view>
+									</button>
+								</view>
+							</view>
 						</view>
-						<view class="price-box">
-							<text class="price">{{value.price_per_hour / 100}}</text>
-							<text class="other">已售 99</text>
-						</view>
-					</view>
-				</view>
-			</view>
+					</template>
+					<!-- 通过body插槽定义商品布局 -->
+						
+				</uni-list-item>
 			<!-- #ifdef APP-PLUS -->
-			<view class="ad-view" v-if="(index > 0 && (index+1) % 10 == 0)">
+<!-- 			<view class="ad-view" v-if="(index > 0 && (index+1) % 10 == 0)">
 				<ad :adpid="adpid" @error="aderror"></ad>
-			</view>
+			</view> -->
 			<!-- #endif -->
-		</view>
+		</uni-list>
 		<uni-load-more :status="status" :icon-size="16" :content-text="contentText" />
-
+		</template>
 		<!-- 规格-模态层弹窗 -->
 		<view 
 			class="popup spec" 
@@ -51,63 +73,29 @@
 		>
 			<!-- 遮罩层 -->
 			<view class="mask"></view>
-			<view class="layer attr-content" @click.stop="stopPrevent">
-				<view class="a-t">
-					<image :src="currentSelectItem.image1"></image>
-					<view class="right">
-						<text class="price">¥{{currentSelectItem.price_per_hour / 100}}</text>
-						<text class="stock">库存：999件</text>
-						<view class="selected">
-							已选：
-							<text class="selected-text" v-for="(sItem, sIndex) in specSelected" :key="sIndex">
-								{{sItem.interval}}
-							</text>
-						</view>
-					</view>
-				</view>
-				<view v-for="(item,index) in specList" :key="index" class="attr-list">
-					<text>{{item.name}}</text>
-					<view class="item-list">
-						<text 
-							v-for="(childItem, childIndex) in specChildList" 
-							:key="childIndex" class="tit"
-							:class="{selected: childItem.selected, disabled: childItem.status > 1}"
-							@click="selectSpec(childIndex, childItem.pid)"
-						>
-							{{childItem.interval}}
-						</text>
-					</view>
-				</view>
-				<button class="btn" @click="goToAppoint">完成</button>
+			<view class="layer" @click.stop="stopPrevent">
+				<times @change="getTime" @selected-date-change="handleTimesSelectDateChange" :isMultiple="true" :isQuantum="true" :timeInterval="1" :disableTimeSlot="disableTimeSlot" :beginTime="currentBeginTime" :endTime="currentEndTime" :selectedDate="currentSelectDate">
+				</times>
 			</view>
 		</view>
-
-
 	</view>
 </template>
 
 <script>
 	import {
-		dateUtils
-	} from '../../../common/util.js';
-	import {
-		mapState
+		mapState,
+		mapActions
 	} from 'vuex';
-	const AUTH = require('../../../utils/auth.js')
-	
+	import AUTH from '../../../utils/auth.js'
+	import times from '@/components/pretty-times/pretty-times.vue'
 	export default {
-		components: {},
+		components: {
+			times
+		},
 		data() {
 			return {
 				specClass: 'none',
 				specSelected: [],
-				specList: [
-					{
-						id: 1,
-						name: '时间段',
-					},
-				],
-				specChildList: [],
 				status: 'refresh',
 				adpid: '',
 				listData: [],
@@ -117,11 +105,15 @@
 					contentrefresh: '加载中',
 					contentnomore: '没有更多'
 				},
-				currentSelectDate:null,
+				currentSelectDate:"",
 				currentFullDate:null,
+				currentBeginTime:"",
+				currentEndTime:"",
+				disableTimeSlot:[]
 			};
 		},
 		computed:{
+			...mapState(['hasLogin', 'token']),
 			roomList: {
 				get() {
 					return this.listData;
@@ -135,9 +127,11 @@
 			this.adpid = this.$adpid;
 		},
 		onShow() {
-			AUTH.checkHasLogined().then(isLogined => {
+			if(!this.hasLogin){
+				this.loginAndRegister();
+			}else{
 				this.getList(this.currentFullDate ? this.currentFullDate : new Date());
-			});
+			}
 		},
 		onPullDownRefresh() {
 			// this.reload = true;
@@ -150,14 +144,16 @@
 			// this.getList();
 		},
 		methods: {
+			...mapActions(['loginAndRegister']),
 			getList(dayDate) {
 				var _this = this;
 				var today = new Date();
 				var currentHour = today.getDay() == dayDate.getDay()? dayDate.getHours():-1;
-				var date = dayDate.getFullYear()+'-'+(dayDate.getMonth()+1)+'-'+dayDate.getDate();
+				var date = dayDate.getFullYear()+'-'+(dayDate.getMonth()+1).toString().padStart(2, "0")+'-'+(dayDate.getDate()).toString().padStart(2, "0");
 				this.currentSelectDate = date;
 				this.currentFullDate = dayDate;
-				AUTH.getRoomDataList(uni.getStorageSync("token"), date).then(function(res){
+				AUTH.getRoomDataList(this.token, date).then(res=>{
+					if(!res) return;
 					var newList = [];
 					res.data.rooms.forEach(item=>{
 						var _item = item;
@@ -181,6 +177,7 @@
 						newList.push(_item);
 					});
 					_this.listData = newList;
+					_this.$forceUpdate();
 				});
 			},
 			findAppoint(appointments, id, hour){
@@ -197,11 +194,52 @@
 				return false;
 			},
 			goDetail: function(item) {
-				//测试数据没有写id，用title代替
-				let id = item.id;
 				uni.navigateTo({
 					url: `/pages/product/product?data=${JSON.stringify(item)}&date=${this.currentSelectDate}`
 				})
+			},
+			
+			handleListItemClick:function(item){
+				this.goDetail(item);
+			},
+			
+			handleButtonClick:function(item){
+				this.currentBeginTime = `${item.opening_hours_start}:00:00`;
+				this.currentEndTime = `${item.opening_hours_end}:00:00`;
+				this.disableTimeSlot =[];
+				for (var i = 0; i < item.appoints.length; i++) {
+					if(item.appoints[i].status == 3){ //has appointment
+						var dateArr = [];
+						dateArr.push(`${this.currentSelectDate} ${item.start}:00:00`);
+						dateArr.push(`${this.currentSelectDate} ${item.end}:00:00`);
+						this.disableTimeSlot.push(dateArr);
+					}
+				}
+				this.goToAppoint(item);
+			},
+			handleTimesSelectDateChange:function(date){
+				const _this = this;
+				AUTH.getRoomAppointments(this.token, this.currentSelectItem.object_id, date).then(res=>{
+					if(!res) return;
+					if(_this.checkDateHasAdded(date)) return;
+					for (let prop in res.data.time_list) {
+						if(!res.data.time_list[prop]){ //status is false,means n/a
+							var dateArr = [];
+							dateArr.push(`${date} ${prop[0]}:00:00`);
+							dateArr.push(`${date} ${prop[1]}:00:00`);
+							_this.disableTimeSlot.push(dateArr);
+						}
+					}
+				})
+			},
+			checkDateHasAdded:function(date){
+				if(!this.disableTimeSlot || this.disableTimeSlot.length == 0) return false;
+				for (let time of this.disableTimeSlot) {
+					const [begin_time = "", end_time = ""] = time
+					let [dateItem, timeItem] = begin_time.split(' ');
+					if(dateItem == date) return true;
+				}
+				return false;
 			},
 			goToAppoint: function(e) {
 				if (this.specClass === 'show') {
@@ -209,18 +247,9 @@
 					setTimeout(() => {
 						this.specClass = 'none';
 					}, 250);
-					this.currentSelectItem.selects = this.specSelected;
-					if(this.specSelected.length <= 0) return;
-					uni.navigateTo({
-						url: `/pages/order/createOrder?data=${JSON.stringify(this.currentSelectItem)}&date=${this.currentSelectDate}`
-					})
 				} else if (this.specClass === 'none') {
 					this.currentSelectItem = e;
-					// AUTH.getRoomAppointments(uni.getStorageSync("token"), this.currentSelectItem.object_id, this.currentSelectDate).then(res=>{
-						this.specClass = 'show';
-						// console.log("======================>fucking appoint:", res);
-						this.specChildList = this.currentSelectItem.appoints;
-					// });
+					this.specClass = 'show';
 				}
 			},
 			closePopup: function(e) {
@@ -230,39 +259,23 @@
 						this.specClass = 'none';
 					}, 250);
 					this.specSelected = [];
-					this.specChildList.forEach(item=>{
-						this.$set(item, 'selected', false);
-					});
 				}
 			},
-			//选择规格
-			selectSpec(index, pid) {
-				let list = this.specChildList;
-				if (list[index].status > 1) return;
-				if (list[index].selected) {
-					this.$set(list[index], 'selected', false);
-				} else {
-					this.$set(list[index], 'selected', true);
-				}
-				//存储已选择
-				/**
-				 * 修复选择规格存储错误
-				 * 将这几行代码替换即可
-				 * 选择的规格存放在specSelected中
-				 */
-				this.specSelected = [];
-				list.forEach(item => {
-					if (item.selected === true) {
-						this.specSelected.push(item);
-					}
+			
+			getTime:function(times){
+				this.goToAppoint();
+				this.specSelected = times;
+				this.currentSelectItem.selects = this.specSelected;
+				if(this.specSelected.length <= 0) return;
+				uni.navigateTo({
+					url: `/pages/order/createOrder?data=${JSON.stringify(this.currentSelectItem)}`
 				})
-
 			},
 			aderror(e) {
 				console.log("aderror: " + JSON.stringify(e.detail));
 			},
 			selectedChange(e) {
-				let date = new Date(e.fullDate);
+				let date = e.time;
 				var today = new Date();
 				date.setHours(today.getHours());
 				this.getList(date);
@@ -276,129 +289,166 @@
 </script>
 
 <style lang="scss">
+	@import '../../../common/uni-ui.scss';
 	page {
 		background-color: $page-color-base;
 		// height: auto;
-	}
-
-	.uni-media-list-logo {
-		width: 180rpx;
-		height: 140rpx;
-	}
-
-	.uni-media-list-body {
+		flex-direction: column;
+		box-sizing: border-box;
+		background-color: #efeff4;
+		min-height: 100%;
 		height: auto;
-		justify-content: space-around;
-
-		.price-box {
-			display: flex;
-			align-items: left;
-			justify-content: space-between;
-			font-size: 24upx;
-			color: $font-color-light;
-
-			.price {
-				font-size: $font-lg;
-				color: $uni-color-primary;
-				line-height: 1;
-
-				&:before {
-					content: '￥';
-					font-size: 26upx;
-				}
-			}
-			
-			.other {
-				position: relative;
-				left: 20upx;
-			}
-		}
 	}
-
-	.uni-media-list-text-top {
-		height: 74rpx;
-		font-size: 28rpx;
-		overflow: hidden;
+	
+	.tips {
+		color: #67c23a;
+		font-size: 14px;
+		line-height: 40px;
+		text-align: center;
+		background-color: #f0f9eb;
+		height: 0;
+		opacity: 0;
+		transform: translateY(-100%);
+		transition: all 0.3s;
 	}
-
-	.uni-media-list-text-bottom {
-		display: flex;
-		flex-direction: row;
-		justify-content: space-between;
+	
+	.tips-ani {
+		transform: translateY(0);
+		height: 40px;
+		opacity: 1;
 	}
-
-	.uni-media-list-text-right {
+	
+	.shop {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
-		flex: 1;
-		overflow: hidden;
-		position: absolute;
-		right: 16upx;
-		bottom: 10upx;
+		justify-content: space-between;
 	}
-
-	/* 规格选择弹窗 */
-	.attr-content{
-		padding: 10upx 30upx;
-		.a-t{
+	
+	.shop-picture {
+		width: 120px;
+		height: 150px;
+	}
+	
+	.shop-picture-column {
+		width: 100%;
+		height: 170px;
+		margin-bottom: 10px;
+	}
+	
+	.shop-price {
+		margin-top: 5px;
+		font-size: 12px;
+		color: #ff5a5f;
+	}
+	
+	.shop-price-text {
+		font-size: 16px;
+	}
+	
+	.hot-tag {
+		background: #ff5a5f;
+		border: none;
+		color: #fff;
+	}
+	
+	.button-box {
+		height: 30px;
+		line-height: 30px;
+		font-size: 12px;
+		background: #007AFF;
+		color: #fff;
+	}
+	
+	.uni-link {
+		flex-shrink: 0;
+	}
+	
+	.ellipsis {
+		display: flex;
+		overflow: hidden;
+	}
+	
+	.uni-ellipsis-1 {
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+	
+	.uni-ellipsis-2 {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+	}
+	
+	.uni-list--waterfall {
+		 .uni-list {
 			display: flex;
-			image{
-				width: 170upx;
-				height: 170upx;
-				flex-shrink: 0;
-				margin-top: -40upx;
-				border-radius: 8upx;;
-			}
-			.right{
-				display: flex;
-				flex-direction: column;
-				padding-left: 24upx;
-				font-size: $font-sm + 2upx;
-				color: $font-color-base;
-				line-height: 42upx;
-				.price{
-					font-size: $font-lg;
-					color: $uni-color-primary;
-					margin-bottom: 10upx;
-				}
-				.selected-text{
-					margin-right: 10upx;
-				}
-			}
-		}
-		.attr-list{
-			display: flex;
-			flex-direction: column;
-			font-size: $font-base + 2upx;
-			color: $font-color-base;
-			padding-top: 30upx;
-			padding-left: 10upx;
-		}
-		.item-list{
-			padding: 20upx 0 0;
-			display: flex;
+			flex-direction: row;
 			flex-wrap: wrap;
-			text{
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				background: #eee;
-				margin-right: 20upx;
-				margin-bottom: 20upx;
-				border-radius: 100upx;
-				min-width: 60upx;
-				height: 60upx;
-				padding: 0 20upx;
-				font-size: $font-base;
-				color: $font-color-dark;
+			padding: 5px;
+			box-sizing: border-box;
+
+			.uni-list-item--waterfall {
+				width: 50%;
+				box-sizing: border-box;
+	
+				.uni-list-item__container {
+					padding: 5px;
+					flex-direction: column;
+				}
 			}
-			.selected{
-				background: #fbebee;
-				color: $uni-color-primary;
-			}
-			.disabled {
-				color: $font-color-light;
-			}
+		}
+	}
+	
+	.appoint-button {
+		// margin-left: 90px;
+		
+		.nintendo-btn {
+		  position: relative;
+		  display: inline-block;
+		  padding: 12px 40px;
+		  font-size: 20px;
+		  font-weight: bold;
+		  color: #fff;
+		  background-color: #ff681b;
+		  border: none;
+		  border-radius: 4px;
+		  width: 120px; /* 新增加的 width 属性 */
+		  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+		}
+		
+		.nintendo-btn .text {
+		  position: absolute;
+		  top: 50%;
+		  transform: translate(-50%, -50%);
+		  left: 50%;
+		  z-index: 2;
+		  color: #fff;
+		}
+		
+		.nintendo-btn .circle {
+		  content: '';
+		  position: absolute;
+		  top: 8px;
+		  left: -20px;
+		  width: 60px;
+		  height: 60px;
+		  border-radius: 50%;
+		  background-color: #ff681b;
+		  transform: rotate(45deg);
+		  z-index: 1;
+		  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
+		}
+		
+		.nintendo-btn:hover {
+		  background-color: #ff4f00;
+		}
+		
+		.nintendo-btn:hover .circle {
+		  background-color: #ffd84e;
 		}
 	}
 
@@ -444,6 +494,7 @@
 			z-index: 99;
 			bottom: 0;
 			width: 100%;
+			height: 88%;
 			min-height: 40vh;
 			border-radius: 10upx 10upx 0 0;
 			background-color: #fff;

@@ -42,8 +42,8 @@
 							<image class="goods-img" :src="item.room.image1" mode="aspectFill"></image>
 							<view class="right">
 								<text class="title clamp">{{item.room.title}}</text>
-								<text class="attr-box">{{item.room.price_per_hour/100}}  x {{item.appointment.time_list.length}}</text>
-								<text class="price">{{item.room.price_per_hour /100 * item.appointment.time_list.length}}</text>
+								<text class="attr-box">{{item.room.price_per_hour/100}}  x {{item.appointment.time_list.length}} + {{item.room.price_per_person/100}} x {{item.appointment.user_count}}</text>
+								<text class="price">{{item.room.price_per_hour /100 * item.appointment.time_list.length + item.room.price_per_person/100 * item.appointment.user_count}}</text>
 							</view>
 						</view>
 						
@@ -61,11 +61,11 @@
 							共
 							<text class="num">1</text>
 							件商品 实付款
-							<text class="price">{{item.appointment.request_data.total_fee /100}}</text>
+							<text class="price" v-if="item.appointment.request_data">{{item.appointment.request_data.total_fee /100}}</text>
+							<text class="price" v-else>{{item.room.price_per_hour /100 * item.appointment.time_list.length + item.room.price_per_person/100 * item.appointment.user_count}}</text>
 						</view>
-						<view class="action-box b-t" v-if="item.state != 9">
-							<button class="action-btn" @click="cancelOrder(item)">取消订单</button>
-							<!-- <button class="action-btn recom" @click="requestPay(item)">立即支付</button> -->
+						<view class="action-box b-t" v-if="item.appointment.order_status == 0">
+							<button class="action-btn recom" @click="requestPay(item)">立即支付</button>
 						</view>
 					</view>
 					 
@@ -78,16 +78,24 @@
 </template> 
 
 <script>
+	import {
+		mapState,
+		mapActions,
+		mapMutations
+	} from 'vuex'; 
 	import empty from "@/components/empty";
-	import Json from '@/Json';
-	const AUTH = require('../../utils/auth')
+	import AUTH from '../../utils/auth.js'
 	export default {
 		components: {
 			empty
 		},
+		computed: {
+			...mapState(['hasLogin','userInfo', 'token', 'openid'])
+		},
 		data() {
 			return {
 				tabCurrentIndex: 0,
+				allOrderList:[],
 				navList: [{
 						state: 0,
 						text: '全部',
@@ -121,16 +129,8 @@
 			 * 修复app端点击除全部订单外的按钮进入时不加载数据的问题
 			 * 替换onLoad下代码即可
 			 */
-			this.tabCurrentIndex = +options.state;
-			// #ifndef MP
+			this.tabCurrentIndex = options.state;
 			this.loadData()
-			// #endif
-			// #ifdef MP
-			if(options.state == 0){
-				this.loadData()
-			}
-			// #endif
-			
 		},
 		 
 		methods: {
@@ -140,7 +140,7 @@
 				let index = this.tabCurrentIndex;
 				let navItem = this.navList[index];
 				let state = navItem.state;
-				var _this = this;
+				const _this = this;
 				
 				if(source === 'tabChange' && navItem.loaded === true){
 					//tab切换只有第一次需要加载数据
@@ -151,18 +151,27 @@
 					return;
 				}
 				
-				navItem.loadingType = 'loading';
-				AUTH.getOrderList(state-1, uni.getStorageSync("token")).then(function(res){
-					// console.log("=================================>fucking", res, state);
+				for (var i = 0; i < this.navList.length; i++) {
+					this.navList[i].loadingType = 'loading';
+				}
+				AUTH.getOrderList(state-1, this.token).then(function(res){
+					if(!res) return;
+					var firstNavItem = _this.navList[0];
 					res.data.forEach(item=>{
-						item = Object.assign(item, _this.orderStateExp(state));
-						navItem.orderList.push(item);
-					})
-					//loaded新字段用于表示数据加载完毕，如果为空可以显示空白页
-					_this.$set(navItem, 'loaded', true);
+						let specificIndex = item.appointment.order_status + 1;
+						item = Object.assign(item, _this.orderStateExp(specificIndex));
+						let specificNavItem = _this.navList[specificIndex];
+						specificNavItem.orderList.push(item);
+						firstNavItem.orderList.push(item);
+					});
 					
-					//判断是否还有数据， 有改为 more， 没有改为noMore 
-					navItem.loadingType = 'noMore';
+					for (var i = 0; i < _this.navList.length; i++) {
+						//loaded新字段用于表示数据加载完毕，如果为空可以显示空白页
+						_this.$set(_this.navList[i], 'loaded', true);
+						//判断是否还有数据， 有改为 more， 没有改为noMore 
+						_this.navList[i].loadingType = 'noMore';
+					}
+
 				});
 				
 			}, 
@@ -207,16 +216,49 @@
 					uni.hideLoading();
 				}, 600)
 			},
+			
+			requestPay(item){
+				AUTH.bookingRoom(this.token, item.room.object_id, item.appointment.date, this.userInfo.nickname, item.appointment.user_count, item.appointment.time_list, item.appointment.remark).then(function(res){
+					if(!res) return;
+					wx.requestPayment({
+						// provider: 'wxpay',
+						timeStamp: res.data.timeStamp,
+						nonceStr: res.data.nonceStr,
+						package: res.data.package,
+						signType: res.data.signType,
+						paySign: res.data.sign,
+						success: function (res) {
+							console.log('success:' + JSON.stringify(res));
+							uni.showModal({
+							  title: '支付成功',
+							  content: res.errMsg,
+							  showCancel: false
+							})
+							uni.navigateTo({
+								url: `/pages/product/product?data=${JSON.stringify(item.room)}&date=${item.appointment.date}`
+							})
+						},
+						fail: function (err) {
+							console.log('fail:' + JSON.stringify(err));
+							uni.showModal({
+							  title: '支付失败',
+							  content: res.errMsg,
+							  showCancel: false
+							})
+						}
+					})
+				});
+			},
 
 			//订单状态文字和颜色
 			orderStateExp(state){
 				let stateTip = '',
 					stateTipColor = '#fa436a';
-				switch(+state){
+				switch(state){
 					case 1:
 						stateTip = '待付款'; break;
-					// case 2:
-					// 	stateTip = '待发货'; break;
+					case 2:
+						stateTip = '已预约'; break;
 					case 9:
 						stateTip = '订单已关闭'; 
 						stateTipColor = '#909399';
