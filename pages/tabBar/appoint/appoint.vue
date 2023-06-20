@@ -30,11 +30,8 @@
 									<text class="uni-ellipsis-2">{{ item.name }}</text>
 								</view>
 								<view>
-									<text class="uni-tag hot-tag">落地玻璃</text>
-									<!-- <text v-for="tag in item.tag" :key="tag" class="uni-tag">{{ tag }}</text> -->
-									<text class="uni-tag">wifi</text>
-									<text class="uni-tag">有空调</text>
-									<text class="uni-tag">switch</text>
+									<text class="uni-tag hot-tag">wifi</text>
+									<text v-for="tag in item.tagsArr" :key="tag" class="uni-tag">{{ tag }}</text>
 								</view>
 							</view>
 							<view>
@@ -163,6 +160,12 @@
 						_item.appoints = [];
 						var start = item.opening_hours_start;
 						var end = item.opening_hours_end;
+						if(item.tags){
+							var tagsArr = item.tags.split('&');
+							item.tagsArr = tagsArr;
+						}else{
+							item.tagsArr = [];
+						}
 						for (var i = start; i < end; i++) {
 							var appoint = {};
 							appoint.start = i;

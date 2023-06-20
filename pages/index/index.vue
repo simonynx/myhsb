@@ -87,7 +87,7 @@
 		mapState,
 		mapActions
 	} from 'vuex';
-	import Json from './../../Json'
+	import Json from './../../Json.js'
 	import FontAwesomeIcon from '@/components/Am-FontAwesome/index.vue'
 	export default {
 		components: {
