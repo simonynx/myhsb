@@ -58,10 +58,7 @@
 				<text class="yticon icon-xiatubiao--copy"></text>
 				<text>首页</text>
 			</navigator>
-			<navigator url="/pages/index/index" open-type="switchTab" class="main-page">
-				<text class="yticon icon-xiatubiao--copy"></text>
-				<text>咨询</text>
-			</navigator>
+			<button class="chat-button" open-type="contact" bindcontact="handleContact">咨询</button>
 			<text class="submit" @click="goToAppoint">立即预约</text>
 		</view>
 		
@@ -180,6 +177,13 @@
 						}
 					}
 				})
+			},
+			handleContact(e){
+				console.log(e.detail.path)
+				console.log(e.detail.query)
+				uni.showToast({
+					title:'还没做好啊，骚瑞～',
+				});
 			},
 			checkDateHasAdded:function(date){
 				if(!this.disableTimeSlot || this.disableTimeSlot.length == 0) return false;
@@ -586,6 +590,22 @@
 		box-shadow: 0 -1px 5px rgba(0,0,0,.1);
 		.main-page{
 			padding-left: 50upx;
+		}
+		.chat-button {
+		  display:flex;
+		  align-items:center;
+		  justify-content: center;
+		  font-size: 14px;
+		  color: #fff;
+		  background-color: #f8591f;
+		  border-radius: 20px;
+		  cursor: pointer;
+		  outline: none;
+		  border: none;
+		}
+		
+		.chat-button:hover {
+		  background-color: #dc4404;
 		}
 		.submit{
 			display:flex;

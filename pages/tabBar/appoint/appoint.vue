@@ -113,7 +113,7 @@
 			};
 		},
 		computed:{
-			...mapState(['hasLogin', 'token']),
+			...mapState(['hasLogin', 'token', 'userInfo']),
 			roomList: {
 				get() {
 					return this.listData;
@@ -130,6 +130,9 @@
 			if(!this.hasLogin){
 				this.loginAndRegister();
 			}else{
+				if(!this.userInfo){
+					this.getUserInfo();
+				}
 				this.getList(this.currentFullDate ? this.currentFullDate : new Date());
 			}
 		},
@@ -144,7 +147,7 @@
 			// this.getList();
 		},
 		methods: {
-			...mapActions(['loginAndRegister']),
+			...mapActions(['loginAndRegister', 'getUserInfo']),
 			getList(dayDate) {
 				var _this = this;
 				var today = new Date();
@@ -210,8 +213,8 @@
 				for (var i = 0; i < item.appoints.length; i++) {
 					if(item.appoints[i].status == 3){ //has appointment
 						var dateArr = [];
-						dateArr.push(`${this.currentSelectDate} ${item.start}:00:00`);
-						dateArr.push(`${this.currentSelectDate} ${item.end}:00:00`);
+						dateArr.push(`${this.currentSelectDate} ${item.appoints[i].start}:00:00`);
+						dateArr.push(`${this.currentSelectDate} ${item.appoints[i].end}:00:00`);
 						this.disableTimeSlot.push(dateArr);
 					}
 				}
@@ -219,12 +222,13 @@
 			},
 			handleTimesSelectDateChange:function(date){
 				const _this = this;
+				if(this.checkDateHasAdded(date)) return;
 				AUTH.getRoomAppointments(this.token, this.currentSelectItem.object_id, date).then(res=>{
 					if(!res) return;
-					if(_this.checkDateHasAdded(date)) return;
-					for (let prop in res.data.time_list) {
-						if(!res.data.time_list[prop]){ //status is false,means n/a
+					for (let propStr in res.data.time_list) {
+						if(!res.data.time_list[propStr]){ //status is false,means n/a
 							var dateArr = [];
+							let prop = JSON.parse(propStr);
 							dateArr.push(`${date} ${prop[0]}:00:00`);
 							dateArr.push(`${date} ${prop[1]}:00:00`);
 							_this.disableTimeSlot.push(dateArr);

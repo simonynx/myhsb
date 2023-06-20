@@ -218,8 +218,14 @@
 			},
 			
 			requestPay(item){
+				uni.showLoading({
+					title:'支付中...'
+				});
 				AUTH.bookingRoom(this.token, item.room.object_id, item.appointment.date, this.userInfo.nickname, item.appointment.user_count, item.appointment.time_list, item.appointment.remark).then(function(res){
-					if(!res) return;
+					if(!res) {
+						uni.hideLoading();
+						return;	
+					}
 					wx.requestPayment({
 						// provider: 'wxpay',
 						timeStamp: res.data.timeStamp,
@@ -229,22 +235,18 @@
 						paySign: res.data.sign,
 						success: function (res) {
 							console.log('success:' + JSON.stringify(res));
-							uni.showModal({
-							  title: '支付成功',
-							  content: res.errMsg,
-							  showCancel: false
-							})
-							uni.navigateTo({
-								url: `/pages/product/product?data=${JSON.stringify(item.room)}&date=${item.appointment.date}`
-							})
+							uni.redirectTo({
+							  	url:'../pay/success/success?amount='+item.appointment.request_data.total_fee /100
+							});
 						},
 						fail: function (err) {
 							console.log('fail:' + JSON.stringify(err));
-							uni.showModal({
-							  title: '支付失败',
-							  content: res.errMsg,
-							  showCancel: false
-							})
+							uni.showToast({
+								title:'支付失败'
+							});
+						},
+						complete:function(res){
+							uni.hideLoading();
 						}
 					})
 				});

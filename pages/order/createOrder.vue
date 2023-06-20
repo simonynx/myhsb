@@ -177,8 +177,8 @@
 				discountAmount:0,
 				currentSelectDate:null,
 				selectTimes:[],
-				numOfPeople:1, //入场券人数
-				singlePersonPrice:38
+				numOfPeople:2, //入场券人数
+				singlePersonPrice:0
 			}
 		},
 		computed: {
@@ -204,7 +204,7 @@
 			},
 			peoplePrice:{
 				get(){
-					return this.singlePersonPrice * this.numOfPeople;
+					return this.singlePersonPrice * this.numOfPeople / 100;
 				}
 			}
 		},
@@ -221,6 +221,7 @@
 				const next = next_time.slice(0,-3);
 				this.selectTimes.push(`${pre}~${next}`);
 			}
+			this.singlePersonPrice = data.price_per_person;
 		},
 		methods: {
 			...mapActions(['loginAndRegister']),
@@ -259,8 +260,14 @@
 					interval.push(next);
 					timeList.push(interval);
 				});
+				uni.showLoading({
+					title:'支付中...'
+				});
 				AUTH.bookingRoom(this.token, this.currentProduct.object_id, this.currentSelectDate, this.userInfo.nickname, this.numOfPeople, timeList, this.desc).then(function(res){
-					if(!res) return;
+					if(!res) {
+						uni.hideLoading();
+						return;
+					}
 					wx.requestPayment({
 						// provider: 'wxpay',
 						timeStamp: res.data.timeStamp,
@@ -270,24 +277,18 @@
 						paySign: res.data.sign,
 						success: function (res) {
 							console.log('success:' + JSON.stringify(res));
-							uni.showModal({
-							  title: '支付成功',
-							  content: res.errMsg,
-							  showCancel: false
-							})
-							uni.navigateTo({
-								url: `/pages/product/product?data=${JSON.stringify(_this.currentProduct)}&date=${_this.currentSelectDate}`
-							})
+							uni.redirectTo({
+							  	url:'../pay/success/success?amount='+_this.actualPrice
+							});
 						},
 						fail: function (err) {
 							console.log('fail:' + JSON.stringify(err));
-							uni.showModal({
-							  title: '支付失败',
-							  content: res.errMsg,
-							  showCancel: false
-							})
+							uni.showToast({
+								title:'支付失败'
+							});
 						},
 						complete:function(res){
+							uni.hideLoading();
 						}
 					})
 				});
