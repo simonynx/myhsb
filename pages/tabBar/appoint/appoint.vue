@@ -161,7 +161,7 @@
 						var start = item.opening_hours_start;
 						var end = item.opening_hours_end;
 						if(item.tags){
-							var tagsArr = item.tags.split('&');
+							var tagsArr = item.tags.split('$');
 							item.tagsArr = tagsArr;
 						}else{
 							item.tagsArr = [];
