@@ -72,7 +72,7 @@
 			<template>
 			  <view class="tips-container">
 			    <view class="tips-title">温馨提示</view>
-			    <view class="tips-box" v-for="(item,index) in tips" wx:key="index">
+			    <view class="tips-box" v-for="(item,index) in tips" :key="index">
 			      <view class="tip-text">{{item}}</view>
 			    </view>
 			  </view>
