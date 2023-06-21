@@ -78,6 +78,7 @@
 	import Json from './../../Json'
 	import AUTH from '../../utils/auth.js';
 	import share from '@/components/share';
+	import parseHtml from '../../common/html-parser.js'
 	import times from '@/components/pretty-times/pretty-times.vue'
 	export default{
 		components: {
@@ -93,11 +94,7 @@
 				favorite: true,
 				shareList: [],
 				imgList: [],
-				desc: `
-					<div style="width:100%;margin-left:20px;">
-						<p>desc</p>
-					</div>
-				`,
+				desc:[],
 				currentSelectItem: null,
 				currentSelectDate: "",
 				currentBeginTime:"",
@@ -122,7 +119,11 @@
 				this.imgList.push({ src:this.currentSelectItem.image5 });
 			}
 			this.shareList = Json.shareList;
-			this.desc = this.desc.replace("desc", this.currentSelectItem.description);
+			let html = `<div class="detail-container">
+							<p>${this.currentSelectItem.description}</p>
+						</div>`;
+			// this.desc = parseHtml(html);
+			this.desc = html;
 			this.currentBeginTime = `${this.currentSelectItem.opening_hours_start}:00:00`;
 			this.currentEndTime = `${this.currentSelectItem.opening_hours_end}:00:00`;
 			this.disableTimeSlot =[];
@@ -397,11 +398,42 @@
 	.detail-desc{
 		background: #fff;
 		margin-top: 16upx;
+		padding-left: 20upx;
+		padding-right: 20upx;
+		padding-top: 20upx;
 		padding-bottom: 100upx;
 		
-		.image-wrapper{
-			width: 100%;
-			height: 100%;
+		.detail-container {
+		  font-size: 16px;
+		  color: #333;
+		  
+		  h4 {
+		    font-size: 22px;
+		    font-weight: bold;
+		    margin: 20px 0 10px;
+		    padding-bottom: 5px;
+		    text-transform: uppercase;
+		    letter-spacing: 1px;
+		    border-bottom: 3px solid #ff9900;
+		  }
+		  
+		  ul, ol {
+		    margin: 0;
+		    margin-bottom: 20px;
+		    padding-left: 20px;
+		    
+		    li {
+		      margin-top: 10px;
+		      font-size: 16px;
+		      
+		      &:before {
+		        content: "•";
+		        margin-right: 10px;
+		        font-weight: bold;
+		        color: #ff9900;
+		      }
+		    }
+		  }
 		}
 	}
 	

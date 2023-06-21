@@ -49,7 +49,7 @@
 					<text class="title clamp">按照人数购买入场券</text>
 					<!-- <text class="spec">（4-5人）</text> -->
 					<view class="price-box">
-						<text class="price">￥{{singlePersonPrice}}</text>
+						<text class="price">￥{{singlePersonPrice /100}}</text>
 						<text class="number">x {{numOfPeople}}</text>
 					</view>
 					<text>选择入场人数: </text>
@@ -60,7 +60,7 @@
 
 		<!-- 优惠明细 -->
 		<view class="yt-list">
-			<view class="yt-list-cell b-b" @click="toggleMask('show')">
+			<view class="yt-list-cell b-b">
 				<view class="cell-icon">
 					券
 				</view>
