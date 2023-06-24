@@ -42,7 +42,7 @@
 								</view>	
 								<view class="appoint-button">
 									<!-- click.stop能够正确处理event.stopPrepagation，阻止冒泡，而在回调里使用event是不行的。 -->
-									<button class="nintendo-btn" @click.stop="handleButtonClick(item)">
+									<button class="nintendo-btn" @click.stop="handleAppointButtonClick(item)">
 									  <view class="text">预约</view>
 									  <view class="circle"></view>
 									</button>
@@ -71,7 +71,7 @@
 			<!-- 遮罩层 -->
 			<view class="mask"></view>
 			<view class="layer" @click.stop="stopPrevent">
-				<times @change="getTime" @selected-date-change="handleTimesSelectDateChange" :isMultiple="true" :isQuantum="true" :timeInterval="1" :disableTimeSlot="disableTimeSlot" :beginTime="currentBeginTime" :endTime="currentEndTime" :selectedDate="currentSelectDate">
+				<times ref="timesComponent" @change="getTime" @selected-date-change="handleTimesSelectDateChange" :isMultiple="true" :isQuantum="true" :timeInterval="1" :disableTimeSlot="disableTimeSlot" :beginTime="currentBeginTime" :endTime="currentEndTime" :selectedDate="currentSelectDate">
 				</times>
 			</view>
 		</view>
@@ -209,16 +209,27 @@
 				this.goDetail(item);
 			},
 			
-			handleButtonClick:function(item){
+			handleAppointButtonClick:function(item){
+				var outsideDateDiff = false;
+				this.currentSelectItem = item;
+				if(this.currentSelectDate != this.$refs.timesComponent.selectDate){
+					this.$refs.timesComponent.selectedDate = this.currentSelectDate;
+					outsideDateDiff = true;
+				}
 				this.currentBeginTime = `${item.opening_hours_start}:00:00`;
 				this.currentEndTime = `${item.opening_hours_end}:00:00`;
 				this.disableTimeSlot =[];
-				for (var i = 0; i < item.appoints.length; i++) {
-					if(item.appoints[i].status == 3){ //has appointment
-						var dateArr = [];
-						dateArr.push(`${this.currentSelectDate} ${item.appoints[i].start}:00:00`);
-						dateArr.push(`${this.currentSelectDate} ${item.appoints[i].end}:00:00`);
-						this.disableTimeSlot.push(dateArr);
+				if(outsideDateDiff){
+					const showDate = this.$refs.timesComponent.selectDate;
+					this.handleTimesSelectDateChange(showDate);
+				}else{
+					for (var i = 0; i < item.appoints.length; i++) {
+						if(item.appoints[i].status == 3){ //has appointment
+							var dateArr = [];
+							dateArr.push(`${this.currentSelectDate} ${item.appoints[i].start}:00:00`);
+							dateArr.push(`${this.currentSelectDate} ${item.appoints[i].end}:00:00`);
+							this.disableTimeSlot.push(dateArr);
+						}
 					}
 				}
 				this.goToAppoint(item);

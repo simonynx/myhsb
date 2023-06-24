@@ -160,7 +160,7 @@
 			},
 			disableTimeSlot: {
 				handler(val) {
-					if (val && val.length) {
+					if (val) {
 						this.initOnload()
 					}
 				}
