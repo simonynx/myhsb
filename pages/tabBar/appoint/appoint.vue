@@ -191,7 +191,7 @@
 					if (appointments[i].room == id){
 						for (var j = 0; j < appointments[i].time_list.length; j++) {
 							let interval = appointments[i].time_list[j];
-							if(interval[0] == hour && appointments[i].order_status == 1){ //1 for success
+							if(interval[0] == hour){ //1 for success
 								return true;
 							}
 						}
