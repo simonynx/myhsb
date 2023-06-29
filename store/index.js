@@ -33,8 +33,21 @@ const store = new Vuex.Store({
 			state.userInfo = payload;
 		},
 		updateUserInfo(state, userInfo){
-			state.userInfo.avatar = userInfo.avatar;
-			state.userInfo.nickname = userInfo.nickname;
+			if(userInfo.gender){
+				state.userInfo.gender = userInfo.gender;
+			}
+			if(userInfo.birthday){
+				state.userInfo.birthday = userInfo.birthday;
+			}
+			if(userInfo.avatar){
+				state.userInfo.avatar = userInfo.avatar;
+			}
+			if(userInfo.nickname){
+				state.userInfo.nickname = userInfo.nickname;
+			}
+			if(userInfo.phone){
+				state.userInfo.phone = userInfo.phone;
+			}
 		},
 		setOpenid(state, openid) {
 			state.openid = openid
@@ -148,7 +161,7 @@ const store = new Vuex.Store({
 			state,
 			commit,
 		}){
-			return AUTH.setUserProflie(state.token, state.userInfo.phone, state.userInfo.nickname, state.userInfo.avatar, state.userInfo.gender).then((res)=>{
+			return AUTH.setUserProflie(state.token, state.userInfo.phone, state.userInfo.nickname, state.userInfo.avatar, state.userInfo.gender, state.userInfo.birthday).then((res)=>{
 				if (res._status != 0) {
 					uni.showModal({
 					  title: '更新远程用户信息失败',

@@ -82,11 +82,19 @@
 		<view class="yt-list">
 			<view class="yt-list-cell b-b">
 				<text class="cell-tit clamp">商品金额</text>
-				<text class="cell-tip">￥{{totalPrice}}</text>
+				<text class="cell-tip">￥{{totalPrice/100}}</text>
 			</view>
 			<view class="yt-list-cell b-b">
 				<text class="cell-tit clamp">优惠金额</text>
 				<text class="cell-tip red">{{discountAmount}}</text>
+			</view>
+			<view class="yt-list-cell b-b">
+				<text class="cell-tit clamp">内卷余额</text>
+				<text class="cell-tip red">￥{{userInfo.account_balance/100}}</text>
+			</view>
+			<view class="yt-list-cell b-b">
+				<text class="cell-tit clamp">是否使用余额支付</text>
+				<switch checked color="#FFCC33" style="transform:scale(0.7)" @change="handleBalanceCheckboxChange"/>
 			</view>
 			<view class="yt-list-cell desc-cell">
 				<text class="cell-tit clamp">备注</text>
@@ -99,7 +107,7 @@
 			<view class="price-content">
 				<text>实付款</text>
 				<text class="price-tip">￥</text>
-				<text class="price">{{actualPrice}}</text>
+				<text class="price">{{actualPrice/100}}</text>
 			</view>
 			<text class="submit" @click="submit">提交订单</text>
 		</view>
@@ -178,7 +186,8 @@
 				currentSelectDate:null,
 				selectTimes:[],
 				numOfPeople:2, //入场券人数
-				singlePersonPrice:0
+				singlePersonPrice:0,
+				useAccountBalance:true,
 			}
 		},
 		computed: {
@@ -194,17 +203,19 @@
 			totalPrice:{
 				get(){
 					if(!this.currentProduct) return 0;
-					return (this.currentProduct.price_per_hour * this.selectTimes.length)/100 + this.peoplePrice;
+					return (this.currentProduct.price_per_hour * this.selectTimes.length) + this.peoplePrice;
 				}
 			},
 			actualPrice:{
 				get(){
-					return this.totalPrice - this.discountAmount;
+					var balance = this.userInfo.account_balance;
+					var price = this.totalPrice - this.discountAmount;
+					return this.useAccountBalance?(balance >=price?0:(price-balance)): price;
 				}
 			},
 			peoplePrice:{
 				get(){
-					return this.singlePersonPrice * this.numOfPeople / 100;
+					return this.singlePersonPrice * this.numOfPeople;
 				}
 			}
 		},
@@ -224,7 +235,7 @@
 			this.singlePersonPrice = data.price_per_person;
 		},
 		methods: {
-			...mapActions(['loginAndRegister']),
+			...mapActions(['loginAndRegister', 'getUserInfo']),
 			//显示优惠券面板
 			toggleMask(type){
 				let timer = type === 'show' ? 10 : 300;
@@ -263,39 +274,65 @@
 				uni.showLoading({
 					title:'支付中...'
 				});
-				AUTH.bookingRoom(this.token, this.currentProduct.object_id, this.currentSelectDate, this.userInfo.nickname, this.numOfPeople, timeList, this.desc).then(function(res){
-					if(!res) {
-						uni.hideLoading();
-						return;
-					}
-					wx.requestPayment({
-						// provider: 'wxpay',
-						timeStamp: res.data.timeStamp,
-						nonceStr: res.data.nonceStr,
-						package: res.data.package,
-						signType: res.data.signType,
-						paySign: res.data.sign,
-						success: function (res) {
-							console.log('success:' + JSON.stringify(res));
+				if(this.useAccountBalance){
+					AUTH.bookingRoomWithBalance(this.token, this.currentProduct.object_id, this.currentSelectDate, this.userInfo.nickname, this.numOfPeople, timeList, this.desc).then(res=>{
+						if(!res) {
+							uni.hideLoading();
+							return;
+						}
+						if(res.data.need_pay){
+							_this.requestPayment(res);
+						}else{ //booking succeed
+							_this.getUserInfo();
 							uni.redirectTo({
 							  	url:'../pay/success/success?amount='+_this.actualPrice
 							});
-						},
-						fail: function (err) {
-							console.log('fail:' + JSON.stringify(err));
-							uni.showToast({
-								title:'支付失败'
-							});
-						},
-						complete:function(res){
-							uni.hideLoading();
 						}
 					})
-				});
+				}else{
+					AUTH.bookingRoom(this.token, this.currentProduct.object_id, this.currentSelectDate, this.userInfo.nickname, this.numOfPeople, timeList, this.desc).then(function(res){
+						if(!res) {
+							uni.hideLoading();
+							return;
+						}
+						_this.requestPayment(res);
+					});
+				}
+			},
+			
+			requestPayment(res){
+				const _this = this;
+				wx.requestPayment({
+					// provider: 'wxpay',
+					timeStamp: res.data.timeStamp,
+					nonceStr: res.data.nonceStr,
+					package: res.data.package,
+					signType: res.data.signType,
+					paySign: res.data.sign,
+					success: function (res) {
+						console.log('success:' + JSON.stringify(res));
+						uni.redirectTo({
+						  	url:'../pay/success/success?amount='+_this.actualPrice
+						});
+					},
+					fail: function (err) {
+						console.log('fail:' + JSON.stringify(err));
+						uni.showToast({
+							title:'支付失败'
+						});
+					},
+					complete:function(res){
+						uni.hideLoading();
+						_this.getUserInfo();
+					}
+				})
 			},
 			
 			handleNumChange(num){
 				this.numOfPeople = num;
+			},
+			handleBalanceCheckboxChange(e){
+				this.useAccountBalance = e.detail.value;
 			},
 			stopPrevent(){}
 		}

@@ -27,7 +27,7 @@
 						class="order-item"
 					>
 						<view class="i-top b-b">
-							<text class="time">{{item.appointment.date}}</text>
+							<text class="time">预约时间:{{item.goodsInfo.date}}</text>
 							<text class="state" :style="{color: item.stateTipColor}">{{item.stateTip}}</text>
 							<text 
 								v-if="item.state===9" 
@@ -41,30 +41,38 @@
 						>
 							<image class="goods-img" :src="item.room.image1" mode="aspectFill"></image>
 							<view class="right">
-								<text class="title clamp">{{item.room.title}}</text>
-								<text class="attr-box">{{item.room.price_per_hour/100}}  x {{item.appointment.time_list.length}} + {{item.room.price_per_person/100}} x {{item.appointment.user_count}}</text>
-								<text class="price">{{item.room.price_per_hour /100 * item.appointment.time_list.length + item.room.price_per_person/100 * item.appointment.user_count}}</text>
+								<text class="title clamp">{{item.room.name}}</text>
+								<text class="attr-box">{{item.room.price_per_hour/100}}  x {{item.goodsInfo.time_list.length}} + {{item.room.price_per_person/100}} x {{item.goodsInfo.user_count}}</text>
+								<text class="price">{{computeTotalPrice(item)/100}}</text>
 							</view>
 						</view>
 						
 						<text>选择时段: </text>
 						<view class="item-list">
 							<text 
-								v-for="(childItem, childIndex) in item.appointment.time_list" 
+								v-for="(childItem, childIndex) in item.goodsInfo.time_list" 
 								:key="childIndex" class="tit"
 							>
 								{{childItem[0]}}:00 - {{childItem[1]}}:00
 							</text>
 						</view>
 						
+						<view v-if="item.order_status == 0">
+							<text>内卷余额</text>
+							<text class="goods-box-single right price">￥{{userInfo.account_balance/100}}</text>
+							<text>是否使用余额支付</text>
+							<switch checked color="#FFCC33" style="transform:scale(0.7)" @change="handleBalanceCheckboxChange"/>
+						</view>
+						
 						<view class="price-box">
 							共
 							<text class="num">1</text>
 							件商品 实付款
-							<text class="price" v-if="item.appointment.request_data">{{item.appointment.request_data.total_fee /100}}</text>
-							<text class="price" v-else>{{item.room.price_per_hour /100 * item.appointment.time_list.length + item.room.price_per_person/100 * item.appointment.user_count}}</text>
+							<text class="price" v-if="item.order_status == 0">{{computePrice(item)/100}}</text>
+							<text class="price" v-else-if="item.request_data">{{item.request_data.total_fee /100}}</text>
+							<text class="price" v-else>{{computeTotalPrice(item)/100}}</text>
 						</view>
-						<view class="action-box b-t" v-if="item.appointment.order_status == 0">
+						<view class="action-box b-t" v-if="item.order_status == 0">
 							<button class="action-btn recom" @click="requestPay(item)">立即支付</button>
 						</view>
 					</view>
@@ -121,6 +129,7 @@
 						orderList: []
 					}
 				],
+				useAccountBalance:true,
 			};
 		},
 		
@@ -134,6 +143,7 @@
 		},
 		 
 		methods: {
+			...mapActions(['loginAndRegister', 'getUserInfo']),
 			//获取订单列表
 			loadData(source){
 				//这里是将订单挂载到tab列表下
@@ -154,27 +164,44 @@
 				for (var i = 0; i < this.navList.length; i++) {
 					this.navList[i].loadingType = 'loading';
 				}
-				AUTH.getOrderList(state-1, this.token).then(function(res){
+				var today = new Date();
+				var date = today.getFullYear()+'-'+(today.getMonth()+1).toString().padStart(2, "0")+'-'+(today.getDate()).toString().padStart(2, "0");
+				AUTH.getRoomDataList(this.token, date).then(res=>{
 					if(!res) return;
-					var firstNavItem = _this.navList[0];
-					res.data.forEach(item=>{
-						let specificIndex = item.appointment.order_status + 1;
-						item = Object.assign(item, _this.orderStateExp(specificIndex));
-						let specificNavItem = _this.navList[specificIndex];
-						specificNavItem.orderList.push(item);
-						firstNavItem.orderList.push(item);
-					});
+					let rooms = res.data.rooms;
+					AUTH.getOrderList(state-1, this.token).then(function(res){
+						if(!res) return;
+						var firstNavItem = _this.navList[0];
+						res.data.orders.forEach(item=>{
+							let goodsInfoStr = item.goods_info;
+							let goodsInfo = JSON.parse(goodsInfoStr);
+							item.goodsInfo = goodsInfo;
+							if(goodsInfo.goods_type == 1){
+								item.room = _this.getRoomById(rooms, goodsInfo.room_id);
+								let specificIndex = item.order_status + 1;
+								item = Object.assign(item, _this.orderStateExp(specificIndex));
+								let specificNavItem = _this.navList[specificIndex];
+								specificNavItem.orderList.push(item);
+								firstNavItem.orderList.push(item);
+							}
+						});
+						
+						for (var i = 0; i < _this.navList.length; i++) {
+							//loaded新字段用于表示数据加载完毕，如果为空可以显示空白页
+							_this.$set(_this.navList[i], 'loaded', true);
+							//判断是否还有数据， 有改为 more， 没有改为noMore 
+							_this.navList[i].loadingType = 'noMore';
+						}
 					
-					for (var i = 0; i < _this.navList.length; i++) {
-						//loaded新字段用于表示数据加载完毕，如果为空可以显示空白页
-						_this.$set(_this.navList[i], 'loaded', true);
-						//判断是否还有数据， 有改为 more， 没有改为noMore 
-						_this.navList[i].loadingType = 'noMore';
-					}
-
+					});
 				});
-				
-			}, 
+			},
+			 
+			getRoomById(rooms,id){
+				for (var i = 0; i < rooms.length; i++) {
+					if(rooms[i].object_id == id) return rooms[i];
+				}
+			},
 
 			//swiper 切换
 			changeTab(e){
@@ -221,37 +248,71 @@
 				uni.showLoading({
 					title:'支付中...'
 				});
-				AUTH.bookingRoom(this.token, item.room.object_id, item.appointment.date, this.userInfo.nickname, item.appointment.user_count, item.appointment.time_list, item.appointment.remark).then(function(res){
-					if(!res) {
-						uni.hideLoading();
-						return;	
-					}
-					wx.requestPayment({
-						// provider: 'wxpay',
-						timeStamp: res.data.timeStamp,
-						nonceStr: res.data.nonceStr,
-						package: res.data.package,
-						signType: res.data.signType,
-						paySign: res.data.sign,
-						success: function (res) {
-							console.log('success:' + JSON.stringify(res));
-							uni.redirectTo({
-							  	url:'../pay/success/success?amount='+item.appointment.request_data.total_fee /100
-							});
-						},
-						fail: function (err) {
-							console.log('fail:' + JSON.stringify(err));
-							uni.showToast({
-								title:'支付失败'
-							});
-						},
-						complete:function(res){
+				const _this = this;
+				if(this.useAccountBalance){
+					AUTH.bookingRoomWithBalance(this.token, item.room.object_id, item.goodsInfo.date, this.userInfo.nickname, item.goodsInfo.user_count, item.goodsInfo.time_list, item.goodsInfo.remark).then(res=>{
+						if(!res) {
 							uni.hideLoading();
+							return;
+						}
+						if(res.data.need_pay){
+							_this.requestPayment(res, item);
+						}else{ //booking succeed
+							_this.getUserInfo();
+							uni.redirectTo({
+							  	url:'../pay/success/success?amount='+item.request_data.total_fee
+							});
 						}
 					})
-				});
+				}else{
+					AUTH.bookingRoom(this.token, item.room.object_id, item.goodsInfo.date, this.userInfo.nickname, item.goodsInfo.user_count, item.goodsInfo.time_list, item.goodsInfo.remark).then(function(res){
+						if(!res) {
+							uni.hideLoading();
+							return;
+						}
+						_this.requestPayment(res, item);
+					});
+				}
 			},
-
+			
+			requestPayment(res, item){
+				const _this = this;
+				wx.requestPayment({
+					// provider: 'wxpay',
+					timeStamp: res.data.timeStamp,
+					nonceStr: res.data.nonceStr,
+					package: res.data.package,
+					signType: res.data.signType,
+					paySign: res.data.sign,
+					success: function (res) {
+						console.log('success:' + JSON.stringify(res));
+						uni.redirectTo({
+							url:'../pay/success/success?amount='+item.request_data.total_fee
+						});
+					},
+					fail: function (err) {
+						console.log('fail:' + JSON.stringify(err));
+						uni.showToast({
+							title:'支付失败'
+						});
+					},
+					complete:function(res){
+						uni.hideLoading();
+						_this.getUserInfo();
+					}
+				})
+			},
+			
+			computePrice(item){
+				var balance = this.userInfo.account_balance;
+				var totalPrice = this.computeTotalPrice(item);
+				var price = totalPrice;
+				return this.useAccountBalance?(balance >=price?0:(price-balance)): price;
+			},
+			computeTotalPrice(item){
+				var totalPrice = item.room.price_per_hour * item.goodsInfo.time_list.length + item.room.price_per_person * item.goodsInfo.user_count;
+				return totalPrice;
+			},
 			//订单状态文字和颜色
 			orderStateExp(state){
 				let stateTip = '',
@@ -269,7 +330,10 @@
 					//更多自定义
 				}
 				return {stateTip, stateTipColor};
-			}
+			},
+			handleBalanceCheckboxChange(e){
+				this.useAccountBalance = e.detail.value;
+			},
 		},
 	}
 </script>

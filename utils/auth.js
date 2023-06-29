@@ -134,8 +134,29 @@ function bookingRoom(token, roomId, date, contactName, userCount, timeList, rema
   });
 }
 
-function setUserProflie(token, phone, nickName, avatarUrl, gender) {
-	let data = {phone:phone, nickname:nickName, avatar:avatarUrl, gender:gender};
+function bookingRoomWithBalance(token, roomId, date, contactName, userCount, timeList, remark) {
+  var data = { room_id: roomId, contact_name:contactName, user_count:userCount,date:date, time_list:timeList, remark:remark };
+  return request('/rooms/booking_balance/', 'POST', data, token).then(res=>{
+	if (res._status != 0) {
+		uni.showModal({
+		  title: '无法创建订单',
+		  content: res._reason,
+		  showCancel: false
+		})
+		return;	
+	}
+	return res;
+  }).catch(error=>{
+	uni.showModal({
+	  title: '无法创建订单',
+	  content: error,
+	  showCancel: false
+	})  
+  });
+}
+
+function setUserProflie(token, phone, nickName, avatarUrl, gender, birthday) {
+	let data = {phone:phone, nickname:nickName, avatar:avatarUrl, gender:gender, birthday:birthday};
 	return request('/users/me/', 'POST', data, token);
 }
 
@@ -166,7 +187,7 @@ function getOrderList(status ,token) {
 	if (status >= 0){
 		data = {order_status:status};
 	}
-	return request('/users/appointments/'+(data? ("?order_status="+status) : ""), 'GET', data, token).then(function (res){
+	return request('/users/orders/'+(data? ("?order_status="+status) : ""), 'GET', data, token).then(function (res){
 		if (res._status != 0) {
 			uni.showModal({
 			  title: '无法获取订单',
@@ -179,6 +200,27 @@ function getOrderList(status ,token) {
 	}).catch(error=>{
 		uni.showModal({
 		  title: '无法获取订单',
+		  content: error,
+		  showCancel: false
+		});
+	});
+}
+
+function recharge(amount, token){
+	var data = {amount:amount};
+	return request('/users/recharge/', 'POST', data, token).then(function (res){
+		if (res._status != 0) {
+			uni.showModal({
+			  title: '充值失败',
+			  content: res._reason,
+			  showCancel: false
+			})
+			return;
+		}
+		return res;
+	}).catch(error=>{
+		uni.showModal({
+		  title: '充值失败',
 		  content: error,
 		  showCancel: false
 		});
@@ -219,8 +261,6 @@ function uploadFile(token, filePath, fileName){
 					content: error,
 					showCancel: false
 				})
-				reject(resData._reason);
-				return;
 				reject(error);
 			}
 	    });
@@ -236,9 +276,11 @@ const httpRequest = {
 	getRoomDataList:getRoomDataList,
 	getRoomAppointments:getRoomAppointments,
 	bookingRoom:bookingRoom,
+	bookingRoomWithBalance:bookingRoomWithBalance,
 	getUserProfile:getUserProfile,
 	getOrderList:getOrderList,
 	uploadFile:uploadFile,
+	recharge:recharge,
 }
 
 export default httpRequest

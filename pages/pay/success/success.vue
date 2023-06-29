@@ -23,7 +23,7 @@
 			};
 		},
 		onLoad(e) {
-			this.amount = parseFloat(e.amount).toFixed(2);
+			this.amount = parseFloat(e.amount/100).toFixed(2);
 		},
 		methods: {
 			toUser() {

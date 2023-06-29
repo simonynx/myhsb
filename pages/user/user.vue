@@ -84,19 +84,15 @@
 					<image @click="navTo('/pages/product/product')" src="https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1553105443324&di=8141bf13f3f208c61524d67f9bb83942&imgtype=0&src=http%3A%2F%2Fimg.zcool.cn%2Fcommunity%2F01ac9a5548d29b0000019ae98e6d98.jpg" mode="aspectFill"></image>
 					<image @click="navTo('/pages/product/product')" src="https://ss0.bdstatic.com/70cFuHSh_Q1YnxGkpoWK1HF6hhy/it/u=191678693,2701202375&fm=26&gp=0.jpg" mode="aspectFill"></image>
 				</scroll-view> -->
-				<list-cell icon="icon-iconfontweixin" iconColor="#e07472" title="内卷余额" tips="0"></list-cell>
-				<list-cell icon="icon-dizhi" iconColor="#5fcda2" title="地址管理" @eventClick="navTo('/pages/address/address')"></list-cell>
-				<list-cell icon="icon-share" iconColor="#9789f7" title="分享" tips="没做好啊"></list-cell>
-				<list-cell icon="icon-pinglun-copy" iconColor="#ee883b" title="晒单" tips="没做好啊"></list-cell>
-				<list-cell icon="icon-shoucang_xuanzhongzhuangtai" iconColor="#54b4ef" title="我的收藏"></list-cell>
-				<list-cell icon="icon-shezhi1" iconColor="#e07472" title="设置" border="" @eventClick="navTo('/pages/set/set')"></list-cell>
+				<list-cell icon="icon-iconfontweixin" iconColor="#e07472" title="内卷余额(点击充值)" :tips="userInfo.account_balance/100" @eventClick="navTo('/pages/user/deposit/deposit')"></list-cell>
+				<!-- <list-cell icon="icon-dizhi" iconColor="#5fcda2" title="地址管理" @eventClick="navTo('/pages/address/address')"></list-cell> -->
+				<!-- <list-cell icon="icon-share" iconColor="#9789f7" title="分享" tips="没做好啊"></list-cell> -->
+				<!-- <list-cell icon="icon-pinglun-copy" iconColor="#ee883b" title="晒单" tips="没做好啊"></list-cell> -->
+				<!-- <list-cell icon="icon-shoucang_xuanzhongzhuangtai" iconColor="#54b4ef" title="我的收藏"></list-cell> -->
+				<list-cell icon="icon-shezhi1" iconColor="#e07472" title="设置" border="" @eventClick="navTo('/pages/user/setting/setting')"></list-cell>
 			</view>
 		</view>
-		
-		<wx-user-info-modal
-		  v-model="showAuthorizationModal"
-		  @updated="updatedUserInfoEvent"
-		></wx-user-info-modal>
+	
     </view>  
 </template>  
 <script>
@@ -107,12 +103,10 @@
 		mapActions,
 		mapMutations
 	} from 'vuex'; 
-	import WxUserInfoModal from '@/uni_modules/tuniaoui-wx-user-info/components/tuniaoui-wx-user-info/tuniaoui-wx-user-info.vue'
 	let startY = 0, moveY = 0, pageAtTop = true;
     export default {
 		components: {
 			listCell,
-			WxUserInfoModal
 		},
 		computed: {
 			...mapState(['hasLogin','userInfo', 'token', 'openid'])
@@ -122,7 +116,6 @@
 				coverTransform: 'translateY(0px)',
 				coverTransition: '0s',
 				moving: false,
-				showAuthorizationModal:false,
 			}
 		},
 		onShow() {
@@ -165,7 +158,9 @@
 			
 			// 打开获取用户信息弹框
 			openAuthorizationModal() {
-				this.showAuthorizationModal = true;
+				uni.navigateTo({
+					url:"/pages/user/setting/setting"
+				})  
 			},
 		
 			// 获取到的用户信息
@@ -185,7 +180,8 @@
 			 */
 			navTo(url){
 				if(!this.hasLogin){
-					url = '/pages/public/login';
+					this.loginAndRegister()
+					return;
 				}
 				uni.navigateTo({  
 					url
@@ -283,7 +279,7 @@
 			margin-left: 20upx;
 		}
 	}
-
+	
 	.vip-card-box{
 		display:flex;
 		flex-direction: column;

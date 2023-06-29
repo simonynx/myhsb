@@ -126,6 +126,24 @@
 			}
 		},
 		{
+			"path" : "pages/user/deposit/deposit",
+			"style" : {
+				"navigationBarBackgroundColor":"#ff681b",
+				"navigationBarTitleText":"充值",
+				"backgroundColorTop":"#ffffff",
+				"backgroundColorBottom":"#ffffff"
+			}
+		},
+		{
+			"path" : "pages/user/setting/setting",
+			"style" : {
+				"navigationBarBackgroundColor":"#ff681b",
+				"navigationBarTitleText":"个人信息",
+				"backgroundColorTop":"#ffffff",
+				"backgroundColorBottom":"#ffffff"
+			}
+		},
+		{
             "path" : "pages/pay/success/success",
             "style" : {
 				"navigationBarBackgroundColor":"#ffffff",
