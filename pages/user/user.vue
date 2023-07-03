@@ -10,6 +10,10 @@
 				<view class="info-box">
 					<text class="username">{{userInfo.nickname || '游客'}}</text>
 				</view>
+				<view class="info-box">
+					<view v-if="userInfo.gender == 0" class="gender female">♀️</view>
+					<view v-else class="gender male">♂️</view>
+				</view>
 			</view>
 			<view class="vip-card-box">
 				<image class="card-bg" src="/static/vip-card-bg.png" mode=""></image>
@@ -277,6 +281,21 @@
 			font-size: $font-lg + 6upx;
 			color: $font-color-dark;
 			margin-left: 20upx;
+		}
+		.gender {
+		  font-family: "Arial", sans-serif;
+		  font-size: 20px;
+		  font-weight: bold;
+		  padding: 2px 6px;
+		  border-radius: 50%;
+		}
+		
+		.male {
+		  color: #2196f3;
+		}
+		
+		.female {
+		  color: #f50057;
 		}
 	}
 	

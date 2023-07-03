@@ -4,6 +4,9 @@
 			<view class="title">
 				我的账户
 			</view>
+			<view class="tips-box">
+				<view class="tip-text">目前余额只能用于预约</view>
+			</view>
 			<view class="content">
 				<view class="my">
 					我的账户余额：{{userInfo.account_balance/100}} 元
@@ -84,7 +87,7 @@
 		data() {
 			return {
 				inputAmount:'',//金额
-				amountList:[50,100,150],//预设3个可选快捷金额
+				amountList:[200,300,500],//预设3个可选快捷金额
 				paytype:'wxpay'//支付类型
 			};
 		},
@@ -165,10 +168,27 @@
 			width: 100%;
 			font-size: 34upx;
 		}
+		.tips-box {
+		  display: flex;
+		  justify-content: flex-start;
+		  align-items: center;
+		  padding: 10px 20px;
+		  border-left: 3px solid #ad2e24;
+		  background-color: #ad2e24;
+		  font-size: 14px;
+		  color: #fff;
+		  margin-top: 10px;
+		  width: 100%;
+		  
+		  .tip-text {
+		    text-align: left;
+		    line-height: 1.5;
+		  }
+		}
 		.content{
 			.my{
 				width: 100%;
-				height: 120upx;
+				height: 100upx;
 				display: flex;
 				align-items: center;
 				font-size: 30upx;

@@ -92,7 +92,15 @@
 			"style": {
 				"navigationBarTitleText": "确认预约信息"
 			}
-		},
+		},{
+            "path" : "pages/voucher/voucher",
+            "style" : {
+				"navigationBarTitleText": "卡券",
+				"app-plus": {
+					"bounce": "none"
+				}
+			}
+        },
 		{
 			"path": "pages/user/user",
 			"style": {
@@ -205,12 +213,17 @@
 				"iconPath": "static/tab-home.png",
 				"selectedIconPath": "static/tab-home-current.png",
 				"text": "首页"
-			}, {
+			},{
+				"pagePath": "pages/voucher/voucher",
+				"iconPath": "static/tab-voucher.png",
+				"selectedIconPath": "static/tab-voucher-current.png",
+				"text": "卡券"
+			},{
 				"pagePath": "pages/tabBar/appoint/appoint",
 				"iconPath": "static/tab-cart.png",
 				"selectedIconPath": "static/tab-cart-current.png",
 				"text": "预约"
-			}, {
+			},{
 				"pagePath": "pages/user/user",
 				"iconPath": "static/tab-my.png",
 				"selectedIconPath": "static/tab-my-current.png",

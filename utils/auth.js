@@ -206,6 +206,47 @@ function getOrderList(status ,token) {
 	});
 }
 
+function getGoodsList(token){
+	return request('/goods/', 'GET', null, token).then(function (res){
+		if (res._status != 0) {
+			uni.showModal({
+			  title: '无法获取商品列表',
+			  content: res._reason,
+			  showCancel: false
+			})
+			return;
+		}
+		return res;
+	}).catch(error=>{
+		uni.showModal({
+		  title: '无法获取商品列表',
+		  content: error,
+		  showCancel: false
+		});
+	});
+}
+
+function purchaseGoods(goodsId,token){
+	var data = {goods_id:goodsId}
+	return request('/goods/purchase/', 'POST', data, token).then(function (res){
+		if (res._status != 0) {
+			uni.showModal({
+			  title: '无法购买商品',
+			  content: res._reason,
+			  showCancel: false
+			})
+			return;
+		}
+		return res;
+	}).catch(error=>{
+		uni.showModal({
+		  title: '无法购买商品',
+		  content: error,
+		  showCancel: false
+		});
+	});
+}
+
 function recharge(amount, token){
 	var data = {amount:amount};
 	return request('/users/recharge/', 'POST', data, token).then(function (res){
@@ -279,6 +320,8 @@ const httpRequest = {
 	bookingRoomWithBalance:bookingRoomWithBalance,
 	getUserProfile:getUserProfile,
 	getOrderList:getOrderList,
+	getGoodsList:getGoodsList,
+	purchaseGoods:purchaseGoods,
 	uploadFile:uploadFile,
 	recharge:recharge,
 }
