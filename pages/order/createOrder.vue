@@ -53,7 +53,7 @@
 						<text class="number">x {{numOfPeople}}</text>
 					</view>
 					<text>选择入场人数: </text>
-					<uni-number-box :min="1" :max="99" :value="numOfPeople" @change="handleNumChange"/>
+					<uni-number-box :min="0" :max="99" :value="numOfPeople" @change="handleNumChange"/>
 				</view>
 			</view>
 		</view>
