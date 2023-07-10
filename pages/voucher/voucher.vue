@@ -105,9 +105,19 @@
 		onPullDownRefresh() {
 		},
 		onLoad() {
-			this.loadData();
 		},
 		onShow() {
+			if(!this.hasLogin){
+				this.loginAndRegister();
+			}else{
+				for (var i = 0; i < this.navList.length; i++) {
+					//loaded新字段用于表示数据加载完毕，如果为空可以显示空白页
+					this.$set(this.navList[i], 'loaded', false);
+					//判断是否还有数据， 有改为 more， 没有改为noMore 
+					this.navList[i].loadingType = 'more';
+				}
+				this.loadData();
+			}
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getUserInfo']),
