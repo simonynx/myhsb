@@ -115,6 +115,7 @@
 					this.$set(this.navList[i], 'loaded', false);
 					//判断是否还有数据， 有改为 more， 没有改为noMore 
 					this.navList[i].loadingType = 'more';
+					this.navList[i].goodsList = [];
 				}
 				this.loadData();
 			}
