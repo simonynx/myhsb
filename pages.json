@@ -182,6 +182,15 @@
 			}
 		}
 		// #endif
+        ,{
+            "path" : "pages/voucher/detail",
+            "style" :                                                                                    
+            {
+                "navigationBarTitleText": "确认购买",
+                "enablePullDownRefresh": false
+            }
+            
+        }
     ],
 	"subPackages": [
 	],

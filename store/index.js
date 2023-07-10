@@ -6,6 +6,7 @@ const store = new Vuex.Store({
 	state: {
 		hasLogin: false,
 		userInfo: null,
+		constance:null,
 		isUniverifyLogin: false,
 		loginProvider: "",
 		token:null,
@@ -31,6 +32,9 @@ const store = new Vuex.Store({
 		},
 		setUserInfo(state, payload){
 			state.userInfo = payload;
+		},
+		setConstanceInfo(state, payload){
+			state.constance = payload;
 		},
 		updateUserInfo(state, userInfo){
 			if(userInfo.gender){
@@ -96,7 +100,8 @@ const store = new Vuex.Store({
 		// lazy loading openid
 		loginAndRegister: async function({
 			commit,
-			state
+			state,
+			dispatch
 		}) {
 			return await new Promise((resolve, reject) => {
 				if (state.openid) {
@@ -136,6 +141,8 @@ const store = new Vuex.Store({
 						commit("setUniverifyLogin", true);
 						commit("setToken", res.data.token);
 						commit("setOpenid", res.data.user.weixin_openid);
+						dispatch('getUserInfo');
+						dispatch('getConstanceInfo');
 						resolve(state.openid)
 					}).catch((error)=>{
 						// 登录错误
@@ -180,6 +187,29 @@ const store = new Vuex.Store({
 				});
 			});
 		},
+		getConstanceInfo:function({
+			state,
+			commit,
+		}){
+			return AUTH.getConstance(state.token).then((res)=>{
+				if(!res) return;
+				var baseUrl = 'http://moyuhuashui.oss-cn-shenzhen.aliyuncs.com/';
+				if(res.data.home_page_image0){
+					res.data.home_page_image0 =  baseUrl + res.data.home_page_image0;
+				}
+				if(res.data.home_page_image1){
+					res.data.home_page_image1 =  baseUrl + res.data.home_page_image1;
+				}
+				if(res.data.home_page_image2){
+					res.data.home_page_image2 =  baseUrl + res.data.home_page_image2;
+				}
+				if(res.data.home_page_image3){
+					res.data.home_page_image3 =  baseUrl + res.data.home_page_image3;
+				}
+				commit('setConstanceInfo', res.data);
+				return res;
+			});
+		}
 	}
 })
 

@@ -83,6 +83,12 @@
 					},
 					{
 						type: 2,
+						text: '美容',
+						loadingType: 'more',
+						goodsList: []
+					},
+					{
+						type: 3,
 						text: '其它',
 						loadingType: 'more',
 						goodsList: []
@@ -156,87 +162,13 @@
 				this.tabCurrentIndex = index;
 			},
 			handleTicketClick(goods){
-				if(goods.validity_period_start && goods.validity_period_end){
-					var startDate = new Date(goods.validity_period_start);
-					var endDate =  new Date(goods.validity_period_end);
-					var today = new Date();
-					if(today.getTime() < startDate.getTime()){
-						uni.showToast({
-							title:"该卡券还未到有效期间啊～",
-							duration:2000,
-						})
-						return;
-					}
-					if(today.getTime() > endDate.getTime()){
-						uni.showToast({
-							title:"该卡券已经过了有效期间啦～",
-							duration:2000,
-						})
-						return;
-					}
-				}
-				uni.showLoading({
-					title:'购买商品中...'
+				uni.navigateTo({
+					url:`/pages/voucher/detail?data=${JSON.stringify(goods)}`
 				});
-				const _this = this;
-				var useBalance = goods.can_use_balance >= 1;
-				if(useBalance){
-					AUTH.purchaseGoods(goods.object_id, this.token).then(res=>{
-						if(!res) {
-							uni.hideLoading();
-							return;
-						}
-						if(res.data.need_pay){
-							_this.requestPayment(res);
-						}else{ //purchase succeed
-							_this.getUserInfo();
-							uni.showToast({
-								title:'购买成功啦～'
-							});
-						}
-					});
-				}else{
-					AUTH.purchaseGoods(goods.object_id, this.token).then(res=>{
-						if(!res) {
-							uni.hideLoading();
-							return;
-						}
-						_this.requestPayment(res);
-					});
-				}
-
 			},
 			discard() {
 				//丢弃
 			},
-			requestPayment(res){
-				const _this = this;
-				wx.requestPayment({
-					// provider: 'wxpay',
-					timeStamp: res.data.timeStamp,
-					nonceStr: res.data.nonceStr,
-					package: res.data.package,
-					signType: res.data.signType,
-					paySign: res.data.sign,
-					success: function (res) {
-						console.log('success:' + JSON.stringify(res));
-						uni.showToast({
-							title:'购买成功啦～'
-						});
-					},
-					fail: function (err) {
-						console.log('fail:' + JSON.stringify(err));
-						uni.showToast({
-							title:'支付失败'
-						});
-					},
-					complete:function(res){
-						uni.hideLoading();
-						_this.getUserInfo();
-					}
-				})
-			},
-			
 		}
 	}
 </script>
@@ -305,15 +237,15 @@
 		  align-items: center;
 		  // width: 100%;
 		  height: 150px;
-		  border: 4rpx solid #ee6701;
+		  // border: 4rpx solid #ee6701;
 		  border-radius: 10rpx;
 		  font-family: Arial, sans-serif;
 		  font-size: 28rpx;
-		  box-shadow: 0 4px 5px rgba(189, 189, 189, 0.3);
+		  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
 		  overflow: hidden;
 		  background-color: #f1f1f1;
 		  margin: 20px;
-		  
+
 		  .left {
 			display: flex;
 			flex-direction: column;
@@ -322,14 +254,14 @@
 		    left: 0;
 		    width: 70%;
 		    height: 150px;
-		    background-color: #ffa500;
+		    background-color: #f2f2f2;
 			padding: 10px;
 			
 			.description {
 			  font-family: "Helvetica Neue", Arial, sans-serif;
 			  font-size: 18px;
 			  font-weight: normal;
-			  color: #f1f1f1;
+			  color: #555555;
 			}
 			
 			.validity {
@@ -361,7 +293,7 @@
 		    left: 70%;
 		    width: 30%;
 		    height: 150px;
-		    background-color: #2f9fcc;
+		    background-color: #4caf50;
 			padding: 10px;
 			
 			.title {
@@ -387,11 +319,9 @@
 		    width: 2px;
 		    height: 150px;
 		    background-color: transparent;
-		    border-right: 2px dashed #000;
+		    border-right: 1px dashed #000;
 		  }
-
 		}
-
 	}	
 	
 </style>

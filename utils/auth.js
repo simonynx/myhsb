@@ -226,6 +226,26 @@ function getGoodsList(token){
 	});
 }
 
+function getConstance(token){
+	return request('/config/', 'GET', null, token).then(function (res){
+		if (res._status != 0) {
+			uni.showModal({
+			  title: '无法获取常量信息',
+			  content: res._reason,
+			  showCancel: false
+			})
+			return;
+		}
+		return res;
+	}).catch(error=>{
+		uni.showModal({
+		  title: '无法获取常量信息',
+		  content: error,
+		  showCancel: false
+		});
+	});
+}
+
 function purchaseGoods(goodsId,token){
 	var data = {goods_id:goodsId}
 	return request('/goods/purchase/', 'POST', data, token).then(function (res){
@@ -324,6 +344,7 @@ const httpRequest = {
 	purchaseGoods:purchaseGoods,
 	uploadFile:uploadFile,
 	recharge:recharge,
+	getConstance:getConstance,
 }
 
 export default httpRequest

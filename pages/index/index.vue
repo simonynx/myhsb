@@ -7,9 +7,9 @@
 			<!-- <view class="titleNview-placing"></view> -->
 			<!-- 背景色区域 -->
 			<view class="titleNview-background" :style="{backgroundColor:titleNViewBackground}"></view>
-			<swiper class="carousel" circular @change="swiperChange">
+			<swiper class="carousel" circular autoplay="true" duration="2000" @change="swiperChange">
 				<swiper-item v-for="(item, index) in carouselList" :key="index" class="carousel-item">
-					<image :src="item.src" />
+					<image :src="item" />
 				</swiper-item>
 			</swiper>
 			<!-- 自定义swiper指示器 -->
@@ -31,9 +31,7 @@
 			        <text class="address-text">{{addressData.address+ addressData.area}}</text>
 			      </view>
 			      <view class="shop-intro">
-			        <text class="intro-text">
-			           欢迎来到摸鱼划水吧，我们是一家ACG文化的综合体验馆，提供主机游戏游玩、漫画小说阅读及咖啡甜品等服务。在这里我们可以一起玩游戏，聊漫画，品味美食，享受属于你自己的空间。什么？你还在996？赶紧快来摸鱼加入我们吧！
-			        </text>
+			        <text class="intro-text">{{constance.buy_requirment}}</text>
 			      </view>
 			      <view class="shop-service">
 					<view class="show-items">
@@ -52,17 +50,17 @@
 			    <view class="wifi-info-box">
 			      <view class="wifi-info-item">
 					<FontAwesomeIcon type="fas fa-wifi" class="wifi-info-icon"/>
-			        <span class="wifi-info-text">摸鱼划水吧</span>
+			        <span class="wifi-info-text">{{constance.wifi_account}}</span>
 			      </view>
 			      <view class="wifi-info-item">
 					<FontAwesomeIcon type="fas fa-lock" class="wifi-info-icon"/>
-			        <span class="wifi-info-text">myhsb1688</span>
+			        <span class="wifi-info-text">{{constance.wifi_password}}</span>
 			      </view>
 			    </view>
 			    <view class="phone-info-box">
 			      <view class="phone-info-item">
 					<FontAwesomeIcon type="fas fa-phone-alt" class="phone-info-icon"/>
-			        <span class="phone-info-text">83596103</span>
+			        <span class="phone-info-text">{{constance.phone_number}}</span>
 			      </view>
 			    </view>
 			  </view>
@@ -87,14 +85,18 @@
 		mapState,
 		mapActions
 	} from 'vuex';
-	import Json from './../../Json.js'
 	import FontAwesomeIcon from '@/components/Am-FontAwesome/index.vue'
 	export default {
 		components: {
 			FontAwesomeIcon
 		},
 		computed: {
-			...mapState(['hasLogin'])
+			...mapState(['hasLogin', 'constance'])
+		},
+		watch:{
+			constance(value){
+			   this.loadData();
+			},
 		},
 		data() {
 			return {
@@ -134,7 +136,7 @@
 			this.loadData();
 		},
 		methods: {
-			...mapActions(['loginAndRegister']),
+			...mapActions(['loginAndRegister', 'getConstanceInfo']),
 			
 			openLocation(e){
 				uni.openLocation({
@@ -150,10 +152,22 @@
 			 * 分次请求未作整合
 			 */
 			async loadData() {
-				let carouselList = Json.carouselList;
-				this.titleNViewBackground = carouselList[0].background;
-				this.swiperLength = carouselList.length;
-				this.carouselList = carouselList;
+				this.carouselList = [];
+				if(this.constance){
+					if(this.constance.home_page_image0){
+						this.carouselList.push(this.constance.home_page_image0);
+					}
+					if(this.constance.home_page_image1){
+						this.carouselList.push(this.constance.home_page_image1);
+					}
+					if(this.constance.home_page_image2){
+						this.carouselList.push(this.constance.home_page_image2);
+					}
+					if(this.constance.home_page_image3){
+						this.carouselList.push(this.constance.home_page_image3);
+					}
+				}
+				this.swiperLength = this.carouselList.length;
 			},
 			//轮播图切换修改背景色
 			swiperChange(e) {
@@ -213,12 +227,14 @@
 			height: 100%;
 			padding: 0 28upx;
 			overflow: hidden;
+			box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
 		}
 
 		image {
 			width: 100%;
 			height: 100%;
 			border-radius: 10upx;
+			box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.2);
 		}
 	}
 	.swiper-dots {
