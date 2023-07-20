@@ -23,7 +23,7 @@
 			<uni-section title="至少填个名字吧,要不然后台不好查数据" type="line"/>
 			<view class="ui-list right">
 				<text>昵称</text>
-				<input class="input" type="nickname" v-model="userInfo.nickname" placeholder="求你改个名字吧!" placeholder-style="color: #AAAAAA;">
+				<input class="input" type="nickname" v-model="userInfo.nickname" @blur="bindnickName" @input="bindnickName" placeholder="求你改个名字吧!" placeholder-style="color: #AAAAAA;">
 			</view>
 			<uni-section title="填了手机号可以收到预约通知短信,也方便联系" type="line"/>
 			<view class="ui-list right">
@@ -60,7 +60,7 @@
 				<text>签名</text>
 				<textarea :placeholder="value" placeholder-class="place" :value="description" @input="binddescription"></textarea>
 			</view> -->
-			<button class="save" @tap="savaInfo">保 存 修 改</button>
+			<button class="save" formType="submit" @tap="savaInfo">保 存 修 改</button>
 		</view>
 
 	</view>
@@ -206,12 +206,26 @@
 						if(!res) return;
 						datas.avatar = res.url;
 						_this.updateUserInfo(datas);
-						_this.requestUpdateUserInfo();
+						_this.requestUpdateUserInfo().then(res=>{
+							if(!res) return;
+							uni.showToast({
+								title: '修改个人信息成功啦～',
+								icon: 'none',
+								duration: 2000
+							});
+						});
 					});
 				}else{
 					datas.avatar = this.avatar;
 					_this.updateUserInfo(datas);
-					_this.requestUpdateUserInfo();
+					_this.requestUpdateUserInfo().then(res=>{
+						if(!res) return;
+						uni.showToast({
+							title: '修改个人信息成功啦～',
+							icon: 'none',
+							duration: 2000
+						});
+					});
 				}
 			},
 		},
