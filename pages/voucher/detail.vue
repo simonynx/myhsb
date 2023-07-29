@@ -48,7 +48,7 @@
 				<text class="cell-tit clamp">商品金额</text>
 				<text class="cell-tip">￥{{currentGoods.price/100}}</text>
 			</view>
-			<view class="yt-list-cell b-b">
+<!-- 			<view class="yt-list-cell b-b">
 				<text class="cell-tit clamp">内卷余额</text>
 				<text class="cell-tip red">￥{{userInfo.account_balance/100}}</text>
 			</view>
@@ -58,7 +58,7 @@
 			</view>
 			<view class="yt-list-cell b-b" v-else>
 				<text class="cell-tit clamp">不可使用余额支付</text>
-			</view>
+			</view> -->
 		</view>
 		<!-- 底部 -->
 		<view class="footer">
@@ -68,7 +68,7 @@
 				<text class="price">{{actualPrice/100}}</text>
 			</view>
 			<button class="chat-button" open-type="contact" bindcontact="handleContact">咨询</button>
-			<text class="submit" @click="handleSubmit">确认支付</text>
+			<text class="submit" @click="handleSubmit">确认订单</text>
 		</view>
 	</view>
 </template>
@@ -84,9 +84,10 @@
 			...mapState(['hasLogin','userInfo', 'token', 'constance']),
 			actualPrice:{
 				get(){
-					var balance = this.userInfo.account_balance;
+					// var balance = this.userInfo.account_balance;
 					var price = this.currentGoods?this.currentGoods.price:0;
-					return this.useAccountBalance?(balance >=price?0:(price-balance)): price;
+					// return this.useAccountBalance?(balance >=price?0:(price-balance)): price;
+					return price;
 				}
 			},
 		},
@@ -124,66 +125,20 @@
 					}
 				}
 				uni.showLoading({
-					title:'购买商品中...'
+					title:'创建订单中...'
 				});
-				const _this = this;
-				if(this.useAccountBalance){
-					AUTH.purchaseGoods(goods.object_id, this.token).then(res=>{
-						if(!res) {
-							uni.hideLoading();
-							return;
-						}
-						if(res.data.need_pay){
-							_this.requestPayment(res);
-						}else{ //purchase succeed
-							_this.getUserInfo();
-							uni.showToast({
-								title:'购买成功啦～'
-							});
-							uni.redirectTo({
-							  	url:'../pay/success/success?amount='+_this.actualPrice
-							});
-						}
-					});
-				}else{
-					AUTH.purchaseGoods(goods.object_id, this.token).then(res=>{
-						if(!res) {
-							uni.hideLoading();
-							return;
-						}
-						_this.requestPayment(res);
-					});
-				}
-			},
-			requestPayment(res){
-				const _this = this;
-				wx.requestPayment({
-					// provider: 'wxpay',
-					timeStamp: res.data.timeStamp,
-					nonceStr: res.data.nonceStr,
-					package: res.data.package,
-					signType: res.data.signType,
-					paySign: res.data.sign,
-					success: function (res) {
-						console.log('success:' + JSON.stringify(res));
-						uni.showToast({
-							title:'购买成功啦～'
-						});
-						uni.redirectTo({
-						  	url:'../pay/success/success?amount='+_this.actualPrice
-						});
-					},
-					fail: function (err) {
-						console.log('fail:' + JSON.stringify(err));
-						uni.showToast({
-							title:'支付失败'
-						});
-					},
-					complete:function(res){
+				var param = { order_type:3, goods_id: goods.object_id};
+				AUTH.checkout(this.token, param).then(res=>{
+					if(!res) {
 						uni.hideLoading();
-						_this.getUserInfo();
+						return;
 					}
-				})
+					uni.hideLoading();
+					var url = '/pages/order/payment?parent_sn='+res.data.order_number + '&entry=3'+'&data='+ JSON.stringify(res.data);
+					uni.redirectTo({
+					  	url:url
+					});
+				});
 			},
 			handleBalanceCheckboxChange(e){
 				this.useAccountBalance = e.detail.value;

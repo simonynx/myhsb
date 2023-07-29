@@ -71,7 +71,8 @@
 		mapState,
 		mapActions,
 		mapMutations
-	} from 'vuex'; 
+	} from 'vuex';
+	import AUTH from '../../../utils/auth.js'
 	export default {
 		computed: {
 			...mapState(['hasLogin','userInfo', 'token', 'openid'])

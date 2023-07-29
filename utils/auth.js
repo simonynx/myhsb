@@ -267,6 +267,27 @@ function purchaseGoods(goodsId,token){
 	});
 }
 
+function setPayPassword(password,token){
+	var data = {password:password}
+	return request('/users/reset_paypwd/', 'POST', data, token).then(function (res){
+		if (res._status != 0) {
+			uni.showModal({
+			  title: '设置支付密码失败',
+			  content: res._reason,
+			  showCancel: false
+			})
+			return;
+		}
+		return res;
+	}).catch(error=>{
+		uni.showModal({
+		  title: '设置支付密码失败',
+		  content: error,
+		  showCancel: false
+		});
+	});
+}
+
 function recharge(amount, token){
 	var data = {amount:amount};
 	return request('/users/recharge/', 'POST', data, token).then(function (res){
@@ -286,6 +307,115 @@ function recharge(amount, token){
 		  showCancel: false
 		});
 	});
+}
+
+function checkout(token, args) {
+  // var data = { room_id: roomId, contact_name:contactName, user_count:userCount,date:date, time_list:timeList, remark:remark };
+  var data = args;
+  if(args.order_type == 1){ //appointment
+	//need {room_id, contact_name, user_count, date, time_list, remark}
+  }else if(args.order_type == 2){ //recharge
+	//need {amount}
+  }else if(args.order_type == 3){ //voucher
+	//need {goods_id}
+  }
+  return request('/users/checkout/', 'POST', data, token).then(res=>{
+	if (res._status != 0) {
+		uni.showModal({
+		  title: '无法创建订单',
+		  content: res._reason,
+		  showCancel: false
+		})
+		return;	
+	}
+	return res;
+  }).catch(error=>{
+	uni.showModal({
+	  title: '无法创建订单',
+	  content: error,
+	  showCancel: false
+	})  
+  });
+}
+
+function accountPay(token, params) {
+  return request('/orders/account_pay/', 'POST', params, token).then(res=>{
+	if (res._status != 0) {
+		uni.showModal({
+		  title: '余额支付失败',
+		  content: res._reason,
+		  showCancel: false
+		})
+		return;	
+	}
+	return res;
+  }).catch(error=>{
+	uni.showModal({
+	  title: '余额支付失败',
+	  content: error,
+	  showCancel: false
+	})  
+  });
+}
+
+function wxPay(token, params) {
+  return request('/orders/wxpay/', 'POST', params, token).then(res=>{
+	if (res._status != 0) {
+		uni.showModal({
+		  title: '微信支付失败',
+		  content: res._reason,
+		  showCancel: false
+		})
+		return;	
+	}
+	return res;
+  }).catch(error=>{
+	uni.showModal({
+	  title: '微信支付失败',
+	  content: error,
+	  showCancel: false
+	})  
+  });
+}
+
+function deleteOrder(token, params) {
+  return request('/orders/delete/', 'POST', params, token).then(res=>{
+	if (res._status != 0) {
+		uni.showModal({
+		  title: '删除订单失败',
+		  content: res._reason,
+		  showCancel: false
+		})
+		return;	
+	}
+	return res;
+  }).catch(error=>{
+	uni.showModal({
+	  title: '删除订单失败',
+	  content: error,
+	  showCancel: false
+	})  
+  });
+}
+
+function cancelOrder(token, params) {
+  return request('/orders/cancel/', 'POST', params, token).then(res=>{
+	if (res._status != 0) {
+		uni.showModal({
+		  title: '取消订单失败',
+		  content: res._reason,
+		  showCancel: false
+		})
+		return;	
+	}
+	return res;
+  }).catch(error=>{
+	uni.showModal({
+	  title: '取消订单失败',
+	  content: error,
+	  showCancel: false
+	})  
+  });
 }
 
 function uploadFile(token, filePath, fileName){
@@ -345,6 +475,12 @@ const httpRequest = {
 	uploadFile:uploadFile,
 	recharge:recharge,
 	getConstance:getConstance,
+	setPayPassword:setPayPassword,
+	checkout:checkout,
+	accountPay:accountPay,
+	wxPay:wxPay,
+	deleteOrder:deleteOrder,
+	cancelOrder:cancelOrder,
 }
 
 export default httpRequest

@@ -30,9 +30,19 @@
 							<text class="time">预约时间:{{item.goodsInfo.date}}</text>
 							<text class="state" :style="{color: item.stateTipColor}">{{item.stateTip}}</text>
 							<text 
-								v-if="item.state===9" 
+								v-if="item.order_status==9" 
 								class="del-btn yticon icon-iconfontshanchu1"
-								@click="deleteOrder(index)"
+								@click="deleteOrder(item, index)"
+							></text>
+							<text
+								v-if="item.order_status==8" 
+								class="del-btn yticon icon-iconfontshanchu1"
+								@click="deleteOrder(item, index)"
+							></text>
+							<text
+								v-if="item.order_status==6" 
+								class="del-btn yticon icon-iconfontshanchu1"
+								@click="deleteOrder(item, index)"
 							></text>
 						</view>
 						
@@ -47,6 +57,7 @@
 							</view>
 						</view>
 						
+						<text v-if="item.order_type==1&&item.order_status==0">(已为您锁定预约时间段，请尽快完成支付)</text>
 						<text>选择时段: </text>
 						<view class="item-list">
 							<text 
@@ -55,13 +66,6 @@
 							>
 								{{childItem[0]}}:00 - {{childItem[1]}}:00
 							</text>
-						</view>
-						
-						<view v-if="item.order_status == 0">
-							<text>内卷余额</text>
-							<text class="goods-box-single right price">￥{{userInfo.account_balance/100}}</text>
-							<text>是否使用余额支付</text>
-							<switch checked color="#FFCC33" style="transform:scale(0.7)" @change="handleBalanceCheckboxChange"/>
 						</view>
 						
 						<view class="price-box">
@@ -74,6 +78,7 @@
 						</view>
 						<view class="action-box b-t" v-if="item.order_status == 0">
 							<button class="action-btn recom" @click="requestPay(item)">立即支付</button>
+							<button class="action-btn recom" @click="cancelOrder(item)">取消订单</button>
 						</view>
 					</view>
 					 
@@ -176,12 +181,15 @@
 							let goodsInfoStr = item.goods_info;
 							let goodsInfo = JSON.parse(goodsInfoStr);
 							item.goodsInfo = goodsInfo;
-							if(goodsInfo.goods_type == 1){
+							if(item.order_type == 1){ //appointment
 								item.room = _this.getRoomById(rooms, goodsInfo.room_id);
 								let specificIndex = item.order_status + 1;
-								item = Object.assign(item, _this.orderStateExp(specificIndex));
+								if(item.order_status == 8) //canceled
+									specificIndex = 3;
+								item = Object.assign(item, _this.orderStateExp(item.order_status));
 								let specificNavItem = _this.navList[specificIndex];
-								specificNavItem.orderList.push(item);
+								if(specificNavItem)
+									specificNavItem.orderList.push(item);
 								firstNavItem.orderList.push(item);
 							}
 						});
@@ -213,101 +221,57 @@
 				this.tabCurrentIndex = index;
 			},
 			//删除订单
-			deleteOrder(index){
+			deleteOrder(item, index){
 				uni.showLoading({
 					title: '请稍后'
-				})
-				setTimeout(()=>{
-					this.navList[this.tabCurrentIndex].orderList.splice(index, 1);
+				});
+				var _this = this;
+				var params = {order_number:item.order_number};
+				AUTH.deleteOrder(this.token, params).then(res=>{
 					uni.hideLoading();
-				}, 600)
+					if(!res) return;
+					_this.navList[_this.tabCurrentIndex].orderList.splice(index, 1);
+				});
 			},
 			//取消订单
 			cancelOrder(item){
 				uni.showLoading({
 					title: '请稍后'
-				})
-				setTimeout(()=>{
-					let {stateTip, stateTipColor} = this.orderStateExp(9);
+				});
+				var _this = this;
+				var params = {order_number:item.order_number};
+				AUTH.cancelOrder(this.token, params).then(res=>{
+					uni.hideLoading();
+					if(!res) return;
+					let {stateTip, stateTipColor} = _this.orderStateExp(8);
+					item.order_status = 8;
 					item = Object.assign(item, {
-						state: 9,
+						state: 8,
 						stateTip, 
 						stateTipColor
 					})
-					
+					//加到支付失败的列表
+					_this.navList[3].orderList.push(item);
 					//取消订单后删除待付款中该项
-					let list = this.navList[1].orderList;
-					let index = list.findIndex(val=>val.id === item.id);
+					let list = _this.navList[1].orderList;
+					let index = list.findIndex(val=>val.order_number === item.order_number);
 					index !== -1 && list.splice(index, 1);
-					
-					uni.hideLoading();
-				}, 600)
+				});
 			},
 			
 			requestPay(item){
-				uni.showLoading({
-					title:'支付中...'
+				var url = '/pages/order/payment?parent_sn='+item.order_number + '&entry=2'+'&data='+ JSON.stringify(item);
+				uni.redirectTo({
+				  	url:url
 				});
-				const _this = this;
-				if(this.useAccountBalance){
-					AUTH.bookingRoomWithBalance(this.token, item.room.object_id, item.goodsInfo.date, this.userInfo.nickname, item.goodsInfo.user_count, item.goodsInfo.time_list, item.goodsInfo.remark).then(res=>{
-						if(!res) {
-							uni.hideLoading();
-							return;
-						}
-						if(res.data.need_pay){
-							_this.requestPayment(res, item);
-						}else{ //booking succeed
-							_this.getUserInfo();
-							uni.redirectTo({
-							  	url:'../pay/success/success?amount='+item.request_data.total_fee
-							});
-						}
-					})
-				}else{
-					AUTH.bookingRoom(this.token, item.room.object_id, item.goodsInfo.date, this.userInfo.nickname, item.goodsInfo.user_count, item.goodsInfo.time_list, item.goodsInfo.remark).then(function(res){
-						if(!res) {
-							uni.hideLoading();
-							return;
-						}
-						_this.requestPayment(res, item);
-					});
-				}
-			},
-			
-			requestPayment(res, item){
-				const _this = this;
-				wx.requestPayment({
-					// provider: 'wxpay',
-					timeStamp: res.data.timeStamp,
-					nonceStr: res.data.nonceStr,
-					package: res.data.package,
-					signType: res.data.signType,
-					paySign: res.data.sign,
-					success: function (res) {
-						console.log('success:' + JSON.stringify(res));
-						uni.redirectTo({
-							url:'../pay/success/success?amount='+item.request_data.total_fee
-						});
-					},
-					fail: function (err) {
-						console.log('fail:' + JSON.stringify(err));
-						uni.showToast({
-							title:'支付失败'
-						});
-					},
-					complete:function(res){
-						uni.hideLoading();
-						_this.getUserInfo();
-					}
-				})
 			},
 			
 			computePrice(item){
-				var balance = this.userInfo.account_balance;
+				// var balance = this.userInfo.account_balance;
 				var totalPrice = this.computeTotalPrice(item);
 				var price = totalPrice;
-				return this.useAccountBalance?(balance >=price?0:(price-balance)): price;
+				// return this.useAccountBalance?(balance >=price?0:(price-balance)): price;
+				return price;
 			},
 			computeTotalPrice(item){
 				var totalPrice = item.room.price_per_hour * item.goodsInfo.time_list.length + item.room.price_per_person * item.goodsInfo.user_count;
@@ -318,12 +282,20 @@
 				let stateTip = '',
 					stateTipColor = '#fa436a';
 				switch(state){
-					case 1:
+					case 0:
 						stateTip = '待付款'; break;
-					case 2:
+					case 1:
 						stateTip = '已预约'; break;
 					case 9:
 						stateTip = '订单已关闭'; 
+						stateTipColor = '#909399';
+						break;
+					case 8:
+						stateTip = '已取消'; 
+						stateTipColor = '#909399';
+						break;
+					case 6:
+						stateTip = '已退款'; 
 						stateTipColor = '#909399';
 						break;
 						

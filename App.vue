@@ -37,7 +37,18 @@
 		font-style: normal;
 		src: url('https://at.alicdn.com/t/font_1078604_w4kpxh0rafi.ttf') format('truetype');
 	}
-
+	@import './static/weui.css';
+	.hide{display: none !important;}
+	.disable{background-color: #ccc !important;color: #fff;}
+	.maskLayer{width:100%;height: 100vh; position: fixed;top:0;z-index:9;background: rgba(1, 1, 1,.4);-webkit-animation: spin-opacity .2s linear ;animation: spin-opacity .5s linear;}
+	/*带输入的弹窗*/
+	.m-content{background-color: #fff;width: 80%;height: 20%;position:absolute;left:10%;top:30%;z-index: 999;border-radius: 5px;}
+	.m-content .input-box{margin: 20rpx 0 0 20rpx;}
+	.m-content input{text-align: center;}
+	.op-bar{width: 100%;position: absolute;bottom: 0; display: flex;border-top:1px solid #ececec;}
+	.op-bar view{width: 50%;text-align: center;padding: 25rpx 0;font-size: 30rpx;}
+	.m-content .cancel{color:#999;border-right:1px solid #ececec;}
+	.m-content .yes{color:#44B549;}
 	.yticon {
 		font-family: "yticon" !important;
 		font-size: 16px;

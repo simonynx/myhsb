@@ -89,7 +89,7 @@
 					<image @click="navTo('/pages/product/product')" src="https://ss0.bdstatic.com/70cFuHSh_Q1YnxGkpoWK1HF6hhy/it/u=191678693,2701202375&fm=26&gp=0.jpg" mode="aspectFill"></image>
 				</scroll-view> -->
 				<list-cell icon="icon-iconfontweixin" iconColor="#e07472" title="内卷余额(点击充值)" :tips="userInfo.account_balance/100" @eventClick="navTo('/pages/user/deposit/deposit')"></list-cell>
-				<!-- <list-cell icon="icon-dizhi" iconColor="#5fcda2" title="地址管理" @eventClick="navTo('/pages/address/address')"></list-cell> -->
+				<list-cell icon="icon-dizhi" iconColor="#5fcda2" title="支付密码" @eventClick="navTo('/pages/user/set-payment')"></list-cell>
 				<!-- <list-cell icon="icon-share" iconColor="#9789f7" title="分享" tips="没做好啊"></list-cell> -->
 				<!-- <list-cell icon="icon-pinglun-copy" iconColor="#ee883b" title="晒单" tips="没做好啊"></list-cell> -->
 				<!-- <list-cell icon="icon-shoucang_xuanzhongzhuangtai" iconColor="#54b4ef" title="我的收藏"></list-cell> -->

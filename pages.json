@@ -92,7 +92,26 @@
 			"style": {
 				"navigationBarTitleText": "确认预约信息"
 			}
-		},{
+		},
+		{
+			"path": "pages/order/payment",
+			"style": {
+				"navigationBarTitleText": "支付订单",
+				"h5": {
+					"titleNView": false
+				},
+				"app-plus": {
+					"bounce": "none",
+					"titleNView": true,
+					"pullToRefresh": {
+						"support": true,
+						"color": "#ff6600",
+						"style": "default"
+					}
+				}
+			}
+		},
+		{
             "path" : "pages/voucher/voucher",
             "style" : {
 				"navigationBarTitleText": "卡券",
@@ -149,6 +168,26 @@
 				"navigationBarTitleText":"个人信息",
 				"backgroundColorTop":"#ffffff",
 				"backgroundColorBottom":"#ffffff"
+			}
+		},
+		{
+			"path": "pages/user/set-payment",
+			"style": {
+				"navigationBarBackgroundColor":"#4caf50",
+				"enablePullDownRefresh": true,
+				"navigationBarTitleText": "设置支付密码",
+				"h5": {
+					"titleNView": true
+				},
+				"app-plus": {
+					"bounce": "none",
+					"titleNView": true,
+					"pullToRefresh": {
+						"support": true,
+						"color": "#04BE02",
+						"style": "default"
+					}
+				}
 			}
 		},
 		{
