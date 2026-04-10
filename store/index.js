@@ -230,16 +230,30 @@ const store = new Vuex.Store({
       });
     },
 
+    /**
+     * 获取配置信息
+     * 注意：图片路径在这里不拼接前缀，由页面 loadData 统一处理
+     */
     getConstanceInfo: function({ state, commit }) {
+      // 检查 token 是否存在
+      if (!state.token) {
+        console.warn('token 不存在，无法获取 constance');
+        return Promise.reject('token is null');
+      }
       return AUTH.getConstance(state.token).then((res) => {
-        if (!res) return;
-        var baseUrl = 'http://moyuhuashui.oss-cn-shenzhen.aliyuncs.com/';
-        if (res.data.home_page_image0) res.data.home_page_image0 = baseUrl + res.data.home_page_image0;
-        if (res.data.home_page_image1) res.data.home_page_image1 = baseUrl + res.data.home_page_image1;
-        if (res.data.home_page_image2) res.data.home_page_image2 = baseUrl + res.data.home_page_image2;
-        if (res.data.home_page_image3) res.data.home_page_image3 = baseUrl + res.data.home_page_image3;
+        console.log('getConstance 返回:', res);
+        if (!res) {
+          console.error('getConstance 返回空数据');
+          return;
+        }
+        if (res._status !== 0) {
+          console.error('getConstance 失败:', res._reason);
+          return;
+        }
+        // 不在这里处理图片前缀，统一由页面 loadData 处理
+        // 避免重复拼接导致图片无法加载
         commit('setConstanceInfo', res.data);
-
+        console.log('constance 设置成功, 原始数据:', res.data);
         // 设置订阅消息模板 ID
         if (res.data.wechat_subscribe_template_id) {
           AUTH.setSubscribeTemplateId(res.data.wechat_subscribe_template_id);

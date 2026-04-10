@@ -366,6 +366,7 @@
 			if (!this.hasLogin) this.loginAndRegister();
 		},
 		onLoad() {
+			// onLoad 时尝试加载，如果 constance 还没来，watch 会触发第二次
 			this.loadData();
 		},
 		methods: {
@@ -383,14 +384,24 @@
 				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
 			},
 			async loadData() {
-				this.carouselList = [];
-				if (this.constance) {
-					if (this.constance.home_page_image0) this.carouselList.push(this.constance.home_page_image0);
-					if (this.constance.home_page_image1) this.carouselList.push(this.constance.home_page_image1);
-					if (this.constance.home_page_image2) this.carouselList.push(this.constance.home_page_image2);
-					if (this.constance.home_page_image3) this.carouselList.push(this.constance.home_page_image3);
+				// 等 constance 加载完成
+				if (!this.constance) {
+					console.log('constance 还未加载，等待...');
+					return;
 				}
+				this.carouselList = [];
+				var baseUrl = 'http://moyuhuashui.oss-cn-shenzhen.aliyuncs.com/';
+				var addPrefix = function(src) {
+					if (!src) return '';
+					if (src.indexOf('http') === 0) return src;
+					return baseUrl + src;
+				};
+				if (this.constance.home_page_image0) this.carouselList.push(addPrefix(this.constance.home_page_image0));
+				if (this.constance.home_page_image1) this.carouselList.push(addPrefix(this.constance.home_page_image1));
+				if (this.constance.home_page_image2) this.carouselList.push(addPrefix(this.constance.home_page_image2));
+				if (this.constance.home_page_image3) this.carouselList.push(addPrefix(this.constance.home_page_image3));
 				this.swiperLength = this.carouselList.length;
+				console.log('轮播图加载完成:', this.carouselList);
 			},
 			swiperChange(e) {
 				this.swiperCurrent = e.detail.current;
