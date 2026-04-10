@@ -7,7 +7,7 @@
 				<text class="top-title">摸鱼划水吧</text>
 				<text class="top-emoji">🎯</text>
 			</view>
-			<text class="top-subtitle">桌游 · 棋牌 · 休闲 · 社交</text>
+			<text class="top-subtitle">主机游戏 · 桌游 · 漫画小说 · 亲子阅读</text>
 		</view>
 
 		<!-- 公告 -->
@@ -16,46 +16,107 @@
 			<swiper class="notice-swiper" vertical autoplay circular interval="3000">
 				<swiper-item><text class="notice-text">开业大酬宾啦～快点到店来体验！</text></swiper-item>
 				<swiper-item><text class="notice-text">新到一批热门桌游，等你来解锁！</text></swiper-item>
-				<swiper-item><text class="notice-text">团体包场请联系店主～</text></swiper-item>
+				<swiper-item><text class="notice-text">儿童半价！4月优惠进行中～</text></swiper-item>
 			</swiper>
 		</view>
 
-		<!-- Hero 主图区域 -->
-		<view class="hero-section">
-			<view class="hero-bg"></view>
-			<view class="hero-content">
-				<text class="hero-emoji">🕹️</text>
-				<text class="hero-slogan">什么还在996？</text>
-				<text class="hero-slogan accent">赶紧来摸鱼吧！</text>
-				<text class="hero-desc">100+款热门桌游 · 舒适环境 · 无限畅玩</text>
-				<view class="hero-btns">
-					<view class="btn-primary" @tap="goToReserve">
-						<text class="btn-icon">📅</text>
-						<text>立即预约</text>
-					</view>
-					<view class="btn-secondary" @tap="scrollToGames">
-						<text class="btn-icon">🎮</text>
-						<text>看看游戏</text>
-					</view>
+		<!-- 店铺环境轮播 -->
+		<view class="carousel-wrapper" v-if="carouselList.length > 0">
+			<swiper class="carousel" circular autoplay interval="4000" @change="swiperChange">
+				<swiper-item v-for="(img, idx) in carouselList" :key="idx">
+					<image :src="img" class="carousel-image" mode="aspectFill" />
+				</swiper-item>
+			</swiper>
+			<view class="carousel-indicator">
+				<view
+					v-for="i in swiperLength"
+					:key="i"
+					class="indicator-dot"
+					:class="{ active: swiperCurrent === i - 1 }"
+				></view>
+			</view>
+		</view>
+
+		<!-- 店铺环境占位图（无轮播图时显示） -->
+		<view class="carousel-placeholder" v-else>
+			<text class="placeholder-emoji">🏠</text>
+			<text class="placeholder-text">门店环境</text>
+		</view>
+
+		<!-- 入场券卡片 -->
+		<view class="ticket-card">
+			<view class="ticket-left">
+				<text class="ticket-emoji">🎫</text>
+			</view>
+			<view class="ticket-center">
+				<text class="ticket-name">大厅入场券</text>
+				<text class="ticket-desc">全天不限时 · 免费漫画小说 · 免费零食茶水</text>
+				<view class="ticket-price-row">
+					<text class="price-main">¥38</text>
+					<text class="price-unit">/人</text>
+					<view class="price-badge">儿童半价 ¥19</view>
 				</view>
+			</view>
+			<view class="ticket-right" @tap="goToReserve">
+				<text class="book-btn-text">预约</text>
 			</view>
 		</view>
 
 		<!-- 核心数据 -->
 		<view class="stats-row">
 			<view class="stat-item">
-				<text class="stat-num">100+</text>
-				<text class="stat-label">热门桌游</text>
+				<text class="stat-num">500+</text>
+				<text class="stat-label">本漫画小说</text>
 			</view>
 			<view class="stat-divider"></view>
 			<view class="stat-item">
-				<text class="stat-num">8h</text>
-				<text class="stat-label">营业时长</text>
+				<text class="stat-num">60+</text>
+				<text class="stat-label">款桌游</text>
 			</view>
 			<view class="stat-divider"></view>
 			<view class="stat-item">
-				<text class="stat-num">∞</text>
-				<text class="stat-label">欢乐时光</text>
+				<text class="stat-num">3</text>
+				<text class="stat-label">大主机平台</text>
+			</view>
+		</view>
+
+		<!-- 亲子阅读区 -->
+		<view class="section family-section">
+			<view class="section-header">
+				<text class="section-emoji">📚</text>
+				<text class="section-title">亲子阅读区</text>
+				<text class="section-tag">👨‍👩‍👧‍👦 适合带娃</text>
+			</view>
+			<view class="family-card">
+				<view class="family-left">
+					<text class="family-emoji">📖</text>
+				</view>
+				<view class="family-right">
+					<text class="family-headline">陪娃一起，享受阅读时光</text>
+					<text class="family-desc">海量漫画、推理小说、儿童读物</text>
+					<text class="family-desc">家长孩子一起沉浸在书海中</text>
+					<text class="family-desc light">14岁以下儿童半价入场哦～</text>
+				</view>
+			</view>
+		</view>
+
+		<!-- 娱乐设施 -->
+		<view class="section entertainment-section">
+			<view class="section-header">
+				<text class="section-emoji">🎮</text>
+				<text class="section-title">店内娱乐</text>
+			</view>
+			<view class="entertainment-grid">
+				<view
+					class="enter-item"
+					v-for="(item, idx) in entertainmentItems"
+					:key="idx"
+					:style="{ background: item.bg }"
+				>
+					<text class="enter-emoji">{{ item.emoji }}</text>
+					<text class="enter-name">{{ item.name }}</text>
+					<text class="enter-count">{{ item.count }}</text>
+				</view>
 			</view>
 		</view>
 
@@ -68,45 +129,23 @@
 			<view class="steps-row">
 				<view class="step-item">
 					<view class="step-num">1</view>
-					<text class="step-icon">🪑</text>
-					<text class="step-title">到店入座</text>
-					<text class="step-desc">选个舒适的位置换上拖鞋</text>
+					<text class="step-icon">🎫</text>
+					<text class="step-title">购票入座</text>
+					<text class="step-desc">大厅38元/人全天，儿童半价</text>
 				</view>
 				<view class="step-arrow">→</view>
 				<view class="step-item">
 					<view class="step-num">2</view>
-					<text class="step-icon">🎲</text>
-					<text class="step-title">选游戏</text>
-					<text class="step-desc">100+款游戏任你挑选</text>
+					<text class="step-icon">🎮</text>
+					<text class="step-title">选娱乐</text>
+					<text class="step-desc">Switch·桌游·漫画·阅读</text>
 				</view>
 				<view class="step-arrow">→</view>
 				<view class="step-item">
 					<view class="step-num">3</view>
 					<text class="step-icon">😄</text>
-					<text class="step-title">开玩！</text>
-					<text class="step-desc">和小伙伴们欢乐畅玩</text>
-				</view>
-			</view>
-		</view>
-
-		<!-- 游戏分类 -->
-		<view class="section games-section" id="games-section">
-			<view class="section-header">
-				<text class="section-emoji">🎮</text>
-				<text class="section-title">游戏种类</text>
-				<text class="section-more">全部游戏 →</text>
-			</view>
-			<view class="game-categories">
-				<view 
-					class="game-cat-item" 
-					v-for="(cat, idx) in gameCategories" 
-					:key="idx"
-					:style="{ background: cat.bg }"
-					@tap="showCatGames(cat)"
-				>
-					<text class="cat-emoji">{{ cat.emoji }}</text>
-					<text class="cat-name">{{ cat.name }}</text>
-					<text class="cat-count">{{ cat.count }}款</text>
+					<text class="step-title">开心畅玩</text>
+					<text class="step-desc">零食茶水免费，欢乐一整天</text>
 				</view>
 			</view>
 		</view>
@@ -115,14 +154,14 @@
 		<view class="section hot-games-section">
 			<view class="section-header">
 				<text class="section-emoji">🔥</text>
-				<text class="section-title">热门游戏推荐</text>
+				<text class="section-title">热门游戏</text>
+				<text class="section-more" @tap="goToReserve">预约座位 →</text>
 			</view>
 			<scroll-view class="games-scroll" scroll-x>
-				<view 
-					class="game-card" 
-					v-for="(game, idx) in hotGames" 
+				<view
+					class="game-card"
+					v-for="(game, idx) in hotGames"
 					:key="idx"
-					@tap="showGameDetail(game)"
 				>
 					<view class="game-cover" :style="{ background: game.coverBg }">
 						<text class="game-cover-emoji">{{ game.emoji }}</text>
@@ -133,26 +172,46 @@
 			</scroll-view>
 		</view>
 
-		<!-- 套餐介绍 -->
+		<!-- 套餐推荐（简化版） -->
 		<view class="section packages-section">
 			<view class="section-header">
-				<text class="section-emoji">💰</text>
-				<text class="section-title">收费套餐</text>
+				<text class="section-emoji">💡</text>
+				<text class="section-title">套餐说明</text>
 			</view>
-			<view class="packages-row">
-				<view class="package-card" v-for="(pkg, idx) in packages" :key="idx">
-					<view class="pkg-header" :style="{ background: pkg.color }">
-						<text class="pkg-emoji">{{ pkg.emoji }}</text>
+			<view class="package-list">
+				<view class="package-simple">
+					<view class="pkg-icon-box" style="background: linear-gradient(135deg, #FF9ECD, #FF6B9D);">
+						<text class="pkg-icon">🏠</text>
 					</view>
-					<view class="pkg-body">
-						<text class="pkg-name">{{ pkg.name }}</text>
-						<text class="pkg-price">{{ pkg.price }}</text>
-						<text class="pkg-unit">/人</text>
-						<view class="pkg-features">
-							<text class="pkg-feature" v-for="(f, i) in pkg.features" :key="i">✓ {{ f }}</text>
+					<view class="pkg-info">
+						<text class="pkg-title">大厅入场券</text>
+						<text class="pkg-detail">全天畅玩 + 免费漫画小说 + 免费零食茶水</text>
+						<view class="pkg-price-row">
+							<text class="pkg-price">¥38</text>
+							<text class="pkg-price-sub">/人</text>
+							<text class="pkg-kid">儿童半价 ¥19</text>
 						</view>
 					</view>
-					<view class="pkg-btn" :style="{ background: pkg.color }">立即预约</view>
+				</view>
+				<view class="package-simple">
+					<view class="pkg-icon-box" style="background: linear-gradient(135deg, #667EEA, #764BA2);">
+						<text class="pkg-icon">🎮</text>
+					</view>
+					<view class="pkg-info">
+						<text class="pkg-title">主机游戏（可选加购）</text>
+						<text class="pkg-detail">Switch · PS5 · Xbox 畅玩</text>
+						<text class="pkg-price-sub">详询店主</text>
+					</view>
+				</view>
+				<view class="package-simple">
+					<view class="pkg-icon-box" style="background: linear-gradient(135deg, #F5A623, #FF6B6B);">
+						<text class="pkg-icon">🚪</text>
+					</view>
+					<view class="pkg-info">
+						<text class="pkg-title">包间（可选加购）</text>
+						<text class="pkg-detail">私密空间 · 按小时计费</text>
+						<text class="pkg-price-sub">详询店主</text>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -171,7 +230,7 @@
 						<text class="status-text">营业中</text>
 					</view>
 				</view>
-				
+
 				<view class="info-item" @tap="openLocation">
 					<text class="info-icon">📍</text>
 					<view class="info-content">
@@ -180,7 +239,7 @@
 					</view>
 					<text class="info-arrow">→</text>
 				</view>
-				
+
 				<view class="info-item">
 					<text class="info-icon">🕐</text>
 					<view class="info-content">
@@ -188,7 +247,7 @@
 						<text class="info-value">10:00 - 22:00</text>
 					</view>
 				</view>
-				
+
 				<view class="info-item">
 					<text class="info-icon">📞</text>
 					<view class="info-content">
@@ -196,7 +255,7 @@
 						<text class="info-value highlight">{{constance.phone_number || '83596103'}}</text>
 					</view>
 				</view>
-				
+
 				<view class="info-item">
 					<text class="info-icon">📶</text>
 					<view class="info-content">
@@ -212,7 +271,6 @@
 			<view class="section-header">
 				<text class="section-emoji">💬</text>
 				<text class="section-title">玩家评价</text>
-				<text class="section-more">更多 →</text>
 			</view>
 			<view class="reviews-list">
 				<view class="review-card" v-for="(rev, idx) in reviews" :key="idx">
@@ -237,9 +295,9 @@
 				<text class="section-title">温馨提示</text>
 			</view>
 			<view class="tips-list">
-				<view 
-					class="tip-item" 
-					v-for="(tip, idx) in tips" 
+				<view
+					class="tip-item"
+					v-for="(tip, idx) in tips"
 					:key="idx"
 					:style="{ borderLeftColor: tipColors[idx % tipColors.length] }"
 				>
@@ -267,50 +325,27 @@
 		},
 		data() {
 			return {
+				swiperCurrent: 0,
+				swiperLength: 0,
 				carouselList: [],
 				addressData: {
 					name: '摸鱼划水吧',
 					address: '福建省福州市台江区交通路',
 					area: '6号儒商楼08店面',
 				},
-				gameCategories: [
-					{ emoji: '🎲', name: '桌游', count: 50, bg: 'linear-gradient(135deg, #FFE5E5, #FFCACA)' },
-					{ emoji: '🃏', name: '卡牌', count: 20, bg: 'linear-gradient(135deg, #E5F0FF, #CADDFF)' },
-					{ emoji: '🧩', name: '拼图', count: 15, bg: 'linear-gradient(135deg, #FFF5E5, #FFE0C0)' },
-					{ emoji: '🎯', name: '棋牌', count: 18, bg: 'linear-gradient(135deg, #E5FFE5, #C0FFC0)' },
-					{ emoji: '📚', name: '剧本杀', count: 8, bg: 'linear-gradient(135deg, #F5E5FF, #E0C0FF)' },
-					{ emoji: '🎤', name: '更多', count: 10, bg: 'linear-gradient(135deg, #FFFFF0, #FFFACD)' },
+				entertainmentItems: [
+					{ emoji: '🎮', name: '主机游戏', count: 'Switch/PS5/Xbox', bg: 'linear-gradient(135deg, #667EEA, #764BA2)' },
+					{ emoji: '🎲', name: '桌游', count: '60+款聚会游戏', bg: 'linear-gradient(135deg, #FF9ECD, #FF6B9D)' },
+					{ emoji: '📚', name: '漫画小说', count: '500+本免费看', bg: 'linear-gradient(135deg, #F5A623, #FF6B6B)' },
+					{ emoji: '📖', name: '亲子阅读', count: '儿童读物专区', bg: 'linear-gradient(135deg, #52C41A, #73D13D)' },
 				],
 				hotGames: [
-					{ emoji: '🐺', name: '狼人杀', tag: '社交推理', coverBg: 'linear-gradient(135deg, #667EEA, #764BA2)' },
+					{ emoji: '🏠', name: '塞尔达传说', tag: 'Switch独占', coverBg: 'linear-gradient(135deg, #667EEA, #764BA2)' },
+					{ emoji: '⚔️', name: '黑神话悟空', tag: 'PS5/PC', coverBg: 'linear-gradient(135deg, #FA709A, #FEE140)' },
+					{ emoji: '🐺', name: '狼人杀', tag: '社交推理', coverBg: 'linear-gradient(135deg, #FF9ECD, #FF6B9D)' },
 					{ emoji: '💰', name: '大富翁', tag: '经典休闲', coverBg: 'linear-gradient(135deg, #F093FB, #F5576C)' },
-					{ emoji: '🦠', name: '瘟疫危机', tag: '合作策略', coverBg: 'linear-gradient(135deg, #4FACFE, #00F2FE)' },
-					{ emoji: '⚔️', name: '三国杀', tag: '国风策略', coverBg: 'linear-gradient(135deg, #FA709A, #FEE140)' },
+					{ emoji: '🧩', name: '波可汪迷宫', tag: '亲子益智', coverBg: 'linear-gradient(135deg, #4FACFE, #00F2FE)' },
 					{ emoji: '🃏', name: 'UNO', tag: '聚会王牌', coverBg: 'linear-gradient(135deg, #30CFD0, #330867)' },
-					{ emoji: '🚢', name: '德州扑克', tag: '策略博弈', coverBg: 'linear-gradient(135deg, #2E8B57, #2E8B57)' },
-				],
-				packages: [
-					{
-						emoji: '☕',
-						name: '闲时套餐',
-						price: '¥28',
-						color: '#7ED56F',
-						features: ['工作日白天', '4小时畅玩', '免费茶水'],
-					},
-					{
-						emoji: '🎉',
-						name: '黄金档',
-						price: '¥38',
-						color: '#FF6B9D',
-						features: ['周末/节假日', '4小时畅玩', '免费茶水饮料'],
-					},
-					{
-						emoji: '👑',
-						name: '包天卡',
-						price: '¥58',
-						color: '#F5A623',
-						features: ['全天畅玩', '免费茶水饮料', '会员特权'],
-					},
 				],
 				reviews: [
 					{ avatar: '😄', name: '小林', rating: 5, text: '环境超棒！游戏种类特别多，周末和朋友来玩一天都不够～' },
@@ -319,10 +354,10 @@
 				],
 				tips: [
 					'本店禁止从事黄赌毒行为',
-					'只收取场地费用，不收额外费用',
-					'可提供包场服务，如还有其它商业合作需要请电话联系',
-					'入内需换拖鞋或穿戴鞋套',
-					'不断更新游戏、漫画、小说、桌游、电影等',
+					'入内需换拖鞋或穿戴鞋套，保持环境整洁',
+					'零食茶水自助取用，请勿浪费',
+					'可提供包场服务，如需团体活动请联系店主',
+					'店内漫画小说可免费阅读，请勿带走',
 				],
 				tipColors: ['#FF6B9D', '#4FACFE', '#F5A623', '#7ED56F', '#667EEA'],
 			};
@@ -335,7 +370,6 @@
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getConstanceInfo']),
-			
 			openLocation() {
 				uni.openLocation({
 					latitude: 26.068525,
@@ -348,15 +382,6 @@
 			goToReserve() {
 				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
 			},
-			scrollToGames() {
-				uni.pageScrollTo({ selector: '#games-section', duration: 300 });
-			},
-			showCatGames(cat) {
-				uni.showToast({ title: cat.name + ' - ' + cat.count + '款游戏', icon: 'none' });
-			},
-			showGameDetail(game) {
-				uni.showToast({ title: game.name, icon: 'none' });
-			},
 			async loadData() {
 				this.carouselList = [];
 				if (this.constance) {
@@ -365,14 +390,18 @@
 					if (this.constance.home_page_image2) this.carouselList.push(this.constance.home_page_image2);
 					if (this.constance.home_page_image3) this.carouselList.push(this.constance.home_page_image3);
 				}
+				this.swiperLength = this.carouselList.length;
 			},
-			onShareAppMessage() { 
+			swiperChange(e) {
+				this.swiperCurrent = e.detail.current;
+			},
+			onShareAppMessage() {
 				return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl: '../../static/logo_small.jpg', path: '/pages/index/index' };
 			},
-			onShareTimeline() { 
+			onShareTimeline() {
 				return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl: '../../static/logo_small.jpg' };
 			},
-			onAddToFavorites() { 
+			onAddToFavorites() {
 				return { title: '偷偷马住别被老板看到！', imageUrl: '../../static/logo_small.jpg' };
 			},
 		},
@@ -400,10 +429,7 @@ page {
 		justify-content: center;
 		gap: 16rpx;
 	}
-	.top-emoji {
-		font-size: 40rpx;
-		animation: bounce 2s ease-in-out infinite;
-	}
+	.top-emoji { font-size: 40rpx; animation: bounce 2s ease-in-out infinite; }
 	.top-title {
 		font-size: 44rpx;
 		font-weight: bold;
@@ -439,69 +465,127 @@ page {
 	.notice-swiper {
 		flex: 1;
 		height: 40rpx;
-		font-size: 24rpx;
-		color: #666;
-		line-height: 40rpx;
+		.notice-text {
+			font-size: 24rpx;
+			color: #666;
+			line-height: 40rpx;
+			display: block;
+		}
 	}
 }
 
-/* ===== Hero ===== */
-.hero-section {
+/* ===== 轮播 ===== */
+.carousel-wrapper {
+	margin: 24rpx 24rpx 0;
 	position: relative;
-	margin: 24rpx;
-	padding: 40rpx 32rpx;
-	border-radius: 40rpx;
+}
+.carousel {
+	width: 100%;
+	height: 380rpx;
+	border-radius: 32rpx;
 	overflow: hidden;
-	background: linear-gradient(135deg, #FFF0F5 0%, #FFF5FF 50%, #F0F8FF 100%);
+	box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.1);
+	.carousel-image {
+		width: 100%;
+		height: 100%;
+	}
+}
+.carousel-indicator {
+	display: flex;
+	justify-content: center;
+	gap: 12rpx;
+	padding-top: 20rpx;
+	.indicator-dot {
+		width: 16rpx;
+		height: 16rpx;
+		border-radius: 50%;
+		background: #DDD;
+		transition: all 0.3s ease;
+	}
+	.indicator-dot.active {
+		width: 48rpx;
+		border-radius: 25rpx;
+		background: linear-gradient(90deg, #FF9ECD, #FF6B9D);
+	}
+}
+.carousel-placeholder {
+	margin: 24rpx 24rpx 0;
+	height: 300rpx;
+	border-radius: 32rpx;
+	background: linear-gradient(135deg, #FFF0F5, #F0F8FF);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	border: 2rpx dashed #FFD0E0;
+	.placeholder-emoji { font-size: 80rpx; margin-bottom: 16rpx; }
+	.placeholder-text { font-size: 28rpx; color: #FF9ECD; }
+}
+
+/* ===== 入场券卡片 ===== */
+.ticket-card {
+	margin: 24rpx;
+	padding: 28rpx;
+	background: linear-gradient(135deg, #FFF5F8, #FFF);
+	border-radius: 28rpx;
 	border: 2rpx solid #FFE5EE;
-	text-align: center;
-	.hero-bg {
-		position: absolute;
-		top: 0; left: 0; right: 0; bottom: 0;
-		background: radial-gradient(circle at 30% 30%, rgba(255,107,157,0.1) 0%, transparent 60%);
+	display: flex;
+	align-items: center;
+	box-shadow: 0 8rpx 24rpx rgba(255,107,157,0.1);
+	.ticket-left {
+		margin-right: 20rpx;
+		.ticket-emoji { font-size: 56rpx; }
 	}
-	.hero-content { position: relative; z-index: 1; }
-	.hero-emoji { font-size: 80rpx; display: block; margin-bottom: 16rpx; }
-	.hero-slogan {
-		display: block;
-		font-size: 44rpx;
-		font-weight: bold;
-		color: #333;
-		line-height: 1.3;
+	.ticket-center {
+		flex: 1;
+		.ticket-name {
+			display: block;
+			font-size: 32rpx;
+			font-weight: bold;
+			color: #333;
+			margin-bottom: 6rpx;
+		}
+		.ticket-desc {
+			display: block;
+			font-size: 22rpx;
+			color: #888;
+			margin-bottom: 8rpx;
+		}
+		.ticket-price-row {
+			display: flex;
+			align-items: baseline;
+			gap: 6rpx;
+		}
+		.price-main {
+			font-size: 44rpx;
+			font-weight: bold;
+			color: #FF6B9D;
+		}
+		.price-unit {
+			font-size: 22rpx;
+			color: #999;
+		}
+		.price-badge {
+			margin-left: 12rpx;
+			background: #FFF3E0;
+			color: #F5A623;
+			font-size: 20rpx;
+			padding: 4rpx 12rpx;
+			border-radius: 20rpx;
+			font-weight: bold;
+		}
 	}
-	.hero-slogan.accent { color: #FF6B9D; }
-	.hero-desc {
-		display: block;
-		margin-top: 12rpx;
-		font-size: 26rpx;
-		color: #888;
-	}
-	.hero-btns {
-		display: flex;
-		justify-content: center;
-		gap: 24rpx;
-		margin-top: 32rpx;
-	}
-	.btn-primary, .btn-secondary {
-		display: flex;
-		align-items: center;
-		gap: 8rpx;
-		padding: 20rpx 40rpx;
-		border-radius: 50rpx;
-		font-size: 28rpx;
-		font-weight: bold;
-	}
-	.btn-primary {
+	.ticket-right {
 		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
-		color: #FFF;
-		box-shadow: 0 8rpx 24rpx rgba(255,107,157,0.4);
+		border-radius: 50rpx;
+		padding: 20rpx 32rpx;
+		box-shadow: 0 6rpx 20rpx rgba(255,107,157,0.3);
+		.book-btn-text {
+			color: #FFF;
+			font-size: 28rpx;
+			font-weight: bold;
+		}
 	}
-	.btn-secondary {
-		background: #FFF;
-		color: #FF6B9D;
-		border: 2rpx solid #FFE5EE;
-	}
-	.btn-icon { font-size: 28rpx; }
 }
 
 /* ===== 数据统计 ===== */
@@ -538,24 +622,87 @@ page {
 }
 
 /* ===== 通用区块 ===== */
-.section {
-	margin: 0 24rpx 32rpx;
-}
+.section { margin: 0 24rpx 32rpx; }
 .section-header {
 	display: flex;
 	align-items: center;
 	gap: 12rpx;
 	margin-bottom: 20rpx;
 	.section-emoji { font-size: 36rpx; }
-	.section-title {
-		font-size: 34rpx;
+	.section-title { font-size: 34rpx; font-weight: bold; color: #333; }
+	.section-tag {
+		margin-left: auto;
+		background: #FFF3E0;
+		color: #F5A623;
+		font-size: 20rpx;
+		padding: 6rpx 16rpx;
+		border-radius: 20rpx;
 		font-weight: bold;
-		color: #333;
 	}
 	.section-more {
 		margin-left: auto;
 		font-size: 24rpx;
 		color: #FF6B9D;
+	}
+}
+
+/* ===== 亲子阅读区 ===== */
+.family-section {}
+.family-card {
+	background: linear-gradient(135deg, #FFF9E6, #FFF5E5);
+	border-radius: 28rpx;
+	padding: 28rpx;
+	border: 2rpx solid #FFE0B2;
+	display: flex;
+	align-items: center;
+	.family-left {
+		margin-right: 24rpx;
+		.family-emoji { font-size: 72rpx; }
+	}
+	.family-right {
+		flex: 1;
+		.family-headline {
+			display: block;
+			font-size: 30rpx;
+			font-weight: bold;
+			color: #333;
+			margin-bottom: 10rpx;
+		}
+		.family-desc {
+			display: block;
+			font-size: 24rpx;
+			color: #666;
+			line-height: 1.6;
+		}
+		.family-desc.light { color: #FF9ECD; font-weight: 500; }
+	}
+}
+
+/* ===== 娱乐设施 ===== */
+.entertainment-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16rpx;
+}
+.enter-item {
+	width: calc(50% - 8rpx);
+	padding: 24rpx;
+	border-radius: 24rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	.enter-emoji { font-size: 48rpx; margin-bottom: 10rpx; }
+	.enter-name {
+		display: block;
+		font-size: 26rpx;
+		font-weight: bold;
+		color: #FFF;
+		margin-bottom: 4rpx;
+	}
+	.enter-count {
+		display: block;
+		font-size: 20rpx;
+		color: rgba(255,255,255,0.85);
 	}
 }
 
@@ -601,22 +748,6 @@ page {
 	}
 }
 
-/* ===== 游戏分类 ===== */
-.game-categories {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 16rpx;
-}
-.game-cat-item {
-	width: calc(33.333% - 12rpx);
-	padding: 24rpx 16rpx;
-	border-radius: 24rpx;
-	text-align: center;
-	.cat-emoji { font-size: 52rpx; display: block; margin-bottom: 10rpx; }
-	.cat-name { display: block; font-size: 26rpx; font-weight: bold; color: #333; margin-bottom: 6rpx; }
-	.cat-count { display: block; font-size: 20rpx; color: #888; }
-}
-
 /* ===== 热门游戏 ===== */
 .games-scroll {
 	display: flex;
@@ -626,58 +757,67 @@ page {
 }
 .game-card {
 	display: inline-block;
-	width: 200rpx;
+	width: 180rpx;
 	flex-shrink: 0;
 	.game-cover {
-		width: 200rpx;
-		height: 200rpx;
+		width: 180rpx;
+		height: 180rpx;
 		border-radius: 24rpx;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.1);
 		margin-bottom: 12rpx;
-		.game-cover-emoji { font-size: 80rpx; }
+		.game-cover-emoji { font-size: 72rpx; }
 	}
 	.game-name { display: block; font-size: 26rpx; font-weight: bold; color: #333; text-align: center; }
 	.game-tag { display: block; font-size: 20rpx; color: #888; text-align: center; margin-top: 4rpx; }
 }
 
-/* ===== 套餐 ===== */
-.packages-row {
+/* ===== 套餐列表 ===== */
+.package-list {
 	display: flex;
+	flex-direction: column;
 	gap: 16rpx;
 }
-.package-card {
-	flex: 1;
+.package-simple {
+	display: flex;
+	align-items: center;
 	background: #FFF;
-	border-radius: 28rpx;
-	overflow: hidden;
-	box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.08);
-	.pkg-header {
-		padding: 20rpx;
-		text-align: center;
-		.pkg-emoji { font-size: 48rpx; }
+	border-radius: 24rpx;
+	padding: 24rpx;
+	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+	.pkg-icon-box {
+		width: 80rpx;
+		height: 80rpx;
+		border-radius: 20rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-right: 20rpx;
+		flex-shrink: 0;
+		.pkg-icon { font-size: 40rpx; }
 	}
-	.pkg-body {
-		padding: 20rpx 16rpx;
-		text-align: center;
-		.pkg-name { display: block; font-size: 26rpx; font-weight: bold; color: #333; margin-bottom: 8rpx; }
-		.pkg-price { font-size: 40rpx; font-weight: bold; color: #FF6B9D; }
-		.pkg-unit { font-size: 22rpx; color: #999; }
-		.pkg-features {
-			margin-top: 12rpx;
-			text-align: left;
-			.pkg-feature { display: block; font-size: 20rpx; color: #666; line-height: 1.6; }
+	.pkg-info {
+		flex: 1;
+		.pkg-title { display: block; font-size: 28rpx; font-weight: bold; color: #333; margin-bottom: 6rpx; }
+		.pkg-detail { display: block; font-size: 22rpx; color: #888; margin-bottom: 6rpx; }
+		.pkg-price-row {
+			display: flex;
+			align-items: baseline;
+			gap: 6rpx;
 		}
-	}
-	.pkg-btn {
-		display: block;
-		text-align: center;
-		padding: 16rpx;
-		color: #FFF;
-		font-size: 26rpx;
-		font-weight: bold;
+		.pkg-price { font-size: 36rpx; font-weight: bold; color: #FF6B9D; }
+		.pkg-price-sub { font-size: 22rpx; color: #999; }
+		.pkg-kid {
+			margin-left: 12rpx;
+			background: #FFF3E0;
+			color: #F5A623;
+			font-size: 20rpx;
+			padding: 4rpx 12rpx;
+			border-radius: 20rpx;
+			font-weight: bold;
+		}
 	}
 }
 
