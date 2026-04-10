@@ -12,14 +12,10 @@
 		}
 	},
 	"pages": [
-		// pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
 		{
 			"path": "pages/index/index",
 			"style": {
-				// #ifdef MP 
 				"navigationBarTitleText": "摸鱼划水吧",
-				//"navigationStyle": "custom",
-				// #endif 
 				"app-plus": {
 					"titleNView": {
 						"type": "transparent",
@@ -86,7 +82,7 @@
 					"bounce": "none"
 				}
 			}
-		},  
+		},
 		{
 			"path": "pages/order/createOrder",
 			"style": {
@@ -112,21 +108,19 @@
 			}
 		},
 		{
-            "path" : "pages/voucher/voucher",
-            "style" : {
+			"path": "pages/voucher/voucher",
+			"style": {
 				"navigationBarTitleText": "卡券",
 				"app-plus": {
 					"bounce": "none"
 				}
 			}
-        },
+		},
 		{
 			"path": "pages/user/user",
 			"style": {
 				"navigationBarTitleText": "我的",
-				// #ifdef MP
 				"navigationStyle": "custom",
-				// #endif
 				"app-plus": {
 					"bounce": "none",
 					"titleNView": {
@@ -153,27 +147,27 @@
 			}
 		},
 		{
-			"path" : "pages/user/deposit/deposit",
-			"style" : {
-				"navigationBarBackgroundColor":"#ff681b",
-				"navigationBarTitleText":"充值",
-				"backgroundColorTop":"#ffffff",
-				"backgroundColorBottom":"#ffffff"
+			"path": "pages/user/deposit/deposit",
+			"style": {
+				"navigationBarBackgroundColor": "#ff681b",
+				"navigationBarTitleText": "充值",
+				"backgroundColorTop": "#ffffff",
+				"backgroundColorBottom": "#ffffff"
 			}
 		},
 		{
-			"path" : "pages/user/setting/setting",
-			"style" : {
-				"navigationBarBackgroundColor":"#ff681b",
-				"navigationBarTitleText":"个人信息",
-				"backgroundColorTop":"#ffffff",
-				"backgroundColorBottom":"#ffffff"
+			"path": "pages/user/setting/setting",
+			"style": {
+				"navigationBarBackgroundColor": "#ff681b",
+				"navigationBarTitleText": "个人信息",
+				"backgroundColorTop": "#ffffff",
+				"backgroundColorBottom": "#ffffff"
 			}
 		},
 		{
 			"path": "pages/user/set-payment",
 			"style": {
-				"navigationBarBackgroundColor":"#4caf50",
+				"navigationBarBackgroundColor": "#4caf50",
 				"enablePullDownRefresh": true,
 				"navigationBarTitleText": "设置支付密码",
 				"h5": {
@@ -191,47 +185,45 @@
 			}
 		},
 		{
-            "path" : "pages/pay/success/success",
-            "style" : {
-				"navigationBarBackgroundColor":"#ffffff",
-				"navigationBarTitleText":"支付成功",
-				"backgroundColorTop":"#ffffff",
-				"backgroundColorBottom":"#ffffff"
+			"path": "pages/pay/success/success",
+			"style": {
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTitleText": "支付成功",
+				"backgroundColorTop": "#ffffff",
+				"backgroundColorBottom": "#ffffff"
 			}
-        },
-		// #ifdef H5 || APP-PLUS
+		},
 		{
 			"path": "pages/about/about",
 			"style": {
 				"navigationBarTitleText": "关于"
 			}
 		},
-		// #endif
 		{
 			"path": "platforms/app-plus/feedback/feedback",
 			"style": {
 				"navigationBarTitleText": "问题反馈"
 			}
-		}
-		// #ifdef H5
-		, {
+		},
+		{
 			"path": "pages/error/404",
 			"style": {
 				"navigationBarTitleText": "Not Found"
 			}
+		},
+		{
+			"path": "pages/voucher/detail",
+			"style": {
+				"navigationBarTitleText": "确认购买",
+				"enablePullDownRefresh": false
+			}
+		},
+		{
+			"path": "pages/my/reviews",
+			"style": {
+				"navigationBarTitleText": "我的评价"
+			}
 		}
-		// #endif
-        ,{
-            "path" : "pages/voucher/detail",
-            "style" :                                                                                    
-            {
-                "navigationBarTitleText": "确认购买",
-                "enablePullDownRefresh": false
-            }
-            
-        }
-    ],
-	"subPackages": [
 	],
 	"globalStyle": {
 		"pageOrientation": "portrait",
@@ -241,37 +233,37 @@
 		"backgroundColor": "#F8F8F8",
 		"backgroundColorTop": "#F4F5F6",
 		"backgroundColorBottom": "#F4F5F6",
-		"mp-360": {
-			"navigationStyle": "custom"
-		},
 		"h5": {
 			"maxWidth": 1190,
 			"navigationBarTextStyle": "black",
 			"navigationBarBackgroundColor": "#F1F1F1"
 		}
-
 	},
 	"tabBar": {
 		"color": "#7A7E83",
 		"selectedColor": "#007AFF",
 		"borderStyle": "black",
 		"backgroundColor": "#F8F8F8",
-		"list": [{
+		"list": [
+			{
 				"pagePath": "pages/index/index",
 				"iconPath": "static/tab-home.png",
 				"selectedIconPath": "static/tab-home-current.png",
 				"text": "首页"
-			},{
+			},
+			{
 				"pagePath": "pages/voucher/voucher",
 				"iconPath": "static/tab-voucher.png",
 				"selectedIconPath": "static/tab-voucher-current.png",
 				"text": "卡券"
-			},{
+			},
+			{
 				"pagePath": "pages/tabBar/appoint/appoint",
 				"iconPath": "static/tab-cart.png",
 				"selectedIconPath": "static/tab-cart-current.png",
 				"text": "预约"
-			},{
+			},
+			{
 				"pagePath": "pages/user/user",
 				"iconPath": "static/tab-my.png",
 				"selectedIconPath": "static/tab-my-current.png",

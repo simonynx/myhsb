@@ -197,6 +197,15 @@ function recharge(amount, token) {
   return request('/users/recharge/', 'POST', data, token);
 }
 
+function getReviewList(token) {
+  return request('/reviews/', 'GET', null, token);
+}
+
+function submitReview(token, rating, content) {
+  var data = { rating: rating, content: content };
+  return request('/reviews/', 'POST', data, token);
+}
+
 function getConstance(token) {
   return request('/config/', 'GET', null, token);
 }
@@ -294,6 +303,10 @@ var httpRequest = {
 
   // 配置
   getConstance: getConstance,
+
+  // 评价
+  getReviewList: getReviewList,
+  submitReview: submitReview,
 
   // 文件
   uploadFile: uploadFile,

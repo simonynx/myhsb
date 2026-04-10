@@ -262,6 +262,46 @@ const store = new Vuex.Store({
       }).catch((err) => {
         console.error('获取配置信息失败:', err);
       });
+    },
+
+    /**
+     * 获取评价列表
+     */
+    getReviewList: function({ state, commit }) {
+      if (!state.token) {
+        console.warn('token 不存在，无法获取评价');
+        return Promise.reject('token is null');
+      }
+      return AUTH.getReviewList(state.token).then((res) => {
+        if (!res) return [];
+        if (res._status !== 0) {
+          console.error('获取评价失败:', res._reason);
+          return [];
+        }
+        return res.data || [];
+      }).catch((err) => {
+        console.error('获取评价列表失败:', err);
+        return [];
+      });
+    },
+
+    /**
+     * 提交评价
+     */
+    submitReview: function({ state }, rating, content) {
+      if (!state.token) {
+        return Promise.reject('未登录');
+      }
+      return AUTH.submitReview(state.token, rating, content).then((res) => {
+        if (!res) return Promise.reject('提交失败');
+        if (res._status !== 0) {
+          return Promise.reject(res._reason || '提交失败');
+        }
+        return res;
+      }).catch((err) => {
+        console.error('提交评价失败:', err);
+        return Promise.reject(err);
+      });
     }
   }
 });

@@ -266,25 +266,34 @@
 			</view>
 		</view>
 
-		<!-- 用户评价 -->
+		<!-- 用户评价（滚动播放） -->
 		<view class="section reviews-section">
 			<view class="section-header">
 				<text class="section-emoji">💬</text>
 				<text class="section-title">玩家评价</text>
+				<text class="section-more" @tap="goToMyReviews">我的评价 →</text>
 			</view>
-			<view class="reviews-list">
-				<view class="review-card" v-for="(rev, idx) in reviews" :key="idx">
-					<view class="review-header">
-						<text class="review-avatar">{{ rev.avatar }}</text>
-						<view class="review-meta">
-							<text class="review-name">{{ rev.name }}</text>
-							<view class="review-stars">
-								<text v-for="s in 5" :key="s" :class="s <= rev.rating ? 'star filled' : 'star'">⭐</text>
+			<swiper class="reviews-swiper" v-if="reviews.length > 0" vertical autoplay circular interval="4000">
+				<swiper-item v-for="(rev, idx) in reviews" :key="idx">
+					<view class="review-card">
+						<view class="review-header">
+							<text class="review-avatar">{{ rev.user_avatar || '😄' }}</text>
+							<view class="review-meta">
+								<text class="review-name">{{ rev.user_nickname }}</text>
+								<view class="review-stars">
+									<text v-for="s in 5" :key="s" :class="s <= rev.rating ? 'star filled' : 'star'">⭐</text>
+								</view>
 							</view>
 						</view>
+						<text class="review-text">{{ rev.content }}</text>
+						<text class="review-time">{{ rev.created_at }}</text>
 					</view>
-					<text class="review-text">{{ rev.text }}</text>
-				</view>
+				</swiper-item>
+			</swiper>
+			<view class="reviews-empty" v-else>
+				<text class="empty-icon">💭</text>
+				<text class="empty-text">暂无评价，快来发表第一条吧～</text>
+				<view class="empty-btn" @tap="goToMyReviews">写评价</view>
 			</view>
 		</view>
 
@@ -347,11 +356,7 @@
 					{ emoji: '🧩', name: '波可汪迷宫', tag: '亲子益智', coverBg: 'linear-gradient(135deg, #4FACFE, #00F2FE)' },
 					{ emoji: '🃏', name: 'UNO', tag: '聚会王牌', coverBg: 'linear-gradient(135deg, #30CFD0, #330867)' },
 				],
-				reviews: [
-					{ avatar: '😄', name: '小林', rating: 5, text: '环境超棒！游戏种类特别多，周末和朋友来玩一天都不够～' },
-					{ avatar: '🤗', name: '阿雪', rating: 5, text: '老板人很好，会推荐适合的游戏。店里有猫，撸猫打游戏太快乐了！' },
-					{ avatar: '🙋', name: '老王', rating: 4, text: '性价比很高的桌游店，适合团体聚会，已经推荐给朋友了。' },
-				],
+				reviews: [],
 				tips: [
 					'本店禁止从事黄赌毒行为',
 					'入内需换拖鞋或穿戴鞋套，保持环境整洁',
@@ -366,11 +371,10 @@
 			if (!this.hasLogin) this.loginAndRegister();
 		},
 		onLoad() {
-			// onLoad 时尝试加载，如果 constance 还没来，watch 会触发第二次
 			this.loadData();
 		},
 		methods: {
-			...mapActions(['loginAndRegister', 'getConstanceInfo']),
+			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getReviewList']),
 			openLocation() {
 				uni.openLocation({
 					latitude: 26.068525,
@@ -383,8 +387,10 @@
 			goToReserve() {
 				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
 			},
+			goToMyReviews() {
+				uni.navigateTo({ url: '/pages/my/reviews' });
+			},
 			async loadData() {
-				// 等 constance 加载完成
 				if (!this.constance) {
 					console.log('constance 还未加载，等待...');
 					return;
@@ -402,6 +408,23 @@
 				if (this.constance.home_page_image3) this.carouselList.push(addPrefix(this.constance.home_page_image3));
 				this.swiperLength = this.carouselList.length;
 				console.log('轮播图加载完成:', this.carouselList);
+
+				// 加载真实评价
+				this.loadReviews();
+			},
+			async loadReviews() {
+				try {
+					var list = await this.getReviewList();
+					console.log('评价列表:', list);
+					if (list && list.length > 0) {
+						this.reviews = list;
+					} else {
+						this.reviews = [];
+					}
+				} catch (e) {
+					console.error('加载评价失败:', e);
+					this.reviews = [];
+				}
 			},
 			swiperChange(e) {
 				this.swiperCurrent = e.detail.current;
@@ -872,10 +895,9 @@ page {
 }
 
 /* ===== 评价 ===== */
-.reviews-list {
-	display: flex;
-	flex-direction: column;
-	gap: 16rpx;
+.reviews-swiper {
+	height: 220rpx;
+	margin: 0;
 }
 .review-card {
 	background: #FFF;
@@ -893,6 +915,22 @@ page {
 	.review-name { display: block; font-size: 26rpx; font-weight: bold; color: #333; margin-bottom: 4rpx; }
 	.review-stars .star { font-size: 20rpx; }
 	.review-text { display: block; font-size: 26rpx; color: #666; line-height: 1.6; }
+	.review-time { display: block; font-size: 20rpx; color: #AAA; margin-top: 8rpx; }
+}
+.reviews-empty {
+	text-align: center;
+	padding: 48rpx 0;
+	.empty-icon { font-size: 72rpx; display: block; margin-bottom: 16rpx; }
+	.empty-text { font-size: 26rpx; color: #999; display: block; margin-bottom: 24rpx; }
+	.empty-btn {
+		display: inline-block;
+		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		color: #FFF;
+		font-size: 26rpx;
+		padding: 16rpx 40rpx;
+		border-radius: 50rpx;
+		font-weight: bold;
+	}
 }
 
 /* ===== 提示 ===== */
