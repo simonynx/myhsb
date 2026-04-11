@@ -57,8 +57,7 @@
 		{
 			"path": "pages/user/user",
 			"style": {
-				"navigationBarTitleText": "我的",
-				"navigationStyle": "custom"
+				"navigationBarTitleText": "我的"
 			}
 		},
 		{
@@ -113,6 +112,12 @@
 			"path": "pages/my/reviews",
 			"style": {
 				"navigationBarTitleText": "我的评价"
+			}
+		},
+		{
+			"path": "pages/my/coupons/coupons",
+			"style": {
+				"navigationBarTitleText": "优惠券"
 			}
 		},
 		{

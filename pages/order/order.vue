@@ -1,659 +1,735 @@
 <template>
-	<view class="content">
-		<view class="navbar">
-			<view 
-				v-for="(item, index) in navList" :key="index" 
-				class="nav-item" 
-				:class="{current: tabCurrentIndex === index}"
+	<view class="page-wrapper">
+		<!-- 顶部标题 -->
+		<view class="top-bar">
+			<text class="top-title">我的订单</text>
+		</view>
+
+		<!-- 分类标签 -->
+		<view class="tab-bar">
+			<view
+				class="tab-item"
+				v-for="(item, index) in navList"
+				:key="index"
+				:class="{ active: tabCurrentIndex === index }"
 				@click="tabClick(index)"
 			>
-				{{item.text}}
+				<text class="tab-text">{{ item.text }}</text>
+				<view class="tab-dot" v-if="item.count > 0">{{ item.count }}</view>
 			</view>
 		</view>
 
-		<swiper :current="tabCurrentIndex" class="swiper-box" duration="300" @change="changeTab">
-			<swiper-item class="tab-content" v-for="(tabItem,tabIndex) in navList" :key="tabIndex">
-				<scroll-view 
-					class="list-scroll-content" 
-					scroll-y
-					@scrolltolower=""
-				>
-					<!-- 空白页 -->
-					<empty v-if="tabItem.loaded === true && tabItem.orderList.length === 0"></empty>
-					
-					<!-- 订单列表 -->
-					<view 
-						v-for="(item,index) in tabItem.orderList" :key="index"
-						class="order-item"
-					>
-						<view class="i-top b-b">
-							<text class="time">预约时间:{{item.goodsInfo.date}}</text>
-							<text class="state" :style="{color: item.stateTipColor}">{{item.stateTip}}</text>
-							<text 
-								v-if="item.order_status==9" 
-								class="del-btn yticon icon-iconfontshanchu1"
-								@click="deleteOrder(item, index)"
-							></text>
-							<text
-								v-if="item.order_status==8" 
-								class="del-btn yticon icon-iconfontshanchu1"
-								@click="deleteOrder(item, index)"
-							></text>
-							<text
-								v-if="item.order_status==6" 
-								class="del-btn yticon icon-iconfontshanchu1"
-								@click="deleteOrder(item, index)"
-							></text>
-						</view>
-						
-						<view 
-							class="goods-box-single"
-						>
-							<image class="goods-img" :src="item.room.image1" mode="aspectFill"></image>
-							<view class="right">
-								<text class="title clamp">{{item.room.name}}</text>
-								<text class="attr-box">{{item.room.price_per_hour/100}}  x {{item.goodsInfo.time_list.length}} + {{item.room.price_per_person/100}} x {{item.goodsInfo.user_count}}</text>
-								<text class="price">{{computeTotalPrice(item)/100}}</text>
-							</view>
-						</view>
-						
-						<text v-if="item.order_type==1&&item.order_status==0">(已为您锁定预约时间段，请尽快完成支付)</text>
-						<text>选择时段: </text>
-						<view class="item-list">
-							<text 
-								v-for="(childItem, childIndex) in item.goodsInfo.time_list" 
-								:key="childIndex" class="tit"
-							>
-								{{childItem[0]}}:00 - {{childItem[1]}}:00
-							</text>
-						</view>
-						
-						<view class="price-box">
-							共
-							<text class="num">1</text>
-							件商品 实付款
-							<text class="price" v-if="item.order_status == 0">{{computePrice(item)/100}}</text>
-							<text class="price" v-else-if="item.request_data">{{item.request_data.total_fee /100}}</text>
-							<text class="price" v-else>{{computeTotalPrice(item)/100}}</text>
-						</view>
-						<view class="action-box b-t" v-if="item.order_status == 0">
-							<button class="action-btn recom" @click="requestPay(item)">立即支付</button>
-							<button class="action-btn recom" @click="cancelOrder(item)">取消订单</button>
+		<!-- 订单列表 -->
+		<scroll-view class="order-list" scroll-y v-if="currentOrders.length > 0" @scrolltolower="loadMore">
+			<view
+				class="order-card"
+				v-for="(item, index) in currentOrders"
+				:key="index"
+			>
+				<!-- 卡片头部 -->
+				<view class="card-header">
+					<view class="header-left">
+						<text class="order-icon">{{ getOrderTypeIcon(item) }}</text>
+						<view class="order-info">
+							<text class="order-type-name">{{ getOrderTypeName(item) }}</text>
+							<text class="order-number">No.{{ item.order_number }}</text>
 						</view>
 					</view>
-					 
-					<uni-load-more :status="tabItem.loadingType"></uni-load-more>
-					
-				</scroll-view>
-			</swiper-item>
-		</swiper>
+					<view class="status-badge" :class="'status-' + item.order_status">
+						<text>{{ item.stateTip }}</text>
+					</view>
+				</view>
+
+				<!-- 房间信息（预约类） -->
+				<view class="room-section" v-if="item.room && item.goodsInfo">
+					<view class="room-top">
+						<view class="room-img-box" v-if="item.room.image1">
+							<image class="room-img" :src="item.room.image1" mode="aspectFill"></image>
+						</view>
+						<view class="room-detail">
+							<text class="room-name">{{ item.room.name }}</text>
+							<view class="room-meta">
+								<text class="meta-tag">🏠 {{ item.room.name }}</text>
+							</view>
+						</view>
+					</view>
+				</view>
+
+				<!-- 预约详情 -->
+				<view class="detail-section" v-if="item.goodsInfo && item.goodsInfo.goods_type === 1">
+					<view class="detail-row">
+						<text class="detail-icon">📅</text>
+						<text class="detail-label">预约日期</text>
+						<text class="detail-value">{{ item.goodsInfo.date }}</text>
+					</view>
+					<view class="detail-row">
+						<text class="detail-icon">⏰</text>
+						<text class="detail-label">预约时段</text>
+						<text class="detail-value">{{ formatTimeSlots(item.goodsInfo.time_list) }}</text>
+					</view>
+					<view class="detail-row">
+						<text class="detail-icon">👥</text>
+						<text class="detail-label">预约人数</text>
+						<text class="detail-value">{{ item.goodsInfo.user_count }}人</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo.contact_name">
+						<text class="detail-icon">👤</text>
+						<text class="detail-label">联系人</text>
+						<text class="detail-value">{{ item.goodsInfo.contact_name }}</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo.remark">
+						<text class="detail-icon">📝</text>
+						<text class="detail-label">备注</text>
+						<text class="detail-value">{{ item.goodsInfo.remark }}</text>
+					</view>
+				</view>
+
+				<!-- 充值详情 -->
+				<view class="detail-section recharge-detail" v-if="item.goodsInfo && item.goodsInfo.goods_type === 2">
+					<view class="recharge-amount">
+						<text class="recharge-num">¥{{ (item.goodsInfo.amount / 100).toFixed(2) }}</text>
+						<text class="recharge-label">充值金额</text>
+					</view>
+					<view class="recharge-bonus" v-if="item.goodsInfo.bonus_points">
+						<text class="bonus-num">+{{ item.goodsInfo.bonus_points }}</text>
+						<text class="bonus-label">赠送积分</text>
+					</view>
+					<view class="recharge-present" v-if="item.goodsInfo.present_money">
+						<text class="present-num">+¥{{ (item.goodsInfo.present_money / 100).toFixed(2) }}</text>
+						<text class="present-label">赠送余额</text>
+					</view>
+				</view>
+
+				<!-- 线下消费详情 -->
+				<view class="detail-section" v-if="item.order_type === 4">
+					<view class="detail-row">
+						<text class="detail-icon">📋</text>
+						<text class="detail-label">消费类型</text>
+						<text class="detail-value">线下消费</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo">
+						<text class="detail-icon">💰</text>
+						<text class="detail-label">消费金额</text>
+						<text class="detail-value">¥{{ (item.pay_amount / 100).toFixed(2) }}</text>
+					</view>
+				</view>
+
+				<!-- 价格明细 -->
+				<view class="price-section">
+					<view class="price-row" v-if="item.room && item.goodsInfo">
+						<text class="price-label">房间费用</text>
+						<text class="price-value">¥{{ item.roomPrice }}</text>
+					</view>
+					<view class="price-row" v-if="item.memberDiscount > 0">
+						<text class="price-label">会员折扣</text>
+						<text class="price-value discount">-¥{{ item.memberDiscount }}</text>
+					</view>
+					<view class="price-row" v-if="item.pointsDeduction > 0">
+						<text class="price-label">积分抵扣</text>
+						<text class="price-value discount">-¥{{ item.pointsDeduction }}</text>
+					</view>
+					<view class="price-row" v-if="item.couponDiscount > 0">
+						<text class="price-label">优惠券</text>
+						<text class="price-value discount">-¥{{ item.couponDiscount }}</text>
+					</view>
+					<view class="price-row">
+						<text class="price-label">支付方式</text>
+						<text class="price-value">{{ item.payMethodText }}</text>
+					</view>
+					<view class="price-row total-row">
+						<text class="price-label">实付款</text>
+						<text class="price-num">¥{{ item.actualPrice }}</text>
+					</view>
+				</view>
+
+				<!-- 时间信息 -->
+				<view class="time-section">
+					<text class="create-time">下单时间：{{ formatTime(item.created_at) }}</text>
+				</view>
+
+				<!-- 操作按钮 -->
+				<view class="action-section" v-if="item.order_status === 0">
+					<button class="btn-cancel" @click.stop="cancelOrder(item)">取消预约</button>
+					<button class="btn-pay" @click.stop="goPay(item)">立即支付</button>
+				</view>
+				<view class="action-section" v-else>
+					<button class="btn-delete" @click.stop="deleteOrder(item)">删除记录</button>
+				</view>
+			</view>
+
+			<!-- 加载更多 -->
+			<view class="load-more" v-if="hasMore">
+				<text>加载更多...</text>
+			</view>
+		</scroll-view>
+
+		<!-- 空状态 -->
+		<view class="empty-state" v-else>
+			<text class="empty-icon">📋</text>
+			<text class="empty-text">暂无相关订单</text>
+			<button class="empty-btn" @tap="goAppoint">去预约</button>
+		</view>
 	</view>
-</template> 
+</template>
 
 <script>
-	import {
-		mapState,
-		mapActions,
-		mapMutations
-	} from 'vuex'; 
-	import empty from "@/components/empty";
-	import AUTH from '../../utils/auth.js'
+	import { mapState, mapActions } from 'vuex';
+	import AUTH from '../../utils/auth.js';
+
+	const ORDER_TYPE_MAP = {
+		1: { icon: '📅', name: '房间预约' },
+		2: { icon: '💰', name: '余额充值' },
+		3: { icon: '🎟️', name: '购买卡券' },
+		4: { icon: '🛒', name: '线下消费' },
+	};
+
+	const PAY_METHOD_MAP = {
+		'wxpay': '微信支付',
+		'balance': '余额支付',
+		'mixed': '混合支付',
+		'points': '积分兑换',
+	};
+
 	export default {
-		components: {
-			empty
-		},
 		computed: {
-			...mapState(['hasLogin','userInfo', 'token', 'openid'])
+			...mapState(['hasLogin', 'userInfo', 'token']),
+			currentOrders() {
+				return this.navList[this.tabCurrentIndex]?.orderList || [];
+			},
+			hasMore() {
+				return false; // 目前没有分页
+			},
 		},
 		data() {
 			return {
 				tabCurrentIndex: 0,
-				allOrderList:[],
-				navList: [{
-						state: 0,
-						text: '全部',
-						loadingType: 'more',
-						orderList: []
-					},
-					{
-						state: 1,
-						text: '待付款',
-						loadingType: 'more',
-						orderList: []
-					},
-					{
-						state: 2,
-						text: '已完成',
-						loadingType: 'more',
-						orderList: []
-					},
-					{
-						state: 3,
-						text: '付款失败',
-						loadingType: 'more',
-						orderList: []
-					}
+				navList: [
+					{ state: -1, text: '全部', count: 0, orderList: [], loaded: false },
+					{ state: 0, text: '待付款', count: 0, orderList: [], loaded: false },
+					{ state: 1, text: '已预约', count: 0, orderList: [], loaded: false },
+					{ state: 9, text: '已关闭', count: 0, orderList: [], loaded: false },
 				],
-				useAccountBalance:true,
 			};
 		},
-		
-		onLoad(options){
-			/**
-			 * 修复app端点击除全部订单外的按钮进入时不加载数据的问题
-			 * 替换onLoad下代码即可
-			 */
-			this.tabCurrentIndex = options.state;
-			this.loadData()
+		onLoad(options) {
+			if (options.state !== undefined) {
+				this.tabCurrentIndex = parseInt(options.state);
+			}
 		},
-		 
+		onShow() {
+			this.refreshData();
+		},
 		methods: {
-			...mapActions(['loginAndRegister', 'getUserInfo']),
-			//获取订单列表
-			loadData(source){
-				//这里是将订单挂载到tab列表下
-				let index = this.tabCurrentIndex;
-				let navItem = this.navList[index];
-				let state = navItem.state;
-				const _this = this;
-				
-				if(source === 'tabChange' && navItem.loaded === true){
-					//tab切换只有第一次需要加载数据
-					return;
-				}
-				if(navItem.loadingType === 'loading'){
-					//防止重复加载
-					return;
-				}
-				
+			...mapActions(['getUserInfo']),
+			async refreshData() {
+				if (!this.hasLogin) return;
+				// 重置所有tab数据
 				for (var i = 0; i < this.navList.length; i++) {
-					this.navList[i].loadingType = 'loading';
+					this.navList[i].orderList = [];
+					this.navList[i].loaded = false;
+					this.navList[i].count = 0;
 				}
-				var today = new Date();
-				var date = today.getFullYear()+'-'+(today.getMonth()+1).toString().padStart(2, "0")+'-'+(today.getDate()).toString().padStart(2, "0");
-				AUTH.getRoomDataList(this.token, date).then(res=>{
-					if(!res) return;
-					let rooms = res.data.rooms;
-					AUTH.getOrderList(state-1, this.token).then(function(res){
-						if(!res) return;
-						var firstNavItem = _this.navList[0];
-						res.data.orders.forEach(item=>{
-							let goodsInfoStr = item.goods_info;
-							let goodsInfo = JSON.parse(goodsInfoStr);
-							item.goodsInfo = goodsInfo;
-							if(item.order_type == 1){ //appointment
-								item.room = _this.getRoomById(rooms, goodsInfo.room_id);
-								let specificIndex = item.order_status + 1;
-								if(item.order_status == 8) //canceled
-									specificIndex = 3;
-								item = Object.assign(item, _this.orderStateExp(item.order_status));
-								let specificNavItem = _this.navList[specificIndex];
-								if(specificNavItem)
-									specificNavItem.orderList.push(item);
-								firstNavItem.orderList.push(item);
-							}
-						});
-						
-						for (var i = 0; i < _this.navList.length; i++) {
-							//loaded新字段用于表示数据加载完毕，如果为空可以显示空白页
-							_this.$set(_this.navList[i], 'loaded', true);
-							//判断是否还有数据， 有改为 more， 没有改为noMore 
-							_this.navList[i].loadingType = 'noMore';
-						}
-					
-					});
-				});
+				await this.loadData();
 			},
-			 
-			getRoomById(rooms,id){
-				for (var i = 0; i < rooms.length; i++) {
-					if(rooms[i].object_id == id) return rooms[i];
-				}
-			},
+			async loadData() {
+				uni.showLoading({ title: '加载中...' });
+				try {
+					var today = new Date();
+					var date = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+					var roomsRes = await AUTH.getRoomDataList(this.token, date);
+					var rooms = roomsRes?.data?.rooms || [];
 
-			//swiper 切换
-			changeTab(e){
-				this.tabCurrentIndex = e.target.current;
-				this.loadData('tabChange');
-			},
-			//顶部tab点击
-			tabClick(index){
-				this.tabCurrentIndex = index;
-			},
-			//删除订单
-			deleteOrder(item, index){
-				uni.showLoading({
-					title: '请稍后'
-				});
-				var _this = this;
-				var params = {order_number:item.order_number};
-				AUTH.deleteOrder(this.token, params).then(res=>{
-					uni.hideLoading();
-					if(!res) return;
-					_this.navList[_this.tabCurrentIndex].orderList.splice(index, 1);
-				});
-			},
-			//取消订单
-			cancelOrder(item){
-				uni.showLoading({
-					title: '请稍后'
-				});
-				var _this = this;
-				var params = {order_number:item.order_number};
-				AUTH.cancelOrder(this.token, params).then(res=>{
-					uni.hideLoading();
-					if(!res) return;
-					let {stateTip, stateTipColor} = _this.orderStateExp(8);
-					item.order_status = 8;
-					item = Object.assign(item, {
-						state: 8,
-						stateTip, 
-						stateTipColor
-					})
-					//加到支付失败的列表
-					_this.navList[3].orderList.push(item);
-					//取消订单后删除待付款中该项
-					let list = _this.navList[1].orderList;
-					let index = list.findIndex(val=>val.order_number === item.order_number);
-					index !== -1 && list.splice(index, 1);
-				});
-			},
-			
-			requestPay(item){
-				var url = '/pages/order/payment?parent_sn='+item.order_number + '&entry=2'+'&data='+ JSON.stringify(item);
-				uni.redirectTo({
-				  	url:url
-				});
-			},
-			
-			computePrice(item){
-				// var balance = this.userInfo.account_balance;
-				var totalPrice = this.computeTotalPrice(item);
-				var price = totalPrice;
-				// return this.useAccountBalance?(balance >=price?0:(price-balance)): price;
-				return price;
-			},
-			computeTotalPrice(item){
-				var totalPrice = item.room.price_per_hour * item.goodsInfo.time_list.length + item.room.price_per_person * item.goodsInfo.user_count;
-				return totalPrice;
-			},
-			//订单状态文字和颜色
-			orderStateExp(state){
-				let stateTip = '',
-					stateTipColor = '#fa436a';
-				switch(state){
-					case 0:
-						stateTip = '待付款'; break;
-					case 1:
-						stateTip = '已预约'; break;
-					case 9:
-						stateTip = '订单已关闭'; 
-						stateTipColor = '#909399';
-						break;
-					case 8:
-						stateTip = '已取消'; 
-						stateTipColor = '#909399';
-						break;
-					case 6:
-						stateTip = '已退款'; 
-						stateTipColor = '#909399';
-						break;
-						
-					//更多自定义
+					// 获取所有订单（state=-1 获取全部）
+					var orderRes = await AUTH.getOrderList(-1, this.token);
+					if (!orderRes) { uni.hideLoading(); return; }
+
+					var orders = orderRes.data?.orders || [];
+
+					// 按状态分类
+					var allList = this.navList[0];
+					var unpaidList = this.navList[1];
+					var bookedList = this.navList[2];
+					var closedList = this.navList[3];
+
+					for (var j = 0; j < orders.length; j++) {
+						var item = orders[j];
+						var goodsInfoStr = item.goods_info;
+						var goodsInfo = JSON.parse(goodsInfoStr || '{}');
+						item.goodsInfo = goodsInfo;
+
+						if (item.order_type === 1 && goodsInfo.room_id) {
+							item.room = this.getRoomById(rooms, goodsInfo.room_id);
+						}
+
+						// 状态文字
+						var { stateTip, stateTipColor } = this.orderStateExp(item.order_status);
+						item.stateTip = stateTip;
+						item.stateTipColor = stateTipColor;
+
+						// 计算价格明细
+						this.computePriceDetails(item);
+
+						// 支付方式
+						item.payMethodText = this.getPayMethodText(item);
+
+						allList.orderList.push(item);
+
+						if (item.order_status === 0) {
+							unpaidList.orderList.push(item);
+						} else if (item.order_status === 1) {
+							bookedList.orderList.push(item);
+						} else {
+							closedList.orderList.push(item);
+						}
+					}
+
+					// 更新count
+					this.navList[0].count = allList.orderList.length;
+					this.navList[1].count = unpaidList.orderList.length;
+					this.navList[2].count = bookedList.orderList.length;
+					this.navList[3].count = closedList.orderList.length;
+
+					for (var k = 0; k < this.navList.length; k++) {
+						this.navList[k].loaded = true;
+					}
+
+				} catch (e) {
+					console.error('加载订单失败:', e);
 				}
-				return {stateTip, stateTipColor};
+				uni.hideLoading();
 			},
-			handleBalanceCheckboxChange(e){
-				this.useAccountBalance = e.detail.value;
+			computePriceDetails(item) {
+				var goodsInfo = item.goodsInfo;
+				var payAmount = item.pay_amount || 0;
+				item.actualPrice = (payAmount / 100).toFixed(2);
+
+				if (item.room && goodsInfo.time_list && goodsInfo.user_count) {
+					// 房间费用
+					var hours = goodsInfo.time_list.length;
+					var roomPrice = item.room.price_per_hour * hours + item.room.price_per_person * goodsInfo.user_count;
+					item.roomPrice = (roomPrice / 100).toFixed(2);
+					item.originalPrice = item.roomPrice;
+
+					// 会员折扣（如果有）
+					var memberLevel = this.userInfo?.member_level || 0;
+					var discounts = { 0: 0, 1: 0, 2: 0.05, 3: 0.1, 4: 0.15 };
+					var discountRate = discounts[memberLevel] || 0;
+					item.memberDiscount = discountRate > 0 ? (roomPrice * discountRate / 100).toFixed(2) : 0;
+
+					// 积分抵扣（如果有）
+					if (goodsInfo.points_used) {
+						item.pointsDeduction = (goodsInfo.points_used / 100).toFixed(2);
+					} else {
+						item.pointsDeduction = 0;
+					}
+
+					// 优惠券抵扣（如果有）
+					if (goodsInfo.coupon_discount) {
+						item.couponDiscount = (goodsInfo.coupon_discount / 100).toFixed(2);
+					} else {
+						item.couponDiscount = 0;
+					}
+				} else {
+					item.roomPrice = '0.00';
+					item.memberDiscount = 0;
+					item.pointsDeduction = 0;
+					item.couponDiscount = 0;
+				}
+			},
+			getPayMethodText(item) {
+				if (item.order_type === 2) return '微信支付';
+				if (item.order_type === 1 && item.request_data) {
+					var totalFee = item.request_data.total_fee || 0;
+					if (item.goodsInfo?.use_balance && totalFee < parseInt(item.roomPrice * 100)) {
+						return '余额+微信';
+					}
+					return '微信支付';
+				}
+				return PAY_METHOD_MAP[item.pay_method] || '微信支付';
+			},
+			getOrderTypeIcon(item) {
+				return ORDER_TYPE_MAP[item.order_type]?.icon || '📋';
+			},
+			getOrderTypeName(item) {
+				return ORDER_TYPE_MAP[item.order_type]?.name || '订单';
+			},
+			getRoomById(rooms, id) {
+				for (var i = 0; i < rooms.length; i++) {
+					if (rooms[i].object_id == id) return rooms[i];
+				}
+				return null;
+			},
+			formatTimeSlots(timeList) {
+				if (!timeList || timeList.length === 0) return '-';
+				return timeList.map(function(t) {
+					return t[0] + ':00 - ' + t[1] + ':00';
+				}).join('、');
+			},
+			formatTime(timeStr) {
+				if (!timeStr) return '-';
+				var d = new Date(timeStr);
+				var y = d.getFullYear();
+				var m = String(d.getMonth() + 1).padStart(2, '0');
+				var day = String(d.getDate()).padStart(2, '0');
+				var h = String(d.getHours()).padStart(2, '0');
+				var min = String(d.getMinutes()).padStart(2, '0');
+				return y + '-' + m + '-' + day + ' ' + h + ':' + min;
+			},
+			tabClick(index) {
+				if (this.tabCurrentIndex === index) return;
+				this.tabCurrentIndex = index;
+				if (!this.navList[index].loaded) {
+					this.loadData();
+				}
+			},
+			loadMore() {
+				// TODO: 分页加载
+			},
+			goPay(item) {
+				var url = '/pages/order/payment?parent_sn=' + item.order_number + '&entry=2&data=' + JSON.stringify(item);
+				uni.redirectTo({ url: url });
+			},
+			goAppoint() {
+				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+			},
+			cancelOrder(item) {
+				var self = this;
+				uni.showModal({
+					title: '确认取消',
+					content: '确定要取消这个预约吗？',
+					success: function(res) {
+						if (!res.confirm) return;
+						uni.showLoading({ title: '请稍后' });
+						AUTH.cancelOrder(self.token, { order_number: item.order_number }).then(function(res) {
+							uni.hideLoading();
+							if (!res) return;
+							item.order_status = 8;
+							var { stateTip } = self.orderStateExp(8);
+							item.stateTip = stateTip;
+							// 移动到已关闭
+							var currentList = self.navList[self.tabCurrentIndex].orderList;
+							var idx = currentList.findIndex(function(o) { return o.order_number === item.order_number; });
+							if (idx !== -1) currentList.splice(idx, 1);
+							self.navList[3].orderList.push(item);
+							self.navList[3].count = self.navList[3].orderList.length;
+						}).catch(function() {
+							uni.hideLoading();
+						});
+					}
+				});
+			},
+			deleteOrder(item) {
+				var self = this;
+				uni.showModal({
+					title: '确认删除',
+					content: '删除后无法恢复，确定要删除吗？',
+					success: function(res) {
+						if (!res.confirm) return;
+						uni.showLoading({ title: '请稍后' });
+						AUTH.deleteOrder(self.token, { order_number: item.order_number }).then(function(res) {
+							uni.hideLoading();
+							if (!res) return;
+							var currentList = self.navList[self.tabCurrentIndex].orderList;
+							var idx = currentList.findIndex(function(o) { return o.order_number === item.order_number; });
+							if (idx !== -1) currentList.splice(idx, 1);
+							self.navList[0].count = self.navList[0].orderList.length;
+						}).catch(function() {
+							uni.hideLoading();
+						});
+					}
+				});
+			},
+			orderStateExp(state) {
+				var stateTip = '';
+				var stateTipColor = '#FF6B9D';
+				switch (state) {
+					case 0: stateTip = '待付款'; stateTipColor = '#FF6B6B'; break;
+					case 1: stateTip = '已预约'; stateTipColor = '#52C41A'; break;
+					case 2: stateTip = '支付失败'; stateTipColor = '#FF6B6B'; break;
+					case 6: stateTip = '已退款'; stateTipColor = '#999'; break;
+					case 8: stateTip = '已取消'; stateTipColor = '#999'; break;
+					case 9: stateTip = '已关闭'; stateTipColor = '#999'; break;
+					case 10: stateTip = '退款中'; stateTipColor = '#F5A623'; break;
+					case 11: stateTip = '拒绝退款'; stateTipColor = '#FF6B6B'; break;
+					default: stateTip = '未知'; stateTipColor = '#999';
+				}
+				return { stateTip: stateTip, stateTipColor: stateTipColor };
 			},
 		},
-	}
+	};
 </script>
 
 <style lang="scss">
-	page, .content{
-		background: $page-color-base;
-		height: 100%;
+page {
+	background: #F5F5F5;
+}
+.page-wrapper {
+	min-height: 100vh;
+	padding-bottom: 40rpx;
+}
+
+/* ===== 顶部 ===== */
+.top-bar {
+	background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
+	padding: 60rpx 32rpx 24rpx;
+	text-align: center;
+	.top-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #FFF;
+		letter-spacing: 2rpx;
 	}
-	
-	.swiper-box{
-		height: calc(100% - 40px);
+}
+
+/* ===== 标签栏 ===== */
+.tab-bar {
+	display: flex;
+	background: #FFF;
+	padding: 0 16rpx;
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+.tab-item {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8rpx;
+	padding: 24rpx 0;
+	position: relative;
+	.tab-text {
+		font-size: 28rpx;
+		color: #999;
+		transition: color 0.2s;
 	}
-	.list-scroll-content{
-		height: 100%;
-	}
-	
-	.navbar{
+	.tab-dot {
+		background: #FF6B9D;
+		color: #FFF;
+		font-size: 18rpx;
+		min-width: 36rpx;
+		height: 36rpx;
+		border-radius: 18rpx;
 		display: flex;
-		height: 40px;
-		padding: 0 5px;
-		background: #fff;
-		box-shadow: 0 1px 5px rgba(0,0,0,.06);
-		position: relative;
-		z-index: 10;
-		.nav-item{
-			flex: 1;
+		align-items: center;
+		justify-content: center;
+		padding: 0 8rpx;
+	}
+}
+.tab-item.active .tab-text { color: #FF6B9D; font-weight: bold; }
+.tab-item.active::after {
+	content: '';
+	position: absolute;
+	bottom: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 48rpx;
+	height: 4rpx;
+	background: #FF6B9D;
+	border-radius: 4rpx;
+}
+
+/* ===== 订单列表 ===== */
+.order-list {
+	padding: 24rpx;
+}
+.order-card {
+	background: #FFF;
+	border-radius: 24rpx;
+	margin-bottom: 24rpx;
+	overflow: hidden;
+	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+}
+
+/* ===== 卡片头部 ===== */
+.card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 24rpx;
+	border-bottom: 1rpx solid #F5F5F5;
+	.header-left {
+		display: flex;
+		align-items: center;
+		gap: 16rpx;
+		.order-icon { font-size: 40rpx; }
+		.order-info {
 			display: flex;
-			justify-content: center;
-			align-items: center;
-			height: 100%;
-			font-size: 15px;
-			color: $font-color-dark;
-			position: relative;
-			&.current{
-				color: $base-color;
-				&:after{
-					content: '';
-					position: absolute;
-					left: 50%;
-					bottom: 0;
-					transform: translateX(-50%);
-					width: 44px;
-					height: 0;
-					border-bottom: 2px solid $base-color;
-				}
-			}
+			flex-direction: column;
+			gap: 4rpx;
+			.order-type-name { font-size: 30rpx; font-weight: bold; color: #333; }
+			.order-number { font-size: 20rpx; color: #AAA; }
 		}
 	}
-
-	.uni-swiper-item{
-		height: auto;
+	.status-badge {
+		padding: 8rpx 24rpx;
+		border-radius: 20rpx;
+		font-size: 24rpx;
+		font-weight: bold;
 	}
-	.order-item{
+	.status-0 { background: #FFF0F0; color: #FF6B6B; }
+	.status-1 { background: #F0FFF0; color: #52C41A; }
+	.status-2 { background: #FFF0F0; color: #FF6B6B; }
+	.status-6, .status-8, .status-9 { background: #F5F5F5; color: #999; }
+	.status-10 { background: #FFF9E6; color: #F5A623; }
+	.status-11 { background: #FFF0F0; color: #FF6B6B; }
+}
+
+/* ===== 房间信息 ===== */
+.room-section {
+	padding: 20rpx 24rpx;
+	border-bottom: 1rpx solid #F5F5F5;
+}
+.room-top {
+	display: flex;
+	gap: 20rpx;
+	.room-img-box {
+		width: 140rpx;
+		height: 105rpx;
+		border-radius: 16rpx;
+		overflow: hidden;
+		flex-shrink: 0;
+		.room-img { width: 100%; height: 100%; }
+	}
+	.room-detail {
+		flex: 1;
 		display: flex;
 		flex-direction: column;
-		padding-left: 30upx;
-		background: #fff;
-		margin-top: 16upx;
-		.i-top{
-			display: flex;
-			align-items: center;
-			height: 80upx;
-			padding-right:30upx;
-			font-size: $font-base;
-			color: $font-color-dark;
-			position: relative;
-			.time{
-				flex: 1;
-			}
-			.state{
-				color: $base-color;
-			}
-			.del-btn{
-				padding: 10upx 0 10upx 36upx;
-				font-size: $font-lg;
-				color: $font-color-light;
-				position: relative;
-				&:after{
-					content: '';
-					width: 0;
-					height: 30upx;
-					border-left: 1px solid $border-color-dark;
-					position: absolute;
-					left: 20upx;
-					top: 50%;
-					transform: translateY(-50%);
-				}
-			}
-		}
-		/* 多条商品 */
-		.goods-box{
-			height: 160upx;
-			padding: 20upx 0;
-			white-space: nowrap;
-			.goods-item{
-				width: 120upx;
-				height: 120upx;
-				display: inline-block;
-				margin-right: 24upx;
-			}
-			.goods-img{
-				display: block;
-				width: 100%;
-				height: 100%;
-			}
-		}
-		/* 单条商品 */
-		.goods-box-single{
-			display: flex;
-			padding: 20upx 0;
-			.goods-img{
-				display: block;
-				width: 120upx;
-				height: 120upx;
-			}
-			.right{
-				flex: 1;
-				display: flex;
-				flex-direction: column;
-				padding: 0 30upx 0 24upx;
-				overflow: hidden;
-				.title{
-					font-size: $font-base + 2upx;
-					color: $font-color-dark;
-					line-height: 1;
-				}
-				.attr-box{
-					font-size: $font-sm + 2upx;
-					color: $font-color-light;
-					padding: 10upx 12upx;
-				}
-				.price{
-					font-size: $font-base + 2upx;
-					color: $font-color-dark;
-					&:before{
-						content: '￥';
-						font-size: $font-sm;
-						margin: 0 2upx 0 8upx;
-					}
-				}
-			}
-		}
-		
-		.item-list{
-			padding: 20upx 0 0;
-			display: flex;
-			flex-wrap: wrap;
-			text{
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				background: #eee;
-				margin-right: 20upx;
-				margin-bottom: 20upx;
-				border-radius: 100upx;
-				min-width: 60upx;
-				height: 60upx;
-				padding: 0 20upx;
-				font-size: $font-base;
-				color: $font-color-dark;
-			}
-		}
-		
-		.price-box{
-			display: flex;
-			justify-content: flex-end;
-			align-items: baseline;
-			padding: 20upx 30upx;
-			font-size: $font-sm + 2upx;
-			color: $font-color-light;
-			.num{
-				margin: 0 8upx;
-				color: $font-color-dark;
-			}
-			.price{
-				font-size: $font-lg;
-				color: $font-color-dark;
-				&:before{
-					content: '￥';
-					font-size: $font-sm;
-					margin: 0 2upx 0 8upx;
-				}
-			}
-		}
-		.action-box{
-			display: flex;
-			justify-content: flex-end;
-			align-items: center;
-			height: 100upx;
-			position: relative;
-			padding-right: 30upx;
-		}
-		.action-btn{
-			width: 160upx;
-			height: 60upx;
-			margin: 0;
-			margin-left: 24upx;
-			padding: 0;
-			text-align: center;
-			line-height: 60upx;
-			font-size: $font-sm + 2upx;
-			color: $font-color-dark;
-			background: #fff;
-			border-radius: 100px;
-			&:after{
-				border-radius: 100px;
-			}
-			&.recom{
-				background: #fff9f9;
-				color: $base-color;
-				&:after{
-					border-color: #f7bcc8;
-				}
-			}
+		gap: 8rpx;
+		.room-name { font-size: 30rpx; font-weight: bold; color: #333; }
+		.room-meta { display: flex; gap: 12rpx; flex-wrap: wrap; }
+		.meta-tag {
+			background: #FFF0F8;
+			color: #FF6B9D;
+			font-size: 20rpx;
+			padding: 4rpx 16rpx;
+			border-radius: 10rpx;
 		}
 	}
-	
-	
-	/* load-more */
-	.uni-load-more {
+}
+
+/* ===== 预约详情 ===== */
+.detail-section {
+	padding: 20rpx 24rpx;
+	border-bottom: 1rpx solid #F5F5F5;
+}
+.detail-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 12rpx;
+	margin-bottom: 16rpx;
+	&:last-child { margin-bottom: 0; }
+	.detail-icon { font-size: 28rpx; flex-shrink: 0; }
+	.detail-label { font-size: 26rpx; color: #999; width: 140rpx; flex-shrink: 0; }
+	.detail-value { font-size: 26rpx; color: #333; flex: 1; }
+}
+
+/* ===== 充值详情 ===== */
+.recharge-detail {
+	display: flex;
+	gap: 32rpx;
+	padding: 24rpx;
+	.recharge-amount, .recharge-bonus, .recharge-present {
 		display: flex;
-		flex-direction: row;
-		height: 80upx;
+		flex-direction: column;
 		align-items: center;
-		justify-content: center
-	}
-	
-	.uni-load-more__text {
-		font-size: 28upx;
-		color: #999
-	}
-	
-	.uni-load-more__img {
-		height: 24px;
-		width: 24px;
-		margin-right: 10px
-	}
-	
-	.uni-load-more__img>view {
-		position: absolute
-	}
-	
-	.uni-load-more__img>view view {
-		width: 6px;
-		height: 2px;
-		border-top-left-radius: 1px;
-		border-bottom-left-radius: 1px;
-		background: #999;
-		position: absolute;
-		opacity: .2;
-		transform-origin: 50%;
-		animation: load 1.56s ease infinite
-	}
-	
-	.uni-load-more__img>view view:nth-child(1) {
-		transform: rotate(90deg);
-		top: 2px;
-		left: 9px
-	}
-	
-	.uni-load-more__img>view view:nth-child(2) {
-		transform: rotate(180deg);
-		top: 11px;
-		right: 0
-	}
-	
-	.uni-load-more__img>view view:nth-child(3) {
-		transform: rotate(270deg);
-		bottom: 2px;
-		left: 9px
-	}
-	
-	.uni-load-more__img>view view:nth-child(4) {
-		top: 11px;
-		left: 0
-	}
-	
-	.load1,
-	.load2,
-	.load3 {
-		height: 24px;
-		width: 24px
-	}
-	
-	.load2 {
-		transform: rotate(30deg)
-	}
-	
-	.load3 {
-		transform: rotate(60deg)
-	}
-	
-	.load1 view:nth-child(1) {
-		animation-delay: 0s
-	}
-	
-	.load2 view:nth-child(1) {
-		animation-delay: .13s
-	}
-	
-	.load3 view:nth-child(1) {
-		animation-delay: .26s
-	}
-	
-	.load1 view:nth-child(2) {
-		animation-delay: .39s
-	}
-	
-	.load2 view:nth-child(2) {
-		animation-delay: .52s
-	}
-	
-	.load3 view:nth-child(2) {
-		animation-delay: .65s
-	}
-	
-	.load1 view:nth-child(3) {
-		animation-delay: .78s
-	}
-	
-	.load2 view:nth-child(3) {
-		animation-delay: .91s
-	}
-	
-	.load3 view:nth-child(3) {
-		animation-delay: 1.04s
-	}
-	
-	.load1 view:nth-child(4) {
-		animation-delay: 1.17s
-	}
-	
-	.load2 view:nth-child(4) {
-		animation-delay: 1.3s
-	}
-	
-	.load3 view:nth-child(4) {
-		animation-delay: 1.43s
-	}
-	
-	@-webkit-keyframes load {
-		0% {
-			opacity: 1
+		gap: 8rpx;
+		.recharge-num, .bonus-num, .present-num {
+			font-size: 40rpx;
+			font-weight: bold;
+			color: #FF6B9D;
 		}
-	
-		100% {
-			opacity: .2
+		.recharge-label, .bonus-label, .present-label {
+			font-size: 22rpx;
+			color: #999;
 		}
 	}
+	.recharge-bonus .bonus-num { color: #52C41A; }
+	.recharge-present .present-num { color: #F5A623; }
+}
+
+/* ===== 价格明细 ===== */
+.price-section {
+	padding: 20rpx 24rpx;
+	border-bottom: 1rpx solid #F5F5F5;
+}
+.price-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12rpx;
+	&:last-child { margin-bottom: 0; }
+	.price-label { font-size: 26rpx; color: #999; }
+	.price-value { font-size: 26rpx; color: #666; }
+	.price-value.discount { color: #52C41A; }
+}
+.total-row {
+	margin-top: 12rpx;
+	padding-top: 12rpx;
+	border-top: 1rpx dashed #EEE;
+	.price-label { font-size: 28rpx; color: #333; font-weight: bold; }
+	.price-num { font-size: 40rpx; font-weight: bold; color: #FF6B9D; }
+}
+
+/* ===== 时间信息 ===== */
+.time-section {
+	padding: 16rpx 24rpx;
+	border-bottom: 1rpx solid #F5F5F5;
+	.create-time { font-size: 22rpx; color: #AAA; }
+}
+
+/* ===== 操作按钮 ===== */
+.action-section {
+	display: flex;
+	justify-content: flex-end;
+	gap: 16rpx;
+	padding: 16rpx 24rpx;
+	button {
+		margin: 0;
+		padding: 0;
+		font-size: 26rpx;
+		border-radius: 40rpx;
+		background: #FFF;
+		border: 2rpx solid #EEE;
+		color: #666;
+		line-height: 2.4;
+		padding: 0 32rpx;
+		&::after { border-radius: 80rpx; }
+	}
+	.btn-pay {
+		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		color: #FFF;
+		border: none;
+	}
+	.btn-delete {
+		background: #F5F5F5;
+		color: #999;
+	}
+}
+
+/* ===== 空状态 ===== */
+.empty-state {
+	padding: 160rpx 0;
+	text-align: center;
+	.empty-icon { font-size: 120rpx; display: block; margin-bottom: 24rpx; }
+	.empty-text { font-size: 28rpx; color: #999; display: block; margin-bottom: 40rpx; }
+	.empty-btn {
+		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		color: #FFF;
+		font-size: 28rpx;
+		border-radius: 50rpx;
+		padding: 20rpx 60rpx;
+		border: none;
+		&::after { border: none; }
+	}
+}
+
+/* ===== 加载更多 ===== */
+.load-more {
+	text-align: center;
+	padding: 32rpx;
+	font-size: 26rpx;
+	color: #999;
+}
 </style>

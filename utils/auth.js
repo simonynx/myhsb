@@ -173,8 +173,8 @@ function purchaseGoods(goodsId, token) {
   return request('/goods/purchase/', 'POST', data, token);
 }
 
-function recharge(amount, token, bonusPoints, presentMoney) {
-  var data = { amount: amount }; if (bonusPoints) data.bonus_points = bonusPoints; if (presentMoney) data.present_money = presentMoney;
+function recharge(amount, token) {
+  var data = { amount: amount };
   return request('/users/recharge/', 'POST', data, token);
 }
 
@@ -193,6 +193,35 @@ function getBalanceRecords(token) {
 
 function getRechargeTiers() {
   return request('/recharge_tiers/', 'GET', null);
+}
+
+
+function getCouponList(token) {
+  return request('/coupons/', 'GET', null, token);
+}
+
+function getMyCoupons(token, status) {
+  var url = '/coupons/my_coupons/' + (status !== undefined ? '?status=' + status : '');
+  return request(url, 'GET', null, token);
+}
+
+function receiveCoupon(token, campaignId) {
+  var data = { campaign_id: campaignId };
+  return request('/coupons/receive/', 'POST', data, token);
+}
+
+function grantCoupon(token, campaignId, adminNotes, grantTarget, targetValue) {
+  var data = {
+    campaign_id: campaignId,
+    admin_notes: adminNotes,
+    grant_target: grantTarget || 0,
+    target_value: targetValue || ''
+  };
+  return request('/coupons/grant/', 'POST', data, token);
+}
+
+function getCouponCampaigns(token) {
+  return request('/coupons/campaigns/', 'GET', null, token);
 }
 
 function getConstance(token) {
@@ -285,6 +314,11 @@ var httpRequest = {
   submitReview: submitReview,
   getBalanceRecords: getBalanceRecords,
   getRechargeTiers: getRechargeTiers,
+  getCouponList: getCouponList,
+  getMyCoupons: getMyCoupons,
+  receiveCoupon: receiveCoupon,
+  grantCoupon: grantCoupon,
+  getCouponCampaigns: getCouponCampaigns,
   uploadFile: uploadFile,
 };
 

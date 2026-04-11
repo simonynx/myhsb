@@ -199,7 +199,7 @@
 				}
 				uni.showLoading({ title: '支付中...' });
 				var amountFen = this.selectedAmount * 100;
-				AUTH.recharge(amountFen, this.token, this.selectedTierBonus, Math.round(this.selectedTierPresent * 100)).then((res) => {
+				AUTH.recharge(amountFen, this.token).then((res) => {
 					if (!res) {
 						uni.hideLoading();
 						return;
@@ -432,6 +432,7 @@ page {
 	}
 }
 .pay-item.disabled { opacity: 0.5; }
+.pay-item.active .pay-check { background: #FF6B9D; border-color: #FF6B9D; }
 
 /* ===== 底部 ===== */
 .bottom-area {

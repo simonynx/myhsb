@@ -1,5 +1,17 @@
 <template>
 	<view class="content">
+
+		<!-- 优惠券领取区 -->
+		<view class="coupon-banner" v-if="availableCoupons.length > 0" @tap="showCouponList">
+			<view class="banner-left">
+				<text class="banner-icon">🎁</text>
+				<view class="banner-info">
+					<text class="banner-title">优惠券</text>
+					<text class="banner-sub">{{ availableCoupons.length }}张可领取</text>
+				</view>
+			</view>
+			<text class="banner-arrow">→</text>
+		</view>
 		<view class="tabr">
 			<view 
 				v-for="(item, index) in navList" :key="index" 
@@ -70,6 +82,7 @@
 			return {
 				tabCurrentIndex: 0,
 				allGoodsList:[],
+			availableCoupons: [],
 				navList: [{
 						type: 0,
 						text: '全部',
@@ -107,6 +120,7 @@
 		onLoad() {
 		},
 		onShow() {
+			this.loadAvailableCoupons();
 			if(!this.hasLogin){
 				this.loginAndRegister();
 			}else{
@@ -121,6 +135,35 @@
 			}
 		},
 		methods: {
+
+			async loadAvailableCoupons() {
+				if (!this.hasLogin) return;
+				try {
+					var res = await AUTH.getCouponList(this.token);
+					if (res._status === 0) {
+						this.availableCoupons = (res.data || []).filter(function(item) { return !item.user_received; });
+					}
+				} catch (e) {}
+			},
+			async receiveCouponItem(campaignId) {
+				uni.showLoading({ title: '领取中...' });
+				try {
+					var res = await AUTH.receiveCoupon(this.token, campaignId);
+					uni.hideLoading();
+					if (res._status === 0) {
+						uni.showToast({ title: '领取成功', icon: 'success' });
+						this.availableCoupons = this.availableCoupons.filter(function(item) { return item.campaign_id !== campaignId; });
+					} else {
+						uni.showToast({ title: res._reason || '领取失败', icon: 'none' });
+					}
+				} catch (e) {
+					uni.hideLoading();
+					uni.showToast({ title: '领取失败', icon: 'none' });
+				}
+			},
+			showCouponList() {
+				uni.navigateTo({ url: '/pages/my/coupons/coupons' });
+			},
 			...mapActions(['loginAndRegister', 'getUserInfo']),
 			loadData(source){
 				//这里是将订单挂载到tab列表下
@@ -335,4 +378,31 @@
 		}
 	}	
 	
+
+/* ===== 优惠券领取区 ===== */
+.coupon-banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 16rpx 24rpx;
+	padding: 24rpx;
+	background: linear-gradient(135deg, #FFF0F8, #FFF5F8);
+	border-radius: 20rpx;
+	border: 2rpx solid #FFE0EE;
+}
+.banner-left {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+}
+.banner-icon { font-size: 48rpx; }
+.banner-info {
+	display: flex;
+	flex-direction: column;
+	gap: 4rpx;
+}
+.banner-title { font-size: 30rpx; font-weight: bold; color: #FF6B9D; }
+.banner-sub { font-size: 22rpx; color: #FF9ECD; }
+.banner-arrow { font-size: 32rpx; color: #FF9ECD; }
+
 </style>

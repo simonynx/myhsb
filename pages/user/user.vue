@@ -89,6 +89,11 @@
 				<text class="menu-text">我的评价</text>
 				<text class="menu-arrow">→</text>
 			</view>
+			<view class="menu-item" @tap="navTo('/pages/my/coupons/coupons')">
+				<text class="menu-icon">🎫</text>
+				<text class="menu-text">优惠券</text>
+				<text class="menu-arrow">→</text>
+			</view>
 		</view>
 
 		<!-- 充值入口 -->
@@ -211,9 +216,9 @@
 <style lang="scss">
 page {
 	background: #FFF9F5;
-	padding-top: constant(safe-area-inset-top);
 }
 .page-wrapper {
+	padding-top: 80rpx;
 	min-height: 100vh;
 	padding-bottom: 40rpx;
 }
