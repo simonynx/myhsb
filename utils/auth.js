@@ -195,11 +195,6 @@ function getRechargeTiers() {
   return request('/recharge_tiers/', 'GET', null);
 }
 
-
-function getRechargeTiers() {
-  return request('/recharge_tiers/', 'GET', null);
-}
-
 function getConstance(token) {
   return request('/config/', 'GET', null, token);
 }
