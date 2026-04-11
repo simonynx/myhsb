@@ -35,10 +35,6 @@ function request(url, method, data, token) {
 
 // ==================== 微信登录 ====================
 
-/**
- * 微信小程序登录
- * @returns {Promise<{code: string, openid: string}>}
- */
 function weixinLogin() {
   return new Promise((resolve, reject) => {
     uni.login({
@@ -57,16 +53,12 @@ function weixinLogin() {
   });
 }
 
-/**
- * 获取用户手机号（如果需要）
- */
 function getPhoneNumber(e) {
   return new Promise((resolve, reject) => {
     if (e.detail.errMsg !== 'getPhoneNumber:ok') {
       reject(e.detail.errMsg || '获取手机号失败');
       return;
     }
-    // 用 code 换手机号（需要后端配合）
     var data = { encryptedData: e.detail.encryptedData, iv: e.detail.iv };
     request('/auth/decrypt_phone/', 'POST', data).then(resolve).catch(reject);
   });
@@ -74,34 +66,23 @@ function getPhoneNumber(e) {
 
 // ==================== 订阅消息 ====================
 
-// 订阅消息模板 ID（从后端获取或在后台配置）
 var SUBSCRIBE_TEMPLATE_ID = '';
 
-/**
- * 设置订阅消息模板 ID
- */
 function setSubscribeTemplateId(templateId) {
   SUBSCRIBE_TEMPLATE_ID = templateId;
 }
 
-/**
- * 请求订阅消息权限（预约成功通知）
- * @returns {Promise<boolean>} 用户是否授权
- */
 function requestSubscribeMessage() {
   return new Promise((resolve, reject) => {
-    // 微信小程序需要用户主动点击授权
     uni.requestSubscribeMessage({
       tmplIds: [SUBSCRIBE_TEMPLATE_ID || 'YOUR_TEMPLATE_ID'],
       success: (res) => {
-        // res 是一个对象，key 是模板 ID，value 是 'accept'/'reject'/'ban'/'filter'
         var result = res[SUBSCRIBE_TEMPLATE_ID] || res['YOUR_TEMPLATE_ID'] || 'reject';
         console.log('订阅消息授权结果:', result);
         resolve(result === 'accept');
       },
       fail: (err) => {
         console.log('订阅消息请求失败:', err);
-        // 用户拒绝或发生错误
         reject(err);
       }
     });
@@ -192,8 +173,8 @@ function purchaseGoods(goodsId, token) {
   return request('/goods/purchase/', 'POST', data, token);
 }
 
-function recharge(amount, token) {
-  var data = { amount: amount };
+function recharge(amount, token, bonusPoints, presentMoney) {
+  var data = { amount: amount }; if (bonusPoints) data.bonus_points = bonusPoints; if (presentMoney) data.present_money = presentMoney;
   return request('/users/recharge/', 'POST', data, token);
 }
 
@@ -204,6 +185,19 @@ function getReviewList(token) {
 function submitReview(token, rating, content) {
   var data = { rating: rating, content: content };
   return request('/reviews/', 'POST', data, token);
+}
+
+function getBalanceRecords(token) {
+  return request('/users/balance_records/', 'GET', null, token);
+}
+
+function getRechargeTiers() {
+  return request('/recharge_tiers/', 'GET', null);
+}
+
+
+function getRechargeTiers() {
+  return request('/recharge_tiers/', 'GET', null);
 }
 
 function getConstance(token) {
@@ -268,18 +262,13 @@ function uploadFile(token, filePath, fileName) {
 // ==================== 导出 ====================
 
 var httpRequest = {
-  // 登录相关
   weixinLogin: weixinLogin,
   univerifyLogin: univerifyLogin,
   getPhoneNumber: getPhoneNumber,
   checkSession: checkSession,
   loginOut: loginOut,
-
-  // 订阅消息
   requestSubscribeMessage: requestSubscribeMessage,
   setSubscribeTemplateId: setSubscribeTemplateId,
-
-  // 用户相关
   setUserProflie: setUserProflie,
   getUserProfile: getUserProfile,
   getOrderList: getOrderList,
@@ -290,25 +279,17 @@ var httpRequest = {
   wxPay: wxPay,
   deleteOrder: deleteOrder,
   cancelOrder: cancelOrder,
-
-  // 房间相关
   getRoomDataList: getRoomDataList,
   getRoomAppointments: getRoomAppointments,
   bookingRoom: bookingRoom,
   bookingRoomWithBalance: bookingRoomWithBalance,
-
-  // 商品相关
   getGoodsList: getGoodsList,
   purchaseGoods: purchaseGoods,
-
-  // 配置
   getConstance: getConstance,
-
-  // 评价
   getReviewList: getReviewList,
   submitReview: submitReview,
-
-  // 文件
+  getBalanceRecords: getBalanceRecords,
+  getRechargeTiers: getRechargeTiers,
   uploadFile: uploadFile,
 };
 

@@ -15,72 +15,25 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "摸鱼划水吧",
-				"app-plus": {
-					"titleNView": {
-						"type": "transparent",
-						"searchInput": {
-							"backgroundColor": "rgba(231, 231, 231,.7)",
-							"borderRadius": "16px",
-							"placeholder": "请输入地址 如：大钟寺",
-							"disabled": true,
-							"placeholderColor": "#606266"
-						},
-						"buttons": [{
-								"fontSrc": "/static/yticon.ttf",
-								"text": "\ue60d",
-								"fontSize": "26",
-								"color": "#303133",
-								"float": "left",
-								"background": "rgba(0,0,0,0)"
-							},
-							{
-								"fontSrc": "/static/yticon.ttf",
-								"text": "\ue744",
-								"fontSize": "27",
-								"color": "#303133",
-								"background": "rgba(0,0,0,0)",
-								"redDot": true
-							}
-						]
-					}
-				}
+				"navigationBarTitleText": "摸鱼划水吧"
 			}
 		},
 		{
 			"path": "pages/tabBar/appoint/appoint",
 			"style": {
-				"navigationBarTitleText": "预约",
-				"app-plus": {
-					"titleNView": {
-						"buttons": [{
-							"text": "\ue534",
-							"fontSrc": "/static/uni.ttf",
-							"fontSize": "22px",
-							"color": "#FFFFFF"
-						}]
-					}
-				}
+				"navigationBarTitleText": "预约"
 			}
 		},
 		{
 			"path": "pages/product/product",
 			"style": {
-				"navigationBarTitleText": "详情展示",
-				"app-plus": {
-					"titleNView": {
-						"type": "transparent"
-					}
-				}
+				"navigationBarTitleText": "详情展示"
 			}
 		},
 		{
 			"path": "pages/order/order",
 			"style": {
-				"navigationBarTitleText": "我的订单",
-				"app-plus": {
-					"bounce": "none"
-				}
+				"navigationBarTitleText": "我的订单"
 			}
 		},
 		{
@@ -92,105 +45,44 @@
 		{
 			"path": "pages/order/payment",
 			"style": {
-				"navigationBarTitleText": "支付订单",
-				"h5": {
-					"titleNView": false
-				},
-				"app-plus": {
-					"bounce": "none",
-					"titleNView": true,
-					"pullToRefresh": {
-						"support": true,
-						"color": "#ff6600",
-						"style": "default"
-					}
-				}
+				"navigationBarTitleText": "支付订单"
 			}
 		},
 		{
 			"path": "pages/voucher/voucher",
 			"style": {
-				"navigationBarTitleText": "卡券",
-				"app-plus": {
-					"bounce": "none"
-				}
+				"navigationBarTitleText": "卡券"
 			}
 		},
 		{
 			"path": "pages/user/user",
 			"style": {
 				"navigationBarTitleText": "我的",
-				"navigationStyle": "custom",
-				"app-plus": {
-					"bounce": "none",
-					"titleNView": {
-						"type": "transparent",
-						"buttons": [{
-								"fontSrc": "/static/yticon.ttf",
-								"text": "\ue60f",
-								"fontSize": "24",
-								"color": "#303133",
-								"width": "46px",
-								"background": "rgba(0,0,0,0)"
-							},
-							{
-								"fontSrc": "/static/yticon.ttf",
-								"text": "\ue744",
-								"fontSize": "28",
-								"color": "#303133",
-								"background": "rgba(0,0,0,0)",
-								"redDot": true
-							}
-						]
-					}
-				}
+				"navigationStyle": "custom"
 			}
 		},
 		{
 			"path": "pages/user/deposit/deposit",
 			"style": {
-				"navigationBarBackgroundColor": "#ff681b",
-				"navigationBarTitleText": "充值",
-				"backgroundColorTop": "#ffffff",
-				"backgroundColorBottom": "#ffffff"
+				"navigationBarTitleText": "充值中心"
 			}
 		},
 		{
 			"path": "pages/user/setting/setting",
 			"style": {
-				"navigationBarBackgroundColor": "#ff681b",
-				"navigationBarTitleText": "个人信息",
-				"backgroundColorTop": "#ffffff",
-				"backgroundColorBottom": "#ffffff"
+				"navigationBarTitleText": "编辑资料"
 			}
 		},
 		{
 			"path": "pages/user/set-payment",
 			"style": {
-				"navigationBarBackgroundColor": "#4caf50",
-				"enablePullDownRefresh": true,
-				"navigationBarTitleText": "设置支付密码",
-				"h5": {
-					"titleNView": true
-				},
-				"app-plus": {
-					"bounce": "none",
-					"titleNView": true,
-					"pullToRefresh": {
-						"support": true,
-						"color": "#04BE02",
-						"style": "default"
-					}
-				}
+				"navigationBarTitleText": "设置支付密码"
 			}
 		},
 		{
 			"path": "pages/pay/success/success",
 			"style": {
-				"navigationBarBackgroundColor": "#ffffff",
-				"navigationBarTitleText": "支付成功",
-				"backgroundColorTop": "#ffffff",
-				"backgroundColorBottom": "#ffffff"
+				"navigationBarTitleText": "支付成功"
 			}
 		},
 		{
@@ -214,14 +106,19 @@
 		{
 			"path": "pages/voucher/detail",
 			"style": {
-				"navigationBarTitleText": "确认购买",
-				"enablePullDownRefresh": false
+				"navigationBarTitleText": "确认购买"
 			}
 		},
 		{
 			"path": "pages/my/reviews",
 			"style": {
 				"navigationBarTitleText": "我的评价"
+			}
+		},
+		{
+			"path": "pages/user/balance/balance",
+			"style": {
+				"navigationBarTitleText": "余额明细"
 			}
 		}
 	],
@@ -241,7 +138,7 @@
 	},
 	"tabBar": {
 		"color": "#7A7E83",
-		"selectedColor": "#007AFF",
+		"selectedColor": "#FF6B9D",
 		"borderStyle": "black",
 		"backgroundColor": "#F8F8F8",
 		"list": [

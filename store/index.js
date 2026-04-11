@@ -24,6 +24,7 @@ const store = new Vuex.Store({
     leftWinActive: '/pages/component/view/view',
     activeOpen: '',
     menu: [],
+    rechargeTiers: [],
     univerifyErrorMsg: ''
   },
 
@@ -83,6 +84,7 @@ const store = new Vuex.Store({
     setMenu(state, menu) {
       state.menu = menu;
     },
+    setRechargeTiers(state, list) { state.rechargeTiers = list; },
     setUniverifyLogin(state, payload) {
       typeof payload !== 'boolean' ? payload = !!payload : '';
       state.isUniverifyLogin = payload;
@@ -103,6 +105,7 @@ const store = new Vuex.Store({
      * 微信小程序登录（修复版）
      * 使用微信原生登录 + 后端验证
      */
+    getRechargeTiers({ commit }) { return AUTH.getRechargeTiers().then(res => { if (res._status === 0) { commit('setRechargeTiers', res.data || []); return Promise.resolve(res.data || []); } return Promise.reject(res._reason); }); },
     loginAndRegister: async function({ commit, state, dispatch }) {
       try {
         // Step 1: 微信登录获取 code
@@ -114,7 +117,6 @@ const store = new Vuex.Store({
         console.log('后端登录响应:', res);
 
         if (res._status === 10000) {
-          // 需要注册（通常是新用户）
           uni.showModal({
             title: '提示',
             content: res._reason || '需要注册',
@@ -162,7 +164,6 @@ const store = new Vuex.Store({
 
     /**
      * 请求订阅消息权限（预约成功通知）
-     * 不强制，静默申请
      */
     requestSubscribeMessage: async function({ commit }) {
       try {
@@ -170,19 +171,15 @@ const store = new Vuex.Store({
         commit('setSubscribeAuthorized', authorized);
         console.log('订阅消息授权状态:', authorized);
       } catch (error) {
-        // 用户拒绝或发生错误，静默处理
-        console.log('订阅消息未授权:', error);
         commit('setSubscribeAuthorized', false);
       }
     },
 
     /**
      * 在预约前调用，强制请求订阅权限
-     * 如果用户已授权则跳过
      */
     ensureSubscribeMessage: async function({ state, dispatch }) {
       if (state.subscribeAuthorized) {
-        console.log('订阅消息已授权');
         return true;
       }
       try {
@@ -232,29 +229,15 @@ const store = new Vuex.Store({
 
     /**
      * 获取配置信息
-     * 注意：图片路径在这里不拼接前缀，由页面 loadData 统一处理
      */
     getConstanceInfo: function({ state, commit }) {
-      // 检查 token 是否存在
       if (!state.token) {
         console.warn('token 不存在，无法获取 constance');
         return Promise.reject('token is null');
       }
       return AUTH.getConstance(state.token).then((res) => {
-        console.log('getConstance 返回:', res);
-        if (!res) {
-          console.error('getConstance 返回空数据');
-          return;
-        }
-        if (res._status !== 0) {
-          console.error('getConstance 失败:', res._reason);
-          return;
-        }
-        // 不在这里处理图片前缀，统一由页面 loadData 处理
-        // 避免重复拼接导致图片无法加载
+        if (!res || res._status !== 0) return;
         commit('setConstanceInfo', res.data);
-        console.log('constance 设置成功, 原始数据:', res.data);
-        // 设置订阅消息模板 ID
         if (res.data.wechat_subscribe_template_id) {
           AUTH.setSubscribeTemplateId(res.data.wechat_subscribe_template_id);
         }
@@ -268,40 +251,33 @@ const store = new Vuex.Store({
      * 获取评价列表
      */
     getReviewList: function({ state, commit }) {
-      if (!state.token) {
-        console.warn('token 不存在，无法获取评价');
-        return Promise.reject('token is null');
-      }
+      if (!state.token) return Promise.reject('token is null');
       return AUTH.getReviewList(state.token).then((res) => {
-        if (!res) return [];
-        if (res._status !== 0) {
-          console.error('获取评价失败:', res._reason);
-          return [];
-        }
+        if (!res || res._status !== 0) return [];
         return res.data || [];
-      }).catch((err) => {
-        console.error('获取评价列表失败:', err);
-        return [];
-      });
+      }).catch(() => []);
     },
 
     /**
      * 提交评价
      */
     submitReview: function({ state }, rating, content) {
-      if (!state.token) {
-        return Promise.reject('未登录');
-      }
+      if (!state.token) return Promise.reject('未登录');
       return AUTH.submitReview(state.token, rating, content).then((res) => {
-        if (!res) return Promise.reject('提交失败');
-        if (res._status !== 0) {
-          return Promise.reject(res._reason || '提交失败');
-        }
+        if (!res || res._status !== 0) return Promise.reject(res._reason || '提交失败');
         return res;
-      }).catch((err) => {
-        console.error('提交评价失败:', err);
-        return Promise.reject(err);
-      });
+      }).catch((err) => Promise.reject(err));
+    },
+
+    /**
+     * 获取余额变动记录
+     */
+    getBalanceRecords: function({ state }) {
+      if (!state.token) return Promise.reject('未登录');
+      return AUTH.getBalanceRecords(state.token).then((res) => {
+        if (!res || res._status !== 0) return [];
+        return res.data || [];
+      }).catch(() => []);
     }
   }
 });
