@@ -2,494 +2,531 @@
 	<view class="content">
 		<view class="container">
 			<!-- 日期列表 -->
-			<scroll-view class="scroll-view_H b-t b-b" scroll-x>
-				<block v-for="(item,index) in dateArr" :key="index">
-					<div class="flex-box" @click="selectDateEvent(index,item)" :class="{ borderb: index==dateActive}">
-						<view class="date-box" :style="{color:index==dateActive?selectedTabColor:'#333'}">
-							<text class="fontw">{{item.week}}</text>
-							<text>{{item.date}}</text>
-						</view>
-					</div>
-				</block>
+			<scroll-view class="date-scroll" scroll-x>
+				<view class="date-inner">
+					<view
+						v-for="(item,index) in dateArr"
+						:key="index"
+						class="date-pill"
+						:class="{ active: index == dateActive, today: isToday(item.date) }"
+						@click="selectDateEvent(index,item)"
+					>
+						<text class="pill-week">{{item.week}}</text>
+						<text class="pill-date">{{item.date.split('-')[2]}}</text>
+						<view class="pill-dot" v-if="isToday(item.date)"></view>
+					</view>
+				</view>
 			</scroll-view>
 
-			<!-- 时间选项 -->
-			<view class="time-box" v-if="!isSection || isQuantum">
-				<template v-for="(item,_index) in timeArr">
-					<view class="item" :key="_index">
-						<view class="item-box" :class="{'disable':item.disable,
-						'active':isMultiple?item.isActive:_index==timeActive}" :style="{color:isMultiple?item.isActive? selectedItemColor:'#333'
-						 :_index==timeActive?selectedItemColor:'#333'}" @click="selectTimeEvent(_index,item)">
-							<text v-if="isQuantum">{{item.begin}}~{{item.end}}</text>
-							<text v-else>{{item.time}}</text>
-							<text class="all">{{item.disable?disableText:undisableText}}</text>
-						</view>
-					</view>
-				</template>
+			<!-- 时段标签 -->
+			<view class="time-header">
+				<text class="time-hint">点击时段可多选，确认后进入下单</text>
 			</view>
-			<!-- 预约时间段 -->
-			<view class="time-box" v-else>
-				<template v-for="(item,_index) in timeArr">
-					<view class="item" :key="_index">
-						<view class="item-box" :class="{'disable':item.disable || item.isInclude,
-						'active':item.time == timeQuanBegin || item.time == timeQuanEnd }"
-							:style="{color:item.time == timeQuanBegin || item.time == timeQuanEnd? selectedItemColor:'#333'}"
-							@click="handleSection(_index,item)">
-							<text>{{item.time}}</text>
-							<text class="all">{{item.disable?disableText:undisableText}}</text>
-						</view>
+
+			<!-- 时间选项 -->
+			<view class="time-grid" v-if="isQuantum || isMultiple">
+				<view
+					v-for="(item,_index) in timeArr"
+					:key="_index"
+					class="time-cell"
+					:class="{
+						disable: item.disable,
+						active: item.isActive,
+						selected: item.isActive
+					}"
+					@click="handleSelect(_index,item)"
+				>
+					<text class="cell-time">{{item.begin}}~{{item.end}}</text>
+					<text class="cell-status">{{item.disable ? disableText : (item.isActive ? '已选' : '可约')}}</text>
+					<view class="cell-check" v-if="item.isActive">
+						<text>✓</text>
 					</view>
-				</template>
+				</view>
+			</view>
+
+			<!-- 单选时间段 -->
+			<view class="time-grid" v-else>
+				<view
+					v-for="(item,_index) in timeArr"
+					:key="_index"
+					class="time-cell single"
+					:class="{
+						disable: item.disable,
+						active: _index == timeActive
+					}"
+					@click="selectTimeEvent(_index,item)"
+				>
+					<text class="cell-time">{{item.time}}</text>
+					<text class="cell-status">{{item.disable ? disableText : '可预约'}}</text>
+				</view>
 			</view>
 		</view>
-		<view class="bottom">
-			<view class="show-time" v-if="!isMultiple && !isSection && !isQuantum">
-				预约时间：{{orderDateTime}}
-			</view>
-			<button form-type="submit" type="default" class="submit-btn" @click="handleSubmit">
-				<span class="icon"></span>
-				<span class="text">确认预约</span>
-			</button>
 
+		<!-- 底部栏 -->
+		<view class="bottom-bar">
+			<view class="selected-info" v-if="isMultiple">
+				<text class="info-label">已选时段</text>
+				<text class="info-count" v-if="selectedCount > 0">{{ selectedCount }} 个时段</text>
+				<text class="info-count zero" v-else>请选择预约时段</text>
+			</view>
+			<view class="selected-info" v-else>
+				<text class="info-label">预约时间</text>
+				<text class="info-time">{{ orderDateTime }}</text>
+			</view>
+			<view
+				class="submit-btn"
+				:class="canSubmit ? 'ready' : ''"
+				@click="handleSubmit"
+			>
+				<text>确认预约</text>
+			</view>
 		</view>
 	</view>
 </template>
 
 <script>
-	import {
-		initData,
-		initTime,
-		timeStamp,
-		currentTime
-	} from '../utils/date.js'
+	import { initData, initTime, currentTime } from '../utils/date.js';
 	export default {
 		name: 'times',
-		model: {
-			prop: "showPop",
-			event: "change"
-		},
+		model: { prop: "showPop", event: "change" },
 		props: {
-			isQuantum: {
-				type: Boolean,
-				default: false
-			},
-			isMultiple: { //是否多选
-				type: Boolean,
-				default: false
-			},
-			isSection: { //预约时间段
-				type: Boolean,
-				default: false
-			},
-			disableText: { //禁用显示的文本
-				type: String,
-				default: "已约满"
-			},
-			undisableText: { //未禁用显示的文本
-				type: String,
-				default: "可预约"
-			},
-			timeInterval: { // 时间间隔，小时为单位
-				type: Number,
-				default: 1
-			},
-			selectedTabColor: { // 日期栏选中的颜色
-				type: String,
-				default: "#FB4B5C"
-			},
-			selectedItemColor: { // 时间选中的颜色
-				type: String,
-				default: "#FB4B5C"
-			},
-			selectedDate: {
-				type:String,
-				default: ""
-			},
-			beginTime: {
-				type: String,
-				default: "09:00:00"
-			},
-			endTime: {
-				type: String,
-				default: "19:00:00"
-			},
-			appointTime: { // 预约的时间
-				type: Array,
-				default () {
-					return []
-				}
-			},
-			disableTimeSlot: { // 预约开始和结束时间，来禁用时间段
-				type: Array,
-				default () {
-					return []
-				}
-			}
+			isQuantum: { type: Boolean, default: false },
+			isMultiple: { type: Boolean, default: false },
+			isSection: { type: Boolean, default: false },
+			disableText: { type: String, default: "已约满" },
+			undisableText: { type: String, default: "可预约" },
+			timeInterval: { type: Number, default: 1 },
+			selectedTabColor: { type: String, default: "#FF6432" },
+			selectedItemColor: { type: String, default: "#FF6432" },
+			selectedDate: { type: String, default: "" },
+			beginTime: { type: String, default: "09:00:00" },
+			endTime: { type: String, default: "22:00:00" },
+			appointTime: { type: Array, default: () => [] },
+			disableTimeSlot: { type: Array, default: () => [] }
 		},
 		watch: {
-			appointTime: {
-				handler(val) {
-					if (val && val.length) {
-						this.initOnload()
-					}
-				}
-			},
-			selectedDate: {
-				handler(val) {
-					if (val && val.length) {
-						this.selectDate = val;
-						this.dateActive = this.getCurrentSelectDateIndex();
-						this.orderTimeArr = {};
-						this.initOnload()
-					}
-				}
-			},
-			beginTime: {
-				handler(val) {
-					if (val && val.length) {
-						this.initOnload()
-					}
-				}
-			},
-			endTime: {
-				handler(val) {
-					if (val && val.length) {
-						this.initOnload()
-					}
-				}
-			},
-			disableTimeSlot: {
-				handler(val) {
-					if (val) {
-						this.initOnload()
-					}
-				}
-			}
+			appointTime: { handler() { this.initOnload(); } },
+			selectedDate: { handler(val) { if (val) { this.selectDate = val; this.dateActive = this.getCurrentSelectDateIndex(); this.orderTimeArr = {}; this.initOnload(); } } },
+			beginTime: { handler() { this.initOnload(); } },
+			endTime: { handler() { this.initOnload(); } },
+			disableTimeSlot: { handler() { this.initOnload(); } }
 		},
 		data() {
 			return {
-				orderDateTime: '暂无选择', // 选中时间
-				orderTimeArr: {}, //多选的时间
-				dateArr: [], //日期数据
-				timeArr: [], //时间数据
-				nowDate: "", // 当前日期
-				dateActive: 0, //选中的日期索引
-				timeActive: 0, //选中的时间索引
-				timeQuanBeginIndex: 0, //时间段开始的下标
-				selectDate: "", //选择的日期
-				timeQuanBegin: "", //时间段开始时间
-				timeQuanEnd: "", //时间段结束时间
-			}
+				orderDateTime: '请选择时段',
+				orderTimeArr: {},
+				dateArr: [],
+				timeArr: [],
+				nowDate: "",
+				dateActive: 0,
+				timeActive: 0,
+				timeQuanBeginIndex: 0,
+				selectDate: "",
+				timeQuanBegin: "",
+				timeQuanEnd: "",
+			};
 		},
-		created(props) {
-			this.selectDate = this.nowDate = currentTime().date
-			this.initOnload()
+		created() {
+			this.selectDate = this.nowDate = currentTime().date;
+			this.initOnload();
+		},
+		computed: {
+			selectedCount() {
+				let count = 0;
+				for (const date in this.orderTimeArr) {
+					count += this.orderTimeArr[date].length;
+				}
+				return count;
+			},
+			canSubmit() {
+				if (this.isMultiple) return this.selectedCount > 0;
+				if (this.isSection) return this.timeQuanBegin && this.timeQuanEnd;
+				return this.timeActive >= 0 && this.timeArr[this.timeActive] && !this.timeArr[this.timeActive].disable;
+			}
 		},
 		methods: {
+			isToday(dateStr) {
+				return dateStr === this.nowDate;
+			},
 			initOnload() {
-				this.dateArr = initData() // 日期栏初始化
-				this.timeArr = initTime(this.beginTime, this.endTime, this.timeInterval, this.isQuantum) //时间选项初始化
-				this.timeQuanBegin = this.timeQuanEnd = ""
-				// console.log(this.timeArr)
-				let isFullTime = true
+				this.dateArr = initData();
+				this.timeArr = initTime(this.beginTime, this.endTime, this.timeInterval, this.isQuantum);
+				this.timeQuanBegin = this.timeQuanEnd = "";
+
+				let isFullTime = true;
+				const nowTime = currentTime().time;
+				const nowDate = currentTime().date;
+
 				this.timeArr.forEach((item, index) => {
-					// 时间段
 					if (this.isQuantum) {
-						const cur_be_time = `${this.selectDate} ${item.begin}:00`
-						const cur_end_time = `${this.selectDate} ${item.end}:00`
-						for (let time of this.disableTimeSlot) {
-							const [begin_time = "", end_time = ""] = time
-							if (begin_time && end_time && (begin_time <= cur_be_time && cur_end_time <=
-									end_time)) {
-								item.disable = true
+						const cur_be_time = this.selectDate + ' ' + item.begin;
+						const cur_end_time = this.selectDate + ' ' + item.end;
+						for (const time of this.disableTimeSlot) {
+							const [begin_time = "", end_time = ""] = time;
+							if (begin_time && end_time && begin_time <= cur_be_time && cur_end_time <= end_time) {
+								item.disable = true;
 							}
 						}
-						if (this.selectDate == this.nowDate && currentTime().time > `${item.begin}:00`) {
-							item.disable = true
+						// past hour
+						if (this.selectDate == nowDate && nowTime >= item.begin + ':00') {
+							item.disable = true;
 						}
-
+						if (!item.disable) isFullTime = false;
+						item.isActive = false;
 					} else {
-						//判断是当前这一天，选中时间小于当前时间则禁用
-						if (this.selectDate == this.nowDate && currentTime().time > item.time) {
-							item.disable = true
+						if (this.selectDate == nowDate && nowTime >= item.time) {
+							item.disable = true;
 						}
-
-						// 将预约的时间禁用
 						this.appointTime.forEach(t => {
-							let [date, time] = t.split(' ')
+							const [date, time] = t.split(' ');
 							if (date == this.selectDate && item.time == time) {
-								item.disable = true
+								item.disable = true;
 							}
-						})
-
-						// 禁用时间段 
-						const cur_time = `${this.selectDate} ${item.time}`
-
-						for (let time of this.disableTimeSlot) {
-							const [begin_time = "", end_time = ""] = time
-							if (begin_time && end_time && (begin_time <= cur_time && cur_time <= end_time)) {
-								item.disable = true
+						});
+						const cur_time = this.selectDate + ' ' + item.time;
+						for (const time of this.disableTimeSlot) {
+							const [begin_time = "", end_time = ""] = time;
+							if (begin_time && end_time && begin_time <= cur_time && cur_time <= end_time) {
+								item.disable = true;
 							}
 						}
-
-						// 判断是否当前日期时间都被预约
-						if (!item.disable) {
-							isFullTime = false
-						}
-						this.isSection && (item.isInclude = false)
-
-						// 对多选操作的已选时间的回显
-						if (this.isMultiple && (this.orderTimeArr[this.selectDate] || []).includes(item.time)) {
-							item.isActive = true
-						}
+						if (!item.disable) isFullTime = false;
+						item.isActive = !!(this.isMultiple && (this.orderTimeArr[this.selectDate] || []).includes(item.time));
 					}
+				});
 
-				})
-
-				this.orderDateTime = isFullTime ? "暂无选择" : this.selectDate
-				this.timeActive = -1
-				for (let i = 0, len = this.timeArr.length; i < len; i++) {
+				this.orderDateTime = isFullTime ? '请选择时段' : this.selectDate;
+				this.timeActive = -1;
+				for (let i = 0; i < this.timeArr.length; i++) {
 					if (!this.timeArr[i].disable) {
-						this.orderDateTime = `${this.selectDate} ${this.timeArr[i].time}`
-						this.timeActive = i
-						return
+						this.orderDateTime = this.selectDate + ' ' + this.timeArr[i].time;
+						this.timeActive = i;
+						break;
 					}
 				}
 			},
 
-			// 日期选择事件
 			selectDateEvent(index, item) {
-				this.dateActive = index
-				this.selectDate = item.date
-				this.initOnload()
-				this.orderTimeArr = {}
+				this.dateActive = index;
+				this.selectDate = item.date;
+				this.initOnload();
+				this.orderTimeArr = {};
 				this.$emit('selected-date-change', item.date);
 			},
-			
-			getCurrentSelectDateIndex(){
-				for (var i = 0; i < this.dateArr.length; i++) {
-					if(this.dateArr[i].date == this.selectDate)
-						return i;
+
+			getCurrentSelectDateIndex() {
+				for (let i = 0; i < this.dateArr.length; i++) {
+					if (this.dateArr[i].date == this.selectDate) return i;
 				}
-				return -1;
+				return 0;
 			},
 
-			// 时间选择事件
 			selectTimeEvent(index, item) {
-				if (this.isQuantum) {
-					return this.handleSelectQuantum(index, item)
-
-				}
-				if (item.disable) return
+				if (this.isQuantum) { this.handleSelect(index, item); return; }
+				if (item.disable) return;
 				if (this.isMultiple) {
-					item.isActive = !item.isActive
-					this.timeArr = this.timeArr.slice()
+					item.isActive = !item.isActive;
+					this.timeArr = this.timeArr.slice();
 					this.orderTimeArr[this.selectDate] = this.timeArr.reduce((prev, cur) => {
-						cur.isActive && prev.push(cur.time)
-						return prev
-					}, [])
+						cur.isActive && prev.push(cur.time);
+						return prev;
+					}, []);
 				} else {
-					this.timeActive = index
-					this.orderDateTime = `${this.selectDate} ${item.time}`
+					this.timeActive = index;
+					this.orderDateTime = this.selectDate + ' ' + item.time;
 				}
 			},
 
-			// 选择时间段
-			handleSection(index, item) {
-				if (item.disable) return
-
-				function clearTime() {
-					this.timeQuanBeginIndex = index
-					this.timeQuanBegin = item.time
-					this.timeQuanEnd = ""
+			handleSelect(index, item) {
+				if (item.disable) return;
+				if (this.isMultiple) {
+					item.isActive = !item.isActive;
+					this.timeArr = this.timeArr.slice();
+					this.orderTimeArr[this.selectDate] = this.timeArr.reduce((prev, cur) => {
+						const cur_be_time = this.selectDate + ' ' + cur.begin + ':00';
+						const cur_end_time = this.selectDate + ' ' + cur.end + ':00';
+						cur.isActive && prev.push([cur_be_time, cur_end_time]);
+						return prev;
+					}, []);
+				} else {
+					this.timeActive = index;
+					this.orderDateTime = { begin: this.selectDate + ' ' + item.begin + ':00', end: this.selectDate + ' ' + item.end + ':00' };
 				}
+			},
 
+			handleSection(index, item) {
+				if (item.disable) return;
 				if (!this.timeQuanBegin) {
-					clearTime.call(this)
-					return
+					this.timeQuanBeginIndex = index;
+					this.timeQuanBegin = item.time;
+					this.timeQuanEnd = "";
+					return;
 				}
 				if (!this.timeQuanEnd && this.timeQuanBegin) {
-					let isDisble = false
-					let start = this.timeQuanBeginIndex
-					let end = index
-					start > end && ([start, end] = [end, start])
+					let isDisable = false;
+					let start = this.timeQuanBeginIndex;
+					let end = index;
+					if (start > end) [start, end] = [end, start];
 					for (let i = start + 1; i < end; i++) {
-						if (this.timeArr[i].disable) {
-							isDisble = true
-							clearTime.call(this)
-							return
-						}
+						if (this.timeArr[i].disable) { isDisable = true; break; }
 					}
-					if (!isDisble) {
-						for (let i = start + 1; i < end; i++) {
-							this.timeArr[i].isInclude = true
-						}
+					if (isDisable) {
+						this.timeQuanBeginIndex = index;
+						this.timeQuanBegin = item.time;
+						this.timeQuanEnd = "";
+						return;
 					}
-					this.timeQuanEnd = item.time
-					return
+					for (let i = start + 1; i < end; i++) { this.timeArr[i].isInclude = true; }
+					this.timeQuanEnd = item.time;
+					return;
 				}
-
 				if (this.timeQuanBegin && this.timeQuanEnd) {
-					this.timeArr.forEach(t => {
-						t.isInclude = false
-					})
-					clearTime.call(this)
+					this.timeArr.forEach(t => { t.isInclude = false; });
+					this.timeQuanBeginIndex = index;
+					this.timeQuanBegin = item.time;
+					this.timeQuanEnd = "";
 				}
-
 			},
-			handleSelectQuantum(index, item) {
-				if (item.disable) return
-				if (this.isMultiple) {
-					item.isActive = !item.isActive
-					this.timeArr = this.timeArr.slice()
-					this.orderTimeArr[this.selectDate] = this.timeArr.reduce((prev, cur) => {
-						const cur_be_time = `${this.selectDate} ${cur.begin}:00`
-						const cur_end_time = `${this.selectDate} ${cur.end}:00`
-						cur.isActive && prev.push([cur_be_time, cur_end_time])
-						return prev
-					}, [])
-				} else {
-					this.timeActive = index
-					this.orderDateTime = {
-						begin: `${this.selectDate} ${item.begin}:00`,
-						end: `${this.selectDate} ${item.end}:00`,
-					}
-				}
 
-			},
 			handleChange() {
-				this.timeQuanBegin > this.timeQuanEnd && ([this.timeQuanBegin, this.timeQuanEnd] = [this.timeQuanEnd, this
-					.timeQuanBegin
-				])
+				if (this.timeQuanBegin > this.timeQuanEnd) {
+					[this.timeQuanBegin, this.timeQuanEnd] = [this.timeQuanEnd, this.timeQuanBegin];
+				}
 			},
+
 			handleSubmit() {
+				if (!this.canSubmit) return;
 				if (this.isSection) {
-					this.handleChange()
-					this.$emit('change', {
-						beginTime: `${this.selectDate} ${this.timeQuanBegin}`,
-						endTime: `${this.selectDate} ${this.timeQuanEnd}`
-					})
-					return
+					this.handleChange();
+					this.$emit('change', { beginTime: this.selectDate + ' ' + this.timeQuanBegin, endTime: this.selectDate + ' ' + this.timeQuanEnd });
+					return;
 				}
-
 				if (this.isMultiple) {
-					let time = []
-					for (let date in this.orderTimeArr) {
+					let time = [];
+					for (const date in this.orderTimeArr) {
 						this.orderTimeArr[date].forEach(item => {
-							this.isQuantum ? time.push(item) : time.push(`${date} ${item}`)
-						})
+							this.isQuantum ? time.push(item) : time.push(date + ' ' + item);
+						});
 					}
-					this.$emit('change', time)
+					this.$emit('change', time);
 				} else {
-					this.$emit('change', this.orderDateTime)
+					this.$emit('change', this.orderDateTime);
 				}
-
 			}
 		}
-	}
+	};
 </script>
+
 <style lang="scss" scoped>
-	@import './pretty-times.scss';
+$primary: #FF6432;
+$green: #34C759;
+$gold: #FFB933;
+$red: #FF3B30;
+$gray: #999;
+$dark: #333;
+$light: #F5F6F7;
+$border: #EEEEEE;
 
-	page {
-		height: 100%;
+page { height: 100%; }
+
+.content {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	background: #fff;
+}
+
+// 日期横向滚动
+.date-scroll {
+	width: 100%;
+	white-space: nowrap;
+	background: #fff;
+	padding: 20rpx 0 0;
+
+	.date-inner {
+		display: inline-flex;
+		padding: 0 16rpx;
+	}
+}
+
+.date-pill {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 88rpx;
+	height: 120rpx;
+	border-radius: 20rpx;
+	margin: 0 8rpx;
+	background: #F5F6F7;
+	position: relative;
+	transition: all 0.2s;
+
+	&.active {
+		background: $primary;
+		.pill-week, .pill-date { color: #fff; }
+		.pill-dot { background: #fff; }
 	}
 
-	.content {
-		text-align: center;
-		height: 100%;
+	&.today:not(.active) {
+		.pill-date { color: $primary; font-weight: bold; }
 	}
 
-	/* 两个按钮 */
-	.bottom {
+	.pill-week {
+		font-size: 20rpx;
+		color: $gray;
+		margin-bottom: 6rpx;
+	}
+
+	.pill-date {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: $dark;
+	}
+
+	.pill-dot {
+		width: 8rpx;
+		height: 8rpx;
+		border-radius: 50%;
+		background: $primary;
+		position: absolute;
+		bottom: 14rpx;
+	}
+}
+
+// 时段提示
+.time-header {
+	padding: 16rpx 30rpx 8rpx;
+	.time-hint {
+		font-size: 22rpx;
+		color: $gray;
+	}
+}
+
+// 时间网格
+.time-grid {
+	padding: 12rpx 20rpx 20rpx;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16rpx;
+}
+
+.time-cell {
+	width: calc(25% - 12rpx);
+	border-radius: 16rpx;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 20rpx 8rpx;
+	background: #FAFAFA;
+	border: 2rpx solid transparent;
+	position: relative;
+	transition: all 0.2s;
+	min-height: 130rpx;
+
+	.cell-time {
+		font-size: 26rpx;
+		font-weight: bold;
+		color: $dark;
+		margin-bottom: 6rpx;
+	}
+
+	.cell-status {
+		font-size: 20rpx;
+		color: $gray;
+	}
+
+	// 已约满
+	&.disable {
+		background: #F5F5F5;
+		.cell-time, .cell-status { color: #CCC; }
+	}
+
+	// 选中态（多选/量子）
+	&.active, &.selected {
+		background: #FFF0EB;
+		border-color: $primary;
+		.cell-time { color: $primary; }
+		.cell-status { color: $primary; }
+	}
+
+	// 单选激活
+	&.single.active {
+		background: $primary;
+		border-color: $primary;
+		.cell-time, .cell-status { color: #fff; }
+	}
+
+	// 多选打勾
+	.cell-check {
+		position: absolute;
+		top: 8rpx;
+		right: 8rpx;
+		width: 32rpx;
+		height: 32rpx;
+		border-radius: 50%;
+		background: $primary;
+		color: #fff;
+		font-size: 20rpx;
 		display: flex;
-		flex-direction: row;
-		position: fixed;
-		bottom: 8px;
-		top: auto;
-		left: 0px;
-		width: 100%;
-		background-color: #fff;
+		align-items: center;
+		justify-content: center;
 	}
+}
 
-	.show-time {
-		width: 70%;
-		height: 47px;
-		color: #505050;
-		background-color: rgba(255, 255, 255, 1);
-		font-size: 15px;
-		line-height: 47px;
-		text-align: center;
+// 底部栏
+.bottom-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 20rpx 30rpx;
+	padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+	background: #fff;
+	border-top: 1rpx solid $border;
+	box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.04);
+
+	.selected-info {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+
+		.info-label {
+			font-size: 22rpx;
+			color: $gray;
+			margin-bottom: 4rpx;
+		}
+
+		.info-count {
+			font-size: 28rpx;
+			font-weight: bold;
+			color: $primary;
+			&.zero { color: $gray; font-weight: normal; }
+		}
+
+		.info-time {
+			font-size: 28rpx;
+			font-weight: bold;
+			color: $dark;
+		}
 	}
 
 	.submit-btn {
-	  position: relative;
-	  display: inline-block;
-	  min-width: 100px;
-	  padding: 15px 40px;
-	  font-size: 20px;
-	  font-weight: 600;
-	  color: #fff;
-	  background-color: #00AEFF;
-	  border-radius: 20px;
-	  border: none;
-	  cursor: pointer;
-	  overflow: hidden;
-      display: flex; 
-	  align-items: center; /* 当子元素的高度不一致时，将它们垂直居中对齐 */
-	  justify-content: center; 
-	  
-	  &:hover {
-	    background-color: #FFCB00;
-	  }
-	
-	  .icon {
-	    display: inline-block;
-	    width: 32px;
-	    height: 32px;
-	    border-radius: 50%;
-	    border: 3px solid #fff;
-	    position: relative;
-	    margin-right: 10px;
-	    vertical-align: middle;
-	  }
-	
-	  .icon:after {
-	    content: "";
-	    display: block;
-	    width: 20px;
-	    height: 10px;
-	    border-bottom: 4px solid #fff;
-	    position: absolute;
-	    bottom: 0px;
-	    left: 50%;
-	    transform: translate(-50%, 0) rotate(-45deg);
-	    transform-origin: 0% 100%;
-	  }
-	
-	  .icon:before {
-	    content: "";
-	    display: block;
-	    width: 15px;
-	    height: 5px;
-	    background-color: #fff;
-	    position: absolute;
-	    top: 50%;
-	    left: 50%;
-	    transform: translate(-50%, -50%);
-	  }
-	
-	  .text {
-	    position: relative;
-	    z-index: 2;
-	  }
-	}
-
-	.fontw {
+		width: 220rpx;
+		height: 80rpx;
+		background: #CCC;
+		border-radius: 40rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 30rpx;
 		font-weight: bold;
-	}
+		color: #fff;
+		transition: background 0.2s;
 
-	.borderb {
-		border-bottom: 2px solid #FB4B5C;
+		&.ready {
+			background: $primary;
+		}
 	}
+}
 </style>

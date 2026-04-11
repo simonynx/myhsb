@@ -1,562 +1,903 @@
 <template>
-	<!--
-	本页面模板教程：https://ext.dcloud.net.cn/plugin?id=2651
-	uni-list 文档：https://ext.dcloud.net.cn/plugin?id=24
-	uniCloud 文档：https://uniapp.dcloud.io/uniCloud/README
-	unicloud-db 组件文档：https://uniapp.dcloud.io/uniCloud/unicloud-db
-	DB Schema 规范：https://uniapp.dcloud.net.cn/uniCloud/schema
-	 -->
-	<view>
-		<week-calendar @selected-change="selectedChange"></week-calendar>
-		<!-- 刷新页面后的顶部提示框 -->
-		<!-- 当前弹出内容没有实际逻辑 ，可根据当前业务修改弹出提示 -->
-		<!-- <view class="tips" :class="{ 'tips-ani': tipShow }">为您更新了10条最新新闻动态</view> -->
-		<!-- 页面分类标题 -->
-		<uni-section title="包厢列表" type="line"></uni-section>
-		<template>
-		<uni-list>
-				<!-- to 属性携带参数跳转详情页面，当前只为参考 -->
-				<uni-list-item :border="false" class="uni-list-item--waterfall" title="自定义商品列表" v-for="(item, index) in roomList" :key="index" clickable  @click="handleListItemClick(item)">
-					<!-- 通过header插槽定义列表左侧图片 -->
-					<template v-slot:header>
-						<view class="uni-thumb shop-picture">
-							<image :src="item.image1" mode="aspectFill"></image>
-						</view>
-					</template>
-					<template v-slot:body>
-						<view class="shop">
-							<view>
-								<view class="uni-title">
-									<text class="uni-ellipsis-2">{{ item.name }}</text>
-								</view>
-								<view>
-									<text class="uni-tag hot-tag">wifi</text>
-									<text v-for="tag in item.tagsArr" :key="tag" class="uni-tag">{{ tag }}</text>
-								</view>
-							</view>
-							<view>
-								<view class="shop-price">
-									<text>¥</text>
-									<text class="shop-price-text">{{item.price_per_hour/100}}</text>
-									<text>/小时</text>
-								</view>	
-								<view class="appoint-button">
-									<!-- click.stop能够正确处理event.stopPrepagation，阻止冒泡，而在回调里使用event是不行的。 -->
-									<button class="nintendo-btn" @click.stop="handleAppointButtonClick(item)">
-									  <view class="text">预约</view>
-									  <view class="circle"></view>
-									</button>
-								</view>
-							</view>
-						</view>
-					</template>
-					<!-- 通过body插槽定义商品布局 -->
-						
-				</uni-list-item>
-			<!-- #ifdef APP-PLUS -->
-<!-- 			<view class="ad-view" v-if="(index > 0 && (index+1) % 10 == 0)">
-				<ad :adpid="adpid" @error="aderror"></ad>
-			</view> -->
-			<!-- #endif -->
-		</uni-list>
-		<uni-load-more :status="status" :icon-size="16" :content-text="contentText" />
-		</template>
-		<!-- 规格-模态层弹窗 -->
-		<view 
-			class="popup spec" 
-			:class="specClass"
-			@touchmove.stop.prevent="stopPrevent"
-			@click="closePopup"
-		>
-			<!-- 遮罩层 -->
-			<view class="mask"></view>
-			<view class="layer" @click.stop="stopPrevent">
-				<times ref="timesComponent" @change="getTime" @selected-date-change="handleTimesSelectDateChange" :isMultiple="true" :isQuantum="true" :timeInterval="1" :disableTimeSlot="disableTimeSlot" :beginTime="currentBeginTime" :endTime="currentEndTime" :selectedDate="currentSelectDate">
-				</times>
-			</view>
-		</view>
-	</view>
+    <view class="page">
+        <!-- 顶部状态栏占位 -->
+        <view class="status-bar-placeholder"></view>
+
+        <!-- 导航栏 -->
+        <view class="nav-bar">
+            <text class="nav-back yticon icon-fanhui" @click="goBack"></text>
+            <text class="nav-title">预约房间</text>
+            <view class="nav-right"></view>
+        </view>
+
+        <!-- 周日历 -->
+        <view class="week-strip">
+            <view class="week-inner">
+                <view
+                    v-for="(day, idx) in weekDays"
+                    :key="idx"
+                    class="day-item"
+                    :class="selectedDayIndex === idx ? 'active' : ''"
+                    @click="selectDay(idx)"
+                >
+                    <text class="day-week">{{ day.week }}</text>
+                    <text class="day-date">{{ day.date }}</text>
+                    <view class="day-dot" v-if="day.isToday"></view>
+                </view>
+            </view>
+        </view>
+
+        <!-- 加载中 -->
+        <view class="loading-section" v-if="loading">
+            <view class="loading-cards">
+                <view class="skeleton-card" v-for="i in 3" :key="i">
+                    <view class="skeleton-img"></view>
+                    <view class="skeleton-info">
+                        <view class="skeleton-title"></view>
+                        <view class="skeleton-tags"></view>
+                        <view class="skeleton-price"></view>
+                    </view>
+                </view>
+            </view>
+        </view>
+
+        <!-- 房间列表 -->
+        <view class="room-list" v-else>
+            <view class="list-header">
+                <text class="list-count">共 {{ roomList.length }} 个包厢</text>
+                <view class="list-tip" v-if="selectedDayInfo.isToday">
+                    <text class="tip-icon">⏰</text>
+                    <text>今天 {{ currentHour }}:00 之前的时段不可选</text>
+                </view>
+            </view>
+
+            <!-- 房间卡片 -->
+            <view
+                class="room-card"
+                v-for="room in roomList"
+                :key="room.object_id"
+                @click="goDetail(room)"
+            >
+                <!-- 左侧图片 -->
+                <view class="card-img-wrap">
+                    <image
+                        class="card-img"
+                        :src="room.image1"
+                        mode="aspectFill"
+                    />
+                    <!-- 状态标签 -->
+                    <view class="status-badge" :class="getRoomStatusClass(room)">
+                        <text>{{ getRoomStatusText(room) }}</text>
+                    </view>
+                    <!-- 人数标签 -->
+                    <view class="capacity-badge">
+                        <text>👥 {{ room.max_people || 4 }}人</text>
+                    </view>
+                </view>
+
+                <!-- 右侧信息 -->
+                <view class="card-info">
+                    <view class="card-header">
+                        <text class="card-name">{{ room.name }}</text>
+                    </view>
+
+                    <!-- 时段可用情况 -->
+                    <view class="time-slots">
+                        <view
+                            v-for="(slot, si) in room.appoints.slice(0, 8)"
+                            :key="si"
+                            class="slot-dot"
+                            :class="getSlotClass(slot.status)"
+                        ></view>
+                        <text class="slot-more" v-if="room.appoints.length > 8">+{{ room.appoints.length - 8 }}</text>
+                    </view>
+
+                    <!-- 标签 -->
+                    <view class="card-tags" v-if="room.tagsArr && room.tagsArr.length">
+                        <text class="tag" v-for="tag in room.tagsArr.slice(0, 3)" :key="tag">{{ tag }}</text>
+                    </view>
+
+                    <!-- 价格和按钮 -->
+                    <view class="card-footer">
+                        <view class="card-price">
+                            <text class="price-yuan">¥</text>
+                            <text class="price-num">{{ room.price_per_hour / 100 }}</text>
+                            <text class="price-unit">/小时</text>
+                        </view>
+                        <view
+                            class="book-btn"
+                            :class="isRoomFullyBooked(room) ? 'disabled' : ''"
+                            @click.stop="handleAppointButtonClick(room)"
+                        >
+                            <text>立即预约</text>
+                        </view>
+                    </view>
+                </view>
+            </view>
+
+            <!-- 空状态 -->
+            <view class="empty-section" v-if="roomList.length === 0">
+                <text class="empty-icon">🎮</text>
+                <text class="empty-title">当天暂无可预约的包厢</text>
+                <text class="empty-sub">换个日期试试吧～</text>
+            </view>
+        </view>
+
+        <!-- 底部说明 -->
+        <view class="bottom-tip">
+            <text>· 滑动日期可查看更多</text>
+            <text>· 点击包厢查看详情和设施</text>
+        </view>
+
+        <!-- 时间选择弹窗 -->
+        <view class="time-popup" :class="specClass" @touchmove.stop.prevent="stopPrevent" @click="closePopup">
+            <view class="mask"></view>
+            <view class="panel" @click.stop="stopPrevent">
+                <!-- 头部 -->
+                <view class="panel-header">
+                    <view class="panel-room-info">
+                        <image class="panel-thumb" :src="currentSelectItem ? currentSelectItem.image1 : ''" mode="aspectFill" />
+                        <view class="panel-meta">
+                            <text class="panel-name">{{ currentSelectItem ? currentSelectItem.name : '' }}</text>
+                            <text class="panel-price">¥{{ currentSelectItem ? currentSelectItem.price_per_hour / 100 : 0 }}/小时</text>
+                        </view>
+                    </view>
+                    <text class="panel-close yticon icon-guanbi" @click="closePopup"></text>
+                </view>
+
+                <!-- 时间选择器组件 -->
+                <view class="panel-times">
+                    <times
+                        ref="timesComponent"
+                        @change="getTime"
+                        @selected-date-change="handleTimesSelectDateChange"
+                        :isMultiple="true"
+                        :isQuantum="true"
+                        :timeInterval="1"
+                        :disableTimeSlot="disableTimeSlot"
+                        :beginTime="currentBeginTime"
+                        :endTime="currentEndTime"
+                        :selectedDate="currentSelectDate"
+                    ></times>
+                </view>
+            </view>
+        </view>
+    </view>
 </template>
 
 <script>
-	import {
-		mapState,
-		mapActions
-	} from 'vuex';
-	import AUTH from '../../../utils/auth.js'
-	import times from '@/components/pretty-times/pretty-times.vue'
-	export default {
-		components: {
-			times
-		},
-		data() {
-			return {
-				specClass: 'none',
-				specSelected: [],
-				status: 'refresh',
-				adpid: '',
-				listData: [],
-				currentSelectItem: null,
-				contentText: {
-					contentdown: '上拉加载更多',
-					contentrefresh: '加载中',
-					contentnomore: '没有更多'
-				},
-				currentSelectDate:"",
-				currentFullDate:null,
-				currentBeginTime:"",
-				currentEndTime:"",
-				disableTimeSlot:[]
-			};
-		},
-		computed:{
-			...mapState(['hasLogin', 'token', 'userInfo']),
-			roomList: {
-				get() {
-					return this.listData;
-				},
-				set(v) {
-					this.listData = v;
-				}
-			}
-		},
-		onLoad() {
-			this.adpid = this.$adpid;
-		},
-		onShow() {
-			if(!this.hasLogin){
-				this.loginAndRegister();
-			}else{
-				if(!this.userInfo){
-					this.getUserInfo();
-				}
-				this.getList(this.currentFullDate ? this.currentFullDate : new Date());
-			}
-		},
-		onPullDownRefresh() {
-			// this.reload = true;
-			// this.last_id = '';
-			this.status = 'refresh';
-			// this.getList(new Date());
-		},
-		onReachBottom() {
-			this.status = 'nomore';
-			// this.getList();
-		},
-		methods: {
-			...mapActions(['loginAndRegister', 'getUserInfo']),
-			getList(dayDate) {
-				var _this = this;
-				var today = new Date();
-				var currentHour = today.getDay() == dayDate.getDay()? dayDate.getHours():-1;
-				var date = dayDate.getFullYear()+'-'+(dayDate.getMonth()+1).toString().padStart(2, "0")+'-'+(dayDate.getDate()).toString().padStart(2, "0");
-				this.currentSelectDate = date;
-				this.currentFullDate = dayDate;
-				AUTH.getRoomDataList(this.token, date).then(res=>{
-					if(!res) return;
-					var newList = [];
-					res.data.rooms.forEach(item=>{
-						var _item = item;
-						_item.appoints = [];
-						var start = item.opening_hours_start;
-						var end = item.opening_hours_end;
-						if(item.tags){
-							var tagsArr = item.tags.split('$');
-							item.tagsArr = tagsArr;
-						}else{
-							item.tagsArr = [];
-						}
-						for (var i = start; i < end; i++) {
-							var appoint = {};
-							appoint.start = i;
-							appoint.end = i+1;
-							appoint.interval = i +":00 - " + (i+1) + ":00";
-							appoint.status = 1;
-							if (i <= currentHour){
-								appoint.status = 2;
-							}
-							if (_this.findAppoint(res.data.appointments, item.object_id, i)){
-								appoint.status = 3;
-							}
-							_item.appoints.push(appoint);
-						}
-						newList.push(_item);
-					});
-					_this.listData = newList;
-					_this.$forceUpdate();
-				});
-			},
-			findAppoint(appointments, id, hour){
-				for (var i = 0; i < appointments.length; i++) {
-					if (appointments[i].room == id){
-						for (var j = 0; j < appointments[i].time_list.length; j++) {
-							let interval = appointments[i].time_list[j];
-							if(interval[0] == hour){ //1 for success
-								return true;
-							}
-						}
-					}
-				}
-				return false;
-			},
-			goDetail: function(item) {
-				uni.navigateTo({
-					url: `/pages/product/product?data=${JSON.stringify(item)}&date=${this.currentSelectDate}`
-				})
-			},
-			
-			handleListItemClick:function(item){
-				this.goDetail(item);
-			},
-			
-			handleAppointButtonClick:function(item){
-				var outsideDateDiff = false;
-				this.currentSelectItem = item;
-				if(this.currentSelectDate != this.$refs.timesComponent.selectDate){
-					this.$refs.timesComponent.selectedDate = this.currentSelectDate;
-					outsideDateDiff = true;
-				}
-				this.currentBeginTime = `${item.opening_hours_start}:00:00`;
-				this.currentEndTime = `${item.opening_hours_end}:00:00`;
-				this.disableTimeSlot =[];
-				if(outsideDateDiff){
-					const showDate = this.$refs.timesComponent.selectDate;
-					this.handleTimesSelectDateChange(showDate);
-				}else{
-					for (var i = 0; i < item.appoints.length; i++) {
-						if(item.appoints[i].status == 3){ //has appointment
-							var dateArr = [];
-							dateArr.push(`${this.currentSelectDate} ${item.appoints[i].start}:00:00`);
-							dateArr.push(`${this.currentSelectDate} ${item.appoints[i].end}:00:00`);
-							this.disableTimeSlot.push(dateArr);
-						}
-					}
-				}
-				this.goToAppoint(item);
-			},
-			handleTimesSelectDateChange:function(date){
-				const _this = this;
-				if(this.checkDateHasAdded(date)) return;
-				AUTH.getRoomAppointments(this.token, this.currentSelectItem.object_id, date).then(res=>{
-					if(!res) return;
-					for (let propStr in res.data.time_list) {
-						if(!res.data.time_list[propStr]){ //status is false,means n/a
-							var dateArr = [];
-							let prop = JSON.parse(propStr);
-							dateArr.push(`${date} ${prop[0]}:00:00`);
-							dateArr.push(`${date} ${prop[1]}:00:00`);
-							_this.disableTimeSlot.push(dateArr);
-						}
-					}
-				})
-			},
-			checkDateHasAdded:function(date){
-				if(!this.disableTimeSlot || this.disableTimeSlot.length == 0) return false;
-				for (let time of this.disableTimeSlot) {
-					const [begin_time = "", end_time = ""] = time
-					let [dateItem, timeItem] = begin_time.split(' ');
-					if(dateItem == date) return true;
-				}
-				return false;
-			},
-			goToAppoint: function(e) {
-				if (this.specClass === 'show') {
-					this.specClass = 'hide';
-					setTimeout(() => {
-						this.specClass = 'none';
-					}, 250);
-				} else if (this.specClass === 'none') {
-					this.currentSelectItem = e;
-					this.specClass = 'show';
-				}
-			},
-			closePopup: function(e) {
-				if (this.specClass === 'show') {
-					this.specClass = 'hide';
-					setTimeout(() => {
-						this.specClass = 'none';
-					}, 250);
-					this.specSelected = [];
-				}
-			},
-			
-			getTime:function(times){
-				this.goToAppoint();
-				this.specSelected = times;
-				this.currentSelectItem.selects = this.specSelected;
-				if(this.specSelected.length <= 0) return;
-				uni.navigateTo({
-					url: `/pages/order/createOrder?data=${JSON.stringify(this.currentSelectItem)}`
-				})
-			},
-			aderror(e) {
-				console.log("aderror: " + JSON.stringify(e.detail));
-			},
-			selectedChange(e) {
-				let date = e.time;
-				var today = new Date();
-				date.setHours(today.getHours());
-				this.getList(date);
-			},
-			stopPrevent() {},
-			onShareAppMessage() {return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl:'../../../static/logo_small.jpg', path:'/pages/index/index'}},
-			onShareTimeline() {return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl:'../../../static/logo_small.jpg'}},
-			onAddToFavorites() {return { title: '偷偷马住别被老板看到！', imageUrl:'../../../static/logo_small.jpg'}},
-		},
-	};
+import { mapState, mapActions } from 'vuex';
+import AUTH from '../../../utils/auth.js';
+import times from '@/components/pretty-times/pretty-times.vue';
+
+export default {
+    components: { times },
+
+    data() {
+        return {
+            specClass: 'none',
+            roomList: [],
+            selectedDayIndex: 0,
+            weekDays: [],
+            currentSelectDate: '',
+            currentSelectItem: null,
+            currentBeginTime: '',
+            currentEndTime: '',
+            disableTimeSlot: [],
+            loading: false,
+        };
+    },
+
+    computed: {
+        ...mapState(['hasLogin', 'token', 'userInfo']),
+        currentHour() { return new Date().getHours(); },
+        selectedDayInfo() {
+            return this.weekDays[this.selectedDayIndex] || {};
+        },
+    },
+
+    onLoad() {
+        this.buildWeekDays();
+    },
+
+    onShow() {
+        if (!this.hasLogin) {
+            this.loginAndRegister().then(() => this.fetchRoomList());
+        } else {
+            if (!this.userInfo) this.getUserInfo();
+            this.fetchRoomList();
+        }
+    },
+
+    methods: {
+        ...mapActions(['loginAndRegister', 'getUserInfo']),
+
+        buildWeekDays() {
+            const days = [];
+            const weekLabels = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+            const today = new Date();
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(today);
+                d.setDate(today.getDate() + i);
+                const isToday = i === 0;
+                days.push({
+                    date: d.getDate(),
+                    month: d.getMonth() + 1,
+                    week: weekLabels[d.getDay()],
+                    isToday,
+                    fullDate: d,
+                });
+            }
+            this.weekDays = days;
+            this.selectedDayIndex = 0;
+        },
+
+        selectDay(idx) {
+            if (this.selectedDayIndex === idx) return;
+            this.selectedDayIndex = idx;
+            this.fetchRoomList();
+        },
+
+        fetchRoomList() {
+            const day = this.selectedDayInfo.fullDate;
+            this.loading = true;
+            AUTH.getRoomDataList(this.token, this.formatDate(day)).then(res => {
+                this.loading = false;
+                if (!res) return;
+                const today = new Date();
+                const isToday = this.selectedDayInfo.isToday;
+                const currentHour = isToday ? today.getHours() : -1;
+
+                res.data.rooms.forEach(item => {
+                    item.appoints = [];
+                    if (item.tags) {
+                        item.tagsArr = item.tags.split('$').filter(t => t.trim());
+                    } else {
+                        item.tagsArr = [];
+                    }
+                    for (let i = item.opening_hours_start; i < item.opening_hours_end; i++) {
+                        const status = i <= currentHour ? 2 : (this.findAppoint(res.data.appointments, item.object_id, i) ? 3 : 1);
+                        item.appoints.push({ start: i, end: i + 1, status });
+                    }
+                });
+                this.roomList = res.data.rooms;
+            }).catch(() => { this.loading = false; });
+        },
+
+        findAppoint(appointments, roomId, hour) {
+            for (const appt of appointments) {
+                if (appt.room == roomId) {
+                    for (const interval of appt.time_list) {
+                        if (interval[0] == hour) return true;
+                    }
+                }
+            }
+            return false;
+        },
+
+        getRoomStatusClass(room) {
+            const hasAppointments = room.appoints.some(s => s.status === 3);
+            const allBooked = room.appoints.length > 0 && room.appoints.every(s => s.status !== 1);
+            if (allBooked) return 'full';
+            if (hasAppointments) return 'partial';
+            return 'available';
+        },
+
+        getRoomStatusText(room) {
+            const hasAppointments = room.appoints.some(s => s.status === 3);
+            const allBooked = room.appoints.length > 0 && room.appoints.every(s => s.status !== 1);
+            if (allBooked) return '已约满';
+            if (hasAppointments) return '部分可约';
+            return '可预约';
+        },
+
+        getSlotClass(status) {
+            if (status === 1) return 'available';
+            if (status === 2) return 'past';
+            return 'booked';
+        },
+
+        isRoomFullyBooked(room) {
+            return room.appoints.length > 0 && room.appoints.every(s => s.status !== 1);
+        },
+
+        goDetail(room) {
+            uni.navigateTo({
+                url: `/pages/product/product?data=${encodeURIComponent(JSON.stringify(room))}&date=${this.currentSelectDate}`
+            });
+        },
+
+        handleAppointButtonClick(item) {
+            if (this.isRoomFullyBooked(item)) return;
+            this.currentSelectItem = item;
+            this.currentBeginTime = item.opening_hours_start + ':00:00';
+            this.currentEndTime = item.opening_hours_end + ':00:00';
+            this.disableTimeSlot = [];
+
+            // Disable already booked slots
+            for (let i = 0; i < item.appoints.length; i++) {
+                if (item.appoints[i].status === 3) {
+                    this.disableTimeSlot.push([
+                        this.currentSelectDate + ' ' + item.appoints[i].start + ':00:00',
+                        this.currentSelectDate + ' ' + item.appoints[i].end + ':00:00'
+                    ]);
+                }
+            }
+            this.goToAppoint();
+        },
+
+        handleTimesSelectDateChange(date) {
+            if (this.checkDateHasAdded(date)) return;
+            AUTH.getRoomAppointments(this.token, this.currentSelectItem.object_id, date).then(res => {
+                if (!res) return;
+                for (const propStr in res.data.time_list) {
+                    if (!res.data.time_list[propStr]) {
+                        const prop = JSON.parse(propStr);
+                        this.disableTimeSlot.push([
+                            date + ' ' + prop[0] + ':00:00',
+                            date + ' ' + prop[1] + ':00:00'
+                        ]);
+                    }
+                }
+            });
+        },
+
+        checkDateHasAdded(date) {
+            if (!this.disableTimeSlot || !this.disableTimeSlot.length) return false;
+            for (const time of this.disableTimeSlot) {
+                const [begin] = time;
+                const [dateItem] = begin.split(' ');
+                if (dateItem === date) return true;
+            }
+            return false;
+        },
+
+        goToAppoint() {
+            if (this.specClass === 'show') {
+                this.specClass = 'hide';
+                setTimeout(() => { this.specClass = 'none'; }, 250);
+            } else if (this.specClass === 'none') {
+                this.specClass = 'show';
+            }
+        },
+
+        closePopup() {
+            if (this.specClass === 'show') {
+                this.specClass = 'hide';
+                setTimeout(() => { this.specClass = 'none'; }, 250);
+                this.specSelected = [];
+            }
+        },
+
+        getTime(times) {
+            this.specSelected = times;
+            this.currentSelectItem.selects = this.specSelected;
+            if (this.specSelected.length <= 0) return;
+            uni.navigateTo({
+                url: `/pages/order/createOrder?data=${encodeURIComponent(JSON.stringify(this.currentSelectItem))}`
+            });
+        },
+
+        formatDate(d) {
+            return d.getFullYear() + '-' + (d.getMonth() + 1).toString().padStart(2, '0') + '-' + d.getDate().toString().padStart(2, '0');
+        },
+
+        goBack() {
+            uni.navigateBack();
+        },
+
+        stopPrevent() {},
+    },
+};
 </script>
 
 <style lang="scss">
-	@import '../../../common/uni-ui.scss';
-	page {
-		background-color: $page-color-base;
-		// height: auto;
-		flex-direction: column;
-		box-sizing: border-box;
-		background-color: #efeff4;
-		min-height: 100%;
-		height: auto;
-	}
-	
-	.tips {
-		color: #67c23a;
-		font-size: 14px;
-		line-height: 40px;
-		text-align: center;
-		background-color: #f0f9eb;
-		height: 0;
-		opacity: 0;
-		transform: translateY(-100%);
-		transition: all 0.3s;
-	}
-	
-	.tips-ani {
-		transform: translateY(0);
-		height: 40px;
-		opacity: 1;
-	}
-	
-	.shop {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		justify-content: space-between;
-	}
-	
-	.shop-picture {
-		width: 120px;
-		height: 150px;
-	}
-	
-	.shop-picture-column {
-		width: 100%;
-		height: 170px;
-		margin-bottom: 10px;
-	}
-	
-	.shop-price {
-		margin-top: 5px;
-		font-size: 12px;
-		color: #ff5a5f;
-	}
-	
-	.shop-price-text {
-		font-size: 16px;
-	}
-	
-	.hot-tag {
-		background: #ff5a5f;
-		border: none;
-		color: #fff;
-	}
-	
-	.button-box {
-		height: 30px;
-		line-height: 30px;
-		font-size: 12px;
-		background: #007AFF;
-		color: #fff;
-	}
-	
-	.uni-link {
-		flex-shrink: 0;
-	}
-	
-	.ellipsis {
-		display: flex;
-		overflow: hidden;
-	}
-	
-	.uni-ellipsis-1 {
-		overflow: hidden;
-		white-space: nowrap;
-		text-overflow: ellipsis;
-	}
-	
-	.uni-ellipsis-2 {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-	}
-	
-	.uni-list--waterfall {
-		 .uni-list {
-			display: flex;
-			flex-direction: row;
-			flex-wrap: wrap;
-			padding: 5px;
-			box-sizing: border-box;
+$primary: #FF6432;
+$gold: #FFB933;
+$green: #34C759;
+$red: #FF3B30;
+$dark: #333;
+$gray: #999;
+$light-gray: #F0F0F0;
+$bg: #F5F6F7;
+$card-bg: #FFFFFF;
 
-			.uni-list-item--waterfall {
-				width: 50%;
-				box-sizing: border-box;
-	
-				.uni-list-item__container {
-					padding: 5px;
-					flex-direction: column;
-				}
-			}
-		}
-	}
-	
-	.appoint-button {
-		// margin-left: 90px;
-		
-		.nintendo-btn {
-		  position: relative;
-		  display: inline-block;
-		  padding: 12px 40px;
-		  font-size: 20px;
-		  font-weight: bold;
-		  color: #fff;
-		  background-color: #ff681b;
-		  border: none;
-		  border-radius: 4px;
-		  width: 120px; /* 新增加的 width 属性 */
-		  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
-		}
-		
-		.nintendo-btn .text {
-		  position: absolute;
-		  top: 50%;
-		  transform: translate(-50%, -50%);
-		  left: 50%;
-		  z-index: 2;
-		  color: #fff;
-		}
-		
-		.nintendo-btn .circle {
-		  content: '';
-		  position: absolute;
-		  top: 8px;
-		  left: -20px;
-		  width: 60px;
-		  height: 60px;
-		  border-radius: 50%;
-		  background-color: #ff681b;
-		  transform: rotate(45deg);
-		  z-index: 1;
-		  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
-		}
-		
-		.nintendo-btn:hover {
-		  background-color: #ff4f00;
-		}
-		
-		.nintendo-btn:hover .circle {
-		  background-color: #ffd84e;
-		}
-	}
+page {
+    background: $bg;
+    min-height: 100vh;
+}
 
-/*  弹出层 */
-	.popup {
-		position: fixed;
-		left: 0;
-		top: 0;
-		right: 0;
-		bottom: 0;
-		z-index: 99;
-		
-		&.show {
-			display: block;
-			.mask{
-				animation: showPopup 0.2s linear both;
-			}
-			.layer {
-				animation: showLayer 0.2s linear both;
-			}
-		}
-		&.hide {
-			.mask{
-				animation: hidePopup 0.2s linear both;
-			}
-			.layer {
-				animation: hideLayer 0.2s linear both;
-			}
-		}
-		&.none {
-			display: none;
-		}
-		.mask{
-			position: fixed;
-			top: 0;
-			width: 100%;
-			height: 100%;
-			z-index: 1;
-			background-color: rgba(0, 0, 0, 0.4);
-		}
-		.layer {
-			position: fixed;
-			z-index: 99;
-			bottom: 0;
-			width: 100%;
-			height: 88%;
-			min-height: 40vh;
-			border-radius: 10upx 10upx 0 0;
-			background-color: #fff;
-			.btn{
-				height: 66upx;
-				line-height: 66upx;
-				border-radius: 100upx;
-				background: $uni-color-primary;
-				font-size: $font-base + 2upx;
-				color: #fff;
-				margin: 30upx auto 20upx;
-			}
-		}
-		@keyframes showPopup {
-			0% {
-				opacity: 0;
-			}
-			100% {
-				opacity: 1;
-			}
-		}
-		@keyframes hidePopup {
-			0% {
-				opacity: 1;
-			}
-			100% {
-				opacity: 0;
-			}
-		}
-		@keyframes showLayer {
-			0% {
-				transform: translateY(120%);
-			}
-			100% {
-				transform: translateY(0%);
-			}
-		}
-		@keyframes hideLayer {
-			0% {
-				transform: translateY(0);
-			}
-			100% {
-				transform: translateY(120%);
-			}
-		}
-	}
+.status-bar-placeholder {
+    height: 88rpx;
+    background: #fff;
+}
+
+.nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    height: 88rpx;
+    background: #fff;
+
+    .nav-back {
+        position: absolute;
+        left: 30rpx;
+        font-size: 36rpx;
+        color: $dark;
+    }
+
+    .nav-title {
+        font-size: 32rpx;
+        font-weight: bold;
+        color: $dark;
+    }
+
+    .nav-right {
+        position: absolute;
+        right: 30rpx;
+    }
+}
+
+// 周日历
+.week-strip {
+    background: #fff;
+    padding: 0 0 20rpx;
+    border-bottom: 1rpx solid $light-gray;
+
+    .week-inner {
+        display: flex;
+        justify-content: space-around;
+        padding: 0 20rpx;
+    }
+
+    .day-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12rpx 16rpx;
+        border-radius: 20rpx;
+        transition: all 0.2s;
+        position: relative;
+        min-width: 80rpx;
+
+        &.active {
+            background: $primary;
+
+            .day-week, .day-date {
+                color: #fff;
+            }
+
+            .day-dot {
+                background: #fff;
+            }
+        }
+
+        .day-week {
+            font-size: 22rpx;
+            color: $gray;
+            margin-bottom: 4rpx;
+        }
+
+        .day-date {
+            font-size: 34rpx;
+            font-weight: bold;
+            color: $dark;
+        }
+
+        .day-dot {
+            width: 8rpx;
+            height: 8rpx;
+            border-radius: 50%;
+            background: $primary;
+            position: absolute;
+            bottom: 6rpx;
+        }
+    }
+}
+
+// 加载骨架
+.loading-section {
+    padding: 20rpx;
+
+    .skeleton-card {
+        background: #fff;
+        border-radius: 20rpx;
+        overflow: hidden;
+        margin-bottom: 20rpx;
+        padding: 20rpx;
+        display: flex;
+
+        .skeleton-img {
+            width: 200rpx;
+            height: 160rpx;
+            border-radius: 16rpx;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s infinite;
+        }
+
+        .skeleton-info {
+            flex: 1;
+            padding-left: 20rpx;
+        }
+
+        .skeleton-title {
+            height: 36rpx;
+            background: #f0f0f0;
+            border-radius: 8rpx;
+            width: 60%;
+            margin-bottom: 16rpx;
+        }
+
+        .skeleton-tags {
+            height: 28rpx;
+            background: #f0f0f0;
+            border-radius: 8rpx;
+            width: 40%;
+            margin-bottom: 16rpx;
+        }
+
+        .skeleton-price {
+            height: 32rpx;
+            background: #f0f0f0;
+            border-radius: 8rpx;
+            width: 30%;
+        }
+    }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+// 列表头部
+.list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24rpx 30rpx 16rpx;
+
+    .list-count {
+        font-size: 26rpx;
+        color: $gray;
+    }
+
+    .list-tip {
+        display: flex;
+        align-items: center;
+        font-size: 22rpx;
+        color: $gray;
+        background: #FFF5F0;
+        padding: 8rpx 16rpx;
+        border-radius: 20rpx;
+
+        .tip-icon {
+            margin-right: 6rpx;
+            font-size: 22rpx;
+        }
+    }
+}
+
+// 房间卡片
+.room-list {
+    padding: 0 20rpx 20rpx;
+}
+
+.room-card {
+    background: $card-bg;
+    border-radius: 24rpx;
+    overflow: hidden;
+    margin-bottom: 20rpx;
+    display: flex;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s, box-shadow 0.2s;
+
+    &:active {
+        transform: scale(0.98);
+        box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+    }
+
+    .card-img-wrap {
+        width: 240rpx;
+        height: 200rpx;
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .card-img {
+        width: 100%;
+        height: 100%;
+    }
+
+    .status-badge {
+        position: absolute;
+        top: 12rpx;
+        left: 12rpx;
+        padding: 4rpx 12rpx;
+        border-radius: 20rpx;
+        font-size: 20rpx;
+        font-weight: bold;
+
+        &.available {
+            background: rgba($green, 0.9);
+            color: #fff;
+        }
+
+        &.partial {
+            background: rgba($gold, 0.9);
+            color: #fff;
+        }
+
+        &.full {
+            background: rgba($red, 0.9);
+            color: #fff;
+        }
+    }
+
+    .capacity-badge {
+        position: absolute;
+        bottom: 12rpx;
+        right: 12rpx;
+        background: rgba(0, 0, 0, 0.5);
+        color: #fff;
+        font-size: 20rpx;
+        padding: 4rpx 10rpx;
+        border-radius: 12rpx;
+    }
+
+    .card-info {
+        flex: 1;
+        padding: 16rpx 20rpx;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 200rpx;
+    }
+
+    .card-header {
+        .card-name {
+            font-size: 30rpx;
+            font-weight: bold;
+            color: $dark;
+            line-height: 1.3;
+        }
+    }
+
+    // 时段小圆点
+    .time-slots {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6rpx;
+        margin: 8rpx 0;
+
+        .slot-dot {
+            width: 16rpx;
+            height: 16rpx;
+            border-radius: 50%;
+            &.available { background: $green; }
+            &.past { background: #DDD; }
+            &.booked { background: $red; }
+        }
+
+        .slot-more {
+            font-size: 20rpx;
+            color: $gray;
+            margin-left: 4rpx;
+        }
+    }
+
+    .card-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8rpx;
+
+        .tag {
+            font-size: 20rpx;
+            color: $primary;
+            background: #FFF0EB;
+            padding: 3rpx 10rpx;
+            border-radius: 8rpx;
+        }
+    }
+
+    .card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 8rpx;
+    }
+
+    .card-price {
+        display: flex;
+        align-items: baseline;
+
+        .price-yuan {
+            font-size: 22rpx;
+            color: $primary;
+            font-weight: bold;
+        }
+
+        .price-num {
+            font-size: 36rpx;
+            font-weight: bold;
+            color: $primary;
+            line-height: 1;
+        }
+
+        .price-unit {
+            font-size: 22rpx;
+            color: $gray;
+            margin-left: 2rpx;
+        }
+    }
+
+    .book-btn {
+        background: $primary;
+        color: #fff;
+        font-size: 24rpx;
+        font-weight: bold;
+        padding: 10rpx 28rpx;
+        border-radius: 30rpx;
+        transition: background 0.2s;
+
+        &.disabled {
+            background: #CCC;
+            color: #999;
+        }
+
+        &:active:not(.disabled) {
+            background: darken($primary, 10%);
+        }
+    }
+}
+
+// 空状态
+.empty-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 100rpx 40rpx;
+
+    .empty-icon {
+        font-size: 100rpx;
+        margin-bottom: 24rpx;
+    }
+
+    .empty-title {
+        font-size: 32rpx;
+        font-weight: bold;
+        color: $dark;
+        margin-bottom: 12rpx;
+    }
+
+    .empty-sub {
+        font-size: 26rpx;
+        color: $gray;
+    }
+}
+
+// 底部提示
+.bottom-tip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20rpx 40rpx 40rpx;
+    font-size: 22rpx;
+    color: $gray;
+    gap: 6rpx;
+}
+
+// 时间选择弹窗
+.time-popup {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 999;
+
+    &.show {
+        .mask { animation: fadeIn 0.25s linear both; }
+        .panel { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    }
+
+    &.hide {
+        .mask { animation: fadeOut 0.25s linear both; }
+        .panel { animation: slideDown 0.25s linear both; }
+    }
+
+    &.none { display: none; }
+
+    .mask {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+    }
+
+    .panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #fff;
+        border-radius: 30rpx 30rpx 0 0;
+        max-height: 88vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 30rpx 30rpx 24rpx;
+        border-bottom: 1rpx solid $light-gray;
+    }
+
+    .panel-room-info {
+        display: flex;
+        align-items: center;
+
+        .panel-thumb {
+            width: 80rpx;
+            height: 80rpx;
+            border-radius: 12rpx;
+            margin-right: 16rpx;
+        }
+
+        .panel-meta {
+            .panel-name {
+                font-size: 30rpx;
+                font-weight: bold;
+                color: $dark;
+                display: block;
+                margin-bottom: 4rpx;
+            }
+
+            .panel-price {
+                font-size: 26rpx;
+                color: $primary;
+                font-weight: bold;
+            }
+        }
+    }
+
+    .panel-close {
+        font-size: 44rpx;
+        color: $gray;
+        padding: 10rpx;
+    }
+
+    .panel-times {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20rpx 0 40rpx;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+@keyframes slideDown {
+    from { transform: translateY(0); }
+    to { transform: translateY(100%); }
+}
 </style>
