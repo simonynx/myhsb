@@ -166,23 +166,25 @@
 				<view class="weui-cell">
 					<view class="weui-cell__bd">
 						<view class="fs28">商品金额</view>
+						<view class="fs28" v-if="orderData.use_balance == 1">余额支付</view>
+						<view class="fs28" v-if="orderData.use_points > 0">积分兑换</view>
+						<view class="fs28" v-if="orderData.coupon_id">优惠券</view>
 						<view class="fs28" v-if="orderData.integral_money && orderData.integral_money > 0">积分抵扣</view>
 						<view class="fs28">运费</view>
-						<view class="fs28" v-if="orderData.coupons_price && orderData.coupons_price > 0">优惠券</view>
 						<view class="fs28" v-if="orderData.discount_price && orderData.discount_price!=0">改价金额</view>
 					</view>
 					<view class="weui-cell__ft">
-						<view class="fs28 theme-color">+ ￥{{orderData.sku_price_real}}</view>
-						<view class="fs28 theme-color" v-if="orderData.integral_money && orderData.integral_money > 0">-
-							{{orderData.integral_money}}</view>
-						<view class="fs28 theme-color">+ {{orderData.delivery_price_real}}</view>
-						<view class="fs28 theme-color" v-if="orderData.coupons_price && orderData.coupons_price > 0">-
-							{{orderData.coupons_price}}</view>
+						<view class="fs28 theme-color">+ ￥{{orderData.sku_price_real || 0}}</view>
+						<view class="fs28 theme-color" v-if="orderData.use_balance == 1">- ￥{{orderData.pay_amount}}</view>
+						<view class="fs28 theme-color" v-if="orderData.use_points > 0">- {{orderData.use_points}}</view>
+						<view class="fs28 theme-color" v-if="orderData.coupon_id">- {{orderData.coupon_discount || 0}}</view>
+						<view class="fs28 theme-color" v-if="orderData.integral_money && orderData.integral_money > 0">- {{orderData.integral_money}}</view>
+						<view class="fs28 theme-color">+ {{orderData.delivery_price_real || 0}}</view>
 						<view class="fs28 theme-color" v-if="orderData.discount_price>0">- {{discount_price}}</view>
 						<view class="fs28 theme-color" v-if="orderData.discount_price<0">+ {{discount_price}}</view>
 					</view>
 				</view>
-				<view class="weui-cell count">共{{orderData.buy_total | toInt}}件商品，合计：
+				<view class="weui-cell count">weui-cell count">共{{orderData.buy_total | toInt}}件商品，合计：
 					<text class="theme-color">￥{{orderData.pay_amount}}</text>
 				</view>
 			</view>
