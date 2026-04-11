@@ -211,6 +211,7 @@
 <style lang="scss">
 page {
 	background: #FFF9F5;
+	padding-top: constant(safe-area-inset-top);
 }
 .page-wrapper {
 	min-height: 100vh;
