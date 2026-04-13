@@ -309,7 +309,7 @@ export default {
 
         goDetail(room) {
             uni.navigateTo({
-                url: `/pages/product/product?data=${encodeURIComponent(JSON.stringify(Object.assign({}, room)))}&date=${this.currentSelectDate}`
+                url: `/pages/product/product?data=${encodeURIComponent(JSON.parse(JSON.stringify(room)))}&date=${this.currentSelectDate}`
             });
         },
 
@@ -380,7 +380,7 @@ export default {
             this.currentSelectItem.selects = this.specSelected;
             if (this.specSelected.length <= 0) return;
             uni.navigateTo({
-                url: `/pages/order/createOrder?data=${encodeURIComponent(JSON.stringify(this.currentSelectItem))}`
+                url: `/pages/order/createOrder?data=${encodeURIComponent(JSON.parse(JSON.stringify(this.currentSelectItem)))}`
             });
         },
 

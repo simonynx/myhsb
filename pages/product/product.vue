@@ -417,7 +417,7 @@ export default {
             this.room.selects = this.specSelected;
             if (!this.specSelected.length) return;
             uni.navigateTo({
-                url: `/pages/order/createOrder?data=${encodeURIComponent(JSON.stringify(Object.assign({}, this.room)))}`
+                url: `/pages/order/createOrder?data=${encodeURIComponent(JSON.parse(JSON.stringify(this.room)))}`
             });
         },
 
