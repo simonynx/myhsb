@@ -106,7 +106,7 @@
                         </view>
                         <view
                             class="book-btn"
-                            :class="isRoomFullyBooked(room) ? 'disabled' : ''"
+                            :class="room.isFullyBooked ? 'disabled' : ''"
                             @click.stop="handleAppointButtonClick(room)"
                         >
                             <text>立即预约</text>
@@ -267,6 +267,21 @@ export default {
                         const statusClass = status === 1 ? 'available' : status === 2 ? 'past' : 'booked';
                         item.appoints.push({ start: i, end: i + 1, status, statusClass });
                     }
+
+                    // Room-level status properties
+                    const hasAppointments = item.appoints.some(s => s.status === 3);
+                    const allBooked = item.appoints.length > 0 && item.appoints.every(s => s.status !== 1);
+                    if (allBooked) {
+                        item.statusClass = 'full';
+                        item.statusText = '已约满';
+                    } else if (hasAppointments) {
+                        item.statusClass = 'partial';
+                        item.statusText = '部分可约';
+                    } else {
+                        item.statusClass = 'available';
+                        item.statusText = '可预约';
+                    }
+                    item.isFullyBooked = allBooked;
                 });
                 this.roomList = data.rooms || [];
             }).catch(() => { this.loading = false; });
@@ -281,9 +296,9 @@ export default {
                 }
             }
             return false;
+        },
 
-
-isRoomFullyBooked(room) {
+        isRoomFullyBooked(room) {
             return room.appoints.length > 0 && room.appoints.every(s => s.status !== 1);
         },
 
