@@ -74,7 +74,7 @@
                     v-for="(slot, si) in displaySlots"
                     :key="si"
                     class="slot-item"
-                    :class="getSlotClass(slot.status)"
+                    :class="slot.statusClass"
                 >
                     <text class="slot-time">{{ slot.start }}:00</text>
                     <view class="slot-bar"></view>
@@ -370,6 +370,7 @@ export default {
             this.disableTimeSlot = [];
             if (this.room.appoints) {
                 for (const slot of this.room.appoints) {
+                    slot.statusClass = this._getSlotClass(slot.status);
                     if (slot.status === 3) {
                         this.disableTimeSlot.push([
                             this.currentSelectDate + ' ' + slot.start + ':00:00',
@@ -380,7 +381,7 @@ export default {
             }
         },
 
-        getSlotClass(status) {
+        _getSlotClass(status) {
             if (status === 1) return 'available';
             if (status === 2) return 'past';
             return 'booked';
