@@ -309,7 +309,7 @@ export default {
 
         goDetail(room) {
             uni.navigateTo({
-                url: `/pages/product/product?data=${encodeURIComponent(JSON.stringify(room))}&date=${this.currentSelectDate}`
+                url: `/pages/product/product?data=${encodeURIComponent(JSON.stringify(Object.assign({}, room)))}&date=${this.currentSelectDate}`
             });
         },
 
