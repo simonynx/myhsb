@@ -74,7 +74,7 @@
                         v-for="(slot, si) in displaySlots"
                         :key="si"
                         class="slot-item"
-                        :class="getSlotClass(slot.status)"
+                        :class="slot.statusClass"
                     >
                         <text class="slot-time">{{ slot.start }}:{{ slot.end === slot.start + 1 ? '00' : slot.end }}</text>
                         <view class="slot-bar"></view>
@@ -330,13 +330,7 @@ export default {
             }
         },
 
-        getSlotClass(status) {
-            if (status === 1) return 'available';
-            if (status === 2) return 'past';
-            return 'booked';
-        },
-
-        goToAppoint() {
+goToAppoint() {
             if (this.isFullyBooked) return;
             if (this.specClass === 'show') {
                 this.specClass = 'hide';

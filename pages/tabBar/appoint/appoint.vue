@@ -66,8 +66,8 @@
                         mode="aspectFill"
                     />
                     <!-- 状态标签 -->
-                    <view class="status-badge" :class="getRoomStatusClass(room)">
-                        <text>{{ getRoomStatusText(room) }}</text>
+                    <view class="status-badge" :class="room.statusClass">
+                        <text>{{ room.statusText }}</text>
                     </view>
                     <!-- 人数标签 -->
                     <view class="capacity-badge">
@@ -87,7 +87,7 @@
                             v-for="(slot, si) in room.appoints.slice(0, 8)"
                             :key="si"
                             class="slot-dot"
-                            :class="getSlotClass(slot.status)"
+                            :class="slot.statusClass"
                         ></view>
                         <text class="slot-more" v-if="room.appoints.length > 8">+{{ room.appoints.length - 8 }}</text>
                     </view>
@@ -264,7 +264,8 @@ export default {
                     }
                     for (let i = item.opening_hours_start; i < item.opening_hours_end; i++) {
                         const status = i <= currentHour ? 2 : (this.findAppoint(res.data.appointments, item.object_id, i) ? 3 : 1);
-                        item.appoints.push({ start: i, end: i + 1, status });
+                        const statusClass = status === 1 ? 'available' : status === 2 ? 'past' : 'booked';
+                        item.appoints.push({ start: i, end: i + 1, status, statusClass });
                     }
                 });
                 this.roomList = data.rooms || [];
@@ -280,31 +281,9 @@ export default {
                 }
             }
             return false;
-        },
 
-        getRoomStatusClass(room) {
-            const hasAppointments = room.appoints.some(s => s.status === 3);
-            const allBooked = room.appoints.length > 0 && room.appoints.every(s => s.status !== 1);
-            if (allBooked) return 'full';
-            if (hasAppointments) return 'partial';
-            return 'available';
-        },
 
-        getRoomStatusText(room) {
-            const hasAppointments = room.appoints.some(s => s.status === 3);
-            const allBooked = room.appoints.length > 0 && room.appoints.every(s => s.status !== 1);
-            if (allBooked) return '已约满';
-            if (hasAppointments) return '部分可约';
-            return '可预约';
-        },
-
-        getSlotClass(status) {
-            if (status === 1) return 'available';
-            if (status === 2) return 'past';
-            return 'booked';
-        },
-
-        isRoomFullyBooked(room) {
+isRoomFullyBooked(room) {
             return room.appoints.length > 0 && room.appoints.every(s => s.status !== 1);
         },
 
