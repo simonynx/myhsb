@@ -54,7 +54,7 @@
             <!-- 房间卡片 -->
             <view
                 class="room-card"
-                v-for="room in roomList"
+                v-for="room in (roomList || [])"
                 :key="room.object_id"
                 @click="goDetail(room)"
             >
@@ -239,11 +239,18 @@ export default {
         },
 
         fetchRoomList() {
-            const day = this.selectedDayInfo.fullDate;
+            const dayInfo = this.selectedDayInfo;
+            if (!dayInfo || !dayInfo.fullDate) return;
+            const day = dayInfo.fullDate;
             this.loading = true;
             AUTH.getRoomDataList(this.token, this.formatDate(day)).then(res => {
                 this.loading = false;
-                if (!res) return;
+                if (!res || !res.data) return;
+                const data = res.data;
+                if (!data.rooms) {
+                    this.roomList = [];
+                    return;
+                }
                 const today = new Date();
                 const isToday = this.selectedDayInfo.isToday;
                 const currentHour = isToday ? today.getHours() : -1;
@@ -260,7 +267,7 @@ export default {
                         item.appoints.push({ start: i, end: i + 1, status });
                     }
                 });
-                this.roomList = res.data.rooms;
+                this.roomList = data.rooms || [];
             }).catch(() => { this.loading = false; });
         },
 
