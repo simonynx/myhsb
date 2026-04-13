@@ -325,8 +325,7 @@ export default {
             const d = this.room.description || '';
             if (!d) { this.desc = ''; return; }
             // Split by newlines and wrap each in p tag
-            const paragraphs = d.split('
-').filter(l => l.trim());
+            const paragraphs = d.split('\n').filter(l => l.trim());
             this.desc = paragraphs.map(p => `<p>${p}</p>`).join('');
         },
 
