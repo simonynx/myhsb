@@ -70,9 +70,6 @@
                         <text>{{ room.statusText }}</text>
                     </view>
                     <!-- 人数标签 -->
-                    <view class="capacity-badge">
-                        <text>👥 {{ room.max_people || 4 }}人</text>
-                    </view>
                 </view>
 
                 <!-- 右侧信息 -->
@@ -198,6 +195,11 @@ export default {
 
     onLoad() {
         this.buildWeekDays();
+        // weekDays ready, fetch room list
+        if (this.hasLogin) {
+            if (!this.userInfo) this.getUserInfo();
+            this.fetchRoomList();
+        }
     },
 
     onShow() {
@@ -205,7 +207,10 @@ export default {
             this.loginAndRegister().then(() => this.fetchRoomList());
         } else {
             if (!this.userInfo) this.getUserInfo();
-            this.fetchRoomList();
+            // Only refetch if weekDays is already built (page coming from background)
+            if (this.weekDays && this.weekDays.length > 0) {
+                this.fetchRoomList();
+            }
         }
     },
 
@@ -635,17 +640,6 @@ page {
             background: rgba($red, 0.9);
             color: #fff;
         }
-    }
-
-    .capacity-badge {
-        position: absolute;
-        bottom: 12rpx;
-        right: 12rpx;
-        background: rgba(0, 0, 0, 0.5);
-        color: #fff;
-        font-size: 20rpx;
-        padding: 4rpx 10rpx;
-        border-radius: 12rpx;
     }
 
     .card-info {

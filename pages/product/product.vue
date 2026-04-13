@@ -1,20 +1,18 @@
 <template>
     <view class="page">
-        <!-- 顶部状态栏占位 -->
-        <view class="status-bar-placeholder"></view>
-
         <!-- 导航栏 -->
-        <view class="nav-bar">
+        <view class="nav-bar" :class="scrolled ? 'solid' : 'transparent'">
             <text class="nav-back yticon icon-fanhui" @click="goBack"></text>
-            <text class="nav-title">包厢详情</text>
+            <text class="nav-title">{{ scrolled ? room.name : '包厢详情' }}</text>
             <view class="nav-share" @click="share">
                 <text class="yticon icon-fenxiang2"></text>
             </view>
         </view>
 
-        <!-- 图片轮播 -->
-        <view class="carousel">
+        <!-- 轮播图 -->
+        <view class="hero-section" @click="previewImages">
             <swiper
+                class="hero-swiper"
                 indicator-dots
                 circular
                 duration="400"
@@ -22,110 +20,80 @@
                 autoplay
                 indicator-color="rgba(255,255,255,0.4)"
                 indicator-active-color="#fff"
-                class="main-swiper"
             >
                 <swiper-item v-for="(img, idx) in imgList" :key="idx">
-                    <image
-                        :src="img.src"
-                        class="carousel-img"
-                        mode="aspectFill"
-                    />
+                    <image :src="img.src" class="hero-img" mode="aspectFill" />
                 </swiper-item>
             </swiper>
 
-            <!-- 图片计数器 -->
+            <!-- 状态标签 -->
+            <view class="hero-badge" :class="statusClass">
+                <text>{{ statusText }}</text>
+            </view>
+
+            <!-- 图片计数 -->
             <view class="img-counter">
                 <text>{{ currentImgIndex + 1 }}/{{ imgList.length }}</text>
             </view>
 
-            <!-- 状态标签 -->
-            <view class="status-badge" :class="statusClass">
-                <text>{{ statusText }}</text>
-            </view>
+            <!-- 底部渐变 -->
+            <view class="hero-gradient"></view>
         </view>
 
-        <!-- 基本信息卡片 -->
-        <view class="info-card">
-            <view class="info-top">
-                <view class="info-left">
-                    <text class="room-name">{{ room.name }}</text>
-                    <view class="room-tags" v-if="room.tagsArr && room.tagsArr.length">
-                        <text class="tag" v-for="t in room.tagsArr" :key="t">{{ t }}</text>
-                    </view>
-                </view>
-            </view>
-
+        <!-- 价格+名称卡片 -->
+        <view class="price-card">
             <view class="price-row">
                 <view class="price-main">
                     <text class="price-yuan">¥</text>
                     <text class="price-num">{{ room.price_per_hour / 100 }}</text>
                     <text class="price-unit">/小时</text>
                 </view>
-                <view class="capacity-info">
-                    <text>👥 最多{{ room.max_people || 4 }}人</text>
+                <view class="original-price" v-if="room.original_price_per_hour && room.original_price_per_hour > room.price_per_hour">
+                    <text>¥{{ room.original_price_per_hour / 100 }}</text>
                 </view>
             </view>
 
-            <!-- 时段概览 -->
-            <view class="slots-overview">
-                <text class="slots-label">时段状态</text>
-                <view class="slots-row">
-                    <view
-                        v-for="(slot, si) in displaySlots"
-                        :key="si"
-                        class="slot-item"
-                        :class="slot.statusClass"
-                    >
-                        <text class="slot-time">{{ slot.start }}:{{ slot.end === slot.start + 1 ? '00' : slot.end }}</text>
-                        <view class="slot-bar"></view>
-                    </view>
-                </view>
-                <view class="slots-legend">
-                    <view class="legend-item">
-                        <view class="legend-dot available"></view>
-                        <text>可约</text>
-                    </view>
-                    <view class="legend-item">
-                        <view class="legend-dot booked"></view>
-                        <text>已约</text>
-                    </view>
-                    <view class="legend-item">
-                        <view class="legend-dot past"></view>
-                        <text>已过</text>
-                    </view>
+            <view class="room-name-row">
+                <text class="room-name">{{ room.name }}</text>
+                <view class="tags-row" v-if="room.tagsArr && room.tagsArr.length">
+                    <text class="tag" v-for="t in room.tagsArr" :key="t">{{ t }}</text>
                 </view>
             </view>
         </view>
 
-        <!-- 门店信息 -->
-        <view class="store-card">
-            <view class="store-info">
-                <text class="store-icon">🏠</text>
-                <view class="store-detail">
-                    <text class="store-name">摸鱼划水吧</text>
-                    <text class="store-addr">{{ storeAddress }}</text>
-                </view>
-            </view>
-            <view class="store-actions">
-                <view class="action-btn call-btn" @click="callPhone">
-                    <text class="yticon icon-dianhua"></text>
-                    <text>拨打电话</text>
-                </view>
-                <view class="action-btn nav-btn" @click="openMap">
-                    <text class="yticon icon-ditu"></text>
-                    <text>导航</text>
-                </view>
-            </view>
-        </view>
-
-        <!-- 包厢介绍 -->
-        <view class="desc-card">
+        <!-- 时段状态 -->
+        <view class="slots-card">
             <view class="card-title">
-                <text>包厢介绍</text>
+                <text>可选时段</text>
                 <view class="title-line"></view>
+                <text class="slots-date">{{ currentSelectDate }}</text>
             </view>
-            <view class="desc-content">
-                <rich-text :nodes="desc"></rich-text>
+
+            <view class="slots-grid">
+                <view
+                    v-for="(slot, si) in displaySlots"
+                    :key="si"
+                    class="slot-item"
+                    :class="getSlotClass(slot.status)"
+                >
+                    <text class="slot-time">{{ slot.start }}:00</text>
+                    <view class="slot-bar"></view>
+                </view>
+            </view>
+
+            <view class="slots-legend">
+                <view class="legend-item">
+                    <view class="legend-dot available"></view>
+                    <text>可预约</text>
+                </view>
+                <view class="legend-item">
+                    <view class="legend-dot booked"></view>
+                    <text>已约满</text>
+                </view>
+                <view class="legend-item">
+                    <view class="legend-dot past"></view>
+                    <text>已过期</text>
+                </view>
             </view>
         </view>
 
@@ -136,41 +104,101 @@
                 <view class="title-line"></view>
             </view>
             <view class="facility-grid">
-                <view class="facility-item" v-for="f in facilities" :key="f.icon">
+                <view class="facility-item" v-for="f in facilities" :key="f.name">
                     <text class="facility-icon">{{ f.icon }}</text>
                     <text class="facility-name">{{ f.name }}</text>
                 </view>
             </view>
         </view>
 
-        <!-- 占位底部 -->
-        <view class="bottom-placeholder"></view>
-
-        <!-- 底部操作栏 -->
-        <view class="bottom-bar">
-            <navigator url="/pages/index/index" open-type="switchTab" class="home-btn">
-                <text class="yticon icon-shouye1"></text>
-                <text>首页</text>
-            </navigator>
-            <view class="action-group">
-                <button class="contact-btn" open-type="contact" bindcontact="handleContact">
-                    <text class="yticon icon-liaotian"></text>
-                    <text>咨询</text>
-                </button>
-                <view
-                    class="book-btn"
-                    :class="isFullyBooked ? 'disabled' : ''"
-                    @click="goToAppoint"
-                >
-                    <text>立即预约</text>
+        <!-- 门店信息 -->
+        <view class="store-card">
+            <view class="store-header">
+                <text class="store-icon">🏠</text>
+                <text class="store-title">门店信息</text>
+            </view>
+            <view class="store-row">
+                <text class="store-label">店铺</text>
+                <text class="store-value">摸鱼划水吧</text>
+            </view>
+            <view class="store-row" v-if="storeAddress">
+                <text class="store-label">地址</text>
+                <text class="store-value addr">{{ storeAddress }}</text>
+            </view>
+            <view class="store-row" v-if="wifiInfo">
+                <text class="store-label">WiFi</text>
+                <text class="store-value">{{ wifiInfo }}</text>
+            </view>
+            <view class="store-actions">
+                <view class="action-btn nav-btn" @click="openMap">
+                    <text class="yticon icon-ditu"></text>
+                    <text>导航</text>
+                </view>
+                <view class="action-btn call-btn" @click="callPhone">
+                    <text class="yticon icon-dianhua"></text>
+                    <text>拨打电话</text>
                 </view>
             </view>
         </view>
 
+        <!-- 房间介绍 -->
+        <view class="desc-card" v-if="room.description">
+            <view class="card-title">
+                <text>房间介绍</text>
+                <view class="title-line"></view>
+            </view>
+            <view class="desc-text">
+                <rich-text :nodes="desc"></rich-text>
+            </view>
+        </view>
+
+        <!-- 预约说明 -->
+        <view class="notice-card">
+            <view class="notice-item">
+                <text class="notice-icon">⏰</text>
+                <view class="notice-content">
+                    <text class="notice-title">预约说明</text>
+                    <text class="notice-body">请在预约时段开始前到达门店，现场凭预约手机号核销使用</text>
+                </view>
+            </view>
+            <view class="notice-item">
+                <text class="notice-icon">❄️</text>
+                <view class="notice-content">
+                    <text class="notice-title">取消政策</text>
+                    <text class="notice-body">预约开始前30分钟可免费取消，超时不可取消</text>
+                </view>
+            </view>
+            <view class="notice-item">
+                <text class="notice-icon">🎮</text>
+                <view class="notice-content">
+                    <text class="notice-title">使用须知</text>
+                    <text class="notice-body">房间内设施损坏需照价赔偿，请爱护公共物品</text>
+                </view>
+            </view>
+        </view>
+
+        <!-- 底部占位 -->
+        <view class="bottom-placeholder"></view>
+
+        <!-- 底部操作栏 -->
+        <view class="bottom-bar">
+            <view class="price-info">
+                <text class="pi-label">实付金额</text>
+                <text class="pi-price">¥{{ estimatePrice }}</text>
+            </view>
+            <view
+                class="book-btn"
+                :class="isFullyBooked ? 'disabled' : ''"
+                @click="goToAppoint"
+            >
+                <text>{{ isFullyBooked ? '当天已约满' : '立即预约' }}</text>
+            </view>
+        </view>
+
         <!-- 时间选择弹窗 -->
-        <view class="time-popup" :class="specClass" @touchmove.stop.prevent="stopPrevent" @click="closePopup">
+        <view class="time-popup" :class="specClass" @touchmove.stop.prevent @click="closePopup">
             <view class="mask"></view>
-            <view class="panel" @click.stop="stopPrevent">
+            <view class="panel" @click.stop>
                 <view class="panel-header">
                     <view class="panel-room-info">
                         <image class="panel-thumb" :src="room.image1" mode="aspectFill" />
@@ -198,7 +226,6 @@
             </view>
         </view>
 
-        <!-- 分享 -->
         <share ref="share" :contentHeight="580" :shareList="shareList"></share>
     </view>
 </template>
@@ -209,9 +236,9 @@ import AUTH from '../../utils/auth.js';
 import share from '@/components/share';
 import times from '@/components/pretty-times/pretty-times.vue';
 
-const storePhone = '13712345678'; // TODO: 从 config 接口获取
-const storeLat = 22.5431; // TODO: 从 config 接口获取
-const storeLng = 114.0579; // TODO: 从 config 接口获取
+const STORE_PHONE = '13712345678';
+const STORE_LAT = 22.5431;
+const STORE_LNG = 114.0579;
 
 export default {
     components: { share, times },
@@ -228,17 +255,20 @@ export default {
             currentEndTime: '',
             disableTimeSlot: [],
             specSelected: [],
+            scrolled: false,
+            currentImgIndex: 0,
             shareList: [
                 { type: 0, title: '赶紧来摸鱼吧！', icon: '/static/logo_small.jpg' },
                 { type: 1, title: '微信', icon: '/static/wechat.png' },
             ],
+            storeAddress: '',
+            wifiInfo: '',
             facilities: [],
         };
     },
 
     computed: {
         ...mapState(['token']),
-        currentImgIndex() { return 0; },
         displaySlots() {
             if (!this.room.appoints) return [];
             return this.room.appoints.slice(0, 12);
@@ -257,8 +287,9 @@ export default {
             const hasBooked = this.room.appoints && this.room.appoints.some(s => s.status === 3);
             return hasBooked ? '部分可约' : '可预约';
         },
-        storeAddress() {
-            return '深圳市南山区xxx路xx号摸鱼划水吧';
+        estimatePrice() {
+            if (!this.room.price_per_hour) return '0.00';
+            return (this.room.price_per_hour / 100).toFixed(2);
         },
     },
 
@@ -269,7 +300,12 @@ export default {
         this.buildImages();
         this.buildDesc();
         this.buildFacilities();
+        this.buildStoreInfo();
         this.initTimeConfig();
+    },
+
+    onPageScroll(e) {
+        this.scrolled = e.scrollTop > 200;
     },
 
     methods: {
@@ -280,14 +316,18 @@ export default {
             if (r.image3) this.imgList.push({ src: r.image3 });
             if (r.image4) this.imgList.push({ src: r.image4 });
             if (r.image5) this.imgList.push({ src: r.image5 });
-            if (this.imgList.length === 0) {
+            if (!this.imgList.length) {
                 this.imgList.push({ src: '/static/logo_small.jpg' });
             }
         },
 
         buildDesc() {
-            const d = this.room.description || '暂无详细介绍';
-            this.desc = '<div class="detail-desc-content">' + d + '</div>';
+            const d = this.room.description || '';
+            if (!d) { this.desc = ''; return; }
+            // Split by newlines and wrap each in p tag
+            const paragraphs = d.split('
+').filter(l => l.trim());
+            this.desc = paragraphs.map(p => `<p>${p}</p>`).join('');
         },
 
         buildFacilities() {
@@ -300,24 +340,34 @@ export default {
                 '音响': { icon: '🔊', name: '音响' },
                 '电视': { icon: '📺', name: '电视' },
                 '茶室': { icon: '🍵', name: '茶室' },
-                'KTV': { icon: '🎤', name: 'KTV' },
+                'ktv': { icon: '🎤', name: 'KTV' },
                 '棋牌': { icon: '♠️', name: '棋牌' },
+                'ps5': { icon: '🎮', name: 'PS5' },
+                'switch': { icon: '🎯', name: 'Switch' },
             };
             const tags = this.room.tagsArr || [];
             this.facilities = tags
-                .filter(t => tagMap[t])
-                .map(t => tagMap[t]);
+                .filter(t => tagMap[t.toLowerCase()])
+                .map(t => tagMap[t.toLowerCase()]);
             // Always show WiFi if not in tags
             if (!this.facilities.find(f => f.name === 'WiFi')) {
                 this.facilities.unshift({ icon: '📶', name: 'WiFi' });
             }
         },
 
+        buildStoreInfo() {
+            AUTH.getConstance().then(res => {
+                if (!res) return;
+                const cfg = res.data;
+                if (cfg.wifi_name) this.wifiInfo = cfg.wifi_name + (cfg.wifi_password ? ' / ' + cfg.wifi_password : '');
+                if (cfg.phone_number) STORE_PHONE = cfg.phone_number;
+            });
+        },
+
         initTimeConfig() {
             this.currentBeginTime = this.room.opening_hours_start + ':00:00';
             this.currentEndTime = this.room.opening_hours_end + ':00:00';
             this.disableTimeSlot = [];
-
             if (this.room.appoints) {
                 for (const slot of this.room.appoints) {
                     if (slot.status === 3) {
@@ -330,7 +380,21 @@ export default {
             }
         },
 
-goToAppoint() {
+        getSlotClass(status) {
+            if (status === 1) return 'available';
+            if (status === 2) return 'past';
+            return 'booked';
+        },
+
+        previewImages() {
+            if (!this.imgList.length) return;
+            uni.previewImage({
+                urls: this.imgList.map(i => i.src),
+                current: this.currentImgIndex,
+            });
+        },
+
+        goToAppoint() {
             if (this.isFullyBooked) return;
             if (this.specClass === 'show') {
                 this.specClass = 'hide';
@@ -351,7 +415,7 @@ goToAppoint() {
         getTime(times) {
             this.specSelected = times;
             this.room.selects = this.specSelected;
-            if (this.specSelected.length <= 0) return;
+            if (!this.specSelected.length) return;
             uni.navigateTo({
                 url: `/pages/order/createOrder?data=${encodeURIComponent(JSON.stringify(this.room))}`
             });
@@ -372,32 +436,20 @@ goToAppoint() {
             });
         },
 
-        share() {
-            this.$refs.share.toggleMask();
-        },
+        share() { this.$refs.share.toggleMask(); },
 
-        handleContact() {
-            uni.showToast({ title: '客服功能开发中', icon: 'none' });
-        },
-
-        callPhone() {
-            uni.makePhoneCall({ phoneNumber: storePhone });
-        },
+        callPhone() { uni.makePhoneCall({ phoneNumber: STORE_PHONE }); },
 
         openMap() {
             uni.openLocation({
-                latitude: storeLat,
-                longitude: storeLng,
+                latitude: STORE_LAT,
+                longitude: STORE_LNG,
                 name: '摸鱼划水吧',
-                address: this.storeAddress,
+                address: this.storeAddress || '深圳市',
             });
         },
 
-        goBack() {
-            uni.navigateBack();
-        },
-
-        stopPrevent() {},
+        goBack() { uni.navigateBack(); },
     },
 };
 </script>
@@ -411,70 +463,62 @@ $dark: #333;
 $gray: #999;
 $light-gray: #F0F0F0;
 $bg: #F5F6F7;
+$card-bg: #FFFFFF;
 
-page {
-    background: $bg;
-    padding-bottom: 120rpx;
-}
+page { background: $bg; padding-bottom: 120rpx; }
 
-.status-bar-placeholder {
-    height: 88rpx;
-}
-
+// 导航栏
 .nav-bar {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    top: 0; left: 0; right: 0;
     z-index: 100;
     display: flex;
     align-items: center;
     justify-content: center;
     height: 88rpx;
-    background: transparent;
+    transition: background 0.3s;
 
-    .nav-back {
-        position: absolute;
-        left: 30rpx;
-        font-size: 36rpx;
-        color: #fff;
-        text-shadow: 0 2rpx 8rpx rgba(0,0,0,0.3);
+    &.transparent {
+        background: transparent;
+        .nav-back, .nav-title, .nav-share { color: #fff; text-shadow: 0 2rpx 8rpx rgba(0,0,0,0.3); }
     }
 
-    .nav-title {
-        font-size: 32rpx;
-        font-weight: bold;
-        color: #fff;
-        text-shadow: 0 2rpx 8rpx rgba(0,0,0,0.3);
+    &.solid {
+        background: #fff;
+        box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.08);
+        .nav-back, .nav-title, .nav-share { color: $dark; text-shadow: none; }
     }
 
-    .nav-share {
-        position: absolute;
-        right: 30rpx;
-        font-size: 40rpx;
-        color: #fff;
-        text-shadow: 0 2rpx 8rpx rgba(0,0,0,0.3);
-    }
+    .nav-back { position: absolute; left: 30rpx; font-size: 36rpx; }
+    .nav-title { font-size: 32rpx; font-weight: bold; }
+    .nav-share { position: absolute; right: 30rpx; font-size: 40rpx; }
 }
 
-// 轮播
-.carousel {
+// 轮播图
+.hero-section {
     position: relative;
     height: 560rpx;
+    overflow: hidden;
 
-    .main-swiper {
-        height: 100%;
-    }
+    .hero-swiper { height: 100%; }
+    .hero-img { width: 100%; height: 100%; }
 
-    .carousel-img {
-        width: 100%;
-        height: 100%;
+    .hero-badge {
+        position: absolute;
+        bottom: 60rpx; left: 24rpx;
+        padding: 8rpx 20rpx;
+        border-radius: 24rpx;
+        font-size: 24rpx;
+        font-weight: bold;
+        color: #fff;
+        &.available { background: rgba($green, 0.9); }
+        &.partial { background: rgba($gold, 0.9); }
+        &.full { background: rgba($red, 0.9); }
     }
 
     .img-counter {
         position: absolute;
-        bottom: 24rpx;
-        right: 24rpx;
+        bottom: 24rpx; right: 24rpx;
         background: rgba(0,0,0,0.4);
         color: #fff;
         font-size: 24rpx;
@@ -482,33 +526,50 @@ page {
         border-radius: 20rpx;
     }
 
-    .status-badge {
+    .hero-gradient {
         position: absolute;
-        bottom: 24rpx;
-        left: 24rpx;
-        padding: 8rpx 20rpx;
-        border-radius: 24rpx;
-        font-size: 24rpx;
-        font-weight: bold;
-        color: #fff;
-
-        &.available { background: rgba($green, 0.9); }
-        &.partial { background: rgba($gold, 0.9); }
-        &.full { background: rgba($red, 0.9); }
+        bottom: 0; left: 0; right: 0;
+        height: 120rpx;
+        background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.2));
     }
 }
 
-// 信息卡片
-.info-card {
+// 价格卡片
+.price-card {
     background: #fff;
-    margin: -40rpx 20rpx 20rpx;
+    margin: -30rpx 20rpx 20rpx;
     border-radius: 24rpx;
     padding: 30rpx;
     box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
     position: relative;
+    z-index: 1;
 
-    .info-top {
-        margin-bottom: 20rpx;
+    .price-row {
+        display: flex;
+        align-items: baseline;
+        margin-bottom: 16rpx;
+    }
+
+    .price-main {
+        display: flex;
+        align-items: baseline;
+        .price-yuan { font-size: 28rpx; color: $primary; font-weight: bold; }
+        .price-num { font-size: 60rpx; font-weight: bold; color: $primary; line-height: 1; }
+        .price-unit { font-size: 26rpx; color: $gray; margin-left: 4rpx; }
+    }
+
+    .original-price {
+        margin-left: 16rpx;
+        font-size: 28rpx;
+        color: $gray;
+        text-decoration: line-through;
+    }
+
+    .room-name-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 16rpx;
+        flex-wrap: wrap;
     }
 
     .room-name {
@@ -516,312 +577,302 @@ page {
         font-weight: bold;
         color: $dark;
         line-height: 1.3;
-        display: block;
-        margin-bottom: 12rpx;
+        flex-shrink: 0;
     }
 
-    .room-tags {
+    .tags-row {
         display: flex;
         flex-wrap: wrap;
-        gap: 10rpx;
-
-        .tag {
-            font-size: 22rpx;
-            color: $primary;
-            background: #FFF0EB;
-            padding: 4rpx 14rpx;
-            border-radius: 10rpx;
-        }
+        gap: 8rpx;
+        margin-top: 8rpx;
     }
 
-    .price-row {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        padding: 16rpx 0;
-        border-top: 1rpx solid $light-gray;
-        border-bottom: 1rpx solid $light-gray;
+    .tag {
+        font-size: 22rpx;
+        color: $primary;
+        background: #FFF0EB;
+        padding: 4rpx 14rpx;
+        border-radius: 10rpx;
+    }
+}
+
+// 时段卡片
+.slots-card {
+    background: #fff;
+    margin: 0 20rpx 20rpx;
+    border-radius: 20rpx;
+    padding: 24rpx;
+
+    .card-title {
+        font-size: 30rpx;
+        font-weight: bold;
+        color: $dark;
         margin-bottom: 20rpx;
+        display: flex;
+        align-items: center;
+        gap: 12rpx;
 
-        .price-main {
-            display: flex;
-            align-items: baseline;
-
-            .price-yuan {
-                font-size: 28rpx;
-                color: $primary;
-                font-weight: bold;
-            }
-
-            .price-num {
-                font-size: 56rpx;
-                font-weight: bold;
-                color: $primary;
-                line-height: 1;
-            }
-
-            .price-unit {
-                font-size: 26rpx;
-                color: $gray;
-                margin-left: 4rpx;
-            }
+        .title-line {
+            flex: 1;
+            height: 4rpx;
+            background: linear-gradient(to right, $primary, transparent);
+            border-radius: 2rpx;
         }
 
-        .capacity-info {
-            font-size: 26rpx;
+        .slots-date {
+            font-size: 24rpx;
             color: $gray;
+            font-weight: normal;
         }
     }
 
-    // 时段状态
-    .slots-overview {
-        .slots-label {
-            font-size: 26rpx;
-            color: $gray;
-            display: block;
-            margin-bottom: 14rpx;
-        }
+    .slots-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12rpx;
+        margin-bottom: 16rpx;
+    }
 
-        .slots-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10rpx;
-            margin-bottom: 14rpx;
-        }
+    .slot-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 64rpx;
 
-        .slot-item {
+        .slot-time { font-size: 18rpx; color: $gray; margin-bottom: 6rpx; }
+        .slot-bar { width: 44rpx; height: 8rpx; border-radius: 4rpx; }
+
+        &.available .slot-bar { background: $green; }
+        &.booked .slot-bar { background: $red; }
+        &.past .slot-bar { background: #DDD; }
+    }
+
+    .slots-legend {
+        display: flex;
+        gap: 20rpx;
+
+        .legend-item {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            min-width: 56rpx;
+            gap: 6rpx;
+            font-size: 22rpx;
+            color: $gray;
 
-            .slot-time {
-                font-size: 18rpx;
-                color: $gray;
-                margin-bottom: 4rpx;
-            }
-
-            .slot-bar {
-                width: 40rpx;
-                height: 8rpx;
-                border-radius: 4rpx;
-            }
-
-            &.available .slot-bar { background: $green; }
-            &.past .slot-bar { background: #DDD; }
-            &.booked .slot-bar { background: $red; }
-        }
-
-        .slots-legend {
-            display: flex;
-            gap: 20rpx;
-
-            .legend-item {
-                display: flex;
-                align-items: center;
-                gap: 6rpx;
-                font-size: 22rpx;
-                color: $gray;
-
-                .legend-dot {
-                    width: 12rpx;
-                    height: 12rpx;
-                    border-radius: 50%;
-                    &.available { background: $green; }
-                    &.booked { background: $red; }
-                    &.past { background: #DDD; }
-                }
+            .legend-dot {
+                width: 12rpx; height: 12rpx;
+                border-radius: 50%;
+                &.available { background: $green; }
+                &.booked { background: $red; }
+                &.past { background: #DDD; }
             }
         }
     }
 }
 
-// 门店信息
+// 设施卡片
+.facility-card {
+    background: #fff;
+    margin: 0 20rpx 20rpx;
+    border-radius: 20rpx;
+    padding: 24rpx;
+
+    .card-title {
+        font-size: 30rpx;
+        font-weight: bold;
+        color: $dark;
+        margin-bottom: 20rpx;
+        display: flex;
+        align-items: center;
+        gap: 12rpx;
+
+        .title-line {
+            flex: 1;
+            height: 4rpx;
+            background: linear-gradient(to right, $primary, transparent);
+            border-radius: 2rpx;
+        }
+    }
+
+    .facility-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20rpx;
+
+        .facility-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8rpx;
+            min-width: 100rpx;
+            padding: 16rpx;
+            background: #FAFAFA;
+            border-radius: 16rpx;
+
+            .facility-icon { font-size: 44rpx; }
+            .facility-name { font-size: 22rpx; color: $dark; }
+        }
+    }
+}
+
+// 门店卡片
 .store-card {
     background: #fff;
     margin: 0 20rpx 20rpx;
     border-radius: 20rpx;
-    padding: 24rpx 24rpx 20rpx;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    padding: 24rpx;
 
-    .store-info {
+    .store-header {
         display: flex;
         align-items: center;
-        flex: 1;
+        gap: 10rpx;
+        margin-bottom: 20rpx;
 
-        .store-icon {
-            font-size: 48rpx;
-            margin-right: 16rpx;
+        .store-icon { font-size: 36rpx; }
+        .store-title { font-size: 30rpx; font-weight: bold; color: $dark; }
+    }
+
+    .store-row {
+        display: flex;
+        align-items: flex-start;
+        padding: 12rpx 0;
+        border-bottom: 1rpx solid $light-gray;
+
+        .store-label {
+            width: 80rpx;
+            font-size: 26rpx;
+            color: $gray;
+            flex-shrink: 0;
         }
 
-        .store-detail {
-            .store-name {
-                font-size: 28rpx;
-                font-weight: bold;
-                color: $dark;
-                display: block;
-                margin-bottom: 4rpx;
-            }
-
-            .store-addr {
-                font-size: 24rpx;
-                color: $gray;
-            }
+        .store-value {
+            flex: 1;
+            font-size: 26rpx;
+            color: $dark;
+            &.addr { font-size: 24rpx; }
         }
     }
 
     .store-actions {
         display: flex;
-        gap: 12rpx;
+        gap: 16rpx;
+        margin-top: 20rpx;
 
         .action-btn {
+            flex: 1;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            padding: 12rpx 20rpx;
+            justify-content: center;
+            gap: 8rpx;
+            padding: 20rpx;
             border-radius: 16rpx;
-            font-size: 20rpx;
-            gap: 4rpx;
+            font-size: 28rpx;
+            font-weight: bold;
 
-            .yticon {
-                font-size: 36rpx;
-            }
-        }
-
-        .call-btn {
-            background: #FFF0EB;
-            color: $primary;
+            .yticon { font-size: 36rpx; }
         }
 
         .nav-btn {
             background: #F0F9F0;
             color: $green;
         }
+
+        .call-btn {
+            background: #FFF0EB;
+            color: $primary;
+        }
     }
 }
 
-// 介绍/设施卡片
-.desc-card, .facility-card {
+// 介绍卡片
+.desc-card {
     background: #fff;
     margin: 0 20rpx 20rpx;
     border-radius: 20rpx;
-    padding: 24rpx 24rpx 20rpx;
-}
+    padding: 24rpx;
 
-.card-title {
-    font-size: 30rpx;
-    font-weight: bold;
-    color: $dark;
-    margin-bottom: 20rpx;
-    display: flex;
-    align-items: center;
-    gap: 12rpx;
-
-    .title-line {
-        flex: 1;
-        height: 4rpx;
-        background: linear-gradient(to right, $primary, transparent);
-        border-radius: 2rpx;
-    }
-}
-
-.desc-content {
-    font-size: 28rpx;
-    color: $dark;
-    line-height: 1.8;
-
-    :deep(.detail-desc-content) {
-        p { margin-bottom: 12rpx; }
-    }
-}
-
-// 设施网格
-.facility-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20rpx;
-
-    .facility-item {
+    .card-title {
+        font-size: 30rpx;
+        font-weight: bold;
+        color: $dark;
+        margin-bottom: 20rpx;
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 8rpx;
-        min-width: 100rpx;
-        padding: 16rpx;
-        background: #FAFAFA;
-        border-radius: 16rpx;
+        gap: 12rpx;
 
-        .facility-icon {
-            font-size: 44rpx;
+        .title-line {
+            flex: 1;
+            height: 4rpx;
+            background: linear-gradient(to right, $primary, transparent);
+            border-radius: 2rpx;
         }
+    }
 
-        .facility-name {
-            font-size: 22rpx;
-            color: $dark;
+    .desc-text {
+        font-size: 28rpx;
+        color: $dark;
+        line-height: 1.9;
+
+        :deep(p) { margin-bottom: 12rpx; }
+    }
+}
+
+// 预约说明卡片
+.notice-card {
+    background: #fff;
+    margin: 0 20rpx 20rpx;
+    border-radius: 20rpx;
+    padding: 24rpx;
+
+    .notice-item {
+        display: flex;
+        gap: 16rpx;
+        padding: 16rpx 0;
+        border-bottom: 1rpx solid $light-gray;
+
+        &:last-child { border-bottom: none; }
+
+        .notice-icon { font-size: 36rpx; flex-shrink: 0; margin-top: 4rpx; }
+
+        .notice-content {
+            flex: 1;
+            .notice-title {
+                font-size: 28rpx;
+                font-weight: bold;
+                color: $dark;
+                display: block;
+                margin-bottom: 6rpx;
+            }
+            .notice-body {
+                font-size: 24rpx;
+                color: $gray;
+                line-height: 1.6;
+            }
         }
     }
 }
 
 // 底部占位
-.bottom-placeholder {
-    height: 120rpx;
-}
+.bottom-placeholder { height: 120rpx; }
 
 // 底部操作栏
 .bottom-bar {
     position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 0; right: 0; bottom: 0;
     height: 100rpx;
     background: #fff;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 20rpx;
+    padding: 0 30rpx;
     box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.06);
     z-index: 95;
 
-    .home-btn {
+    .price-info {
         display: flex;
         flex-direction: column;
-        align-items: center;
-        gap: 2rpx;
-        padding: 0 20rpx;
-        color: $gray;
-        font-size: 20rpx;
 
-        .yticon {
-            font-size: 40rpx;
-        }
-    }
-
-    .action-group {
-        display: flex;
-        align-items: center;
-        gap: 16rpx;
-    }
-
-    .contact-btn {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2rpx;
-        padding: 0 24rpx;
-        background: #FFF0EB;
-        color: $primary;
-        border-radius: 40rpx;
-        font-size: 20rpx;
-        height: 80rpx;
-        justify-content: center;
-
-        .yticon {
-            font-size: 36rpx;
-        }
-
-        &::after { border: none; }
+        .pi-label { font-size: 22rpx; color: $gray; }
+        .pi-price { font-size: 44rpx; font-weight: bold; color: $primary; line-height: 1.1; }
     }
 
     .book-btn {
@@ -836,46 +887,30 @@ page {
         font-size: 30rpx;
         font-weight: bold;
 
-        &.disabled {
-            background: #CCC;
-        }
+        &.disabled { background: #CCC; }
     }
 }
 
 // 时间选择弹窗
 .time-popup {
     position: fixed;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
+    left: 0; right: 0; top: 0; bottom: 0;
     z-index: 999;
 
-    &.show {
-        .mask { animation: fadeIn 0.25s linear both; }
-        .panel { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
-    }
-
-    &.hide {
-        .mask { animation: fadeOut 0.25s linear both; }
-        .panel { animation: slideDown 0.25s linear both; }
-    }
-
+    &.show { display: flex; }
+    &.hide { display: flex; }
     &.none { display: none; }
 
     .mask {
-        position: fixed;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        position: absolute;
+        top: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.5);
+        animation: fadeIn 0.25s linear both;
     }
 
     .panel {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        position: absolute;
+        left: 0; right: 0; bottom: 0;
         background: #fff;
         border-radius: 30rpx 30rpx 0 0;
         max-height: 88vh;
@@ -884,72 +919,29 @@ page {
         flex-direction: column;
     }
 
+    &.show .panel { animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+    &.hide .panel { animation: slideDown 0.25s linear both; }
+
     .panel-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 30rpx 30rpx 24rpx;
         border-bottom: 1rpx solid $light-gray;
-    }
 
-    .panel-room-info {
-        display: flex;
-        align-items: center;
-
-        .panel-thumb {
-            width: 80rpx;
-            height: 80rpx;
-            border-radius: 12rpx;
-            margin-right: 16rpx;
-        }
-
+        .panel-room-info { display: flex; align-items: center; }
+        .panel-thumb { width: 80rpx; height: 80rpx; border-radius: 12rpx; margin-right: 16rpx; }
         .panel-meta {
-            .panel-name {
-                font-size: 30rpx;
-                font-weight: bold;
-                color: $dark;
-                display: block;
-                margin-bottom: 4rpx;
-            }
-
-            .panel-price {
-                font-size: 26rpx;
-                color: $primary;
-                font-weight: bold;
-            }
+            .panel-name { font-size: 30rpx; font-weight: bold; color: $dark; display: block; margin-bottom: 4rpx; }
+            .panel-price { font-size: 26rpx; color: $primary; font-weight: bold; }
         }
+        .panel-close { font-size: 44rpx; color: $gray; padding: 10rpx; }
     }
 
-    .panel-close {
-        font-size: 44rpx;
-        color: $gray;
-        padding: 10rpx;
-    }
-
-    .panel-times {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20rpx 0 40rpx;
-    }
+    .panel-times { flex: 1; overflow-y: auto; padding: 20rpx 0 40rpx; }
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-@keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-}
-
-@keyframes slideUp {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
-}
-
-@keyframes slideDown {
-    from { transform: translateY(0); }
-    to { transform: translateY(100%); }
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes slideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
 </style>
