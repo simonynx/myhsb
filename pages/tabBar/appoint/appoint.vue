@@ -250,17 +250,21 @@ export default {
             this.loading = true;
             AUTH.getRoomDataList(this.token, this.formatDate(day)).then(res => {
                 this.loading = false;
+                console.log('[fetchRoomList] 原始API返回:', JSON.stringify(res.data, null, 2));
                 if (!res || !res.data) return;
                 const data = res.data;
                 if (!data.rooms) {
                     this.roomList = [];
                     return;
                 }
+                console.log('[fetchRoomList] rooms数量:', data.rooms.length);
+                console.log('[fetchRoomList] appointments:', JSON.stringify(data.appointments, null, 2));
                 const today = new Date();
                 const isToday = this.selectedDayInfo.isToday;
                 const currentHour = isToday ? today.getHours() : -1;
 
                 res.data.rooms.forEach(item => {
+                    console.log('[fetchRoomList] room原始:', item.object_id, item.name, '| start:', item.opening_hours_start, 'end:', item.opening_hours_end, '| tags:', item.tags, '| appoints存在:', !!item.appoints);
                     item.appoints = [];
                     if (item.tags) {
                         item.tagsArr = item.tags.split('$').filter(t => t.trim());
@@ -272,6 +276,7 @@ export default {
                         const statusClass = status === 1 ? 'available' : status === 2 ? 'past' : 'booked';
                         item.appoints.push({ start: i, end: i + 1, status, statusClass });
                     }
+                    console.log('[fetchRoomList] room处理后 appoints:', JSON.stringify(item.appoints));
 
                     // Room-level status properties
                     const hasAppointments = item.appoints.some(s => s.status === 3);
@@ -288,8 +293,9 @@ export default {
                     }
                     item.isFullyBooked = allBooked;
                 });
+                console.log('[fetchRoomList] 最终roomList:', this.roomList.map(r => ({name: r.name, appoints: r.appoints ? r.appoints.length : 'undefined'})));
                 this.roomList = data.rooms || [];
-            }).catch(() => { this.loading = false; });
+            }).catch((err) => { console.log('[fetchRoomList] catch:', err); this.loading = false; });
         },
 
         findAppoint(appointments, roomId, hour) {
@@ -316,6 +322,15 @@ export default {
         },
 
         handleAppointButtonClick(item) {
+            console.log('[handleAppoint] 点击的room:', JSON.stringify({
+                object_id: item.object_id,
+                name: item.name,
+                appoints: item.appoints,
+                appoints类型: typeof item.appoints,
+                appoints存在: !!item.appoints,
+                opening_hours_start: item.opening_hours_start,
+                opening_hours_end: item.opening_hours_end,
+            }, null, 2));
             if (!item.appoints || !item.appoints.length) {
                 // appointments not loaded yet, initialize empty
                 item.appoints = [];
