@@ -293,8 +293,8 @@ export default {
                     }
                     item.isFullyBooked = allBooked;
                 });
-                console.log('[fetchRoomList] 最终roomList:', this.roomList.map(r => ({name: r.name, appoints: r.appoints ? r.appoints.length : 'undefined'})));
                 this.roomList = data.rooms || [];
+                console.log('[fetchRoomList] 最终roomList赋值后:', this.roomList.map(r => ({name: r.name, appoints: r.appoints ? r.appoints.length : 'undefined', appoints_data: r.appoints})));
             }).catch((err) => { console.log('[fetchRoomList] catch:', err); this.loading = false; });
         },
 
