@@ -276,11 +276,17 @@ page, .page {
 
 /* ===== 顶部栏 ===== */
 .top-bar {
-	background: linear-gradient(135deg, $accent 0%, #FF6B9D 100%);
-	padding: 60rpx 0 24rpx;
+	background: #FFFAFB;
+	padding: 16rpx 0 0;
 	text-align: center;
 	flex-shrink: 0;
-	.top-title { font-size: 36rpx; font-weight: bold; color: #FFF; letter-spacing: 2rpx; }
+	border-bottom: 1rpx solid rgba(255, 107, 157, 0.12);
+	.top-title {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: $dark;
+		letter-spacing: 1rpx;
+	}
 }
 
 /* ===== 主 Tab ===== */
@@ -296,34 +302,34 @@ page, .page {
 	align-items: center;
 	justify-content: center;
 	flex-direction: column;
-	gap: 6rpx;
-	padding: 24rpx 0;
+	gap: 4rpx;
+	padding: 20rpx 0;
 	position: relative;
-	text { font-size: 30rpx; color: $gray; transition: color 0.2s; }
+	text { font-size: 28rpx; color: $gray; transition: color 0.2s; }
 	&.active text { color: #FF6B9D; font-weight: bold; }
 	.tab-line {
 		position: absolute;
 		bottom: 0;
 		left: 50%;
 		transform: translateX(-50%);
-		width: 48rpx;
-		height: 5rpx;
+		width: 40rpx;
+		height: 4rpx;
 		background: #FF6B9D;
 		border-radius: 4rpx;
 	}
 	.tab-dot {
 		position: absolute;
-		top: 12rpx;
-		right: calc(50% - 44rpx);
+		top: 10rpx;
+		right: calc(50% - 40rpx);
 		background: #FF4757;
 		border-radius: 20rpx;
-		min-width: 32rpx;
-		height: 32rpx;
+		min-width: 28rpx;
+		height: 28rpx;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		padding: 0 6rpx;
-		text { font-size: 18rpx; color: #FFF; font-weight: bold; }
+		padding: 0 5rpx;
+		text { font-size: 16rpx; color: #FFF; font-weight: bold; }
 	}
 }
 

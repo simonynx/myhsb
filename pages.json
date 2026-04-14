@@ -59,7 +59,9 @@
 		{
 			"path": "pages/voucher/voucher",
 			"style": {
-				"navigationBarTitleText": ""
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FFFAFB",
+				"navigationBarTextStyle": "black"
 			}
 		},
 		{
