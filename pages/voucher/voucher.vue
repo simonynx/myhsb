@@ -60,10 +60,10 @@
 				</scroll-view>
 			</swiper-item>
 		</swiper>
-	</view>
 
-	<!-- 自定义底部导航 -->
-	<custom-tab-bar></custom-tab-bar>
+		<!-- 自定义底部导航 -->
+		<custom-tab-bar></custom-tab-bar>
+	</view>
 </template>
 
 <script>
