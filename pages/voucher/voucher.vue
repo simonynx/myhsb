@@ -192,9 +192,6 @@ page, .content {
 	background-color: #F5F5F5;
 }
 
-
-}
-
 /* ===== 优惠券 Banner ===== */
 .coupon-banner {
 	display: flex;
