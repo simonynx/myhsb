@@ -17,7 +17,8 @@
 			"style": {
 				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#FF9ECD",
-				"navigationBarTextStyle": "white"
+				"navigationBarTextStyle": "white",
+				"navigationStyle": "custom"
 			}
 		},
 		{
