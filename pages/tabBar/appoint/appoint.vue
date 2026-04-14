@@ -56,7 +56,7 @@
                 class="room-card"
                 v-for="(room, idx) in (roomList || [])"
                 :key="room.object_id"
-                @click="goDetail(room)"
+                @click="goDetail(idx)"
             >
                 <!-- 左侧图片 -->
                 <view class="card-img-wrap">
@@ -314,10 +314,12 @@ export default {
             return room.appoints.every(s => s.status !== 1);
         },
 
-        goDetail(room) {
+        goDetail(idx) {
+            const room = this.roomList[idx];
+            if (!room) return;
             this.$store.commit('setCurrentRoom', room);
             uni.navigateTo({
-                url: `/pages/product/product?date=${this.currentSelectDate}`
+                url: `/pages/product/product?date=${this.currentSelectDate}&roomId=${room.object_id}`
             });
         },
 

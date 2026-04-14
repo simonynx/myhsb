@@ -149,6 +149,9 @@
 				return dateStr === this.nowDate;
 			},
 			initOnload() {
+				// 保存当前日期的已选时段（initOnload 可能被 watcher 多次触发，不能丢失用户选择）
+				const prevSelected = this.orderTimeArr[this.selectDate] || [];
+
 				this.dateArr = initData();
 				this.timeArr = initTime(this.beginTime, this.endTime, this.timeInterval, this.isQuantum);
 				this.timeQuanBegin = this.timeQuanEnd = "";
@@ -172,7 +175,9 @@
 							item.disable = true;
 						}
 						if (!item.disable) isFullTime = false;
-						item.isActive = false;
+						// 恢复之前已选的时段：比对 begin~end 是否在 prevSelected 中
+						const slotKey = this.selectDate + ' ' + item.begin + ':00';
+						item.isActive = prevSelected.some(s => s[0] === slotKey);
 					} else {
 						if (this.selectDate == nowDate && nowTime >= item.time) {
 							item.disable = true;
@@ -241,13 +246,17 @@
 				if (item.disable) return;
 				if (this.isMultiple) {
 					item.isActive = !item.isActive;
-					this.timeArr = this.timeArr.slice();
-					this.orderTimeArr[this.selectDate] = this.timeArr.reduce((prev, cur) => {
-						const cur_be_time = this.selectDate + ' ' + cur.begin + ':00';
-						const cur_end_time = this.selectDate + ' ' + cur.end + ':00';
-						cur.isActive && prev.push([cur_be_time, cur_end_time]);
-						return prev;
-					}, []);
+					this.$set(this.timeArr[index], 'isActive', item.isActive);
+					this.timeArr = [...this.timeArr];
+					const selected = this.timeArr.filter(cur => cur.isActive).map(cur => {
+						return [this.selectDate + ' ' + cur.begin + ':00', this.selectDate + ' ' + cur.end + ':00'];
+					});
+					this.$set(this.orderTimeArr, this.selectDate, selected);
+					console.log('[handleSelect] isActive:', item.isActive, 'selectedCount:', this.selectedCount, 'orderTimeArr:', JSON.stringify(this.orderTimeArr));
+					this.$nextTick(() => {
+						this.$forceUpdate();
+						console.log('[handleSelect] nextTick canSubmit:', this.canSubmit);
+					});
 				} else {
 					this.timeActive = index;
 					this.orderDateTime = { begin: this.selectDate + ' ' + item.begin + ':00', end: this.selectDate + ' ' + item.end + ':00' };
@@ -439,8 +448,13 @@ page { height: 100%; }
 
 	// 已约满
 	&.disable {
-		background: #F5F5F5;
-		.cell-time, .cell-status { color: #CCC; }
+		background: #F2F2F2;
+		border-color: #E0E0E0;
+		opacity: 0.65;
+		.cell-time {
+			color: #AAA;
+		}
+		.cell-status { color: #BBB; }
 	}
 
 	// 选中态（多选/量子）

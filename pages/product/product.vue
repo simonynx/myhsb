@@ -296,14 +296,20 @@ export default {
     onLoad(option) {
         this.roomDate = option.date || '';
         this.currentSelectDate = option.date || '';
+        // 直接从 Vuex 取 room 数据（appoint.vue 已经存了整个 room 对象）
         const roomData = this.$store.state.currentRoom;
         if (roomData && roomData.object_id) {
-            this.room = roomData;
-            this.buildImages();
-            this.buildDesc();
-            this.buildFacilities();
-            this.buildStoreInfo();
-            this.initTimeConfig();
+            console.log('[product onLoad] Vuex roomData:', {
+                objectId: roomData.object_id,
+                hasAppoints: !!roomData.appoints,
+                appointsLen: roomData.appoints ? roomData.appoints.length : 0,
+                appointsSample: roomData.appoints ? roomData.appoints.slice(0, 2) : null,
+                hasTagsArr: !!roomData.tagsArr,
+                tagsArr: roomData.tagsArr,
+            });
+            this.rebuildRoom(roomData);
+        } else {
+            console.warn('[product onLoad] Vuex currentRoom 为空或无 object_id');
         }
     },
 
@@ -312,6 +318,28 @@ export default {
     },
 
     methods: {
+        _findAppoint(appointments, roomId, hour) {
+            for (const appt of appointments) {
+                if (appt.room == roomId) {
+                    for (const interval of appt.time_list) {
+                        if (interval[0] == hour) return true;
+                    }
+                }
+            }
+            return false;
+        },
+        rebuildRoom(roomData) {
+            // 用响应式方式赋值，确保 Vue 能追踪动态属性
+            const r = {};
+            for (const key in roomData) { r[key] = roomData[key]; }
+            this.room = r;
+            this.buildImages();
+            this.buildDesc();
+            this.buildFacilities();
+            this.buildStoreInfo();
+            this.initTimeConfig();
+        },
+
         buildImages() {
             const r = this.room;
             if (r.image1) this.imgList.push({ src: r.image1 });
