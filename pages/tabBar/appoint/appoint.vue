@@ -322,32 +322,26 @@ export default {
         },
 
         handleAppointButtonClick(item) {
-            console.log('[handleAppoint] 点击的room:', JSON.stringify({
-                object_id: item.object_id,
-                name: item.name,
-                appoints: item.appoints,
-                appoints类型: typeof item.appoints,
-                appoints存在: !!item.appoints,
-                opening_hours_start: item.opening_hours_start,
-                opening_hours_end: item.opening_hours_end,
-            }, null, 2));
-            if (!item.appoints || !item.appoints.length) {
-                // appointments not loaded yet, initialize empty
-                item.appoints = [];
+            // UniApp v-for 传给 click handler 会丢失运行时添加的属性（appoints）
+            // 从 this.roomList 中重新查找，获取完整的 room 数据
+            const room = this.roomList.find(r => r.object_id === item.object_id) || item;
+            console.log('[handleAppoint] 查找到的room:', room.name, 'appoints:', room.appoints ? room.appoints.length : 'undefined');
+            if (!room.appoints || !room.appoints.length) {
+                room.appoints = [];
             }
-            if (this.isRoomFullyBooked(item)) return;
-            this.currentSelectItem = item;
-            this.$store.commit('setCurrentRoom', item);
-            this.currentBeginTime = item.opening_hours_start + ':00:00';
-            this.currentEndTime = item.opening_hours_end + ':00:00';
+            if (this.isRoomFullyBooked(room)) return;
+            this.currentSelectItem = room;
+            this.$store.commit('setCurrentRoom', room);
+            this.currentBeginTime = room.opening_hours_start + ':00:00';
+            this.currentEndTime = room.opening_hours_end + ':00:00';
             this.disableTimeSlot = [];
 
             // Disable already booked slots
-            for (let i = 0; i < item.appoints.length; i++) {
-                if (item.appoints[i].status === 3) {
+            for (let i = 0; i < room.appoints.length; i++) {
+                if (room.appoints[i].status === 3) {
                     this.disableTimeSlot.push([
-                        this.currentSelectDate + ' ' + item.appoints[i].start + ':00:00',
-                        this.currentSelectDate + ' ' + item.appoints[i].end + ':00:00'
+                        this.currentSelectDate + ' ' + room.appoints[i].start + ':00:00',
+                        this.currentSelectDate + ' ' + room.appoints[i].end + ':00:00'
                     ]);
                 }
             }
