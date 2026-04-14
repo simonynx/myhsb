@@ -54,7 +54,7 @@
             <!-- 房间卡片 -->
             <view
                 class="room-card"
-                v-for="room in (roomList || [])"
+                v-for="(room, idx) in (roomList || [])"
                 :key="room.object_id"
                 @click="goDetail(room)"
             >
@@ -104,7 +104,7 @@
                         <view
                             class="book-btn"
                             :class="room.isFullyBooked ? 'disabled' : ''"
-                            @click.stop="handleAppointButtonClick(room)"
+                            @click.stop="handleAppointButtonClick(idx)"
                         >
                             <text>立即预约</text>
                         </view>
@@ -321,11 +321,13 @@ export default {
             });
         },
 
-        handleAppointButtonClick(item) {
-            // UniApp v-for 传给 click handler 会丢失运行时添加的属性（appoints）
-            // 从 this.roomList 中重新查找，获取完整的 room 数据
-            const room = this.roomList.find(r => r.object_id === item.object_id) || item;
-            console.log('[handleAppoint] 查找到的room:', room.name, 'appoints:', room.appoints ? room.appoints.length : 'undefined');
+        handleAppointButtonClick(idx) {
+            const room = this.roomList[idx];
+            if (!room) {
+                console.log('[handleAppoint] 未找到room, idx:', idx);
+                return;
+            }
+            console.log('[handleAppoint] 找到room:', room.name, 'appoints:', room.appoints ? room.appoints.length : 0);
             if (!room.appoints || !room.appoints.length) {
                 room.appoints = [];
             }
