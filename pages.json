@@ -31,7 +31,7 @@
 		{
 			"path": "pages/product/product",
 			"style": {
-				"navigationBarTitleText": "详情展示",
+				"navigationBarTitleText": "详情",
 				"navigationBarBackgroundColor": "#FF6432",
 				"navigationBarTextStyle": "white"
 			}
@@ -39,7 +39,7 @@
 		{
 			"path": "pages/order/order",
 			"style": {
-				"navigationBarTitleText": "我的订单",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#FF6432",
 				"navigationBarTextStyle": "white"
 			}
@@ -47,13 +47,17 @@
 		{
 			"path": "pages/order/createOrder",
 			"style": {
-				"navigationBarTitleText": "确认预约信息"
+				"navigationBarTitleText": "确认预约",
+				"navigationBarBackgroundColor": "#FF6432",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "pages/order/payment",
 			"style": {
-				"navigationBarTitleText": "支付订单"
+				"navigationBarTitleText": "支付",
+				"navigationBarBackgroundColor": "#FF6432",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
@@ -75,73 +79,95 @@
 		{
 			"path": "pages/user/deposit/deposit",
 			"style": {
-				"navigationBarTitleText": "充值中心"
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "pages/user/setting/setting",
 			"style": {
-				"navigationBarTitleText": "编辑资料"
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "pages/user/set-payment",
 			"style": {
-				"navigationBarTitleText": "设置支付密码"
+				"navigationBarTitleText": "支付密码",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "pages/pay/success/success",
 			"style": {
-				"navigationBarTitleText": "支付成功"
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#52C41A",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "pages/about/about",
 			"style": {
-				"navigationBarTitleText": "关于"
+				"navigationBarTitleText": "关于",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "platforms/app-plus/feedback/feedback",
 			"style": {
-				"navigationBarTitleText": "问题反馈"
+				"navigationBarTitleText": "反馈",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "pages/error/404",
 			"style": {
-				"navigationBarTitleText": "Not Found"
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "pages/voucher/detail",
 			"style": {
-				"navigationBarTitleText": "确认购买"
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FFFAFB",
+				"navigationBarTextStyle": "black"
 			}
 		},
 		{
 			"path": "pages/my/reviews",
 			"style": {
-				"navigationBarTitleText": "我的评价"
+				"navigationBarTitleText": "我的评价",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "pages/my/coupons/coupons",
 			"style": {
-				"navigationBarTitleText": "优惠券"
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{
 			"path": "pages/user/balance/balance",
 			"style": {
-				"navigationBarTitleText": "余额明细"
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		}
 	],
 	"globalStyle": {
 		"pageOrientation": "portrait",
-		"navigationBarTitleText": "Hello uniapp",
+		"navigationBarTitleText": "",
 		"navigationBarTextStyle": "white",
 		"navigationBarBackgroundColor": "#007AFF",
 		"backgroundColor": "#F8F8F8",
