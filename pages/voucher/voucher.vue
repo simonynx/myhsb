@@ -59,8 +59,8 @@
 				<view class="card-right">
 					<view class="card-header-row">
 						<text class="card-title">{{ item.description || item.name }}</text>
-						<view class="card-status" :class="getStatusClass(item)">
-							<text>{{ getStatusText(item) }}</text>
+						<view class="card-status" :class="item.statusClass">
+							<text>{{ item.statusText }}</text>
 						</view>
 					</view>
 					<view class="card-desc" v-if="item.criteria || item.validity_period_start">
@@ -143,11 +143,32 @@ export default {
 			try {
 				const res = await AUTH.getGoodsList(this.token);
 				if (!res) return;
+				const typeNames = { 0: '全部', 1: 'stored', 2: 'beauty', 3: 'other' };
 				this.allGoodsList = (res.data?.goods || []).map(item => {
-					const typeNames = { 0: '全部', 1: 'stored', 2: 'beauty', 3: 'other' };
-					return { ...item, goods_type_name: typeNames[item.goods_type] || 'other' };
+					const statusClass = this._calcStatusClass(item);
+					const statusText = this._calcStatusText(item);
+					return {
+						...item,
+						goods_type_name: typeNames[item.goods_type] || 'other',
+						statusClass,
+						statusText
+					};
 				});
 			} catch (e) {}
+		},
+		_calcStatusClass(item) {
+			if (!item.validity_period_end) return 'status-default';
+			const now = new Date();
+			const end = new Date(item.validity_period_end);
+			if (end < now) return 'status-expired';
+			return 'status-normal';
+		},
+		_calcStatusText(item) {
+			if (!item.validity_period_end) return '长期有效';
+			const now = new Date();
+			const end = new Date(item.validity_period_end);
+			if (end < now) return '已过期';
+			return '未使用';
 		},
 
 		showCouponList() {
@@ -158,22 +179,6 @@ export default {
 			uni.navigateTo({ url: `/pages/voucher/detail?data=${JSON.stringify(item)}` });
 		},
 
-		getStatusClass(item) {
-			// 简单逻辑：有效期判断
-			if (!item.validity_period_end) return 'status-default';
-			const now = new Date();
-			const end = new Date(item.validity_period_end);
-			if (end < now) return 'status-expired';
-			return 'status-normal';
-		},
-
-		getStatusText(item) {
-			if (!item.validity_period_end) return '长期有效';
-			const now = new Date();
-			const end = new Date(item.validity_period_end);
-			if (end < now) return '已过期';
-			return '未使用';
-		}
 	}
 };
 </script>
