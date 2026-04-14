@@ -6,7 +6,7 @@
         <!-- 导航栏 -->
         <view class="nav-bar">
             <text class="nav-back yticon icon-fanhui" @click="goBack"></text>
-            <text class="nav-title">预约房间</text>
+            <text class="nav-title">预约</text>
             <view class="nav-right"></view>
         </view>
 

@@ -1,10 +1,5 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 自定义导航栏 -->
-		<view class="nav-bar">
-			<text class="nav-title">我的</text>
-		</view>
-
 		<!-- 用户信息卡 -->
 		<view class="profile-card">
 			<view class="profile-top">
@@ -241,24 +236,6 @@ page {
 	min-height: 100vh;
 	padding-bottom: 40rpx;
 }
-
-/* ===== 自定义导航栏 ===== */
-.nav-bar {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 88rpx;
-	background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
-	box-shadow: 0 4rpx 16rpx rgba(255, 107, 157, 0.2);
-
-	.nav-title {
-		font-size: 34rpx;
-		font-weight: bold;
-		color: #fff;
-		letter-spacing: 2rpx;
-	}
-}
-
 /* ===== 用户卡片 ===== */
 .profile-card {
 	margin: 20rpx 24rpx;
@@ -450,6 +427,183 @@ page {
 				font-weight: bold;
 			}
 		}
+		.menu-arrow { font-size: 28rpx; color: #CCC; }
+	}
+}
+</style>/* ===== 页面背景 ===== */
+page {
+	background: #FFF5F8;
+}
+.page-wrapper {
+	padding-top: 88rpx;
+	min-height: 100vh;
+	padding-bottom: 140rpx;
+	box-sizing: border-box;
+	background: #FFF5F8;
+}
+
+/* ===== 用户信息卡 ===== */
+.profile-card {
+	margin: 0 24rpx 24rpx;
+	background: #FFF;
+	border-radius: 28rpx;
+	padding: 28rpx;
+	box-shadow: 0 6rpx 24rpx rgba(255, 107, 157, 0.12);
+	border: 1rpx solid rgba(255, 107, 157, 0.08);
+}
+.profile-top {
+	display: flex;
+	align-items: center;
+	margin-bottom: 24rpx;
+}
+.avatar-wrap {
+	position: relative;
+	margin-right: 20rpx;
+}
+.avatar-wrap .avatar {
+	width: 100rpx;
+	height: 100rpx;
+	border-radius: 50%;
+	border: 4rpx solid #FFE0EE;
+}
+.avatar-wrap .avatar-badge {
+	position: absolute;
+	bottom: -4rpx;
+	right: -4rpx;
+	width: 40rpx;
+	height: 40rpx;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 3rpx solid #fff;
+}
+.avatar-wrap .avatar-badge .badge-icon { font-size: 22rpx; }
+.profile-info {
+	flex: 1;
+}
+.profile-info .nickname {
+	display: block;
+	font-size: 36rpx;
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 8rpx;
+}
+.profile-info .member-tag {
+	display: inline-flex;
+	align-items: center;
+	padding: 4rpx 14rpx;
+	border-radius: 20rpx;
+}
+.profile-info .member-tag .tag-icon { font-size: 20rpx; margin-right: 6rpx; }
+.profile-info .member-tag .tag-name { font-size: 20rpx; color: #fff; font-weight: bold; }
+.edit-btn {
+	padding: 10rpx 24rpx;
+	background: #FFF0F5;
+	border-radius: 20rpx;
+}
+.edit-btn text { font-size: 24rpx; color: #FF6B9D; font-weight: bold; }
+.quick-stats {
+	display: flex;
+	align-items: center;
+	justify-content: space-around;
+	padding-top: 20rpx;
+	border-top: 1rpx solid #F0F0F0;
+}
+.qstat-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.qstat-item .qstat-num { font-size: 36rpx; font-weight: bold; color: #333; }
+.qstat-item .qstat-label { font-size: 22rpx; color: #999; margin-top: 4rpx; }
+.qstat-divider { width: 2rpx; height: 50rpx; background: #F0F0F0; }
+
+/* ===== 会员成长 ===== */
+.growth-card {
+	margin: 0 24rpx 24rpx;
+	background: linear-gradient(135deg, #FFF5F8, #FFF);
+	border-radius: 24rpx;
+	padding: 28rpx;
+	border: 1rpx solid #FFE0EE;
+	box-shadow: 0 4rpx 16rpx rgba(255, 107, 157, 0.1);
+}
+.growth-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 20rpx;
+}
+.growth-left { display: flex; align-items: center; gap: 12rpx; }
+.growth-icon { font-size: 40rpx; }
+.growth-info { display: flex; flex-direction: column; gap: 2rpx; }
+.growth-level { font-size: 28rpx; font-weight: bold; color: #333; }
+.growth-tip { font-size: 20rpx; color: #999; }
+.growth-rate { font-size: 28rpx; font-weight: bold; color: #FF6B9D; }
+.growth-card .progress-bar {
+	height: 14rpx;
+	background: #F0F0F0;
+	border-radius: 7rpx;
+	margin-bottom: 20rpx;
+	overflow: hidden;
+}
+.growth-card .progress-bar .progress-fill {
+	height: 100%;
+	border-radius: 7rpx;
+	transition: width 0.5s ease;
+}
+.level-dots { display: flex; justify-content: space-between; }
+.level-dot { display: flex; flex-direction: column; align-items: center; }
+.level-dot .dot-icon { font-size: 32rpx; opacity: 0.25; }
+.level-dot .dot-name { font-size: 20rpx; margin-top: 4rpx; }
+.level-dot.active .dot-icon { opacity: 1; }
+
+/* ===== 通用区块 ===== */
+.section {
+	margin: 0 24rpx 24rpx;
+	background: #FFF;
+	border-radius: 24rpx;
+	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+	overflow: hidden;
+}
+
+/* ===== 订单入口 ===== */
+.order-section {
+	.section-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 24rpx 24rpx 16rpx;
+	}
+	.section-title { font-size: 32rpx; font-weight: bold; color: #333; }
+	.section-more { font-size: 24rpx; color: #FF6B9D; }
+	.order-grid {
+		display: flex;
+		justify-content: space-around;
+		padding: 16rpx 0 24rpx;
+	}
+	.order-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 8rpx;
+		.order-icon { font-size: 48rpx; }
+		.order-name { font-size: 24rpx; color: #666; }
+	}
+}
+
+/* ===== 菜单 ===== */
+.menu-section {
+	.menu-item {
+		display: flex;
+		align-items: center;
+		padding: 32rpx 24rpx;
+		border-bottom: 1rpx solid #F5F5F5;
+		&:last-child { border-bottom: none; }
+		.menu-icon { font-size: 36rpx; margin-right: 16rpx; }
+		.menu-text { flex: 1; font-size: 28rpx; color: #333; }
+		.menu-tip { margin-right: 12rpx; }
+		.tip-text { font-size: 22rpx; color: #FF6B9D; font-weight: bold; }
 		.menu-arrow { font-size: 28rpx; color: #CCC; }
 	}
 }

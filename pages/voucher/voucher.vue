@@ -1,11 +1,5 @@
 <template>
 	<view class="content">
-		<!-- 顶部导航栏 -->
-		<view class="status-bar-placeholder"></view>
-		<view class="nav-bar">
-			<text class="nav-title">卡券中心</text>
-		</view>
-
 		<!-- 可领取优惠券 Banner -->
 		<view class="coupon-banner" v-if="availableCoupons.length > 0" @tap="showCouponList">
 			<view class="banner-left">
@@ -90,6 +84,7 @@ import { mapState, mapActions } from 'vuex';
 import empty from "@/components/empty";
 import AUTH from '../../utils/auth.js';
 import customTabBar from '@/custom-tab-bar/index.vue';
+import eventBus from '@/utils/eventBus.js';
 
 export default {
 	components: { empty, customTabBar },
@@ -192,29 +187,12 @@ $light-gray: #F0F0F0;
 
 page, .content {
 	height: 100%;
+	padding-top: 44px;
+	box-sizing: border-box;
 	background-color: #F5F5F5;
 }
 
-/* ===== 顶部导航 ===== */
-.status-bar-placeholder {
-	height: 88rpx;
-	background: linear-gradient(135deg, #FF6432, #FF8A65);
-}
 
-.nav-bar {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 88rpx;
-	background: linear-gradient(135deg, #FF6432, #FF8A65);
-	box-shadow: 0 4rpx 16rpx rgba(255, 100, 50, 0.25);
-
-	.nav-title {
-		font-size: 34rpx;
-		font-weight: bold;
-		color: #fff;
-		letter-spacing: 2rpx;
-	}
 }
 
 /* ===== 优惠券 Banner ===== */

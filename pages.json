@@ -23,7 +23,7 @@
 		{
 			"path": "pages/tabBar/appoint/appoint",
 			"style": {
-				"navigationBarTitleText": "预约",
+				"navigationBarTitleText": "",
 				"navigationBarBackgroundColor": "#FF6432",
 				"navigationBarTextStyle": "white"
 			}
@@ -59,7 +59,7 @@
 		{
 			"path": "pages/voucher/voucher",
 			"style": {
-				"navigationBarTitleText": "卡券"
+				"navigationBarTitleText": ""
 			}
 		},
 		{
