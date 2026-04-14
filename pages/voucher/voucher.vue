@@ -13,8 +13,8 @@
 			<text class="banner-arrow">→</text>
 		</view>
 		<view class="tabr">
-			<view 
-				v-for="(item, index) in navList" :key="index" 
+			<view
+				v-for="(item, index) in navList" :key="index"
 				class="tab-item" :class="{on: tabCurrentIndex === index}"
 				@click="tabClick(index)"
 			>
@@ -22,11 +22,11 @@
 			</view>
 			<view class="border" :class="{invalid: tabCurrentIndex== index}"></view>
 		</view>
-		
+
 		<swiper :current="tabCurrentIndex" class="swiper-box" duration="300" @change="changeTab">
 			<swiper-item class="tab-content" v-for="(tabItem,tabIndex) in navList" :key="tabIndex">
-				<scroll-view 
-					class="sub-list" 
+				<scroll-view
+					class="sub-list"
 					scroll-y
 					@scrolltolower=""
 				>
@@ -34,33 +34,36 @@
 					<empty v-if="tabItem.loaded === true && tabItem.goodsList.length === 0">
 						<view class="tis">没有数据~</view>
 					</empty>
-					
+
 					<!-- 订单列表 -->
-					<view 
+					<view
 						v-for="(item,index) in tabItem.goodsList" :key="index"
 						class="movie-ticket" @tap.stop="handleTicketClick(item)"
 					>
 							<view class="left">
 								<text class="description">{{item.description}}</text>
-								<text class="criteria">有效范围：预约</text>
+								<text class="criteria">有效范围:预约</text>
 								<text class="other" v-if="item.can_use_balance < 1">(不可使用余额支付)</text>
-								<text class="validity" v-if="item.validity_period_start">有效期：{{item.validity_period_start}}~{{item.validity_period_end}}</text>
-								<text class="validity" v-else>有效期：无</text>
+								<text class="validity" v-if="item.validity_period_start">有效期:{{item.validity_period_start}}~{{item.validity_period_end}}</text>
+								<text class="validity" v-else>有效期:无</text>
 							</view>
 							<view class="seam"></view>
 							<view class="right">
 							  <text class="price">¥{{item.price/100}}</text>
 							  <text class="title">{{item.name}}</text>
 							</view>
-							
-	
+
+
 					</view>
 					<uni-load-more :status="tabItem.loadingType"></uni-load-more>
-						
+					
 				</scroll-view>
 			</swiper-item>
 		</swiper>
 	</view>
+
+	<!-- 自定义底部导航 -->
+	<custom-tab-bar></custom-tab-bar>
 </template>
 
 <script>
@@ -68,12 +71,14 @@
 		mapState,
 		mapActions,
 		mapMutations
-	} from 'vuex'; 
+	} from 'vuex';
 	import empty from "@/components/empty";
 	import AUTH from '../../utils/auth.js'
+	import customTabBar from '@/custom-tab-bar/index.vue';
 	export default {
 		components: {
-			empty
+			empty,
+			customTabBar
 		},
 		computed: {
 			...mapState(['hasLogin','userInfo', 'token', 'openid'])
@@ -112,9 +117,9 @@
 			}
 		},
 		onPageScroll(e){
-			
+
 		},
-		//下拉刷新，需要自己在page.json文件中配置开启页面下拉刷新 "enablePullDownRefresh": true
+		//下拉刷新,需要自己在page.json文件中配置开启页面下拉刷新 "enablePullDownRefresh": true
 		onPullDownRefresh() {
 		},
 		onLoad() {
@@ -125,9 +130,9 @@
 				this.loginAndRegister();
 			}else{
 				for (var i = 0; i < this.navList.length; i++) {
-					//loaded新字段用于表示数据加载完毕，如果为空可以显示空白页
+					//loaded新字段用于表示数据加载完毕,如果为空可以显示空白页
 					this.$set(this.navList[i], 'loaded', false);
-					//判断是否还有数据， 有改为 more， 没有改为noMore 
+					//判断是否还有数据, 有改为 more, 没有改为noMore
 					this.navList[i].loadingType = 'more';
 					this.navList[i].goodsList = [];
 				}
@@ -171,7 +176,7 @@
 				let navItem = this.navList[index];
 				let goodsType = navItem.type;
 				const _this = this;
-				
+
 				if(source === 'tabChange' && navItem.loaded === true){
 					//tab切换只有第一次需要加载数据
 					return;
@@ -180,7 +185,7 @@
 					//防止重复加载
 					return;
 				}
-				
+
 				for (var i = 0; i < this.navList.length; i++) {
 					this.navList[i].loadingType = 'loading';
 				}
@@ -195,15 +200,15 @@
 						specificNavItem.goodsList.push(item);
 						firstNavItem.goodsList.push(item);
 					});
-					
+
 					for (var i = 0; i < _this.navList.length; i++) {
-						//loaded新字段用于表示数据加载完毕，如果为空可以显示空白页
+						//loaded新字段用于表示数据加载完毕,如果为空可以显示空白页
 						_this.$set(_this.navList[i], 'loaded', true);
-						//判断是否还有数据， 有改为 more， 没有改为noMore 
+						//判断是否还有数据, 有改为 more, 没有改为noMore
 						_this.navList[i].loadingType = 'noMore';
 					}
 					// console.log("======================>fucking goods:", _this.navList)
-				
+
 				});
 			},
 			//swiper 切换
@@ -266,7 +271,7 @@
 				transform: translate3d(100%,0,0);
 			}
 		}
-		
+
 	}
 	.swiper-box{
 		height: calc(100% - 40px);
@@ -275,7 +280,7 @@
 		width: 100%;
 		height: 100%;
 		padding: 20upx 0 120upx 0;
-		
+
 		.tis{
 			width: 100%;
 			height: 60upx;
@@ -283,7 +288,7 @@
 			align-items: center;
 			font-size: 32upx;
 		}
-		
+
 		.movie-ticket {
 		  display: flex;
 		  flex-direction: row;
@@ -310,28 +315,28 @@
 		    height: 150px;
 		    background-color: #f2f2f2;
 			padding: 10px;
-			
+
 			.description {
 			  font-family: "Helvetica Neue", Arial, sans-serif;
 			  font-size: 18px;
 			  font-weight: normal;
 			  color: #555555;
 			}
-			
+
 			.validity {
 			  font-family: "Arial", sans-serif;
 			  font-size: 16px;
 			  font-weight: normal;
 			  color: #555555;
 			}
-			
+
 			.criteria {
 			  font-family: Arial, sans-serif;
 			  font-size: 16px;
 			  font-weight: normal;
 			  color: #2d4c6d;
 			}
-			
+
 			.other {
 			  font-family: Arial, sans-serif;
 			  font-size: 16px;
@@ -339,7 +344,7 @@
 			  color: #333;
 			}
 		  }
-		  
+
 		  .right {
 			display: flex;
 			flex-direction: column;
@@ -349,7 +354,7 @@
 		    height: 150px;
 		    background-color: #4caf50;
 			padding: 10px;
-			
+
 			.title {
 			  font-family: "Arial", sans-serif;
 			  font-size: 20px;
@@ -366,7 +371,7 @@
 			  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1);
 			}
 		  }
-		  
+
 		  .seam {
 		    top: 0;
 		    left: 0;
@@ -376,8 +381,8 @@
 		    border-right: 1px dashed #000;
 		  }
 		}
-	}	
-	
+	}
+
 
 /* ===== 优惠券领取区 ===== */
 .coupon-banner {

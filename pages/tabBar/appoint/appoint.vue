@@ -65,11 +65,18 @@
                         :src="room.image1"
                         mode="aspectFill"
                     />
+                    <!-- 渐变遮罩 -->
+                    <view class="card-img-overlay"></view>
                     <!-- 状态标签 -->
                     <view class="status-badge" :class="room.statusClass">
-                        <text>{{ room.statusText }}</text>
+                        <text v-if="room.statusClass === 'full'">已约满</text>
+                        <text v-else-if="room.statusClass === 'partial'">部分可约</text>
+                        <text v-else>可预约</text>
                     </view>
-                    <!-- 人数标签 -->
+                    <!-- 人均价格标签 -->
+                    <view class="price-tag">
+                        <text class="price-tag-text">¥{{ room.price_per_hour / 100 }}/h</text>
+                    </view>
                 </view>
 
                 <!-- 右侧信息 -->
@@ -78,15 +85,17 @@
                         <text class="card-name">{{ room.name }}</text>
                     </view>
 
-                    <!-- 时段可用情况 -->
+                    <!-- 时段可用情况 - 升级版色块 -->
                     <view class="time-slots" v-if="room.appoints && room.appoints.length">
                         <view
-                            v-for="(slot, si) in room.appoints.slice(0, 8)"
+                            v-for="(slot, si) in room.appoints.slice(0, 10)"
                             :key="si"
-                            class="slot-dot"
+                            class="slot-block"
                             :class="slot.statusClass"
-                        ></view>
-                        <text class="slot-more" v-if="room.appoints.length > 8">+{{ room.appoints.length - 8 }}</text>
+                        >
+                            <text class="slot-hour">{{ String(slot.start).padStart(2, '0') }}</text>
+                        </view>
+                        <text class="slot-more" v-if="room.appoints.length > 10">+{{ room.appoints.length - 10 }}</text>
                     </view>
 
                     <!-- 标签 -->
@@ -103,10 +112,10 @@
                         </view>
                         <view
                             class="book-btn"
-                            :class="room.isFullyBooked ? 'disabled' : ''"
+                            :class="room.isFullyBooked ? 'disabled' : 'ready'"
                             @click.stop="handleAppointButtonClick(idx)"
                         >
-                            <text>立即预约</text>
+                            <text>{{ room.isFullyBooked ? '已满' : '立即预约' }}</text>
                         </view>
                     </view>
                 </view>
@@ -159,6 +168,9 @@
                 </view>
             </view>
         </view>
+
+		<!-- 自定义底部导航 -->
+		<custom-tab-bar></custom-tab-bar>
     </view>
 </template>
 
@@ -167,8 +179,10 @@ import { mapState, mapActions } from 'vuex';
 import AUTH from '../../../utils/auth.js';
 import times from '@/components/pretty-times/pretty-times.vue';
 
+import customTabBar from '@/custom-tab-bar/index.vue';
+
 export default {
-    components: { times },
+    components: { times, customTabBar },
 
     data() {
         return {
@@ -216,6 +230,12 @@ export default {
 
     methods: {
         ...mapActions(['loginAndRegister', 'getUserInfo']),
+
+        // 时间补零辅助：确保小时是两位数
+        _padHour(h) {
+            const hour = parseInt(h, 10);
+            return hour < 10 ? '0' + hour : String(hour);
+        },
 
         buildWeekDays() {
             const days = [];
@@ -335,8 +355,8 @@ export default {
             for (let i = 0; i < room.appoints.length; i++) {
                 if (room.appoints[i].status === 3) {
                     this.disableTimeSlot.push([
-                        this.currentSelectDate + ' ' + room.appoints[i].start + ':00:00',
-                        this.currentSelectDate + ' ' + room.appoints[i].end + ':00:00'
+                        this.currentSelectDate + ' ' + this._padHour(room.appoints[i].start) + ':00:00',
+                        this.currentSelectDate + ' ' + this._padHour(room.appoints[i].end) + ':00:00'
                     ]);
                 }
             }
@@ -351,8 +371,8 @@ export default {
                     if (!res.data.time_list[propStr]) {
                         const prop = JSON.parse(propStr);
                         this.disableTimeSlot.push([
-                            date + ' ' + prop[0] + ':00:00',
-                            date + ' ' + prop[1] + ':00:00'
+                            date + ' ' + this._padHour(prop[0]) + ':00:00',
+                            date + ' ' + this._padHour(prop[1]) + ':00:00'
                         ]);
                     }
                 }
@@ -427,7 +447,7 @@ page {
 
 .status-bar-placeholder {
     height: 88rpx;
-    background: #fff;
+    background: linear-gradient(135deg, #FF6432, #FF8A65);
 }
 
 .nav-bar {
@@ -436,24 +456,34 @@ page {
     justify-content: center;
     position: relative;
     height: 88rpx;
-    background: #fff;
+    background: linear-gradient(135deg, #FF6432, #FF8A65);
+    box-shadow: 0 4rpx 16rpx rgba(255, 100, 50, 0.25);
 
     .nav-back {
         position: absolute;
-        left: 30rpx;
-        font-size: 36rpx;
-        color: $dark;
+        left: 20rpx;
+        width: 64rpx;
+        height: 64rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 34rpx;
+        color: #fff;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.25);
+        backdrop-filter: blur(4rpx);
     }
 
     .nav-title {
-        font-size: 32rpx;
+        font-size: 34rpx;
         font-weight: bold;
-        color: $dark;
+        color: #fff;
+        letter-spacing: 2rpx;
     }
 
     .nav-right {
         position: absolute;
-        right: 30rpx;
+        right: 20rpx;
     }
 }
 
@@ -607,19 +637,20 @@ page {
     background: $card-bg;
     border-radius: 24rpx;
     overflow: hidden;
-    margin-bottom: 20rpx;
+    margin-bottom: 24rpx;
     display: flex;
-    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+    box-shadow: 0 6rpx 24rpx rgba(0, 0, 0, 0.1);
     transition: transform 0.2s, box-shadow 0.2s;
+    border: 1rpx solid rgba(0, 0, 0, 0.05);
 
     &:active {
         transform: scale(0.98);
-        box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+        box-shadow: 0 3rpx 12rpx rgba(0, 0, 0, 0.12);
     }
 
     .card-img-wrap {
-        width: 240rpx;
-        height: 200rpx;
+        width: 280rpx;
+        height: 220rpx;
         position: relative;
         flex-shrink: 0;
     }
@@ -629,70 +660,111 @@ page {
         height: 100%;
     }
 
+    // 图片底部渐变遮罩
+    .card-img-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 60rpx;
+        background: linear-gradient(to top, rgba(0,0,0,0.3), transparent);
+        pointer-events: none;
+    }
+
+    // 人均价格标签
+    .price-tag {
+        position: absolute;
+        bottom: 12rpx;
+        right: 12rpx;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 4rpx 12rpx;
+        border-radius: 16rpx;
+
+        .price-tag-text {
+            font-size: 22rpx;
+            color: #fff;
+            font-weight: bold;
+        }
+    }
+
     .status-badge {
         position: absolute;
-        top: 12rpx;
-        left: 12rpx;
-        padding: 4rpx 12rpx;
+        top: 14rpx;
+        left: 14rpx;
+        padding: 6rpx 16rpx;
         border-radius: 20rpx;
-        font-size: 20rpx;
+        font-size: 22rpx;
         font-weight: bold;
+        color: #fff;
 
         &.available {
-            background: rgba($green, 0.9);
-            color: #fff;
+            background: rgba($green, 0.92);
         }
 
         &.partial {
-            background: rgba($gold, 0.9);
-            color: #fff;
+            background: rgba($gold, 0.92);
         }
 
         &.full {
-            background: rgba($red, 0.9);
-            color: #fff;
+            background: rgba($red, 0.92);
         }
     }
 
     .card-info {
         flex: 1;
-        padding: 16rpx 20rpx;
+        padding: 18rpx 22rpx;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        min-height: 200rpx;
+        min-height: 220rpx;
     }
 
     .card-header {
         .card-name {
-            font-size: 30rpx;
+            font-size: 32rpx;
             font-weight: bold;
             color: $dark;
             line-height: 1.3;
         }
     }
 
-    // 时段小圆点
+    // 时段色块 - 升级版
     .time-slots {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
-        gap: 6rpx;
-        margin: 8rpx 0;
+        gap: 8rpx;
+        margin: 10rpx 0;
 
-        .slot-dot {
-            width: 16rpx;
-            height: 16rpx;
-            border-radius: 50%;
-            &.available { background: $green; }
-            &.past { background: #DDD; }
-            &.booked { background: $red; }
+        .slot-block {
+            width: 44rpx;
+            height: 44rpx;
+            border-radius: 10rpx;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20rpx;
+            font-weight: bold;
+
+            &.available {
+                background: #E8F5E9;
+                color: $green;
+            }
+            &.past {
+                background: #F5F5F5;
+                color: #BBB;
+            }
+            &.booked {
+                background: #FFEBEE;
+                color: $red;
+            }
         }
 
         .slot-more {
             font-size: 20rpx;
             color: $gray;
             margin-left: 4rpx;
+            line-height: 44rpx;
         }
     }
 
@@ -705,8 +777,8 @@ page {
             font-size: 20rpx;
             color: $primary;
             background: #FFF0EB;
-            padding: 3rpx 10rpx;
-            border-radius: 8rpx;
+            padding: 4rpx 12rpx;
+            border-radius: 10rpx;
         }
     }
 
@@ -714,7 +786,7 @@ page {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-top: 8rpx;
+        margin-top: 10rpx;
     }
 
     .card-price {
@@ -722,13 +794,13 @@ page {
         align-items: baseline;
 
         .price-yuan {
-            font-size: 22rpx;
+            font-size: 24rpx;
             color: $primary;
             font-weight: bold;
         }
 
         .price-num {
-            font-size: 36rpx;
+            font-size: 40rpx;
             font-weight: bold;
             color: $primary;
             line-height: 1;
@@ -742,21 +814,26 @@ page {
     }
 
     .book-btn {
-        background: $primary;
-        color: #fff;
-        font-size: 24rpx;
+        font-size: 26rpx;
         font-weight: bold;
-        padding: 10rpx 28rpx;
+        padding: 12rpx 32rpx;
         border-radius: 30rpx;
-        transition: background 0.2s;
+        transition: all 0.2s;
+
+        &.ready {
+            background: linear-gradient(135deg, $primary, #FF8A65);
+            color: #fff;
+            box-shadow: 0 4rpx 16rpx rgba($primary, 0.35);
+        }
 
         &.disabled {
-            background: #CCC;
-            color: #999;
+            background: #F0F0F0;
+            color: #AAA;
         }
 
         &:active:not(.disabled) {
-            background: darken($primary, 10%);
+            transform: scale(0.95);
+            box-shadow: 0 2rpx 8rpx rgba($primary, 0.3);
         }
     }
 }

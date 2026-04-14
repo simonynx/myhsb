@@ -120,11 +120,15 @@
 
 		<!-- 底部占位 -->
 		<view style="height: 40rpx;"></view>
+
+		<!-- 自定义底部导航 -->
+		<custom-tab-bar></custom-tab-bar>
 	</view>
 </template>
 
 <script>
 	import AUTH from '../../utils/auth.js'
+	import customTabBar from '@/custom-tab-bar/index.vue';
 	import {
 		mapState,
 		mapActions,
@@ -146,6 +150,7 @@
 	];
 
 	export default {
+		components: { customTabBar },
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token']),
 			memberLevelName() {

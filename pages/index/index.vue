@@ -315,17 +315,16 @@
 			</view>
 		</view>
 
-		<!-- 底部悬浮预约按钮 -->
-		<view class="float-booking" @tap="goToReserve">
-			<text class="float-icon">📅</text>
-			<text class="float-text">立即预约</text>
-		</view>
+		<!-- 自定义底部导航 -->
+		<custom-tab-bar></custom-tab-bar>
 	</view>
 </template>
 
 <script>
 	import { mapState, mapActions } from 'vuex';
+	import customTabBar from '@/custom-tab-bar/index.vue';
 	export default {
+		components: { customTabBar },
 		computed: {
 			...mapState(['hasLogin', 'constance'])
 		},
@@ -951,27 +950,5 @@ page {
 }
 
 /* ===== 悬浮预约 ===== */
-.float-booking {
-	position: fixed;
-	bottom: 40rpx;
-	left: 50%;
-	transform: translateX(-50%);
-	display: flex;
-	align-items: center;
-	gap: 12rpx;
-	padding: 24rpx 60rpx;
-	background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
-	color: #FFF;
-	border-radius: 50rpx;
-	box-shadow: 0 8rpx 32rpx rgba(255,107,157,0.5);
-	font-size: 30rpx;
-	font-weight: bold;
-	z-index: 999;
-	animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse {
-	0%, 100% { box-shadow: 0 8rpx 32rpx rgba(255,107,157,0.5); }
-	50% { box-shadow: 0 8rpx 48rpx rgba(255,107,157,0.8); }
-}
-.float-icon { font-size: 32rpx; }
+
 </style>

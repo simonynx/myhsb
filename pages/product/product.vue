@@ -329,6 +329,19 @@ export default {
             this.buildFacilities();
             this.buildStoreInfo();
             this.initTimeConfig();
+            
+            // 从 room.appoints 重建 disableTimeSlot（status 3 = 已预约）
+            if (this.room.appoints && this.room.appoints.length) {
+                this.disableTimeSlot = [];
+                for (let i = 0; i < this.room.appoints.length; i++) {
+                    if (this.room.appoints[i].status === 3) {
+                        this.disableTimeSlot.push([
+                            this.currentSelectDate + ' ' + this._padHour(this.room.appoints[i].start) + ':00:00',
+                            this.currentSelectDate + ' ' + this._padHour(this.room.appoints[i].end) + ':00:00'
+                        ]);
+                    }
+                }
+            }
         },
 
         buildImages() {
@@ -394,8 +407,8 @@ export default {
                     slot.statusClass = this._getSlotClass(slot.status);
                     if (slot.status === 3) {
                         this.disableTimeSlot.push([
-                            this.currentSelectDate + ' ' + slot.start + ':00:00',
-                            this.currentSelectDate + ' ' + slot.end + ':00:00',
+                            this.currentSelectDate + ' ' + this._padHour(slot.start) + ':00:00',
+                            this.currentSelectDate + ' ' + this._padHour(slot.end) + ':00:00',
                         ]);
                     }
                 }
@@ -416,12 +429,37 @@ export default {
             });
         },
 
+        // 时间补零辅助：确保小时是两位数，如 9 -> "09"
+        _padHour(h) {
+            const hour = parseInt(h, 10);
+            return hour < 10 ? '0' + hour : String(hour);
+        },
+
+        // 获取指定日期的 appointments 并更新 disableTimeSlot
+        _fetchDisableTimeSlot(date) {
+            AUTH.getRoomAppointments(this.token, this.room.object_id, date).then(res => {
+                if (!res) return;
+                for (const propStr in res.data.time_list) {
+                    if (!res.data.time_list[propStr]) {
+                        const prop = JSON.parse(propStr);
+                        this.disableTimeSlot.push([
+                            date + ' ' + this._padHour(prop[0]) + ':00:00',
+                            date + ' ' + this._padHour(prop[1]) + ':00:00',
+                        ]);
+                    }
+                }
+            });
+        },
+
         goToAppoint() {
             if (this.isFullyBooked) return;
             if (this.specClass === 'show') {
                 this.specClass = 'hide';
                 setTimeout(() => { this.specClass = 'none'; }, 250);
             } else {
+                // 打开弹窗时，先清空 disableTimeSlot，再拉取当天的 appointments
+                this.disableTimeSlot = [];
+                this._fetchDisableTimeSlot(this.currentSelectDate);
                 this.specClass = 'show';
             }
         },
@@ -444,18 +482,9 @@ export default {
         },
 
         handleTimesSelectDateChange(date) {
-            AUTH.getRoomAppointments(this.token, this.room.object_id, date).then(res => {
-                if (!res) return;
-                for (const propStr in res.data.time_list) {
-                    if (!res.data.time_list[propStr]) {
-                        const prop = JSON.parse(propStr);
-                        this.disableTimeSlot.push([
-                            date + ' ' + prop[0] + ':00:00',
-                            date + ' ' + prop[1] + ':00:00',
-                        ]);
-                    }
-                }
-            });
+            // 切换日期时，先清空旧数据，再拉取新日期的 appointments
+            this.disableTimeSlot = [];
+            this._fetchDisableTimeSlot(date);
         },
 
         share() { this.$refs.share.toggleMask(); },
