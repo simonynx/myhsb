@@ -236,7 +236,7 @@ import AUTH from '../../utils/auth.js';
 import share from '@/components/share';
 import times from '@/components/pretty-times/pretty-times.vue';
 
-const STORE_PHONE = '13712345678';
+const DEFAULT_STORE_PHONE = '13712345678';
 const STORE_LAT = 22.5431;
 const STORE_LNG = 114.0579;
 
@@ -263,6 +263,7 @@ export default {
             ],
             storeAddress: '',
             wifiInfo: '',
+            storePhone: DEFAULT_STORE_PHONE,
             facilities: [],
         };
     },
@@ -299,17 +300,7 @@ export default {
         // 直接从 Vuex 取 room 数据（appoint.vue 已经存了整个 room 对象）
         const roomData = this.$store.state.currentRoom;
         if (roomData && roomData.object_id) {
-            console.log('[product onLoad] Vuex roomData:', {
-                objectId: roomData.object_id,
-                hasAppoints: !!roomData.appoints,
-                appointsLen: roomData.appoints ? roomData.appoints.length : 0,
-                appointsSample: roomData.appoints ? roomData.appoints.slice(0, 2) : null,
-                hasTagsArr: !!roomData.tagsArr,
-                tagsArr: roomData.tagsArr,
-            });
             this.rebuildRoom(roomData);
-        } else {
-            console.warn('[product onLoad] Vuex currentRoom 为空或无 object_id');
         }
     },
 
@@ -390,7 +381,7 @@ export default {
                 if (!res) return;
                 const cfg = res.data;
                 if (cfg.wifi_name) this.wifiInfo = cfg.wifi_name + (cfg.wifi_password ? ' / ' + cfg.wifi_password : '');
-                if (cfg.phone_number) STORE_PHONE = cfg.phone_number;
+                if (cfg.phone_number) this.storePhone = cfg.phone_number;
             });
         },
 
@@ -469,7 +460,7 @@ export default {
 
         share() { this.$refs.share.toggleMask(); },
 
-        callPhone() { uni.makePhoneCall({ phoneNumber: STORE_PHONE }); },
+        callPhone() { uni.makePhoneCall({ phoneNumber: this.storePhone }); },
 
         openMap() {
             uni.openLocation({

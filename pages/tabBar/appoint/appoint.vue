@@ -319,7 +319,7 @@ export default {
             if (!room) return;
             this.$store.commit('setCurrentRoom', room);
             uni.navigateTo({
-                url: `/pages/product/product?date=${this.currentSelectDate}&roomId=${room.object_id}`
+                url: `/pages/product/product?date=${this.currentSelectDate}`
             });
         },
 
