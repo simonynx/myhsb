@@ -79,7 +79,7 @@
                     </view>
 
                     <!-- 时段可用情况 -->
-                    <view class="time-slots">
+                    <view class="time-slots" v-if="room.appoints && room.appoints.length">
                         <view
                             v-for="(slot, si) in room.appoints.slice(0, 8)"
                             :key="si"
@@ -304,7 +304,8 @@ export default {
         },
 
         isRoomFullyBooked(room) {
-            return room.appoints.length > 0 && room.appoints.every(s => s.status !== 1);
+            if (!room.appoints || !room.appoints.length) return false;
+            return room.appoints.every(s => s.status !== 1);
         },
 
         goDetail(room) {
@@ -315,6 +316,10 @@ export default {
         },
 
         handleAppointButtonClick(item) {
+            if (!item.appoints || !item.appoints.length) {
+                // appointments not loaded yet, initialize empty
+                item.appoints = [];
+            }
             if (this.isRoomFullyBooked(item)) return;
             this.currentSelectItem = item;
             this.$store.commit('setCurrentRoom', item);
