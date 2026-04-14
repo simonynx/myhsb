@@ -272,7 +272,7 @@ export default {
         ...mapState(['token']),
         displaySlots() {
             if (!this.room.appoints) return [];
-            return this.room.appoints.slice(0, 12);
+            return this.room.appoints;
         },
         isFullyBooked() {
             if (!this.room.appoints || !this.room.appoints.length) return false;
@@ -487,7 +487,7 @@ $light-gray: #F0F0F0;
 $bg: #F5F6F7;
 $card-bg: #FFFFFF;
 
-page { background: $bg; padding-bottom: 120rpx; }
+page { background: $bg; padding-bottom: 500rpx; }
 
 // 导航栏
 .nav-bar {
@@ -621,7 +621,7 @@ page { background: $bg; padding-bottom: 120rpx; }
 // 时段卡片
 .slots-card {
     background: #fff;
-    margin: 0 20rpx 20rpx;
+    margin: 0 20rpx 350rpx;
     border-radius: 20rpx;
     padding: 24rpx;
 
@@ -651,7 +651,6 @@ page { background: $bg; padding-bottom: 120rpx; }
     .slots-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 12rpx;
         margin-bottom: 16rpx;
     }
 
@@ -659,10 +658,12 @@ page { background: $bg; padding-bottom: 120rpx; }
         display: flex;
         flex-direction: column;
         align-items: center;
-        min-width: 64rpx;
+        width: 108rpx;
+        padding: 2rpx;
+        box-sizing: border-box;
 
-        .slot-time { font-size: 18rpx; color: $gray; margin-bottom: 6rpx; }
-        .slot-bar { width: 44rpx; height: 8rpx; border-radius: 4rpx; }
+        .slot-time { font-size: 20rpx; color: $gray; margin-bottom: 6rpx; text-align: center; line-height: 1.2; }
+        .slot-bar { width: 36rpx; height: 7rpx; border-radius: 3rpx; }
 
         &.available .slot-bar { background: $green; }
         &.booked .slot-bar { background: $red; }
