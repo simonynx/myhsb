@@ -205,7 +205,7 @@ export default {
         selectedDayInfo() {
             return this.weekDays[this.selectedDayIndex] || {};
         },
-    }
+    },
     onLoad() {
         this.buildWeekDays();
         // weekDays ready, fetch room list

@@ -368,7 +368,7 @@
 		},
 		onShow() {
 			if (!this.hasLogin) this.loginAndRegister();
-		}
+		},
 		onLoad() {
 			this.loadData();
 		},

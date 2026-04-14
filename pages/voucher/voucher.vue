@@ -172,7 +172,7 @@ export default {
 			goodsList: [],
 			goodsEmojis: ['💆', '🧖', '💅', '🎀', '✨', '💎', '🌸', '🛁', '🎁', '🧴'],
 		};
-	}
+	},
 	onShow() {
 		if (!this.hasLogin) {
 			this.loginAndRegister().then(() => this.loadAll());

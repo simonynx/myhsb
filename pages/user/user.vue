@@ -207,7 +207,7 @@
 			return {
 				orderCounts: { waitPay: 0, waitUse: 0 }
 			};
-		}
+		},
 		onShow() {
 			if (!this.hasLogin) {
 				this.loginAndRegister();
