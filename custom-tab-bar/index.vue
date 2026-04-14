@@ -68,19 +68,17 @@ export default {
 			safeAreaBottom: 0
 		};
 	},
-	created() {
+	mounted() {
 		const systemInfo = uni.getSystemInfoSync();
 		this.safeAreaBottom = systemInfo.safeAreaInsets?.bottom || 0;
-		// 监听 tab 切换事件
-		eventBus.on('tabChange', this.updateCurrent);
+		eventBus.on('tabChange', (key) => {
+			this.current = key;
+		});
 	},
 	beforeDestroy() {
-		eventBus.off('tabChange', this.updateCurrent);
+		eventBus.off('tabChange');
 	},
 	methods: {
-		updateCurrent(key) {
-			this.current = key;
-		},
 		switchTab(url, key) {
 			if (this.current === key) return;
 			uni.switchTab({ url });
@@ -90,8 +88,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-// $primary: #FF6432; // not available in uni.scss, use hardcoded
-
 .tabbar-wrapper {
 	position: fixed;
 	left: 0;

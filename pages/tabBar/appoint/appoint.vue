@@ -211,6 +211,9 @@ export default {
     onTabItemTap() {
         eventBus.emit('tabChange', 'appoint');
     },
+    onShow() {
+        eventBus.emit('tabChange', 'appoint');
+    },
     onLoad() {
         this.buildWeekDays();
         // weekDays ready, fetch room list

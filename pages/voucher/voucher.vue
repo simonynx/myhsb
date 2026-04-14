@@ -115,6 +115,7 @@ export default {
 		eventBus.emit('tabChange', 'voucher');
 	},
 	onShow() {
+		eventBus.emit('tabChange', 'voucher');
 		if (!this.hasLogin) {
 			this.loginAndRegister();
 		} else {

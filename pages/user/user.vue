@@ -210,6 +210,7 @@
 			eventBus.emit('tabChange', 'user');
 		},
 		onShow() {
+			eventBus.emit('tabChange', 'user');
 			if (!this.hasLogin) {
 				this.loginAndRegister();
 			} else if (!this.userInfo) {

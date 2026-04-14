@@ -1,11 +1,6 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 自定义导航栏 -->
-		<view class="nav-bar">
-			<text class="nav-title">摸鱼划水吧</text>
-		</view>
-
-		<!-- 顶部装饰 -->
+		<!-- 顶部装饰（渐变背景兼导航栏） -->
 		<view class="top-bar">
 			<view class="top-bar-content">
 				<text class="top-emoji">🎲</text>
@@ -378,6 +373,9 @@
 		onTabItemTap() {
 			eventBus.emit('tabChange', 'index');
 		},
+		onShow() {
+			eventBus.emit('tabChange', 'index');
+		},
 		onLoad() {
 			this.loadData();
 		},
@@ -459,24 +457,6 @@ page {
 	min-height: 100vh;
 	padding-bottom: 120rpx;
 }
-
-/* ===== 自定义导航栏 ===== */
-.nav-bar {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	height: 88rpx;
-	background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
-	box-shadow: 0 4rpx 16rpx rgba(255, 107, 157, 0.2);
-
-	.nav-title {
-		font-size: 34rpx;
-		font-weight: bold;
-		color: #fff;
-		letter-spacing: 2rpx;
-	}
-}
-
 /* ===== 顶部 ===== */
 .top-bar {
 	background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
