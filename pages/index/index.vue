@@ -1,5 +1,10 @@
 <template>
 	<view class="page-wrapper">
+		<!-- 自定义导航栏 -->
+		<view class="nav-bar">
+			<text class="nav-title">摸鱼划水吧</text>
+		</view>
+
 		<!-- 顶部装饰 -->
 		<view class="top-bar">
 			<view class="top-bar-content">
@@ -323,6 +328,7 @@
 <script>
 	import { mapState, mapActions } from 'vuex';
 	import customTabBar from '@/custom-tab-bar/index.vue';
+	import eventBus from '@/utils/eventBus.js';
 	export default {
 		components: { customTabBar },
 		computed: {
@@ -368,6 +374,9 @@
 		},
 		onShow() {
 			if (!this.hasLogin) this.loginAndRegister();
+		},
+		onTabItemTap() {
+			eventBus.emit('tabChange', 'index');
 		},
 		onLoad() {
 			this.loadData();
@@ -449,6 +458,23 @@ page {
 .page-wrapper {
 	min-height: 100vh;
 	padding-bottom: 120rpx;
+}
+
+/* ===== 自定义导航栏 ===== */
+.nav-bar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 88rpx;
+	background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+	box-shadow: 0 4rpx 16rpx rgba(255, 107, 157, 0.2);
+
+	.nav-title {
+		font-size: 34rpx;
+		font-weight: bold;
+		color: #fff;
+		letter-spacing: 2rpx;
+	}
 }
 
 /* ===== 顶部 ===== */

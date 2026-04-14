@@ -59,34 +59,30 @@
 </template>
 
 <script>
+import eventBus from '@/utils/eventBus.js';
+
 export default {
 	data() {
 		return {
-			current: 'appoint', // 默认高亮预约页（因为从这个tab进入）
+			current: 'index',
 			safeAreaBottom: 0
 		};
 	},
 	created() {
-		// 获取安全区域
 		const systemInfo = uni.getSystemInfoSync();
 		this.safeAreaBottom = systemInfo.safeAreaInsets?.bottom || 0;
-		// 根据当前页面路径设置高亮
-		this.updateCurrentTab();
+		// 监听 tab 切换事件
+		eventBus.on('tabChange', this.updateCurrent);
+	},
+	beforeDestroy() {
+		eventBus.off('tabChange', this.updateCurrent);
 	},
 	methods: {
-		updateCurrentTab() {
-			const pages = getCurrentPages();
-			if (pages.length === 0) return;
-			const currentPage = pages[pages.length - 1];
-			const route = '/' + currentPage.route;
-			if (route.includes('index')) this.current = 'index';
-			else if (route.includes('voucher')) this.current = 'voucher';
-			else if (route.includes('appoint')) this.current = 'appoint';
-			else if (route.includes('user')) this.current = 'user';
+		updateCurrent(key) {
+			this.current = key;
 		},
 		switchTab(url, key) {
 			if (this.current === key) return;
-			this.current = key;
 			uni.switchTab({ url });
 		}
 	}

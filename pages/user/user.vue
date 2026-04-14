@@ -1,61 +1,70 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 顶部用户卡片 -->
-		<view class="user-header">
-			<view class="header-bg"></view>
-			<view class="user-card">
-				<view class="user-top">
-					<view class="avatar-box" @tap="openAuthorizationModal">
-						<image class="avatar" :src="userInfo.avatar || '/static/missing-face.png'"></image>
-						<view class="avatar-edit">
-							<text class="edit-icon">✏️</text>
-						</view>
-					</view>
-					<view class="user-info">
-						<text class="nickname">{{ userInfo.nickname || '游客' }}</text>
-						<view class="member-badge" :style="{ background: memberColor }">
-							<text class="badge-icon">{{ memberIcon }}</text>
-							<text class="badge-name">{{ memberLevelName }}</text>
-						</view>
-					</view>
-					<view class="edit-btn" @tap="openAuthorizationModal">
-						<text>编辑资料</text>
+		<!-- 自定义导航栏 -->
+		<view class="nav-bar">
+			<text class="nav-title">我的</text>
+		</view>
+
+		<!-- 用户信息卡 -->
+		<view class="profile-card">
+			<view class="profile-top">
+				<view class="avatar-wrap" @tap="openAuthorizationModal">
+					<image class="avatar" :src="userInfo.avatar || '/static/missing-face.png'"></image>
+					<view class="avatar-badge" :style="{ background: memberColor }">
+						<text class="badge-icon">{{ memberIcon }}</text>
 					</view>
 				</view>
+				<view class="profile-info">
+					<text class="nickname">{{ userInfo.nickname || '游客' }}</text>
+					<view class="member-tag" :style="{ background: memberColor }">
+						<text class="tag-icon">{{ memberIcon }}</text>
+						<text class="tag-name">{{ memberLevelName }}</text>
+					</view>
+				</view>
+				<view class="edit-btn" @tap="openAuthorizationModal">
+					<text>编辑</text>
+				</view>
+			</view>
 
-				<!-- 会员数据 -->
-				<view class="member-stats">
-					<view class="stat-item" @tap="navTo('/pages/my/reviews')">
-						<text class="stat-num">{{ userInfo.points || 0 }}</text>
-						<text class="stat-label">积分</text>
-					</view>
-					<view class="stat-divider"></view>
-					<view class="stat-item">
-						<text class="stat-num">¥{{ (userInfo.account_balance / 100).toFixed(2) }}</text>
-						<text class="stat-label">余额</text>
-					</view>
-					<view class="stat-divider"></view>
-					<view class="stat-item">
-						<text class="stat-num">{{ userInfo.total_consume / 100 }}</text>
-						<text class="stat-label">累计消费</text>
-					</view>
+			<!-- 快捷数据 -->
+			<view class="quick-stats">
+				<view class="qstat-item" @tap="navTo('/pages/my/reviews')">
+					<text class="qstat-num">{{ userInfo.points || 0 }}</text>
+					<text class="qstat-label">积分</text>
+				</view>
+				<view class="qstat-divider"></view>
+				<view class="qstat-item">
+					<text class="qstat-num">¥{{ (userInfo.account_balance / 100).toFixed(0) }}</text>
+					<text class="qstat-label">余额</text>
+				</view>
+				<view class="qstat-divider"></view>
+				<view class="qstat-item">
+					<text class="qstat-num">{{ userInfo.total_consume / 100 }}</text>
+					<text class="qstat-label">累计消费</text>
 				</view>
 			</view>
 		</view>
 
-		<!-- 会员成长进度 -->
-		<view class="level-progress-card">
-			<view class="level-info">
-				<text class="level-icon">{{ memberIcon }}</text>
-				<text class="level-text">{{ memberLevelName }}</text>
-				<text class="level-next" v-if="nextLevelName">再 {{ needToNext }} 元到 {{ nextLevelName }}</text>
+		<!-- 会员成长 -->
+		<view class="growth-card">
+			<view class="growth-header">
+				<view class="growth-left">
+					<text class="growth-icon">{{ memberIcon }}</text>
+					<view class="growth-info">
+						<text class="growth-level">{{ memberLevelName }}</text>
+						<text class="growth-tip" v-if="nextLevelName">还差 ¥{{ needToNext }} 升级</text>
+						<text class="growth-tip" v-else>已是最高等级 ✨</text>
+					</view>
+				</view>
+				<text class="growth-rate">{{ progressPercent }}%</text>
 			</view>
 			<view class="progress-bar">
-				<view class="progress-fill" :style="{ width: progressPercent + '%', background: memberColor }"></view>
+				<view class="progress-fill" :style="{ width: progressPercent + '%', background: 'linear-gradient(90deg, ' + memberColor + ', #FF9ECD)' }"></view>
 			</view>
-			<view class="level-list">
+			<view class="level-dots">
 				<view class="level-dot" v-for="l in levelDots" :key="l.level" :class="{ active: userInfo.member_level >= l.level }">
 					<text class="dot-icon">{{ l.icon }}</text>
+					<text class="dot-name">{{ ['', '🌱', '🥈', '🥇', '💎'][l.level] }}</text>
 				</view>
 			</view>
 		</view>
@@ -129,6 +138,7 @@
 <script>
 	import AUTH from '../../utils/auth.js'
 	import customTabBar from '@/custom-tab-bar/index.vue';
+	import eventBus from '@/utils/eventBus.js';
 	import {
 		mapState,
 		mapActions,
@@ -196,6 +206,9 @@
 		data() {
 			return {};
 		},
+		onTabItemTap() {
+			eventBus.emit('tabChange', 'user');
+		},
 		onShow() {
 			if (!this.hasLogin) {
 				this.loginAndRegister();
@@ -223,185 +236,175 @@ page {
 	background: #FFF9F5;
 }
 .page-wrapper {
-	padding-top: 80rpx;
+	padding-top: 0;
 	min-height: 100vh;
 	padding-bottom: 40rpx;
 }
 
-/* ===== 用户卡片 ===== */
-.user-header {
-	position: relative;
-	margin-bottom: 24rpx;
-	.header-bg {
-		height: 280rpx;
-		background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
-		border-radius: 0 0 60rpx 60rpx;
-	}
-	.user-card {
-		position: absolute;
-		top: 40rpx;
-		left: 24rpx;
-		right: 24rpx;
-		background: #FFF;
-		border-radius: 32rpx;
-		padding: 32rpx;
-		box-shadow: 0 8rpx 32rpx rgba(255, 107, 157, 0.25);
-	}
-	.user-top {
-		display: flex;
-		align-items: center;
-		margin-bottom: 24rpx;
-	}
-	.avatar-box {
-		position: relative;
-		margin-right: 20rpx;
-		.avatar {
-			width: 100rpx;
-			height: 100rpx;
-			border-radius: 50%;
-			border: 4rpx solid #FFE5EE;
-		}
-		.avatar-edit {
-			position: absolute;
-			bottom: -4rpx;
-			right: -4rpx;
-			width: 36rpx;
-			height: 36rpx;
-			background: #FF6B9D;
-			border-radius: 50%;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			.edit-icon { font-size: 18rpx; }
-		}
-	}
-	.user-info {
-		flex: 1;
-		.nickname {
-			display: block;
-			font-size: 36rpx;
-			font-weight: bold;
-			color: #333;
-			margin-bottom: 8rpx;
-		}
-		.member-badge {
-			display: inline-flex;
-			align-items: center;
-			gap: 6rpx;
-			padding: 6rpx 16rpx;
-			border-radius: 20rpx;
-			.badge-icon { font-size: 20rpx; }
-			.badge-name { font-size: 20rpx; color: #FFF; font-weight: bold; }
-		}
-	}
-	.edit-btn {
-		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
-		color: #FFF;
-		font-size: 22rpx;
-		padding: 12rpx 24rpx;
-		border-radius: 30rpx;
+/* ===== 自定义导航栏 ===== */
+.nav-bar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 88rpx;
+	background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+	box-shadow: 0 4rpx 16rpx rgba(255, 107, 157, 0.2);
+
+	.nav-title {
+		font-size: 34rpx;
 		font-weight: bold;
-	}
-	.member-stats {
-		display: flex;
-		align-items: center;
-		justify-content: space-around;
-		padding-top: 20rpx;
-		border-top: 1rpx solid #F5F5F5;
-		.stat-item {
-			text-align: center;
-			.stat-num {
-				display: block;
-				font-size: 36rpx;
-				font-weight: bold;
-				color: #FF6B9D;
-			}
-			.stat-label {
-				display: block;
-				font-size: 22rpx;
-				color: #999;
-				margin-top: 4rpx;
-			}
-		}
-		.stat-divider {
-			width: 2rpx;
-			height: 50rpx;
-			background: #F0F0F0;
-		}
+		color: #fff;
+		letter-spacing: 2rpx;
 	}
 }
 
-/* ===== 成长进度 ===== */
-.level-progress-card {
-	margin: 0 24rpx 24rpx;
+/* ===== 用户卡片 ===== */
+.profile-card {
+	margin: 20rpx 24rpx;
 	background: #FFF;
-	border-radius: 24rpx;
-	padding: 24rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
-	.level-info {
-		display: flex;
-		align-items: center;
-		gap: 8rpx;
-		margin-bottom: 16rpx;
-		.level-icon { font-size: 28rpx; }
-		.level-text {
-			font-size: 26rpx;
-			font-weight: bold;
-			color: #333;
-		}
-		.level-next {
-			margin-left: auto;
-			font-size: 20rpx;
-			color: #999;
-		}
-	}
-	.progress-bar {
-		height: 12rpx;
-		background: #F0F0F0;
-		border-radius: 6rpx;
-		margin-bottom: 16rpx;
-		overflow: hidden;
-		.progress-fill {
-			height: 100%;
-			border-radius: 6rpx;
-			transition: width 0.5s ease;
-		}
-	}
-	.level-list {
-		display: flex;
-		justify-content: space-between;
-		.level-dot {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			.dot-icon { font-size: 28rpx; opacity: 0.3; }
-		}
-		.level-dot.active .dot-icon { opacity: 1; }
-	}
+	border-radius: 28rpx;
+	padding: 28rpx;
+	box-shadow: 0 6rpx 24rpx rgba(255, 107, 157, 0.12);
+	border: 1rpx solid rgba(255, 107, 157, 0.08);
 }
-
-/* ===== 通用区块 ===== */
-.section {
+.profile-top {
+	display: flex;
+	align-items: center;
+	margin-bottom: 24rpx;
+}
+.avatar-wrap {
+	position: relative;
+	margin-right: 20rpx;
+}
+.avatar-wrap .avatar {
+	width: 100rpx;
+	height: 100rpx;
+	border-radius: 50%;
+	border: 4rpx solid #FFE0EE;
+}
+.avatar-wrap .avatar-badge {
+	position: absolute;
+	bottom: -4rpx;
+	right: -4rpx;
+	width: 40rpx;
+	height: 40rpx;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 3rpx solid #fff;
+}
+.avatar-wrap .avatar-badge .badge-icon { font-size: 22rpx; }
+.profile-info {
+	flex: 1;
+}
+.profile-info .nickname {
+	display: block;
+	font-size: 36rpx;
+	font-weight: bold;
+	color: #333;
+	margin-bottom: 8rpx;
+}
+.profile-info .member-tag {
+	display: inline-flex;
+	align-items: center;
+	padding: 4rpx 14rpx;
+	border-radius: 20rpx;
+}
+.profile-info .member-tag .tag-icon { font-size: 20rpx; margin-right: 6rpx; }
+.profile-info .member-tag .tag-name {
+	font-size: 20rpx;
+	color: #fff;
+	font-weight: bold;
+}
+.edit-btn {
+	padding: 10rpx 24rpx;
+	background: #FFF0F5;
+	border-radius: 20rpx;
+}
+.edit-btn text { font-size: 24rpx; color: #FF6B9D; font-weight: bold; }
+.quick-stats {
+	display: flex;
+	align-items: center;
+	justify-content: space-around;
+	padding-top: 20rpx;
+	border-top: 1rpx solid #F0F0F0;
+}
+.qstat-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.qstat-item .qstat-num { font-size: 36rpx; font-weight: bold; color: #333; }
+.qstat-item .qstat-label { font-size: 22rpx; color: #999; margin-top: 4rpx; }
+.qstat-divider {
+	width: 2rpx;
+	height: 50rpx;
+	background: #F0F0F0;
+}
+.growth-card {
 	margin: 0 24rpx 24rpx;
+	background: linear-gradient(135deg, #FFF5F8, #FFF);
+	border-radius: 24rpx;
+	padding: 28rpx;
+	border: 1rpx solid #FFE0EE;
+	box-shadow: 0 4rpx 16rpx rgba(255, 107, 157, 0.1);
 }
-.section-header {
+.growth-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin-bottom: 16rpx;
-	.section-title {
-		font-size: 32rpx;
-		font-weight: bold;
-		color: #333;
-	}
-	.section-more {
-		font-size: 24rpx;
-		color: #FF6B9D;
-	}
+	margin-bottom: 20rpx;
 }
-
-/* ===== 订单 ===== */
-.order-section {
+.growth-left {
+	display: flex;
+	align-items: center;
+	gap: 12rpx;
+}
+.growth-icon { font-size: 40rpx; }
+.growth-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2rpx;
+}
+.growth-level {
+	font-size: 28rpx;
+	font-weight: bold;
+	color: #333;
+}
+.growth-tip {
+	font-size: 20rpx;
+	color: #999;
+}
+.growth-rate {
+	font-size: 28rpx;
+	font-weight: bold;
+	color: #FF6B9D;
+}
+.growth-card .progress-bar {
+	height: 14rpx;
+	background: #F0F0F0;
+	border-radius: 7rpx;
+	margin-bottom: 20rpx;
+	overflow: hidden;
+}
+.growth-card .progress-bar .progress-fill {
+	height: 100%;
+	border-radius: 7rpx;
+	transition: width 0.5s ease;
+}
+.level-dots {
+	display: flex;
+	justify-content: space-between;
+}
+.level-dot {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.level-dot .dot-icon { font-size: 32rpx; opacity: 0.25; }
+.level-dot .dot-name { font-size: 20rpx; margin-top: 4rpx; }
+.level-dot.active .dot-icon { opacity: 1; }.order-section {
 	background: #FFF;
 	border-radius: 24rpx;
 	padding: 24rpx;

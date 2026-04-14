@@ -177,6 +177,7 @@
 <script>
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../../utils/auth.js';
+import eventBus from '@/utils/eventBus.js';
 import times from '@/components/pretty-times/pretty-times.vue';
 
 import customTabBar from '@/custom-tab-bar/index.vue';
@@ -207,6 +208,9 @@ export default {
         },
     },
 
+    onTabItemTap() {
+        eventBus.emit('tabChange', 'appoint');
+    },
     onLoad() {
         this.buildWeekDays();
         // weekDays ready, fetch room list

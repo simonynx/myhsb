@@ -15,8 +15,8 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "摸鱼划水吧",
-				"navigationBarBackgroundColor": "#FF6432",
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FF9ECD",
 				"navigationBarTextStyle": "white"
 			}
 		},
@@ -65,7 +65,9 @@
 		{
 			"path": "pages/user/user",
 			"style": {
-				"navigationBarTitleText": "我的"
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
 			}
 		},
 		{

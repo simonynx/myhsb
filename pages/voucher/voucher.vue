@@ -1,65 +1,84 @@
 <template>
 	<view class="content">
+		<!-- 顶部导航栏 -->
+		<view class="status-bar-placeholder"></view>
+		<view class="nav-bar">
+			<text class="nav-title">卡券中心</text>
+		</view>
 
-		<!-- 优惠券领取区 -->
+		<!-- 可领取优惠券 Banner -->
 		<view class="coupon-banner" v-if="availableCoupons.length > 0" @tap="showCouponList">
 			<view class="banner-left">
-				<text class="banner-icon">🎁</text>
+				<text class="banner-icon">🎟️</text>
 				<view class="banner-info">
-					<text class="banner-title">优惠券</text>
-					<text class="banner-sub">{{ availableCoupons.length }}张可领取</text>
+					<text class="banner-title">可领取优惠券</text>
+					<text class="banner-sub">{{ availableCoupons.length }} 张待领取</text>
 				</view>
 			</view>
-			<text class="banner-arrow">→</text>
-		</view>
-		<view class="tabr">
-			<view
-				v-for="(item, index) in navList" :key="index"
-				class="tab-item" :class="{on: tabCurrentIndex === index}"
-				@click="tabClick(index)"
-			>
-				{{item.text}}
+			<view class="banner-action">
+				<text class="banner-btn">立即领取</text>
 			</view>
-			<view class="border" :class="{invalid: tabCurrentIndex== index}"></view>
 		</view>
 
-		<swiper :current="tabCurrentIndex" class="swiper-box" duration="300" @change="changeTab">
-			<swiper-item class="tab-content" v-for="(tabItem,tabIndex) in navList" :key="tabIndex">
-				<scroll-view
-					class="sub-list"
-					scroll-y
-					@scrolltolower=""
-				>
-					<!-- 空白页 -->
-					<empty v-if="tabItem.loaded === true && tabItem.goodsList.length === 0">
-						<view class="tis">没有数据~</view>
-					</empty>
+		<!-- 我的卡券 Tab -->
+		<view class="voucher-tabs">
+			<view
+				v-for="(tab, idx) in tabs"
+				:key="idx"
+				class="tab-btn"
+				:class="{ active: currentTab === idx }"
+				@click="switchTab(idx)"
+			>
+				<text class="tab-text">{{ tab }}</text>
+				<view class="tab-line" v-if="currentTab === idx"></view>
+			</view>
+		</view>
 
-					<!-- 订单列表 -->
-					<view
-						v-for="(item,index) in tabItem.goodsList" :key="index"
-						class="movie-ticket" @tap.stop="handleTicketClick(item)"
-					>
-							<view class="left">
-								<text class="description">{{item.description}}</text>
-								<text class="criteria">有效范围:预约</text>
-								<text class="other" v-if="item.can_use_balance < 1">(不可使用余额支付)</text>
-								<text class="validity" v-if="item.validity_period_start">有效期:{{item.validity_period_start}}~{{item.validity_period_end}}</text>
-								<text class="validity" v-else>有效期:无</text>
-							</view>
-							<view class="seam"></view>
-							<view class="right">
-							  <text class="price">¥{{item.price/100}}</text>
-							  <text class="title">{{item.name}}</text>
-							</view>
+		<!-- 卡券列表 -->
+		<scroll-view class="voucher-scroll" scroll-y>
+			<!-- 空状态 -->
+			<view class="empty-state" v-if="displayList.length === 0">
+				<text class="empty-icon">🎫</text>
+				<text class="empty-title">暂无卡券</text>
+				<text class="empty-sub">快去领取优惠券吧～</text>
+			</view>
 
-
+			<!-- 卡券卡片 -->
+			<view
+				class="voucher-card"
+				v-for="(item, idx) in displayList"
+				:key="idx"
+				@click="handleVoucherClick(item)"
+			>
+				<!-- 左侧价格区 -->
+				<view class="card-left">
+					<text class="card-price">¥{{ item.price / 100 }}</text>
+					<text class="card-type-name">{{ item.name }}</text>
+				</view>
+				<!-- 右侧信息区 -->
+				<view class="card-right">
+					<view class="card-header-row">
+						<text class="card-title">{{ item.description || item.name }}</text>
+						<view class="card-status" :class="getStatusClass(item)">
+							<text>{{ getStatusText(item) }}</text>
+						</view>
 					</view>
-					<uni-load-more :status="tabItem.loadingType"></uni-load-more>
-					
-				</scroll-view>
-			</swiper-item>
-		</swiper>
+					<view class="card-desc" v-if="item.criteria || item.validity_period_start">
+						<text class="desc-item" v-if="item.criteria">适用范围：{{ item.criteria }}</text>
+						<text class="desc-item" v-if="item.validity_period_start">
+							有效期：{{ item.validity_period_start }} 至 {{ item.validity_period_end }}
+						</text>
+					</view>
+					<view class="card-footer-row">
+						<text class="balance-hint" v-if="item.can_use_balance < 1">不可用余额支付</text>
+						<text class="card-arrow">→</text>
+					</view>
+				</view>
+			</view>
+
+			<!-- 底部留白 -->
+			<view style="height: 40rpx;"></view>
+		</scroll-view>
 
 		<!-- 自定义底部导航 -->
 		<custom-tab-bar></custom-tab-bar>
@@ -67,347 +86,357 @@
 </template>
 
 <script>
-	import {
-		mapState,
-		mapActions,
-		mapMutations
-	} from 'vuex';
-	import empty from "@/components/empty";
-	import AUTH from '../../utils/auth.js'
-	import customTabBar from '@/custom-tab-bar/index.vue';
-	export default {
-		components: {
-			empty,
-			customTabBar
-		},
-		computed: {
-			...mapState(['hasLogin','userInfo', 'token', 'openid'])
-		},
-		data() {
-			return {
-				tabCurrentIndex: 0,
-				allGoodsList:[],
+import { mapState, mapActions } from 'vuex';
+import empty from "@/components/empty";
+import AUTH from '../../utils/auth.js';
+import customTabBar from '@/custom-tab-bar/index.vue';
+
+export default {
+	components: { empty, customTabBar },
+	computed: {
+		...mapState(['hasLogin', 'userInfo', 'token']),
+		displayList() {
+			if (this.currentTab === 0) return this.allGoodsList;
+			const typeMap = { 1: 'stored', 2: 'beauty', 3: 'other' };
+			const key = typeMap[this.currentTab];
+			return this.allGoodsList.filter(item => item.goods_type_name === key);
+		}
+	},
+	data() {
+		return {
+			currentTab: 0,
+			tabs: ['全部', '储值', '美容', '其它'],
+			allGoodsList: [],
 			availableCoupons: [],
-				navList: [{
-						type: 0,
-						text: '全部',
-						loadingType: 'more',
-						goodsList: []
-					},{
-						type: 1,
-						text: '储值',
-						loadingType: 'more',
-						goodsList: []
-					},
-					{
-						type: 2,
-						text: '美容',
-						loadingType: 'more',
-						goodsList: []
-					},
-					{
-						type: 3,
-						text: '其它',
-						loadingType: 'more',
-						goodsList: []
-					},
-				],
-				headerTop:0,
-				//控制滑动效果
-			}
-		},
-		onPageScroll(e){
-
-		},
-		//下拉刷新,需要自己在page.json文件中配置开启页面下拉刷新 "enablePullDownRefresh": true
-		onPullDownRefresh() {
-		},
-		onLoad() {
-		},
-		onShow() {
+		};
+	},
+	onLoad() {},
+	onTabItemTap() {
+		eventBus.emit('tabChange', 'voucher');
+	},
+	onShow() {
+		if (!this.hasLogin) {
+			this.loginAndRegister();
+		} else {
+			this.loadData();
 			this.loadAvailableCoupons();
-			if(!this.hasLogin){
-				this.loginAndRegister();
-			}else{
-				for (var i = 0; i < this.navList.length; i++) {
-					//loaded新字段用于表示数据加载完毕,如果为空可以显示空白页
-					this.$set(this.navList[i], 'loaded', false);
-					//判断是否还有数据, 有改为 more, 没有改为noMore
-					this.navList[i].loadingType = 'more';
-					this.navList[i].goodsList = [];
-				}
-				this.loadData();
-			}
+		}
+	},
+	methods: {
+		...mapActions(['loginAndRegister']),
+
+		switchTab(idx) {
+			this.currentTab = idx;
 		},
-		methods: {
 
-			async loadAvailableCoupons() {
-				if (!this.hasLogin) return;
-				try {
-					var res = await AUTH.getCouponList(this.token);
-					if (res._status === 0) {
-						this.availableCoupons = (res.data || []).filter(function(item) { return !item.user_received; });
-					}
-				} catch (e) {}
-			},
-			async receiveCouponItem(campaignId) {
-				uni.showLoading({ title: '领取中...' });
-				try {
-					var res = await AUTH.receiveCoupon(this.token, campaignId);
-					uni.hideLoading();
-					if (res._status === 0) {
-						uni.showToast({ title: '领取成功', icon: 'success' });
-						this.availableCoupons = this.availableCoupons.filter(function(item) { return item.campaign_id !== campaignId; });
-					} else {
-						uni.showToast({ title: res._reason || '领取失败', icon: 'none' });
-					}
-				} catch (e) {
-					uni.hideLoading();
-					uni.showToast({ title: '领取失败', icon: 'none' });
+		async loadAvailableCoupons() {
+			if (!this.hasLogin) return;
+			try {
+				const res = await AUTH.getCouponList(this.token);
+				if (res._status === 0) {
+					this.availableCoupons = (res.data || []).filter(item => !item.user_received);
 				}
-			},
-			showCouponList() {
-				uni.navigateTo({ url: '/pages/my/coupons/coupons' });
-			},
-			...mapActions(['loginAndRegister', 'getUserInfo']),
-			loadData(source){
-				//这里是将订单挂载到tab列表下
-				let index = this.tabCurrentIndex;
-				let navItem = this.navList[index];
-				let goodsType = navItem.type;
-				const _this = this;
+			} catch (e) {}
+		},
 
-				if(source === 'tabChange' && navItem.loaded === true){
-					//tab切换只有第一次需要加载数据
-					return;
-				}
-				if(navItem.loadingType === 'loading'){
-					//防止重复加载
-					return;
-				}
-
-				for (var i = 0; i < this.navList.length; i++) {
-					this.navList[i].loadingType = 'loading';
-				}
-
-				AUTH.getGoodsList(this.token).then(function(res){
-					if(!res) return;
-					var firstNavItem = _this.navList[0];
-					res.data.goods.forEach(item=>{
-						let specificIndex = item.goods_type;
-						// item = Object.assign(item, _this.orderStateExp(specificIndex));
-						let specificNavItem = _this.navList[specificIndex];
-						specificNavItem.goodsList.push(item);
-						firstNavItem.goodsList.push(item);
-					});
-
-					for (var i = 0; i < _this.navList.length; i++) {
-						//loaded新字段用于表示数据加载完毕,如果为空可以显示空白页
-						_this.$set(_this.navList[i], 'loaded', true);
-						//判断是否还有数据, 有改为 more, 没有改为noMore
-						_this.navList[i].loadingType = 'noMore';
-					}
-					// console.log("======================>fucking goods:", _this.navList)
-
+		async loadData() {
+			try {
+				const res = await AUTH.getGoodsList(this.token);
+				if (!res) return;
+				this.allGoodsList = (res.data?.goods || []).map(item => {
+					const typeNames = { 0: '全部', 1: 'stored', 2: 'beauty', 3: 'other' };
+					return { ...item, goods_type_name: typeNames[item.goods_type] || 'other' };
 				});
-			},
-			//swiper 切换
-			changeTab(e){
-				this.tabCurrentIndex = e.target.current;
-				this.loadData('tabChange');
-			},
-			//顶部tab点击
-			tabClick(index){
-				this.tabCurrentIndex = index;
-			},
-			handleTicketClick(goods){
-				uni.navigateTo({
-					url:`/pages/voucher/detail?data=${JSON.stringify(goods)}`
-				});
-			},
-			discard() {
-				//丢弃
-			},
+			} catch (e) {}
+		},
+
+		showCouponList() {
+			uni.navigateTo({ url: '/pages/my/coupons/coupons' });
+		},
+
+		handleVoucherClick(item) {
+			uni.navigateTo({ url: `/pages/voucher/detail?data=${JSON.stringify(item)}` });
+		},
+
+		getStatusClass(item) {
+			// 简单逻辑：有效期判断
+			if (!item.validity_period_end) return 'status-default';
+			const now = new Date();
+			const end = new Date(item.validity_period_end);
+			if (end < now) return 'status-expired';
+			return 'status-normal';
+		},
+
+		getStatusText(item) {
+			if (!item.validity_period_end) return '长期有效';
+			const now = new Date();
+			const end = new Date(item.validity_period_end);
+			if (end < now) return '已过期';
+			return '未使用';
 		}
 	}
+};
 </script>
-<style lang="scss">
-	page,.content{
-		height: 100%;
-		background-color: #f5f5f5;
+
+<style lang="scss" scoped>
+$primary: #FF6432;
+$gray: #BBBBBB;
+$dark: #333333;
+$light-gray: #F0F0F0;
+
+page, .content {
+	height: 100%;
+	background-color: #F5F5F5;
+}
+
+/* ===== 顶部导航 ===== */
+.status-bar-placeholder {
+	height: 88rpx;
+	background: linear-gradient(135deg, #FF6432, #FF8A65);
+}
+
+.nav-bar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 88rpx;
+	background: linear-gradient(135deg, #FF6432, #FF8A65);
+	box-shadow: 0 4rpx 16rpx rgba(255, 100, 50, 0.25);
+
+	.nav-title {
+		font-size: 34rpx;
+		font-weight: bold;
+		color: #fff;
+		letter-spacing: 2rpx;
 	}
-	.hidden{
-		display: none !important;
-	}
+}
 
-	.tabr{
-		display: flex;
-		background-color: #fff;
-		height: 40px;
-		padding: 0 3%;
-		border-bottom: solid 1upx #dedede;
-		position: relative;
-		top: 0;
-		z-index: 10;
-		.tab-item{
-			flex: 1;
-			display: flex;
-			width: 50%;
-			height: 100%;
-			justify-content: center;
-			align-items: center;
-			font-size: 32upx;
-			color: #999;
-			position: relative;
-			&.on{
-				color: #f06c7a;
-			}
-		}
-		.border{
-			height: 4upx;
-			background-color: #f06c7a;
-			transition: all .3s ease-out;
-			&.invalid{
-				transform: translate3d(100%,0,0);
-			}
-		}
-
-	}
-	.swiper-box{
-		height: calc(100% - 40px);
-	}
-	.sub-list{
-		width: 100%;
-		height: 100%;
-		padding: 20upx 0 120upx 0;
-
-		.tis{
-			width: 100%;
-			height: 60upx;
-			justify-content: center;
-			align-items: center;
-			font-size: 32upx;
-		}
-
-		.movie-ticket {
-		  display: flex;
-		  flex-direction: row;
-		  justify-content: space-between;
-		  align-items: center;
-		  // width: 100%;
-		  height: 150px;
-		  // border: 4rpx solid #ee6701;
-		  border-radius: 10rpx;
-		  font-family: Arial, sans-serif;
-		  font-size: 28rpx;
-		  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
-		  overflow: hidden;
-		  background-color: #f1f1f1;
-		  margin: 20px;
-
-		  .left {
-			display: flex;
-			flex-direction: column;
-			justify-content: space-between;
-		    top: 0;
-		    left: 0;
-		    width: 70%;
-		    height: 150px;
-		    background-color: #f2f2f2;
-			padding: 10px;
-
-			.description {
-			  font-family: "Helvetica Neue", Arial, sans-serif;
-			  font-size: 18px;
-			  font-weight: normal;
-			  color: #555555;
-			}
-
-			.validity {
-			  font-family: "Arial", sans-serif;
-			  font-size: 16px;
-			  font-weight: normal;
-			  color: #555555;
-			}
-
-			.criteria {
-			  font-family: Arial, sans-serif;
-			  font-size: 16px;
-			  font-weight: normal;
-			  color: #2d4c6d;
-			}
-
-			.other {
-			  font-family: Arial, sans-serif;
-			  font-size: 16px;
-			  font-weight: normal;
-			  color: #333;
-			}
-		  }
-
-		  .right {
-			display: flex;
-			flex-direction: column;
-		    top: 0;
-		    left: 70%;
-		    width: 30%;
-		    height: 150px;
-		    background-color: #4caf50;
-			padding: 10px;
-
-			.title {
-			  font-family: "Arial", sans-serif;
-			  font-size: 20px;
-			  font-weight: bold;
-			  color: #f1f1f1;
-			  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1);
-			}
-			.price {
-			  top: 10px;
-			  font-family: "Arial", sans-serif;
-			  font-size: 22px;
-			  font-weight: bold;
-			  color: #ad2e24;
-			  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.1);
-			}
-		  }
-
-		  .seam {
-		    top: 0;
-		    left: 0;
-		    width: 2px;
-		    height: 150px;
-		    background-color: transparent;
-		    border-right: 1px dashed #000;
-		  }
-		}
-	}
-
-
-/* ===== 优惠券领取区 ===== */
+/* ===== 优惠券 Banner ===== */
 .coupon-banner {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin: 16rpx 24rpx;
-	padding: 24rpx;
-	background: linear-gradient(135deg, #FFF0F8, #FFF5F8);
-	border-radius: 20rpx;
-	border: 2rpx solid #FFE0EE;
+	margin: 20rpx 24rpx;
+	padding: 28rpx;
+	background: linear-gradient(135deg, #FFF5F0, #FFF);
+	border-radius: 24rpx;
+	border: 1rpx solid #FFE0D6;
+	box-shadow: 0 4rpx 16rpx rgba(255, 100, 50, 0.1);
+
+	.banner-left {
+		display: flex;
+		align-items: center;
+		gap: 16rpx;
+	}
+
+	.banner-icon { font-size: 52rpx; }
+
+	.banner-info {
+		display: flex;
+		flex-direction: column;
+		gap: 4rpx;
+	}
+
+	.banner-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: $primary;
+	}
+
+	.banner-sub {
+		font-size: 22rpx;
+		color: #FF9A7A;
+	}
+
+	.banner-action {
+		.banner-btn {
+			background: linear-gradient(135deg, $primary, #FF8A65);
+			color: #fff;
+			font-size: 24rpx;
+			font-weight: bold;
+			padding: 12rpx 28rpx;
+			border-radius: 30rpx;
+			display: block;
+		}
+	}
 }
-.banner-left {
+
+/* ===== Tab 切换 ===== */
+.voucher-tabs {
 	display: flex;
-	align-items: center;
-	gap: 16rpx;
+	background: #fff;
+	padding: 0 40rpx;
+	border-bottom: 1rpx solid #F0F0F0;
+
+	.tab-btn {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 20rpx 0;
+		position: relative;
+
+		.tab-text {
+			font-size: 28rpx;
+			color: $gray;
+			transition: color 0.2s;
+		}
+
+		.tab-line {
+			position: absolute;
+			bottom: 0;
+			left: 50%;
+			transform: translateX(-50%);
+			width: 48rpx;
+			height: 6rpx;
+			background: $primary;
+			border-radius: 3rpx;
+		}
+
+		&.active .tab-text {
+			color: $primary;
+			font-weight: bold;
+		}
+	}
 }
-.banner-icon { font-size: 48rpx; }
-.banner-info {
+
+/* ===== 卡券列表 ===== */
+.voucher-scroll {
+	height: calc(100vh - 88rpx - 88rpx - 100rpx - 40rpx);
+	padding: 20rpx 24rpx 0;
+}
+
+/* 空状态 */
+.empty-state {
 	display: flex;
 	flex-direction: column;
-	gap: 4rpx;
-}
-.banner-title { font-size: 30rpx; font-weight: bold; color: #FF6B9D; }
-.banner-sub { font-size: 22rpx; color: #FF9ECD; }
-.banner-arrow { font-size: 32rpx; color: #FF9ECD; }
+	align-items: center;
+	padding: 120rpx 0;
 
+	.empty-icon { font-size: 100rpx; margin-bottom: 24rpx; }
+	.empty-title {
+		font-size: 32rpx;
+		font-weight: bold;
+		color: $dark;
+		margin-bottom: 12rpx;
+	}
+	.empty-sub { font-size: 26rpx; color: $gray; }
+}
+
+/* 卡券卡片 */
+.voucher-card {
+	display: flex;
+	background: #fff;
+	border-radius: 20rpx;
+	overflow: hidden;
+	margin-bottom: 20rpx;
+	box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.07);
+	transition: transform 0.2s, box-shadow 0.2s;
+
+	&:active {
+		transform: scale(0.98);
+		box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+	}
+
+	.card-left {
+		width: 180rpx;
+		background: linear-gradient(135deg, $primary, #FF8A65);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		padding: 24rpx 16rpx;
+		flex-shrink: 0;
+
+		.card-price {
+			font-size: 48rpx;
+			font-weight: bold;
+			color: #fff;
+			line-height: 1;
+		}
+
+		.card-type-name {
+			font-size: 22rpx;
+			color: rgba(255, 255, 255, 0.85);
+			margin-top: 6rpx;
+		}
+	}
+
+	.card-right {
+		flex: 1;
+		padding: 20rpx 24rpx;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		min-height: 160rpx;
+	}
+
+	.card-header-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 12rpx;
+	}
+
+	.card-title {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: $dark;
+		line-height: 1.3;
+		flex: 1;
+	}
+
+	.card-status {
+		padding: 4rpx 12rpx;
+		border-radius: 10rpx;
+		font-size: 20rpx;
+		flex-shrink: 0;
+
+		&.status-normal {
+			background: #E8F5E9;
+			color: #52C41A;
+		}
+		&.status-expired {
+			background: #F5F5F5;
+			color: #AAA;
+		}
+		&.status-default {
+			background: #FFF3E0;
+			color: #F5A623;
+		}
+	}
+
+	.card-desc {
+		display: flex;
+		flex-direction: column;
+		gap: 4rpx;
+		margin-top: 8rpx;
+
+		.desc-item {
+			font-size: 22rpx;
+			color: $gray;
+			line-height: 1.4;
+		}
+	}
+
+	.card-footer-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-top: 8rpx;
+	}
+
+	.balance-hint {
+		font-size: 20rpx;
+		color: #FF9A7A;
+		background: #FFF5F0;
+		padding: 3rpx 10rpx;
+		border-radius: 8rpx;
+	}
+
+	.card-arrow {
+		font-size: 32rpx;
+		color: $gray;
+	}
+}
 </style>
