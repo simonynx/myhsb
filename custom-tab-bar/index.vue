@@ -1,26 +1,54 @@
 <template>
 	<view class="tabbar-wrapper" :style="{ paddingBottom: safeAreaBottom + 'px' }">
-		<view class="tabbar-glow"></view>
 		<view class="tabbar-inner">
+			<!-- 首页 -->
 			<view
 				class="tab-item"
-				v-for="tab in tabs"
-				:key="tab.key"
-				:class="{ active: current === tab.key, bump: bumpKey === tab.key }"
-				@click="switchTab(tab)"
+				:class="{ active: current === 'index' }"
+				@click="switchTab(tabs[0])"
 			>
-				<view class="tab-icon">
-					<text class="icon-emoji" :class="{ bounce: bumpKey === tab.key }">{{ current === tab.key ? tab.iconActive : tab.icon }}</text>
+				<view class="tab-icon-wrap" :class="{ active: current === 'index', bump: bumpKey === 'index' }">
+					<text class="tab-svg">
+						<text class="svg-path" :class="{ filled: current === 'index' }">🏠</text>
+					</text>
 				</view>
-				<text class="tab-text">{{ tab.name }}</text>
+				<text class="tab-label" :class="{ active: current === 'index' }">首页</text>
 			</view>
 
-			<!-- 中心预约按钮 -->
-			<view class="center-wrap" @tap="switchTab(tabs[2])">
-				<view class="center-btn" :class="{ active: current === 'appoint', bump: bumpKey === 'appoint' }">
-					<text class="center-icon">📅</text>
+			<!-- 卡券 -->
+			<view
+				class="tab-item"
+				:class="{ active: current === 'voucher' }"
+				@click="switchTab(tabs[1])"
+			>
+				<view class="tab-icon-wrap" :class="{ active: current === 'voucher', bump: bumpKey === 'voucher' }">
+					<text class="tab-svg">
+						<text class="svg-path" :class="{ filled: current === 'voucher' }">{{ current === 'voucher' ? '🎫' : '🎟️' }}</text>
+					</text>
 				</view>
-				<text class="center-label" :class="{ active: current === 'appoint' }">预约</text>
+				<text class="tab-label" :class="{ active: current === 'voucher' }">卡券</text>
+			</view>
+
+			<!-- 中心按钮 -->
+			<view class="center-slot" @tap="switchTab(tabs[2])">
+				<view class="center-ring"></view>
+				<view class="center-btn" :class="{ active: current === 'appoint', bump: bumpKey === 'appoint' }">
+					<text class="center-icon">{{ current === 'appoint' ? '📅' : '📆' }}</text>
+				</view>
+			</view>
+
+			<!-- 我的 -->
+			<view
+				class="tab-item"
+				:class="{ active: current === 'user' }"
+				@click="switchTab(tabs[3])"
+			>
+				<view class="tab-icon-wrap" :class="{ active: current === 'user', bump: bumpKey === 'user' }">
+					<text class="tab-svg">
+						<text class="svg-path" :class="{ filled: current === 'user' }">{{ current === 'user' ? '😄' : '🙂' }}</text>
+					</text>
+				</view>
+				<text class="tab-label" :class="{ active: current === 'user' }">我的</text>
 			</view>
 		</view>
 	</view>
@@ -42,18 +70,18 @@ export default {
 			current: 'index',
 			safeAreaBottom: 0,
 			bumpKey: '',
+			_tid: null,
 			tabs: [
-				{ key: 'index', name: '首页', path: '/pages/index/index', icon: '🏠', iconActive: '🏠' },
-				{ key: 'voucher', name: '卡券', path: '/pages/voucher/voucher', icon: '🎟️', iconActive: '🎫' },
-				{ key: 'appoint', name: '预约', path: '/pages/tabBar/appoint/appoint', icon: '📅', iconActive: '📅' },
-				{ key: 'user', name: '我的', path: '/pages/user/user', icon: '🙂', iconActive: '😄' },
+				{ key: 'index', name: '首页', path: '/pages/index/index' },
+				{ key: 'voucher', name: '卡券', path: '/pages/voucher/voucher' },
+				{ key: 'appoint', name: '预约', path: '/pages/tabBar/appoint/appoint' },
+				{ key: 'user', name: '我的', path: '/pages/user/user' },
 			],
 		};
 	},
 	mounted() {
 		const info = uni.getSystemInfoSync();
 		this.safeAreaBottom = info.safeAreaInsets?.bottom || 0;
-		this.syncCurrentTab();
 		eventBus.on('tabChange', this.handleTabChange);
 		uni.$on('tabItemTap', this.handleTabItemTap);
 	},
@@ -62,42 +90,29 @@ export default {
 		uni.$off('tabItemTap', this.handleTabItemTap);
 	},
 	methods: {
-		syncCurrentTab() {
-			const pages = getCurrentPages();
-			if (!pages.length) return;
-			const path = '/' + pages[pages.length - 1].route;
-			const key = TAB_KEYS[path];
-			if (key && this.current !== key) {
-				this.current = key;
-			}
-		},
-
 		handleTabChange(key) {
-			if (this.current !== key) {
-				this.triggerBump(key);
-				this.current = key;
-			}
+			if (this.current === key) return;
+			this.current = key;
+			this.doBump(key);
 		},
 
 		handleTabItemTap({ index }) {
 			const keys = ['index', 'voucher', 'appoint', 'user'];
 			const key = keys[index];
-			if (key && this.current !== key) {
-				this.triggerBump(key);
-				this.current = key;
-			}
-		},
-
-		triggerBump(key) {
-			this.bumpKey = key;
-			clearTimeout(this._bumpTimer);
-			this._bumpTimer = setTimeout(() => {
-				this.bumpKey = '';
-			}, 400);
+			if (!key || this.current === key) return;
+			this.current = key;
+			this.doBump(key);
 		},
 
 		switchTab(tab) {
+			this.doBump(tab.key);
 			uni.switchTab({ url: tab.path });
+		},
+
+		doBump(key) {
+			clearTimeout(this._tid);
+			this.bumpKey = key;
+			this._tid = setTimeout(() => { this.bumpKey = ''; }, 400);
 		},
 	},
 };
@@ -106,167 +121,173 @@ export default {
 <style lang="scss" scoped>
 $primary: #FF6432;
 $accent: #FF6B9D;
-$text: #BBBBBB;
-$active: #FF6432;
+$green: #34C759;
+$blue: #5856D6;
+$yellow: #FF9F0A;
+$text: #8E8E93;
+$active: #FF3A30;
+$surface: rgba(255, 255, 255, 0.88);
 
 .tabbar-wrapper {
 	position: fixed;
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: rgba(255, 255, 255, 0.97);
-	backdrop-filter: blur(12px);
-	-webkit-backdrop-filter: blur(12px);
+	background: $surface;
+	backdrop-filter: blur(20px);
+	-webkit-backdrop-filter: blur(20px);
 	z-index: 9999;
-	box-shadow: 0 -2rpx 20rpx rgba(0, 0, 0, 0.06);
-}
-
-.tabbar-glow {
-	position: absolute;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: 1rpx;
-	background: linear-gradient(90deg,
-		transparent 0%,
-		rgba($accent, 0.4) 30%,
-		rgba($primary, 0.6) 50%,
-		rgba($accent, 0.4) 70%,
-		transparent 100%
-	);
+	box-shadow: 0 -0.5px 0 rgba(0,0,0,0.08), 0 -12px 40px rgba(0,0,0,0.06);
 }
 
 .tabbar-inner {
 	display: flex;
-	align-items: flex-end;
+	align-items: flex-start;
 	justify-content: space-around;
-	padding: 8rpx 0 calc(8rpx + env(safe-area-inset-bottom));
-	height: 100rpx;
+	padding: 10rpx 12rpx calc(10rpx + env(safe-area-inset-bottom));
+	height: 110rpx;
 }
 
-// 普通 tab 项
+// ---- 普通 tab 项 ----
 .tab-item {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	justify-content: flex-start;
+	padding-top: 6rpx;
+	gap: 4rpx;
+}
+
+.tab-icon-wrap {
+	width: 68rpx;
+	height: 68rpx;
+	border-radius: 22rpx;
+	background: transparent;
+	display: flex;
+	align-items: center;
 	justify-content: center;
-	padding: 6rpx 0 8rpx;
-	transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+	transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 	position: relative;
 
 	&.active {
-		.tab-text {
-			color: $active;
-			font-weight: 600;
-		}
+		background: $active;
+		box-shadow: 0 6rpx 18rpx rgba($active, 0.38);
 	}
 
 	&.bump {
-		transform: translateY(-4rpx) scale(1.08);
-	}
-
-	.icon-emoji {
-		font-size: 38rpx;
-		transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-
-		&.bounce {
-			animation: emojiBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-		}
-	}
-
-	&.active .icon-emoji {
-		transform: scale(1.15);
-		filter: drop-shadow(0 2rpx 6rpx rgba($primary, 0.4));
-	}
-
-	// 顶部小圆点
-	&::before {
-		content: '';
-		position: absolute;
-		top: 6rpx;
-		left: 50%;
-		transform: translateX(-50%) scale(0);
-		width: 8rpx;
-		height: 8rpx;
-		background: $primary;
-		border-radius: 50%;
-		transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-
-	&.active::before {
-		transform: translateX(-50%) scale(1);
+		animation: iconBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 }
 
-.tab-text {
-	font-size: 21rpx;
+.tab-svg {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.svg-path {
+	font-size: 36rpx;
+	transition: all 0.22s;
+	filter: drop-shadow(0 1rpx 2rpx rgba(0,0,0,0.15));
+}
+
+.tab-label {
+	font-size: 20rpx;
 	color: $text;
-	margin-top: 2rpx;
-	transition: color 0.2s, font-weight 0.2s;
+	font-weight: 500;
+	transition: all 0.2s;
+
+	&.active {
+		color: $active;
+		font-weight: 700;
+	}
 }
 
-// 中心预约按钮
-.center-wrap {
+// ---- 中心按钮 ----
+.center-slot {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	justify-content: flex-end;
-	padding-bottom: 8rpx;
-	width: 120rpx;
+	justify-content: flex-start;
+	padding-top: 0;
 	position: relative;
+	width: 80rpx;
+}
 
-	.center-btn {
-		width: 96rpx;
-		height: 96rpx;
-		background: linear-gradient(135deg, $primary, #FF8A65);
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		position: absolute;
-		top: -20rpx;
-		left: 50%;
-		transform: translateX(-50%);
+.center-ring {
+	position: absolute;
+	top: -6rpx;
+	width: 108rpx;
+	height: 108rpx;
+	border-radius: 50%;
+	background: #FFF;
+	box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+	z-index: 0;
+}
+
+.center-btn {
+	width: 88rpx;
+	height: 88rpx;
+	border-radius: 50%;
+	background: linear-gradient(145deg, #FF7058 0%, $primary 50%, #FF8A65 100%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+	z-index: 1;
+	margin-top: -4rpx;
+	box-shadow:
+		0 8rpx 24rpx rgba($primary, 0.45),
+		0 2rpx 8rpx rgba($primary, 0.3),
+		inset 0 2rpx 4rpx rgba(255,255,255,0.3);
+	transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+	&.active {
+		background: linear-gradient(145deg, #FF6B8A 0%, $accent 50%, #FF8AB5 100%);
 		box-shadow:
-			0 6rpx 20rpx rgba($primary, 0.35),
-			0 0 0 6rpx rgba($primary, 0.08);
-		transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-
-		.center-icon {
-			font-size: 44rpx;
-			transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-		}
-
-		&.active {
-			background: linear-gradient(135deg, $accent, #FF6B9D);
-			box-shadow:
-				0 8rpx 28rpx rgba($accent, 0.45),
-				0 0 0 8rpx rgba($accent, 0.1);
-			transform: translateX(-50%) scale(1.1);
-		}
-
-		&.bump {
-			transform: translateX(-50%) scale(1.2) !important;
-		}
-
-		&.active .center-icon {
-			transform: scale(1.1);
-		}
+			0 10rpx 30rpx rgba($accent, 0.5),
+			0 2rpx 8rpx rgba($accent, 0.3),
+			inset 0 2rpx 4rpx rgba(255,255,255,0.35);
+		transform: scale(1.08);
 	}
 
-	.center-label {
-		font-size: 21rpx;
-		color: $text;
-		transition: color 0.2s;
-		&.active { color: $accent; font-weight: 600; }
+	&.bump {
+		animation: centerBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 }
 
-@keyframes emojiBounce {
-	0%   { transform: scale(1.15); }
-	40%  { transform: scale(0.9); }
-	70%  { transform: scale(1.2); }
-	100% { transform: scale(1.15); }
+.center-icon {
+	font-size: 42rpx;
+	transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.center-btn.bump .center-icon {
+	animation: emojiPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+// ---- 动画 ----
+@keyframes iconBounce {
+	0%   { transform: scale(1); }
+	25%  { transform: scale(0.82) translateY(2rpx); }
+	55%  { transform: scale(1.18) translateY(-4rpx); }
+	80%  { transform: scale(0.96) translateY(1rpx); }
+	100% { transform: scale(1) translateY(0); }
+}
+
+@keyframes centerBounce {
+	0%   { transform: scale(1); }
+	25%  { transform: scale(0.88); }
+	55%  { transform: scale(1.22); }
+	80%  { transform: scale(0.96); }
+	100% { transform: scale(1.08); }
+}
+
+@keyframes emojiPop {
+	0%   { transform: scale(1) rotate(0deg); }
+	30%  { transform: scale(0.75) rotate(-8deg); }
+	60%  { transform: scale(1.25) rotate(8deg); }
+	80%  { transform: scale(0.95) rotate(-3deg); }
+	100% { transform: scale(1) rotate(0deg); }
 }
 </style>
