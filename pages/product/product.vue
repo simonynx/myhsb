@@ -487,7 +487,7 @@ $light-gray: #F0F0F0;
 $bg: #F5F6F7;
 $card-bg: #FFFFFF;
 
-page { background: $bg; padding-bottom: 500rpx; }
+page { background: $bg; padding-bottom: 120rpx; }
 
 // 导航栏
 .nav-bar {
@@ -621,7 +621,7 @@ page { background: $bg; padding-bottom: 500rpx; }
 // 时段卡片
 .slots-card {
     background: #fff;
-    margin: 0 20rpx 350rpx;
+    margin: 0 20rpx 20rpx;
     border-radius: 20rpx;
     padding: 24rpx;
 
@@ -936,7 +936,7 @@ page { background: $bg; padding-bottom: 500rpx; }
         left: 0; right: 0; bottom: 0;
         background: #fff;
         border-radius: 30rpx 30rpx 0 0;
-        max-height: 88vh;
+        height: 75vh;
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -961,7 +961,7 @@ page { background: $bg; padding-bottom: 500rpx; }
         .panel-close { font-size: 44rpx; color: $gray; padding: 10rpx; }
     }
 
-    .panel-times { flex: 1; overflow-y: auto; padding: 20rpx 0 40rpx; }
+    .panel-times { flex: 1; overflow-y: auto; padding: 20rpx 0 40rpx; min-height: 0; }
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

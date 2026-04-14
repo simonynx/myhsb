@@ -127,7 +127,10 @@
 			};
 		},
 		created() {
-			this.selectDate = this.nowDate = currentTime().date;
+			// 优先使用传入的 selectedDate prop，没有则用今天
+			const today = currentTime().date;
+			this.selectDate = this.selectedDate || today;
+			this.nowDate = today;
 			this.initOnload();
 		},
 		computed: {
