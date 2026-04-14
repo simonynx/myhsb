@@ -25,6 +25,9 @@
 			>
 				<text class="tab-text">{{ tab }}</text>
 				<view class="tab-line" v-if="currentTab === idx"></view>
+				<view class="tab-badge" v-if="idx === 0 && availableCoupons.length > 0">
+					<text>{{ availableCoupons.length > 99 ? '99+' : availableCoupons.length }}</text>
+				</view>
 			</view>
 		</view>
 
@@ -32,9 +35,14 @@
 		<scroll-view class="voucher-scroll" scroll-y>
 			<!-- 空状态 -->
 			<view class="empty-state" v-if="displayList.length === 0">
-				<text class="empty-icon">🎫</text>
+				<view class="empty-illust">
+					<text class="empty-icon">🎫</text>
+				</view>
 				<text class="empty-title">暂无卡券</text>
 				<text class="empty-sub">快去领取优惠券吧～</text>
+				<view class="empty-btn" @tap="showCouponList">
+					<text>去领取</text>
+				</view>
 			</view>
 
 			<!-- 卡券卡片 -->
@@ -199,10 +207,20 @@ page, .content {
 	justify-content: space-between;
 	margin: 20rpx 24rpx;
 	padding: 28rpx;
-	background: linear-gradient(135deg, #FFF5F0, #FFF);
+	background: linear-gradient(135deg, #FFF5F0 0%, #FFF 100%);
 	border-radius: 24rpx;
 	border: 1rpx solid #FFE0D6;
-	box-shadow: 0 4rpx 16rpx rgba(255, 100, 50, 0.1);
+	box-shadow: 0 4rpx 16rpx rgba(255, 100, 50, 0.12);
+	position: relative;
+	overflow: hidden;
+	&::before {
+		content: '';
+		position: absolute;
+		right: 0; top: 0;
+		width: 200rpx; height: 100%;
+		background: radial-gradient(circle at right, rgba(255,100,50,0.06) 0%, transparent 70%);
+	}
+	&:active { transform: scale(0.99); transition: transform 0.1s; }
 
 	.banner-left {
 		display: flex;
@@ -278,6 +296,21 @@ page, .content {
 			color: $primary;
 			font-weight: bold;
 		}
+
+		.tab-badge {
+			position: absolute;
+			top: 12rpx;
+			right: calc(50% - 48rpx);
+			background: #FF4757;
+			border-radius: 20rpx;
+			min-width: 32rpx;
+			height: 32rpx;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 0 6rpx;
+			text { font-size: 18rpx; color: #fff; font-weight: bold; }
+		}
 	}
 }
 
@@ -294,14 +327,32 @@ page, .content {
 	align-items: center;
 	padding: 120rpx 0;
 
-	.empty-icon { font-size: 100rpx; margin-bottom: 24rpx; }
+	.empty-illust {
+		width: 180rpx;
+		height: 180rpx;
+		background: linear-gradient(135deg, #FFF5F0, #FFF);
+		border-radius: 50%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 32rpx;
+		box-shadow: 0 8rpx 32rpx rgba(255, 100, 50, 0.12);
+		.empty-icon { font-size: 80rpx; }
+	}
 	.empty-title {
 		font-size: 32rpx;
 		font-weight: bold;
 		color: $dark;
 		margin-bottom: 12rpx;
 	}
-	.empty-sub { font-size: 26rpx; color: $gray; }
+	.empty-sub { font-size: 26rpx; color: $gray; margin-bottom: 40rpx; }
+	.empty-btn {
+		background: linear-gradient(135deg, $primary, #FF8A65);
+		padding: 16rpx 48rpx;
+		border-radius: 40rpx;
+		box-shadow: 0 4rpx 16rpx rgba(255, 100, 50, 0.3);
+		text { font-size: 28rpx; color: #fff; font-weight: bold; }
+	}
 }
 
 /* 卡券卡片 */
@@ -350,6 +401,7 @@ page, .content {
 		flex-direction: column;
 		justify-content: space-between;
 		min-height: 160rpx;
+		position: relative;
 	}
 
 	.card-header-row {

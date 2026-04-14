@@ -72,16 +72,22 @@
 			</view>
 			<view class="order-grid">
 				<view class="order-item" @tap="navTo('/pages/order/order?state=1')">
-					<text class="order-icon">💰</text>
+					<text class="order-icon">⏰</text>
 					<text class="order-name">待付款</text>
+					<view class="order-badge" v-if="orderCounts.waitPay > 0">
+						<text>{{ orderCounts.waitPay > 99 ? '99+' : orderCounts.waitPay }}</text>
+					</view>
 				</view>
 				<view class="order-item" @tap="navTo('/pages/order/order?state=2')">
 					<text class="order-icon">✅</text>
-					<text class="order-name">已完成</text>
+					<text class="order-name">待使用</text>
+					<view class="order-badge" v-if="orderCounts.waitUse > 0">
+						<text>{{ orderCounts.waitUse > 99 ? '99+' : orderCounts.waitUse }}</text>
+					</view>
 				</view>
 				<view class="order-item" @tap="navTo('/pages/order/order?state=3')">
 					<text class="order-icon">❌</text>
-					<text class="order-name">付款失败</text>
+					<text class="order-name">已失效</text>
 				</view>
 			</view>
 		</view>
@@ -199,7 +205,9 @@
 			},
 		},
 		data() {
-			return {};
+			return {
+				orderCounts: { waitPay: 0, waitUse: 0 }
+			};
 		},
 		onTabItemTap() {
 			eventBus.emit('tabChange', 'user');
@@ -242,8 +250,17 @@ page {
 	background: #FFF;
 	border-radius: 28rpx;
 	padding: 28rpx;
-	box-shadow: 0 6rpx 24rpx rgba(255, 107, 157, 0.12);
-	border: 1rpx solid rgba(255, 107, 157, 0.08);
+	box-shadow: 0 8rpx 32rpx rgba(255, 107, 157, 0.15);
+	border: 1rpx solid rgba(255, 107, 157, 0.1);
+	position: relative;
+	overflow: hidden;
+	&::before {
+		content: '';
+		position: absolute;
+		top: 0; left: 0; right: 0;
+		height: 6rpx;
+		background: linear-gradient(90deg, #FF6B9D, #FF9ECD, #FF6B9D);
+	}
 }
 .profile-top {
 	display: flex;
@@ -313,7 +330,15 @@ page {
 	flex-direction: column;
 	align-items: center;
 }
-.qstat-item .qstat-num { font-size: 36rpx; font-weight: bold; color: #333; }
+.qstat-item .qstat-num {
+	font-size: 38rpx;
+	font-weight: 800;
+	color: #333;
+	background: linear-gradient(135deg, #FF6B9D, #FF9ECD);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
 .qstat-item .qstat-label { font-size: 22rpx; color: #999; margin-top: 4rpx; }
 .qstat-divider {
 	width: 2rpx;
@@ -322,11 +347,20 @@ page {
 }
 .growth-card {
 	margin: 0 24rpx 24rpx;
-	background: linear-gradient(135deg, #FFF5F8, #FFF);
+	background: linear-gradient(135deg, #FFF5F8 0%, #FFF 60%, #FFF5F8 100%);
 	border-radius: 24rpx;
 	padding: 28rpx;
 	border: 1rpx solid #FFE0EE;
 	box-shadow: 0 4rpx 16rpx rgba(255, 107, 157, 0.1);
+	position: relative;
+	&::after {
+		content: '';
+		position: absolute;
+		right: -40rpx; top: -40rpx;
+		width: 160rpx; height: 160rpx;
+		background: radial-gradient(circle, rgba(255,107,157,0.08) 0%, transparent 70%);
+		border-radius: 50%;
+	}
 }
 .growth-header {
 	display: flex;
@@ -396,8 +430,24 @@ page {
 		flex-direction: column;
 		align-items: center;
 		gap: 8rpx;
-		.order-icon { font-size: 48rpx; }
-		.order-name { font-size: 24rpx; color: #666; }
+		position: relative;
+		.order-icon { font-size: 48rpx; transition: transform 0.2s; }
+		&:active .order-icon { transform: scale(0.9); }
+		.order-name { font-size: 24rpx; color: #666; margin-top: 4rpx; }
+		.order-badge {
+			position: absolute;
+			top: -8rpx;
+			right: 8rpx;
+			background: #FF4757;
+			border-radius: 20rpx;
+			min-width: 32rpx;
+			height: 32rpx;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 0 6rpx;
+			text { font-size: 18rpx; color: #fff; font-weight: bold; }
+		}
 	}
 }
 
@@ -412,7 +462,9 @@ page {
 		align-items: center;
 		padding: 32rpx 24rpx;
 		border-bottom: 1rpx solid #F5F5F5;
+		transition: background 0.15s;
 		&:last-child { border-bottom: none; }
+		&:active { background: #FAFAFA; }
 		.menu-icon { font-size: 36rpx; margin-right: 16rpx; }
 		.menu-text {
 			flex: 1;
@@ -427,7 +479,8 @@ page {
 				font-weight: bold;
 			}
 		}
-		.menu-arrow { font-size: 28rpx; color: #CCC; }
+		.menu-arrow { font-size: 28rpx; color: #CCC; transition: transform 0.2s; }
+		&:active .menu-arrow { transform: translateX(4rpx); }
 	}
 }
 </style>
