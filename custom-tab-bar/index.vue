@@ -1,58 +1,19 @@
 <template>
 	<view class="tabbar-wrapper" :style="{ paddingBottom: safeAreaBottom + 'px' }">
-		<!-- 顶部细线 -->
 		<view class="tabbar-border"></view>
-
 		<view class="tabbar-inner">
-			<!-- 首页 -->
 			<view
 				class="tab-item"
-				:class="{ active: current === 'index' }"
-				@click="switchTab('/pages/index/index', 'index')"
+				v-for="tab in tabs"
+				:key="tab.key"
+				:class="{ active: current === tab.key }"
+				@click="switchTab(tab)"
 			>
 				<view class="tab-icon">
-					<view class="icon-emoji">{{ current === 'index' ? '🏠' : '🏡' }}</view>
-					<view class="active-dot" v-if="current === 'index'"></view>
+					<text class="icon-emoji">{{ current === tab.key ? tab.iconActive : tab.icon }}</text>
+					<view class="active-dot" v-if="current === tab.key && tab.key !== 'appoint'"></view>
 				</view>
-				<view class="tab-text">首页</view>
-			</view>
-
-			<!-- 卡券 -->
-			<view
-				class="tab-item"
-				:class="{ active: current === 'voucher' }"
-				@click="switchTab('/pages/voucher/voucher', 'voucher')"
-			>
-				<view class="tab-icon">
-					<view class="icon-emoji">{{ current === 'voucher' ? '🎫' : '🎟️' }}</view>
-					<view class="active-dot" v-if="current === 'voucher'"></view>
-				</view>
-				<view class="tab-text">卡券</view>
-			</view>
-
-			<!-- 预约 - 中心突出按钮 -->
-			<view
-				class="tab-item center-btn"
-				:class="{ active: current === 'appoint' }"
-				@click="switchTab('/pages/tabBar/appoint/appoint', 'appoint')"
-			>
-				<view class="tab-icon center-icon">
-					<view class="icon-emoji big">{{ current === 'appoint' ? '📅' : '📆' }}</view>
-				</view>
-				<view class="tab-text center-text">预约</view>
-			</view>
-
-			<!-- 我的 -->
-			<view
-				class="tab-item"
-				:class="{ active: current === 'user' }"
-				@click="switchTab('/pages/user/user', 'user')"
-			>
-				<view class="tab-icon">
-					<view class="icon-emoji">{{ current === 'user' ? '😄' : '🙂' }}</view>
-					<view class="active-dot" v-if="current === 'user'"></view>
-				</view>
-				<view class="tab-text">我的</view>
+				<text class="tab-text">{{ tab.name }}</text>
 			</view>
 		</view>
 	</view>
@@ -61,29 +22,63 @@
 <script>
 import eventBus from '@/utils/eventBus.js';
 
+const TAB_KEYS = {
+	'/pages/index/index': 'index',
+	'/pages/voucher/voucher': 'voucher',
+	'/pages/tabBar/appoint/appoint': 'appoint',
+	'/pages/user/user': 'user',
+};
+
 export default {
 	data() {
 		return {
 			current: 'index',
-			safeAreaBottom: 0
+			safeAreaBottom: 0,
+			tabs: [
+				{ key: 'index', name: '首页', path: '/pages/index/index', icon: '🏠', iconActive: '🏠' },
+				{ key: 'voucher', name: '卡券', path: '/pages/voucher/voucher', icon: '🎟️', iconActive: '🎫' },
+				{ key: 'appoint', name: '预约', path: '/pages/tabBar/appoint/appoint', icon: '📆', iconActive: '📅' },
+				{ key: 'user', name: '我的', path: '/pages/user/user', icon: '🙂', iconActive: '😄' },
+			],
 		};
 	},
 	mounted() {
-		const systemInfo = uni.getSystemInfoSync();
-		this.safeAreaBottom = systemInfo.safeAreaInsets?.bottom || 0;
-		eventBus.on('tabChange', (key) => {
-			this.current = key;
-		});
+		const info = uni.getSystemInfoSync();
+		this.safeAreaBottom = info.safeAreaInsets?.bottom || 0;
+		this.syncCurrentTab();
+		eventBus.on('tabChange', this.handleTabChange);
+	},
+	onShow() {
+		// 每次 tab bar 显示时同步当前 tab（用户可能从其他入口进来）
+		this.syncCurrentTab();
 	},
 	beforeDestroy() {
-		eventBus.off('tabChange');
+		eventBus.off('tabChange', this.handleTabChange);
 	},
 	methods: {
-		switchTab(url, key) {
-			if (this.current === key) return;
-			uni.switchTab({ url });
-		}
-	}
+		// 根据当前页面路径同步 tab 高亮
+		syncCurrentTab() {
+			const pages = getCurrentPages();
+			if (!pages.length) return;
+			const currentPage = pages[pages.length - 1];
+			const path = '/' + currentPage.route;
+			const key = TAB_KEYS[path];
+			if (key && this.current !== key) {
+				this.current = key;
+			}
+		},
+
+		handleTabChange(key) {
+			if (this.current !== key) {
+				this.current = key;
+			}
+		},
+
+		switchTab(tab) {
+			if (this.current === tab.key) return;
+			uni.switchTab({ url: tab.path });
+		},
+	},
 };
 </script>
 
@@ -120,45 +115,14 @@ export default {
 	padding: 6rpx 0;
 	transition: all 0.2s;
 
-	&.active {
-		.tab-text {
-			color: #FF6432;
-			font-weight: bold;
-		}
+	&.active .tab-text {
+		color: #FF6432;
+		font-weight: bold;
 	}
 
-	&.center-btn {
-		position: relative;
-		top: -20rpx;
-
-		.center-icon {
-			width: 96rpx;
-			height: 96rpx;
-			background: linear-gradient(135deg, #FF6432, #FF8A65);
-			border-radius: 50%;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			box-shadow: 0 6rpx 20rpx rgba(255, 100, 50, 0.4);
-			transition: all 0.2s;
-		}
-
-		.center-text {
-			color: #FF6432 !important;
-			font-weight: bold !important;
-			margin-top: 2rpx;
-		}
-
-		&.active {
-			.center-icon {
-				transform: scale(1.1);
-				box-shadow: 0 8rpx 28rpx rgba(255, 100, 50, 0.5);
-			}
-		}
-
-		.icon-emoji.big {
-			font-size: 44rpx;
-		}
+	.icon-emoji {
+		font-size: 40rpx;
+		transition: all 0.2s;
 	}
 }
 
@@ -169,11 +133,6 @@ export default {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-}
-
-.icon-emoji {
-	font-size: 36rpx;
-	transition: all 0.2s;
 }
 
 .active-dot {
@@ -191,6 +150,6 @@ export default {
 	font-size: 22rpx;
 	color: #BBBBBB;
 	margin-top: 2rpx;
-	transition: all 0.2s;
+	transition: color 0.2s;
 }
 </style>
