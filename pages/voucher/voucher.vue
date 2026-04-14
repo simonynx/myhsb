@@ -141,7 +141,6 @@
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import customTabBar from '@/custom-tab-bar/index.vue';
-import eventBus from '@/utils/eventBus.js';
 
 export default {
 	components: { customTabBar },
@@ -173,12 +172,8 @@ export default {
 			goodsList: [],
 			goodsEmojis: ['💆', '🧖', '💅', '🎀', '✨', '💎', '🌸', '🛁', '🎁', '🧴'],
 		};
-	},
-	onTabItemTap() {
-		eventBus.emit('tabChange', 'voucher');
-	},
+	}
 	onShow() {
-		eventBus.emit('tabChange', 'voucher');
 		if (!this.hasLogin) {
 			this.loginAndRegister().then(() => this.loadAll());
 		} else {

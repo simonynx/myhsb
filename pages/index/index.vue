@@ -323,7 +323,6 @@
 <script>
 	import { mapState, mapActions } from 'vuex';
 	import customTabBar from '@/custom-tab-bar/index.vue';
-	import eventBus from '@/utils/eventBus.js';
 	export default {
 		components: { customTabBar },
 		computed: {
@@ -369,13 +368,7 @@
 		},
 		onShow() {
 			if (!this.hasLogin) this.loginAndRegister();
-		},
-		onTabItemTap() {
-			eventBus.emit('tabChange', 'index');
-		},
-		onShow() {
-			eventBus.emit('tabChange', 'index');
-		},
+		}
 		onLoad() {
 			this.loadData();
 		},

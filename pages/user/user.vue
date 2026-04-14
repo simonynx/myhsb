@@ -139,7 +139,6 @@
 <script>
 	import AUTH from '../../utils/auth.js'
 	import customTabBar from '@/custom-tab-bar/index.vue';
-	import eventBus from '@/utils/eventBus.js';
 	import {
 		mapState,
 		mapActions,
@@ -208,12 +207,8 @@
 			return {
 				orderCounts: { waitPay: 0, waitUse: 0 }
 			};
-		},
-		onTabItemTap() {
-			eventBus.emit('tabChange', 'user');
-		},
+		}
 		onShow() {
-			eventBus.emit('tabChange', 'user');
 			if (!this.hasLogin) {
 				this.loginAndRegister();
 			} else if (!this.userInfo) {

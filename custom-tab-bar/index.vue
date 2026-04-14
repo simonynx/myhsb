@@ -78,31 +78,41 @@ export default {
 		};
 	},
 	mounted() {
-		const info = uni.getSystemInfoSync();
-		this.safeAreaBottom = info.safeAreaInsets?.bottom || 0;
-		uni.$on('tabItemTap', this.handleTabItemTap);
-	},
-	beforeDestroy() {
-		uni.$off('tabItemTap', this.handleTabItemTap);
-	},
-	methods: {
-		handleTabItemTap({ index }) {
-			const keys = ['index', 'voucher', 'appoint', 'user'];
-			const key = keys[index];
-			if (!key) return;
-			if (this.current !== key) {
-				this.current = key;
-				this.doBump(key);
-			} else {
-				// same tab - still bump for feedback
-				this.doBump(key);
+			const info = uni.getSystemInfoSync();
+			this.safeAreaBottom = info.safeAreaInsets?.bottom || 0;
+			// 初始化同步当前 tab
+			const pages = getCurrentPages();
+			if (pages.length) {
+				const path = '/' + pages[pages.length - 1].route;
+				const key = TAB_KEYS[path];
+				if (key) this.current = key;
 			}
+			// 监听 tab 切换事件（用户点击 tab 栏时触发）
+			uni.$on('tabItemTap', this.onTabItemTap);
 		},
+		beforeDestroy() {
+			uni.$off('tabItemTap', this.onTabItemTap);
+		},
+		methods: {
+			onTabItemTap({ index }) {
+				const keys = ['index', 'voucher', 'appoint', 'user'];
+				const key = keys[index];
+				if (!key) return;
+				if (this.current !== key) {
+					this.current = key;
+					this.doBump(key);
+				}
+			},
 
-		switchTab(tab) {
-			this.doBump(tab.key);
-			uni.switchTab({ url: tab.path });
-		},
+			switchTab(tab) {
+				if (this.current === tab.key) {
+					this.doBump(tab.key);
+					return;
+				}
+				this.current = tab.key;
+				this.doBump(tab.key);
+				uni.switchTab({ url: tab.path });
+			},
 
 		doBump(key) {
 			clearTimeout(this._tid);
