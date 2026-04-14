@@ -308,14 +308,16 @@ export default {
         },
 
         goDetail(room) {
+            this.$store.commit('setCurrentRoom', JSON.parse(JSON.stringify(room)));
             uni.navigateTo({
-                url: `/pages/product/product?data=${encodeURIComponent(JSON.parse(JSON.stringify(room)))}&date=${this.currentSelectDate}`
+                url: `/pages/product/product?date=${this.currentSelectDate}`
             });
         },
 
         handleAppointButtonClick(item) {
             if (this.isRoomFullyBooked(item)) return;
             this.currentSelectItem = item;
+            this.$store.commit('setCurrentRoom', JSON.parse(JSON.stringify(item)));
             this.currentBeginTime = item.opening_hours_start + ':00:00';
             this.currentEndTime = item.opening_hours_end + ':00:00';
             this.disableTimeSlot = [];
@@ -379,8 +381,9 @@ export default {
             this.specSelected = times;
             this.currentSelectItem.selects = this.specSelected;
             if (this.specSelected.length <= 0) return;
+            this.$store.commit('setCurrentSelectItem', JSON.parse(JSON.stringify(this.currentSelectItem)));
             uni.navigateTo({
-                url: `/pages/order/createOrder?data=${encodeURIComponent(JSON.parse(JSON.stringify(this.currentSelectItem)))}`
+                url: '/pages/order/createOrder'
             });
         },
 

@@ -25,6 +25,9 @@ const store = new Vuex.Store({
     activeOpen: '',
     menu: [],
     rechargeTiers: [],
+    currentRoom: null,
+    currentSelectItem: null,
+
     univerifyErrorMsg: ''
   },
 
@@ -84,6 +87,9 @@ const store = new Vuex.Store({
     setMenu(state, menu) {
       state.menu = menu;
     },
+    setCurrentRoom(state, room) { state.currentRoom = room || null; },
+    setCurrentSelectItem(state, item) { state.currentSelectItem = item || null; },
+
     setRechargeTiers(state, list) { state.rechargeTiers = list; },
     setUniverifyLogin(state, payload) {
       typeof payload !== 'boolean' ? payload = !!payload : '';

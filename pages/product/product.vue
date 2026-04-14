@@ -294,14 +294,17 @@ export default {
     },
 
     onLoad(option) {
-        this.room = JSON.parse(option.data);
-        this.roomDate = option.date;
-        this.currentSelectDate = option.date;
-        this.buildImages();
-        this.buildDesc();
-        this.buildFacilities();
-        this.buildStoreInfo();
-        this.initTimeConfig();
+        this.roomDate = option.date || '';
+        this.currentSelectDate = option.date || '';
+        const roomData = this.$store.state.currentRoom;
+        if (roomData && roomData.object_id) {
+            this.room = roomData;
+            this.buildImages();
+            this.buildDesc();
+            this.buildFacilities();
+            this.buildStoreInfo();
+            this.initTimeConfig();
+        }
     },
 
     onPageScroll(e) {

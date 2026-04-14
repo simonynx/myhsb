@@ -431,12 +431,14 @@ export default {
     },
 
     onLoad(option) {
-        // 商品数据
-        let data = JSON.parse(decodeURIComponent(option.data));
+        // 从 Vuex 读取商品数据
+        const data = this.$store.state.currentRoom || {};
+        const selectItem = this.$store.state.currentSelectItem || {};
         this.currentProduct = data;
 
-        for (let i = 0; i < data.selects.length; i++) {
-            const [begin_time = '', end_time = ''] = data.selects[i];
+        const selects = selectItem.selects || data.selects || [];
+        for (let i = 0; i < selects.length; i++) {
+            const [begin_time = '', end_time = ''] = selects[i];
             const [begin_date, pre_time] = begin_time.split(' ');
             const [end_date, next_time] = end_time.split(' ');
             this.currentSelectDate = begin_date;
