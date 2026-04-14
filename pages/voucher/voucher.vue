@@ -194,10 +194,12 @@ $dark: #333333;
 $light-gray: #F0F0F0;
 
 page, .content {
-	height: 100%;
+	height: 100vh;
 	padding-top: 44px;
 	box-sizing: border-box;
 	background-color: #F5F5F5;
+	display: flex;
+	flex-direction: column;
 }
 
 /* ===== 优惠券 Banner ===== */
@@ -316,8 +318,9 @@ page, .content {
 
 /* ===== 卡券列表 ===== */
 .voucher-scroll {
-	height: calc(100vh - 88rpx - 88rpx - 100rpx - 40rpx);
+	height: calc(100vh - 88px - 44px - 50px);
 	padding: 20rpx 24rpx 0;
+	box-sizing: border-box;
 }
 
 /* 空状态 */
