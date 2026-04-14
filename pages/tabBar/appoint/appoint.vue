@@ -453,8 +453,8 @@ page {
 }
 
 .status-bar-placeholder {
-    height: 88rpx;
-    background: linear-gradient(135deg, #FF6432, #FF8A65);
+    height: var(--status-bar-height, 44px);
+    background: transparent;
 }
 
 .nav-bar {
