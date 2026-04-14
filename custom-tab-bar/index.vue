@@ -31,7 +31,7 @@
 
 			<!-- 中心按钮 -->
 			<view class="center-slot" @tap="switchTab(tabs[2])">
-				<view class="center-ring"></view>
+						<view class="center-ring" :class="{ active: current === 'appoint' }"></view>
 				<view class="center-btn" :class="{ active: current === 'appoint', bump: bumpKey === 'appoint' }">
 					<text class="center-icon">{{ current === 'appoint' ? '📅' : '📆' }}</text>
 				</view>
@@ -55,8 +55,6 @@
 </template>
 
 <script>
-import eventBus from '@/utils/eventBus.js';
-
 const TAB_KEYS = {
 	'/pages/index/index': 'index',
 	'/pages/voucher/voucher': 'voucher',
@@ -82,26 +80,23 @@ export default {
 	mounted() {
 		const info = uni.getSystemInfoSync();
 		this.safeAreaBottom = info.safeAreaInsets?.bottom || 0;
-		eventBus.on('tabChange', this.handleTabChange);
 		uni.$on('tabItemTap', this.handleTabItemTap);
 	},
 	beforeDestroy() {
-		eventBus.off('tabChange', this.handleTabChange);
 		uni.$off('tabItemTap', this.handleTabItemTap);
 	},
 	methods: {
-		handleTabChange(key) {
-			if (this.current === key) return;
-			this.current = key;
-			this.doBump(key);
-		},
-
 		handleTabItemTap({ index }) {
 			const keys = ['index', 'voucher', 'appoint', 'user'];
 			const key = keys[index];
-			if (!key || this.current === key) return;
-			this.current = key;
-			this.doBump(key);
+			if (!key) return;
+			if (this.current !== key) {
+				this.current = key;
+				this.doBump(key);
+			} else {
+				// same tab - still bump for feedback
+				this.doBump(key);
+			}
 		},
 
 		switchTab(tab) {
@@ -224,6 +219,14 @@ $surface: rgba(255, 255, 255, 0.88);
 	background: #FFF;
 	box-shadow: 0 4px 16px rgba(0,0,0,0.1);
 	z-index: 0;
+	transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+	&.active {
+		background: linear-gradient(145deg, rgba($accent, 0.15), rgba($primary, 0.08));
+		box-shadow:
+			0 6rpx 24rpx rgba($accent, 0.25),
+			0 0 0 6rpx rgba($accent, 0.12);
+	}
 }
 
 .center-btn {
