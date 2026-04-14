@@ -416,7 +416,33 @@ page {
 }
 .level-dot .dot-icon { font-size: 32rpx; opacity: 0.25; }
 .level-dot .dot-name { font-size: 20rpx; margin-top: 4rpx; }
-.level-dot.active .dot-icon { opacity: 1; }.order-section {
+.level-dot.active .dot-icon { opacity: 1; }
+
+/* ===== 通用区块容器 ===== */
+.section {
+	margin: 20rpx 24rpx;
+	border-radius: 24rpx;
+	overflow: hidden;
+	background: #FFF;
+	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+}
+.section-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 24rpx 24rpx 0;
+}
+.section-title {
+	font-size: 30rpx;
+	font-weight: bold;
+	color: #333;
+}
+.section-more {
+	font-size: 24rpx;
+	color: #999;
+}
+
+.order-section {
 	background: #FFF;
 	border-radius: 24rpx;
 	padding: 24rpx;
@@ -453,9 +479,10 @@ page {
 
 /* ===== 菜单 ===== */
 .menu-section {
-	background: #FFF;
+	margin: 20rpx 24rpx;
 	border-radius: 24rpx;
 	overflow: hidden;
+	background: #FFF;
 	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
 	.menu-item {
 		display: flex;
