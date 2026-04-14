@@ -11,10 +11,10 @@
 				@click="switchTab('/pages/index/index', 'index')"
 			>
 				<view class="tab-icon">
-					<text class="icon-emoji">{{ current === 'index' ? '🏠' : '🏡' }}</text>
+					<view class="icon-emoji">{{ current === 'index' ? '🏠' : '🏡' }}</view>
 					<view class="active-dot" v-if="current === 'index'"></view>
 				</view>
-				<text class="tab-text">首页</text>
+				<view class="tab-text">首页</view>
 			</view>
 
 			<!-- 卡券 -->
@@ -24,10 +24,10 @@
 				@click="switchTab('/pages/voucher/voucher', 'voucher')"
 			>
 				<view class="tab-icon">
-					<text class="icon-emoji">{{ current === 'voucher' ? '🎫' : '🎟️' }}</text>
+					<view class="icon-emoji">{{ current === 'voucher' ? '🎫' : '🎟️' }}</view>
 					<view class="active-dot" v-if="current === 'voucher'"></view>
 				</view>
-				<text class="tab-text">卡券</text>
+				<view class="tab-text">卡券</view>
 			</view>
 
 			<!-- 预约 - 中心突出按钮 -->
@@ -37,9 +37,9 @@
 				@click="switchTab('/pages/tabBar/appoint/appoint', 'appoint')"
 			>
 				<view class="tab-icon center-icon">
-					<text class="icon-emoji big">{{ current === 'appoint' ? '📅' : '📆' }}</text>
+					<view class="icon-emoji big">{{ current === 'appoint' ? '📅' : '📆' }}</view>
 				</view>
-				<text class="tab-text center-text">预约</text>
+				<view class="tab-text center-text">预约</view>
 			</view>
 
 			<!-- 我的 -->
@@ -49,10 +49,10 @@
 				@click="switchTab('/pages/user/user', 'user')"
 			>
 				<view class="tab-icon">
-					<text class="icon-emoji">{{ current === 'user' ? '😄' : '🙂' }}</text>
+					<view class="icon-emoji">{{ current === 'user' ? '😄' : '🙂' }}</view>
 					<view class="active-dot" v-if="current === 'user'"></view>
 				</view>
-				<text class="tab-text">我的</text>
+				<view class="tab-text">我的</view>
 			</view>
 		</view>
 	</view>
@@ -94,9 +94,7 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-$primary: #FF6432;
-$gray: #BBBBBB;
-$dark: #333333;
+// $primary: #FF6432; // not available in uni.scss, use hardcoded
 
 .tabbar-wrapper {
 	position: fixed;
@@ -132,7 +130,7 @@ $dark: #333333;
 
 	&.active {
 		.tab-text {
-			color: $primary;
+			color: #FF6432;
 			font-weight: bold;
 		}
 	}
@@ -144,17 +142,17 @@ $dark: #333333;
 		.center-icon {
 			width: 96rpx;
 			height: 96rpx;
-			background: linear-gradient(135deg, $primary, #FF8A65);
+			background: linear-gradient(135deg, #FF6432, #FF8A65);
 			border-radius: 50%;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			box-shadow: 0 6rpx 20rpx rgba($primary, 0.4);
+			box-shadow: 0 6rpx 20rpx rgba(255, 100, 50, 0.4);
 			transition: all 0.2s;
 		}
 
 		.center-text {
-			color: $primary !important;
+			color: #FF6432 !important;
 			font-weight: bold !important;
 			margin-top: 2rpx;
 		}
@@ -162,7 +160,7 @@ $dark: #333333;
 		&.active {
 			.center-icon {
 				transform: scale(1.1);
-				box-shadow: 0 8rpx 28rpx rgba($primary, 0.5);
+				box-shadow: 0 8rpx 28rpx rgba(255, 100, 50, 0.5);
 			}
 		}
 
@@ -192,14 +190,14 @@ $dark: #333333;
 	right: -4rpx;
 	width: 10rpx;
 	height: 10rpx;
-	background: $primary;
+	background: #FF6432;
 	border-radius: 50%;
 	border: 2rpx solid #fff;
 }
 
 .tab-text {
 	font-size: 22rpx;
-	color: $gray;
+	color: #BBBBBB;
 	margin-top: 2rpx;
 	transition: all 0.2s;
 }
