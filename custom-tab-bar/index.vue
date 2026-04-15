@@ -30,7 +30,7 @@
 			</view>
 
 			<!-- 中心按钮 -->
-			<view class="center-slot" @tap="switchTab(tabs[2])">
+			<view class="center-slot" @click="switchTab(tabs[2])">
 						<view class="center-ring" :class="{ active: current === 'appoint' }"></view>
 				<view class="center-btn" :class="{ active: current === 'appoint', bump: bumpKey === 'appoint' }">
 					<text class="center-icon">{{ current === 'appoint' ? '📅' : '📆' }}</text>
@@ -78,41 +78,41 @@ export default {
 		};
 	},
 	mounted() {
-			const info = uni.getSystemInfoSync();
-			this.safeAreaBottom = info.safeAreaInsets?.bottom || 0;
-			// 初始化同步当前 tab
-			const pages = getCurrentPages();
-			if (pages.length) {
-				const path = '/' + pages[pages.length - 1].route;
-				const key = TAB_KEYS[path];
-				if (key) this.current = key;
+		const info = uni.getSystemInfoSync();
+		this.safeAreaBottom = info.safeAreaInsets?.bottom || 0;
+		// 初始化同步当前 tab
+		const pages = getCurrentPages();
+		if (pages.length) {
+			const path = '/' + pages[pages.length - 1].route;
+			const key = TAB_KEYS[path];
+			if (key) this.current = key;
+		}
+		// 监听 tab 切换事件（用户点击 tab 栏时触发）
+		uni.$on('tabItemTap', this.onTabItemTap);
+	},
+	beforeDestroy() {
+		uni.$off('tabItemTap', this.onTabItemTap);
+	},
+	methods: {
+		onTabItemTap({ index }) {
+			const keys = ['index', 'voucher', 'appoint', 'user'];
+			const key = keys[index];
+			if (!key) return;
+			if (this.current !== key) {
+				this.current = key;
 			}
-			// 监听 tab 切换事件（用户点击 tab 栏时触发）
-			uni.$on('tabItemTap', this.onTabItemTap);
+			this.doBump(key);
 		},
-		beforeDestroy() {
-			uni.$off('tabItemTap', this.onTabItemTap);
-		},
-		methods: {
-			onTabItemTap({ index }) {
-				const keys = ['index', 'voucher', 'appoint', 'user'];
-				const key = keys[index];
-				if (!key) return;
-				if (this.current !== key) {
-					this.current = key;
-					this.doBump(key);
-				}
-			},
 
-			switchTab(tab) {
-				if (this.current === tab.key) {
-					this.doBump(tab.key);
-					return;
-				}
-				this.current = tab.key;
+		switchTab(tab) {
+			if (this.current === tab.key) {
 				this.doBump(tab.key);
-				uni.switchTab({ url: tab.path });
-			},
+				return;
+			}
+			this.current = tab.key;
+			this.doBump(tab.key);
+			uni.switchTab({ url: tab.path });
+		},
 
 		doBump(key) {
 			clearTimeout(this._tid);
