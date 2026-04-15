@@ -404,18 +404,15 @@ export default {
         },
 
         getTime(times) {
-            // times: [{ date: '2026-04-15', item: ['09:00', '10:00'] }, ...]
-            // item 本身就是量子时间数组，不需要再解构
-            const selects = times.map(t => {
-                return [t.date + ' ' + t.item[0], t.date + ' ' + t.item[1]];
-            });
+            console.log('[getTime] times:', JSON.stringify(times));
+            // times: [{ date: '2026-04-15', item: ['2026-04-15 09:00:00', '2026-04-15 10:00:00'] }, ...]
+            const selects = times.map(t => [t.item[0], t.item[1]]);
+            console.log('[getTime] selects:', JSON.stringify(selects));
+            if (selects.length <= 0) return;
             this.specSelected = selects;
             this.currentSelectItem.selects = this.specSelected;
-            if (this.specSelected.length <= 0) return;
             this.$store.commit('setCurrentSelectItem', this.currentSelectItem);
-            uni.navigateTo({
-                url: '/pages/order/createOrder'
-            });
+            uni.navigateTo({ url: '/pages/order/createOrder' });
         },
 
         formatDate(d) {

@@ -320,6 +320,7 @@
 							this.isQuantum ? time.push({ date, item }) : time.push({ date, item: date + ' ' + item });
 						});
 					}
+					console.log('[handleSubmit] isQuantum:', this.isQuantum, 'time:', JSON.stringify(time));
 					this.$emit('change', time);
 				} else {
 					this.$emit('change', this.orderDateTime);

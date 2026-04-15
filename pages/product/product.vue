@@ -474,12 +474,15 @@ export default {
         },
 
         getTime(times) {
-            this.specSelected = times;
+            // times: [{ date: '2026-04-16', item: ['2026-04-16 11:00:00', '2026-04-16 12:00:00'] }, ...]
+            console.log('[product getTime] times:', JSON.stringify(times));
+            const selects = times.map(t => [t.item[0], t.item[1]]);
+            console.log('[product getTime] selects:', JSON.stringify(selects));
+            if (!selects.length) return;
+            this.specSelected = selects;
             this.room.selects = this.specSelected;
-            if (!this.specSelected.length) return;
-            uni.navigateTo({
-                url: `/pages/order/createOrder?data=${encodeURIComponent(JSON.parse(JSON.stringify(this.room)))}`
-            });
+            this.$store.commit('setCurrentSelectItem', this.room);
+            uni.navigateTo({ url: '/pages/order/createOrder' });
         },
 
         handleTimesSelectDateChange(date) {

@@ -448,28 +448,37 @@ export default {
     },
 
     onLoad(option) {
-        // 从 Vuex 读取商品数据，优先用 currentSelectItem（包含用户选择的时段）
         const roomData = this.$store.state.currentRoom || {};
         const selectItem = this.$store.state.currentSelectItem || {};
-        // 合并两个数据源，时段信息存在 selectItem.selects 里
-        this.currentProduct = { ...roomData, ...selectItem };
-        if (!this.currentProduct.object_id) {
-            this.currentProduct = roomData.object_id ? roomData : selectItem;
+        console.log('[createOrder] currentRoom:', JSON.stringify(roomData));
+        console.log('[createOrder] currentSelectItem:', JSON.stringify(selectItem));
+        this.currentProduct = Object.keys(selectItem).length ? selectItem : roomData;
+
+        // 日期兜底
+        if (!this.currentSelectDate) {
+            const d = new Date();
+            this.currentSelectDate = d.getFullYear() + '-' + (d.getMonth() + 1).toString().padStart(2, '0') + '-' + d.getDate().toString().padStart(2, '0');
         }
 
         const selects = selectItem.selects || roomData.selects || [];
+        console.log('[createOrder] selects:', JSON.stringify(selects));
+
+        this.selectTimes = [];
         for (let i = 0; i < selects.length; i++) {
             const [begin_time = '', end_time = ''] = selects[i];
-            const [begin_date, pre_time] = begin_time.split(' ');
-            const [end_date, next_time] = end_time.split(' ');
+            if (!begin_time || !end_time) continue;
+            const bParts = begin_time.split(' ');
+            const eParts = end_time.split(' ');
+            if (bParts.length < 2 || eParts.length < 2) continue;
+            const [begin_date, pre_time] = bParts;
+            const [end_date, next_time] = eParts;
             this.currentSelectDate = begin_date;
-            const pre = pre_time.slice(0, -1);
-            const next = next_time.slice(0, -1);
+            const pre = pre_time.slice(0, -3);  // 去掉末尾 :00
+            const next = next_time.slice(0, -3);
             this.selectTimes.push(`${pre}~${next}`);
         }
-        this.singlePersonPrice = this.currentProduct.price_per_person || 0;
 
-        // 加载用户优惠券
+        this.singlePersonPrice = this.currentProduct.price_per_person || 0;
         this.loadMyCoupons();
     },
 
@@ -560,8 +569,8 @@ export default {
                     const interval = [];
                     const [, pre_time] = item[0].split(' ');
                     const [, next_time] = item[1].split(' ');
-                    const pre = pre_time.slice(0, -6);
-                    const next = next_time.slice(0, -6);
+                    const pre = pre_time.slice(0, -3);
+                    const next = next_time.slice(0, -3);
                     interval.push(parseInt(pre));
                     interval.push(parseInt(next));
                     timeList.push(interval);
