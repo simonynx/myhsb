@@ -250,7 +250,7 @@
 					for (var j = 0; j < orders.length; j++) {
 						var item = orders[j];
 						var goodsInfoStr = item.goods_info;
-						var goodsInfo = JSON.parse(goodsInfoStr || '{}');
+						var goodsInfo = (typeof goodsInfoStr === 'string') ? JSON.parse(goodsInfoStr || '{}') : (goodsInfoStr || {});
 						item.goodsInfo = goodsInfo;
 
 						if (item.order_type === 1 && goodsInfo.room_id) {

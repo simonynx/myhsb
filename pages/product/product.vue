@@ -437,8 +437,9 @@ export default {
 
         // 获取指定日期的 appointments 并更新 disableTimeSlot
         _fetchDisableTimeSlot(date) {
+            if (!date || !this.room.object_id) return;
             AUTH.getRoomAppointments(this.token, this.room.object_id, date).then(res => {
-                if (!res) return;
+                if (!res || !res.data || !res.data.time_list) return;
                 for (const propStr in res.data.time_list) {
                     if (!res.data.time_list[propStr]) {
                         const prop = JSON.parse(propStr);

@@ -201,7 +201,7 @@ function getCouponList(token) {
 }
 
 function getMyCoupons(token, status) {
-  var url = '/coupons/my_coupons/' + (status !== undefined ? '?status=' + status : '');
+  var url = '/coupons/my_coupons/' + (status != null ? '?status=' + status : '');
   return request(url, 'GET', null, token);
 }
 
