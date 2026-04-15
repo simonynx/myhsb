@@ -448,12 +448,16 @@ export default {
     },
 
     onLoad(option) {
-        // 从 Vuex 读取商品数据
-        const data = this.$store.state.currentRoom || {};
+        // 从 Vuex 读取商品数据，优先用 currentSelectItem（包含用户选择的时段）
+        const roomData = this.$store.state.currentRoom || {};
         const selectItem = this.$store.state.currentSelectItem || {};
-        this.currentProduct = data;
+        // 合并两个数据源，时段信息存在 selectItem.selects 里
+        this.currentProduct = { ...roomData, ...selectItem };
+        if (!this.currentProduct.object_id) {
+            this.currentProduct = roomData.object_id ? roomData : selectItem;
+        }
 
-        const selects = selectItem.selects || data.selects || [];
+        const selects = selectItem.selects || roomData.selects || [];
         for (let i = 0; i < selects.length; i++) {
             const [begin_time = '', end_time = ''] = selects[i];
             const [begin_date, pre_time] = begin_time.split(' ');
@@ -463,7 +467,7 @@ export default {
             const next = next_time.slice(0, -1);
             this.selectTimes.push(`${pre}~${next}`);
         }
-        this.singlePersonPrice = data.price_per_person || 0;
+        this.singlePersonPrice = this.currentProduct.price_per_person || 0;
 
         // 加载用户优惠券
         this.loadMyCoupons();

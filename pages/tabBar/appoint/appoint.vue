@@ -405,9 +405,9 @@ export default {
 
         getTime(times) {
             // times: [{ date: '2026-04-15', item: ['09:00', '10:00'] }, ...]
+            // item 本身就是量子时间数组，不需要再解构
             const selects = times.map(t => {
-                const [begin, end] = t.item;
-                return [t.date + ' ' + begin, t.date + ' ' + end];
+                return [t.date + ' ' + t.item[0], t.date + ' ' + t.item[1]];
             });
             this.specSelected = selects;
             this.currentSelectItem.selects = this.specSelected;
