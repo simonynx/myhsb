@@ -398,25 +398,25 @@ export default {
         },
 
         canUseBalance() {
-            return this.balanceFen() > 0;
+            return this.balanceFen > 0;
         },
 
         // 余额抵扣后剩余（分）
         afterBalancePriceFen() {
             if (!this.useBalance || !this.canUseBalance) return this.afterCouponPriceFen;
-            return Math.max(0, this.afterCouponPriceFen - this.balanceFen());
+            return Math.max(0, this.afterCouponPriceFen - this.balanceFen);
         },
 
         // 余额不足以支付时，余额不足金额
         balanceAfterAll() {
             if (this.afterCouponPriceFen <= 0) return 0;
-            return Math.max(0, this.afterCouponPriceFen - this.balanceFen());
+            return Math.max(0, this.afterCouponPriceFen - this.balanceFen);
         },
 
         // 最终实付金额（分）
         finalPriceFen() {
             if (this.useBalance && this.canUseBalance) {
-                return Math.min(this.balanceFen(), this.afterCouponPriceFen);
+                return Math.min(this.balanceFen, this.afterCouponPriceFen);
             }
             return this.afterCouponPriceFen;
         },
