@@ -22,8 +22,17 @@
             </view>
             <view class="room-details">
                 <text class="detail-item">📅 {{ selectDate }}</text>
-                <text class="detail-item">⏰ {{ selectTimesStr }}</text>
-                <text class="detail-item">👥 {{ numOfPeople }}人</text>
+                <view class="time-slots">
+                    <view class="time-slot-chip" v-for="(t, idx) in selectTimes" :key="idx">{{ t }}</view>
+                </view>
+            </view>
+            <view class="people-modifier">
+                <text class="modifier-label">👥 人数</text>
+                <view class="stepper">
+                    <view class="stepper-btn" @click="decPeople">-</view>
+                    <text class="stepper-num">{{ numOfPeople }}</text>
+                    <view class="stepper-btn" @click="incPeople">+</view>
+                </view>
             </view>
             <view class="room-prices">
                 <view class="price-row">
@@ -491,6 +500,14 @@ export default {
             this.couponPickerOpen = false;
         },
 
+        // 人数增减
+        incPeople() {
+            if (this.numOfPeople < 10) this.numOfPeople++;
+        },
+        decPeople() {
+            if (this.numOfPeople > 1) this.numOfPeople--;
+        },
+
         // 切换积分使用
         togglePoints(e) {
             this.usePoints = e.detail.value;
@@ -662,9 +679,62 @@ page {
     .room-details {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: 16rpx;
-        margin-bottom: 20rpx;
+        margin-bottom: 16rpx;
         .detail-item { font-size: 24rpx; color: $gray; }
+    }
+
+    .time-slots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8rpx;
+        .time-slot-chip {
+            background: #FFF0EB;
+            color: #FF6432;
+            font-size: 22rpx;
+            padding: 4rpx 12rpx;
+            border-radius: 8rpx;
+        }
+    }
+
+    .people-modifier {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16rpx 0 4rpx;
+        border-top: 1rpx solid $light-gray;
+        .modifier-label { font-size: 28rpx; color: $dark; }
+        .stepper {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            border: 1rpx solid #E0E0E0;
+            border-radius: 8rpx;
+            overflow: hidden;
+            .stepper-btn {
+                width: 64rpx;
+                height: 56rpx;
+                line-height: 56rpx;
+                text-align: center;
+                font-size: 32rpx;
+                color: $primary;
+                background: #FFF;
+            }
+            .stepper-num {
+                min-width: 64rpx;
+                height: 56rpx;
+                line-height: 56rpx;
+                text-align: center;
+                font-size: 28rpx;
+                color: $dark;
+                font-weight: bold;
+                border-left: 1rpx solid #E0E0E0;
+                border-right: 1rpx solid #E0E0E0;
+                padding: 0 8rpx;
+                box-sizing: border-box;
+            }
+        }
     }
 
     .room-prices {
@@ -726,11 +796,13 @@ page {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 36rpx;
+            min-width: 40rpx;
             height: 36rpx;
             font-size: 20rpx;
             border-radius: 6rpx;
             margin-right: 8rpx;
+            padding: 0 6rpx;
+            box-sizing: border-box;
             &.tag-active { background: $primary; color: #fff; }
             &.tag-gray { background: #E0E0E0; color: $gray; }
         }
