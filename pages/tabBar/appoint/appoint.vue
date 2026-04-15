@@ -457,9 +457,8 @@ page {
         font-weight: bold;
         color: #fff;
         letter-spacing: 2rpx;
-    
-
     }
+}
 
 // 周日历
 .week-strip {
