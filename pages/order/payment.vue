@@ -140,8 +140,17 @@ export default {
     },
 
     onLoad(options) {
+        if (!options.data || options.data === 'null') {
+            uni.showToast({ title: '订单创建失败', icon: 'none' });
+            uni.redirectTo({ url: '/pages/order/order' });
+            return;
+        }
         this.order = JSON.parse(decodeURIComponent(options.data));
         this.entry = options.entry || '1';
+        // 如果下单时选择了余额支付且余额够用，默认用余额
+        if (options.useBalance === '1' && this.canUseBalance) {
+            this.payMethod = 'balance';
+        }
         this.startCountdown();
     },
 

@@ -36,11 +36,11 @@
             </view>
             <view class="room-prices">
                 <view class="price-row">
-                    <text class="price-label">包厢费用</text>
+                    <text class="price-label">包厢 {{ (currentProduct.price_per_hour / 100).toFixed(0) }}/小时 × {{ selectTimes.length }}时段</text>
                     <text class="price-value">¥{{ roomPrice }}</text>
                 </view>
                 <view class="price-row" v-if="numOfPeople > 0">
-                    <text class="price-label">入场券 × {{ numOfPeople }}</text>
+                    <text class="price-label">入场券 × {{ numOfPeople }}人</text>
                     <text class="price-value">¥{{ peoplePrice }}</text>
                 </view>
             </view>
@@ -459,8 +459,8 @@ export default {
             const [begin_date, pre_time] = begin_time.split(' ');
             const [end_date, next_time] = end_time.split(' ');
             this.currentSelectDate = begin_date;
-            const pre = pre_time.slice(0, -3);
-            const next = next_time.slice(0, -3);
+            const pre = pre_time.slice(0, -1);
+            const next = next_time.slice(0, -1);
             this.selectTimes.push(`${pre}~${next}`);
         }
         this.singlePersonPrice = data.price_per_person || 0;
@@ -594,7 +594,7 @@ export default {
 
                 // 有金额需支付，跳转支付页面
                 uni.redirectTo({
-                    url: `/pages/order/payment?parent_sn=${orderNumber}&entry=1&data=${encodeURIComponent(JSON.stringify(res.data))}`
+                    url: `/pages/order/payment?parent_sn=${orderNumber}&entry=1&useBalance=${this.useBalance ? 1 : 0}&data=${encodeURIComponent(JSON.stringify(res.data))}`
                 });
             } catch (e) {
                 console.error('submit order error:', e);

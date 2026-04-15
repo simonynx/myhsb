@@ -317,7 +317,7 @@
 					let time = [];
 					for (const date in this.orderTimeArr) {
 						this.orderTimeArr[date].forEach(item => {
-							this.isQuantum ? time.push(item) : time.push(date + ' ' + item);
+							this.isQuantum ? time.push({ date, item }) : time.push({ date, item: date + ' ' + item });
 						});
 					}
 					this.$emit('change', time);

@@ -404,7 +404,12 @@ export default {
         },
 
         getTime(times) {
-            this.specSelected = times;
+            // times: [{ date: '2026-04-15', item: ['09:00', '10:00'] }, ...]
+            const selects = times.map(t => {
+                const [begin, end] = t.item;
+                return [t.date + ' ' + begin, t.date + ' ' + end];
+            });
+            this.specSelected = selects;
             this.currentSelectItem.selects = this.specSelected;
             if (this.specSelected.length <= 0) return;
             this.$store.commit('setCurrentSelectItem', this.currentSelectItem);

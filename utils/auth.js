@@ -26,7 +26,7 @@ function request(url, method, data, token) {
       method: method,
       data: data,
       header: header,
-      timeout: 5000,
+      timeout: 10000,
       success: (res) => resolve(res.data),
       fail: (error) => reject(error)
     });
@@ -265,7 +265,7 @@ function uploadFile(token, filePath, fileName) {
       header: header,
       filePath: filePath,
       name: 'file',
-      timeout: 5000,
+      timeout: 10000,
       success: (res) => {
         var resData = JSON.parse(res.data);
         if (resData._status !== 0) {
