@@ -5,9 +5,7 @@
 
         <!-- 导航栏 -->
         <view class="nav-bar">
-            <text class="nav-back yticon icon-fanhui" @click="goBack"></text>
             <text class="nav-title">预约</text>
-            <view class="nav-right"></view>
         </view>
 
         <!-- 周日历 -->
@@ -419,10 +417,6 @@ export default {
             return d.getFullYear() + '-' + (d.getMonth() + 1).toString().padStart(2, '0') + '-' + d.getDate().toString().padStart(2, '0');
         },
 
-        goBack() {
-            uni.navigateBack();
-        },
-
         stopPrevent() {},
     },
 };
@@ -458,33 +452,14 @@ page {
     background: linear-gradient(135deg, #FF6432, #FF8A65);
     box-shadow: 0 4rpx 16rpx rgba(255, 100, 50, 0.25);
 
-    .nav-back {
-        position: absolute;
-        left: 20rpx;
-        width: 64rpx;
-        height: 64rpx;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 34rpx;
-        color: #fff;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.25);
-        backdrop-filter: blur(4rpx);
-    }
-
     .nav-title {
         font-size: 34rpx;
         font-weight: bold;
         color: #fff;
         letter-spacing: 2rpx;
-    }
+    
 
-    .nav-right {
-        position: absolute;
-        right: 20rpx;
     }
-}
 
 // 周日历
 .week-strip {
