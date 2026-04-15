@@ -6,7 +6,7 @@
         <!-- 店铺信息头部 -->
         <view class="shop-header">
             <view class="shop-logo">
-                <image src="/static/logo.jpg" mode="aspectFill" />
+                <image src="/static/logo_small.jpg" mode="aspectFill" />
             </view>
             <view class="shop-info">
                 <text class="shop-name">摸鱼划水吧</text>

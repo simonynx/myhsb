@@ -48,11 +48,15 @@ const store = new Vuex.Store({
       state.constance = payload;
     },
     updateUserInfo(state, userInfo) {
+      if (!state.userInfo) state.userInfo = {};
       if (userInfo.gender) state.userInfo.gender = userInfo.gender;
       if (userInfo.birthday) state.userInfo.birthday = userInfo.birthday;
       if (userInfo.avatar) state.userInfo.avatar = userInfo.avatar;
       if (userInfo.nickname) state.userInfo.nickname = userInfo.nickname;
       if (userInfo.phone) state.userInfo.phone = userInfo.phone;
+      if (userInfo.points !== undefined) state.userInfo.points = userInfo.points;
+      if (userInfo.member_level !== undefined) state.userInfo.member_level = userInfo.member_level;
+      if (userInfo.member_level_name) state.userInfo.member_level_name = userInfo.member_level_name;
     },
     setOpenid(state, openid) {
       state.openid = openid;
