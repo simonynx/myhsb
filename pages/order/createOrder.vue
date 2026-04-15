@@ -18,7 +18,7 @@
         <view class="room-card">
             <view class="room-top">
                 <view class="room-name">{{ currentProduct.name || '房间' }}</view>
-                <view class="room-badge" v-if="memberDiscount > 0">{{ memberLevelName }} {{ memberDiscount }}折</view>
+                <view class="room-badge">{{ memberLevelName }}</view>
             </view>
             <view class="room-details">
                 <text class="detail-item">📅 {{ selectDate }}</text>
@@ -48,10 +48,10 @@
                 </view>
 
                 <!-- 会员折扣 -->
-                <view class="price-row discount-row" v-if="memberDiscount > 0">
+                <view class="price-row discount-row">
                     <text class="row-label">
                         <text class="tag">会员</text>
-                        {{ memberLevelName }}专享{{ memberDiscount }}折
+                        {{ memberLevelName }}{{ memberDiscount > 0 ? '专享' + memberDiscount + '折' : '暂无折扣' }}
                     </text>
                     <text class="row-value discount">-¥{{ memberDiscountAmount }}</text>
                 </view>
@@ -62,7 +62,7 @@
                         <view class="points-header">
                             <text class="row-label">
                                 <text class="tag">积分</text>
-                                可用{{ userInfo.points }}积分抵¥{{ (userInfo.points / 100).toFixed(2) }}
+                                当前{{ userInfo.points }}积分，抵¥{{ (userInfo.points / 100).toFixed(2) }}
                             </text>
                             <switch 
                                 color="#FFCC33" 
@@ -97,6 +97,14 @@
                         </view>
                     </view>
                     <text class="row-value" v-if="usePoints && pointsToUse > 0">-¥{{ pointsConvertMoney }}</text>
+                </view>
+
+                <!-- 无积分时提示 -->
+                <view class="price-row points-zero-row" v-else>
+                    <text class="row-label">
+                        <text class="tag">积分</text>
+                        当前0积分，消费预约可获取积分
+                    </text>
                 </view>
 
                 <!-- 优惠券 -->
@@ -308,7 +316,7 @@ export default {
         },
 
         memberLevelName() {
-            const names = ['', '🌱 青铜', '🥈 白银', '🥇 黄金', '💎 钻石'];
+            const names = ['普通会员', '🌱 青铜', '🥈 白银', '🥇 黄金', '💎 钻石'];
             return names[this.memberLevel] || '';
         },
 
