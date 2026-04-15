@@ -287,19 +287,19 @@ export default {
         },
 
         originalPriceFen() {
-            return this.roomPriceFen() + this.peoplePriceFen();
+            return this.roomPriceFen + this.peoplePriceFen;
         },
 
         originalPrice() {
-            return (this.originalPriceFen() / 100).toFixed(2);
+            return (this.originalPriceFen / 100).toFixed(2);
         },
 
         roomPrice() {
-            return (this.roomPriceFen() / 100).toFixed(2);
+            return (this.roomPriceFen / 100).toFixed(2);
         },
 
         peoplePrice() {
-            return (this.peoplePriceFen() / 100).toFixed(2);
+            return (this.peoplePriceFen / 100).toFixed(2);
         },
 
         // 会员等级
@@ -319,22 +319,22 @@ export default {
         },
 
         memberDiscount() {
-            return (this.memberDiscountRate() / 100).toFixed(1);
+            return (this.memberDiscountRate / 100).toFixed(1);
         },
 
         // 会员折扣金额（分）
         memberDiscountAmountFen() {
-            if (!this.memberDiscountRate()) return 0;
-            return Math.round(this.originalPriceFen() * (1 - this.memberDiscountRate() / 1000));
+            if (!this.memberDiscountRate) return 0;
+            return Math.round(this.originalPriceFen * (1 - this.memberDiscountRate / 1000));
         },
 
         memberDiscountAmount() {
-            return (this.memberDiscountAmountFen() / 100).toFixed(2);
+            return (this.memberDiscountAmountFen / 100).toFixed(2);
         },
 
         // 折后价格（分）
         afterMemberPriceFen() {
-            return this.originalPriceFen() - this.memberDiscountAmountFen();
+            return this.originalPriceFen - this.memberDiscountAmountFen;
         },
 
         // 积分相关
@@ -422,11 +422,11 @@ export default {
         },
 
         actualPrice() {
-            return (this.finalPriceFen() / 100).toFixed(2);
+            return (this.finalPriceFen / 100).toFixed(2);
         },
 
         submitDisabled() {
-            return this.submitting || this.finalPriceFen() <= 0;
+            return this.submitting || this.finalPriceFen <= 0;
         },
     },
 
