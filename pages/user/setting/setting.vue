@@ -1,9 +1,5 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 顶部 -->
-		<view class="top-bar">
-			<text class="top-title">编辑资料</text>
-		</view>
 
 		<!-- 头像 -->
 		<view class="avatar-section">
@@ -208,22 +204,11 @@ page {
 }
 .page-wrapper {
 	min-height: 100vh;
+	padding-top: env(safe-area-inset-top);
 	padding-bottom: 40rpx;
 }
 
 /* ===== 顶部 ===== */
-.top-bar {
-	background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
-	padding: 60rpx 32rpx 30rpx;
-	text-align: center;
-	.top-title {
-		font-size: 36rpx;
-		font-weight: bold;
-		color: #FFF;
-		letter-spacing: 2rpx;
-	}
-}
-
 /* ===== 头像 ===== */
 .avatar-section {
 	display: flex;

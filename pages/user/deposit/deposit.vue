@@ -1,11 +1,5 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 顶部装饰 -->
-		<view class="top-bar">
-			<text class="top-emoji">💎</text>
-			<text class="top-title">充值中心</text>
-			<text class="top-emoji">💎</text>
-		</view>
 
 		<!-- 余额卡片 -->
 		<view class="balance-card">
@@ -248,27 +242,11 @@ page {
 }
 .page-wrapper {
 	min-height: 100vh;
+	padding-top: env(safe-area-inset-top);
 	padding-bottom: 40rpx;
 }
 
 /* ===== 顶部 ===== */
-.top-bar {
-	background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
-	padding: 60rpx 32rpx 30rpx;
-	text-align: center;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 16rpx;
-	.top-emoji { font-size: 40rpx; }
-	.top-title {
-		font-size: 44rpx;
-		font-weight: bold;
-		color: #FFF;
-		letter-spacing: 4rpx;
-	}
-}
-
 /* ===== 余额卡片 ===== */
 .balance-card {
 	margin: -10rpx 24rpx 24rpx;

@@ -1,9 +1,5 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 顶部 -->
-		<view class="top-bar">
-			<text class="top-title">余额明细</text>
-		</view>
 
 		<!-- 当前余额 -->
 		<view class="balance-summary">
@@ -77,19 +73,8 @@ page {
 }
 .page-wrapper {
 	min-height: 100vh;
+	padding-top: env(safe-area-inset-top);
 	padding-bottom: 40rpx;
-}
-
-.top-bar {
-	background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
-	padding: 60rpx 32rpx 30rpx;
-	text-align: center;
-	.top-title {
-		font-size: 36rpx;
-		font-weight: bold;
-		color: #FFF;
-		letter-spacing: 2rpx;
-	}
 }
 
 .balance-summary {
