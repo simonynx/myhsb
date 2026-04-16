@@ -7,7 +7,7 @@
 		<!-- 我的评价状态 -->
 		<view class="my-review-card" v-if="myReview">
 			<view class="my-review-header">
-				<text class="my-review-label">我的评价</text>
+				<text class="my-review-label">{{ myReview.user_nickname || '我' }}</text>
 				<view class="review-stars">
 					<text v-for="s in 5" :key="s" :class="s <= myReview.rating ? 'star filled' : 'star'">⭐</text>
 				</view>
@@ -104,13 +104,11 @@
 						return;
 					}
 					// 找出我的评价
-					var myOpenid = this.userInfo?.weixin_openid || '';
 					var myReviewItem = null;
 					var otherList = [];
 					for (var i = 0; i < list.length; i++) {
 						var r = list[i];
-						// 后端没有返回 openid，改用昵称匹配
-						if (this.userInfo?.nickname && r.user_nickname === this.userInfo.nickname) {
+						if (r.user_id === this.userInfo?.id) {
 							myReviewItem = r;
 						} else {
 							otherList.push(r);
