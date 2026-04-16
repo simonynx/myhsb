@@ -59,7 +59,7 @@
 			<view class="level-dots">
 				<view class="level-dot" v-for="l in levelDots" :key="l.level" :class="{ active: userInfo.member_level >= l.level }">
 					<text class="dot-icon">{{ l.icon }}</text>
-					<text class="dot-name">{{ ['', '🌱', '🥈', '🥇', '💎'][l.level] }}</text>
+					<text class="dot-name">{{ l.icon }}</text>
 				</view>
 			</view>
 		</view>
@@ -67,41 +67,26 @@
 		<!-- 会员权益 -->
 		<view class="vip-card">
 			<view class="vip-header">
-				<text class="vip-title">会员折扣</text>
+				<text class="vip-title">会员权益</text>
 				<text class="vip-current" :style="{ color: memberColor }">
-					{{ userInfo.discount ? (userInfo.discount * 10).toFixed(1) + '折' : '原价' }}
+					{{ memberLevelName }} {{ userInfo.discount ? (userInfo.discount >= 100 ? '原价' : userInfo.discount + '折') : '原价' }}
 				</text>
 			</view>
 			<view class="vip-levels">
-				<view class="vip-level" :class="{ active: userInfo.member_level >= 0 }">
-					<text class="vl-icon">🌱</text>
-					<text class="vl-name">普通</text>
-					<text class="vl-discount">原价</text>
-				</view>
-				<view class="vip-arrow">→</view>
-				<view class="vip-level" :class="{ active: userInfo.member_level >= 1 }">
-					<text class="vl-icon">🥈</text>
-					<text class="vl-name">银卡</text>
-					<text class="vl-discount">9.5折</text>
-				</view>
-				<view class="vip-arrow">→</view>
-				<view class="vip-level" :class="{ active: userInfo.member_level >= 2 }">
-					<text class="vl-icon">🥇</text>
-					<text class="vl-name">金卡</text>
-					<text class="vl-discount">9折</text>
-				</view>
-				<view class="vip-arrow">→</view>
-				<view class="vip-level" :class="{ active: userInfo.member_level >= 3 }">
-					<text class="vl-icon">💎</text>
-					<text class="vl-name">钻石</text>
-					<text class="vl-discount">8.5折</text>
-				</view>
+				<block v-for="(lv, idx) in memberConfig" :key="lv.level">
+					<view class="vip-level" :class="{ active: userInfo.member_level >= lv.level }">
+						<text class="vl-icon">{{ lv.icon }}</text>
+						<text class="vl-name">{{ lv.name }}</text>
+						<text class="vl-discount">{{ lv.discount >= 100 ? '原价' : lv.discount + '折' }}</text>
+					</view>
+					<view class="vip-arrow" v-if="idx < memberConfig.length - 1">→</view>
+				</block>
 			</view>
 			<view class="vip-tip" v-if="nextLevelName">
-				再消费 ¥{{ needToNext }} 升级至{{ nextLevelName }}，享受 {{ nextLevelDiscount }} 专属折扣
+				再消费 ¥{{ needToNext }} 升级至{{ nextLevelName }}，享受 {{ nextLevelDiscount >= 100 ? '原价' : nextLevelDiscount + '折' }} 专属折扣
 			</view>
 			<view class="vip-tip" v-else>
-				🎉 已升至最高等级，享受 8.5折 专属折扣
+				🎉 已升至最高等级，享受 {{ !nextLevelDiscount || nextLevelDiscount >= 100 ? '原价' : nextLevelDiscount + '折' }} 专属折扣
 			</view>
 		</view>
 
@@ -219,19 +204,6 @@
 		mapMutations
 	} from 'vuex';
 
-	const MEMBER_COLORS = {
-		0: { color: '#AAAAAA', icon: '🌱', name: '普通会员', discount: '原价' },
-		1: { color: '#C0C0C0', icon: '🥈', name: '银卡会员', discount: '9.5折' },
-		2: { color: '#FFD700', icon: '🥇', name: '金卡会员', discount: '9折' },
-		3: { color: '#FF69B4', icon: '💎', name: '钻石会员', discount: '8.5折' },
-	};
-
-	const LEVEL_DOTS = [
-		{ level: 0, icon: '🌱' },
-		{ level: 1, icon: '🥈' },
-		{ level: 2, icon: '🥇' },
-		{ level: 3, icon: '💎' },
-	];
 
 	export default {
 		components: { customTabBar },
@@ -239,45 +211,48 @@
 			...mapState(['hasLogin', 'userInfo', 'token']),
 			memberLevelName() {
 				var level = this.userInfo?.member_level || 0;
-				return MEMBER_COLORS[level]?.name || '普通会员';
+				return this.memberConfig.find(l => l.level === level)?.name || '普通会员';
 			},
 			memberIcon() {
 				var level = this.userInfo?.member_level || 0;
-				return MEMBER_COLORS[level]?.icon || '🌱';
+				return this.memberConfig.find(l => l.level === level)?.icon || '🌱';
 			},
 			memberColor() {
 				var level = this.userInfo?.member_level || 0;
-				return MEMBER_COLORS[level]?.color || '#AAAAAA';
+				return this.memberConfig.find(l => l.level === level)?.color || '#AAAAAA';
 			},
 			nextLevelName() {
 				var level = this.userInfo?.member_level || 0;
 				if (level >= 3) return '';
-				return MEMBER_COLORS[level + 1]?.name || '';
+				return this.memberConfig.find(l => l.level === level + 1)?.name || '';
 			},
 			nextLevelDiscount() {
 				var level = this.userInfo?.member_level || 0;
 				if (level >= 3) return '';
-				return MEMBER_COLORS[level + 1]?.discount || '';
+				return this.memberConfig.find(l => l.level === level + 1)?.discount || '';
 			},
 			needToNext() {
-				var levels = [0, 1000, 5000, 10000];
 				var level = this.userInfo?.member_level || 0;
 				if (level >= 3) return 0;
+				var nextLevelData = this.memberConfig.find(l => l.level === level + 1);
+				if (!nextLevelData) return 0;
+				var next = nextLevelData.threshold / 100;
 				var total = this.userInfo?.total_consume / 100 || 0;
-				var next = levels[level + 1];
 				return Math.max(0, next - total).toFixed(0);
 			},
 			progressPercent() {
 				var level = this.userInfo?.member_level || 0;
 				if (level >= 3) return 100;
-				var levels = [0, 1000, 5000, 10000];
+				var currLevel = this.memberConfig.find(l => l.level === level);
+				var nextLevel = this.memberConfig.find(l => l.level === level + 1);
+				if (!currLevel || !nextLevel) return 0;
+				var curr = currLevel.threshold / 100;
+				var next = nextLevel.threshold / 100;
 				var total = this.userInfo?.total_consume / 100 || 0;
-				var curr = levels[level];
-				var next = levels[level + 1];
 				return Math.min(100, ((total - curr) / (next - curr)) * 100).toFixed(0);
 			},
 			levelDots() {
-				return LEVEL_DOTS;
+				return this.memberConfig.map(l => ({ level: l.level, icon: l.icon }));
 			},
 		},
 		data() {
@@ -285,6 +260,7 @@
 				orderCounts: { waitPay: 0, waitUse: 0 },
 				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 },
 				inviteInfo: {},
+				memberConfig: [],
 			};
 		},
 		onShow() {
@@ -298,6 +274,7 @@
 			// 加载签到信息和邀请信息
 			this.loadCheckInInfo();
 			this.loadInviteInfo();
+			this.loadMemberConfig();
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getUserInfo', 'requestUpdateUserInfo']),
@@ -336,6 +313,13 @@
 				const res = await AUTH.inviteInfo(this.token);
 				if (res._status === 0 && res.data) {
 					this.inviteInfo = res.data;
+				}
+			},
+			async loadMemberConfig() {
+				if (!this.hasLogin) return;
+				const res = await AUTH.memberConfig(this.token);
+				if (res._status === 0 && res.data?.levels) {
+					this.memberConfig = res.data.levels;
 				}
 			},
 			copyInviteCode() {

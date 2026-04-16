@@ -173,6 +173,10 @@ function checkInInfo(token) {
   return request('/users/check_in_info/', 'GET', null, token);
 }
 
+function memberConfig(token) {
+  return request('/users/member_config/', 'GET', null, token);
+}
+
 function checkIn(token) {
   return request('/users/check_in/', 'POST', null, token);
 }
@@ -346,6 +350,7 @@ var httpRequest = {
   // 每日签到
   checkInInfo: checkInInfo,
   checkIn: checkIn,
+  memberConfig: memberConfig,
   // 邀请有礼
   inviteInfo: inviteInfo,
   applyInviteCode: applyInviteCode,
