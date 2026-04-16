@@ -79,7 +79,7 @@ export default {
 	},
 	mounted() {
 		const info = uni.getSystemInfoSync();
-		this.safeAreaBottom = info.safeAreaInsets?.bottom || 0;
+		this.safeAreaBottom = info.safeAreaInsets && info.safeAreaInsets.bottom || 0;
 		// 初始化同步当前 tab
 		const pages = getCurrentPages();
 		if (pages.length) {

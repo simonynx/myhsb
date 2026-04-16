@@ -27,7 +27,7 @@
                 <view class="order-no">订单号 {{ order.order_number }}</view>
                 <view class="order-info" v-if="order.order_type === 4">
                     <text class="info-tag">线下消费</text>
-                    <text class="info-text">{{ order.goodsInfo?.room_name }} · {{ order.goodsInfo?.duration }}分钟 · {{ order.goodsInfo?.user_count }}人</text>
+                    <text class="info-text">{{ (order.goodsInfo && order.goodsInfo.room_name) }} · {{ (order.goodsInfo && order.goodsInfo.duration) }}分钟 · {{ order.goodsInfo && order.goodsInfo.user_count }}人</text>
                 </view>
             </view>
 
@@ -167,7 +167,7 @@ export default {
         // 可用优惠券（订单相关）
         availableCoupons() {
             if (!this.order) return [];
-            const originalAmount = this.order.goodsInfo?._total_original || this.order.pay_amount;
+            const originalAmount = (this.order.goodsInfo && this.order.goodsInfo._total_original) || this.order.pay_amount;
             return this.myCoupons.filter(c => {
                 if (c.status !== 'unused') return false;
                 if (c.min_consume > 0 && originalAmount < c.min_consume) return false;
@@ -226,7 +226,7 @@ export default {
                     this.myCoupons = res.map(c => {
                         let discount = 0;
                         if (c.coupon_type === 'rebate') {
-                            discount = c.rules?.discount || 0;
+                            discount = (c.rules && c.rules.discount) || 0;
                         } else if (c.coupon_type === 'discount') {
                             discount = 0; // 折扣券不展示固定金额
                         }
@@ -243,7 +243,7 @@ export default {
                     });
                 }
                 // 如果订单已有券，选中它
-                const couponId = this.order?.goodsInfo?._coupon_id;
+                const couponId = (this.order && this.order.goodsInfo && this.order.goodsInfo._coupon_id);
                 if (couponId) {
                     this.selectedCoupon = this.myCoupons.find(c => c.object_id === couponId) || null;
                 }
@@ -288,7 +288,7 @@ export default {
         },
 
         startCountdown() {
-            if (!this.order?.end_time) return;
+            if (!(this.order && this.order.end_time)) return;
             const endTime = new Date(this.order.end_time).getTime() / 1000;
             const tick = () => {
                 const now = Date.now() / 1000;

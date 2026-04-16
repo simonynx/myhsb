@@ -218,45 +218,45 @@
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token']),
 			memberLevelName() {
-				var level = this.userInfo?.member_level || 0;
-				return this.memberConfig.find(l => l.level === level)?.name || '普通会员';
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
+				return (this.memberConfig.find(l => l.level === level) && this.memberConfig.find(l => l.level === level).name) || '普通会员';
 			},
 			memberIcon() {
-				var level = this.userInfo?.member_level || 0;
-				return this.memberConfig.find(l => l.level === level)?.icon || '🌱';
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
+				return (this.memberConfig.find(l => l.level === level) && this.memberConfig.find(l => l.level === level).icon) || '🌱';
 			},
 			memberColor() {
-				var level = this.userInfo?.member_level || 0;
-				return this.memberConfig.find(l => l.level === level)?.color || '#AAAAAA';
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
+				return (this.memberConfig.find(l => l.level === level) && this.memberConfig.find(l => l.level === level).color) || '#AAAAAA';
 			},
 			nextLevelName() {
-				var level = this.userInfo?.member_level || 0;
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
 				if (level >= 3) return '';
-				return this.memberConfig.find(l => l.level === level + 1)?.name || '';
+				return (this.memberConfig.find(l => l.level === level + 1) && this.memberConfig.find(l => l.level === level + 1).name) || '';
 			},
 			nextLevelDiscount() {
-				var level = this.userInfo?.member_level || 0;
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
 				if (level >= 3) return '';
-				return this.memberConfig.find(l => l.level === level + 1)?.discount || '';
+				return (this.memberConfig.find(l => l.level === level + 1) && this.memberConfig.find(l => l.level === level + 1).discount) || '';
 			},
 			needToNext() {
-				var level = this.userInfo?.member_level || 0;
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
 				if (level >= 3) return 0;
 				var nextLevelData = this.memberConfig.find(l => l.level === level + 1);
 				if (!nextLevelData) return 0;
 				var next = nextLevelData.threshold / 100;
-				var total = this.userInfo?.total_consume / 100 || 0;
+				var total = this.userInfo && this.userInfo.total_consume / 100 || 0;
 				return Math.max(0, next - total).toFixed(0);
 			},
 			progressPercent() {
-				var level = this.userInfo?.member_level || 0;
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
 				if (level >= 3) return 100;
 				var currLevel = this.memberConfig.find(l => l.level === level);
 				var nextLevel = this.memberConfig.find(l => l.level === level + 1);
 				if (!currLevel || !nextLevel) return 0;
 				var curr = currLevel.threshold / 100;
 				var next = nextLevel.threshold / 100;
-				var total = this.userInfo?.total_consume / 100 || 0;
+				var total = this.userInfo && this.userInfo.total_consume / 100 || 0;
 				return Math.min(100, ((total - curr) / (next - curr)) * 100).toFixed(0);
 			},
 			levelDots() {
@@ -326,7 +326,7 @@
 			async loadMemberConfig() {
 				if (!this.hasLogin) return;
 				const res = await AUTH.memberConfig(this.token);
-				if (res._status === 0 && res.data?.levels) {
+				if (res._status === 0 && res.data && res.data.levels) {
 					this.memberConfig = res.data.levels;
 				}
 			},

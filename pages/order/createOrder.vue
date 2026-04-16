@@ -357,13 +357,13 @@ export default {
         // 积分相关
         // 积分最大可用(整数,根据配置的步长和上限生成档位)
         pointsStep() {
-            return this.userInfo.points_config?.points_step || 100;
+            return this.userInfo.points_config && this.userInfo.points_config.points_step || 100;
         },
         pointsMaxUse() {
-            return this.userInfo.points_config?.points_max_use || 10000;
+            return this.userInfo.points_config && this.userInfo.points_config.points_max_use || 10000;
         },
         pointsMinUse() {
-            return this.userInfo.points_config?.points_min_use || 100;
+            return this.userInfo.points_config && this.userInfo.points_config.points_min_use || 100;
         },
         maxUsablePoints() {
             // 档位上限 = min(用户积分余额, 配置的最大抵扣量),并向下取整到步长的整数倍
@@ -504,7 +504,7 @@ export default {
                     this.myCoupons = res.map(c => {
                         let discount = 0;
                         if (c.coupon_type === 'rebate') {
-                            discount = c.rules?.discount || 0;
+                            discount = (c.rules && c.rules.discount) || 0;
                         } else if (c.coupon_type === 'discount') {
                             // 折扣券按85折估算一个固定优惠额用于展示（实际金额由后端按订单计算）
                             discount = 0; // 动态折扣，picker里显示为"待计算"

@@ -101,19 +101,19 @@
 					<view class="detail-row">
 						<text class="detail-icon">🏠</text>
 						<text class="detail-label">房间</text>
-						<text class="detail-value">{{ item.goodsInfo?.room_name || '未知房间' }}</text>
+						<text class="detail-value">{{ (item.goodsInfo && item.goodsInfo.room_name) || '未知房间' }}</text>
 					</view>
-					<view class="detail-row" v-if="item.goodsInfo?.duration">
+					<view class="detail-row" v-if="item.goodsInfo && item.goodsInfo.duration">
 						<text class="detail-icon">⏱</text>
 						<text class="detail-label">消费时长</text>
 						<text class="detail-value">{{ item.goodsInfo.duration }}分钟</text>
 					</view>
-					<view class="detail-row" v-if="item.goodsInfo?.user_count">
+					<view class="detail-row" v-if="item.goodsInfo && item.goodsInfo.user_count">
 						<text class="detail-icon">👥</text>
 						<text class="detail-label">消费人数</text>
 						<text class="detail-value">{{ item.goodsInfo.user_count }}人</text>
 					</view>
-					<view class="detail-row" v-if="item.goodsInfo?.contact_name">
+					<view class="detail-row" v-if="item.goodsInfo && item.goodsInfo.contact_name">
 						<text class="detail-icon">👤</text>
 						<text class="detail-label">联系人</text>
 						<text class="detail-value">{{ item.goodsInfo.contact_name }}</text>
@@ -126,7 +126,7 @@
 						<text class="price-label">房间费用</text>
 						<text class="price-value">¥{{ item.roomPrice }}</text>
 					</view>
-					<view class="price-row" v-if="item.order_type === 4 && parseFloat(item.originalPrice) > 0">
+					<view class="price-row" v-if="item.order_type === 4 && item.originalPrice > 0">
 						<text class="price-label">消费金额</text>
 						<text class="price-value">¥{{ item.originalPrice }}</text>
 					</view>
@@ -163,7 +163,7 @@
 					<button class="btn-pay" @click.stop="goPay(item)">立即支付</button>
 				</view>
 				<view class="action-section" v-if="item.order_status === 1">
-					<button v-if="refundable" class="btn-refund" @click.stop="refundOrder(item)">申请退款</button>
+					<button v-if="item.refundable" class="btn-refund" @click.stop="refundOrder(item)">申请退款</button>
 					<button class="btn-delete" @click.stop="deleteOrder(item)">删除记录</button>
 				</view>
 				<view class="action-section" v-else>
@@ -208,7 +208,7 @@
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token']),
 			currentOrders() {
-				return this.navList[this.tabCurrentIndex]?.orderList || [];
+				return this.navList[this.tabCurrentIndex] && this.navList[this.tabCurrentIndex].orderList || [];
 			},
 			hasMore() {
 				return false; // 目前没有分页
@@ -251,13 +251,13 @@
 					var today = new Date();
 					var date = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
 					var roomsRes = await AUTH.getRoomDataList(this.token, date);
-					var rooms = roomsRes?.data?.rooms || [];
+					var rooms = roomsRes && roomsRes.data && roomsRes.data.rooms || [];
 
 					// 获取所有订单（state=-1 获取全部）
 					var orderRes = await AUTH.getOrderList(-1, this.token);
 					if (!orderRes) { uni.hideLoading(); return; }
 
-					var orders = orderRes.data?.orders || [];
+					var orders = orderRes.data && orderRes.data.orders || [];
 
 					// 按状态分类
 					var allList = this.navList[0];
@@ -326,7 +326,7 @@
 					item.originalPrice = item.roomPrice;
 
 					// 会员折扣（如果有）
-					var memberLevel = this.userInfo?.member_level || 0;
+					var memberLevel = this.userInfo && this.userInfo.member_level || 0;
 					var discounts = { 0: 0, 1: 0, 2: 0.05, 3: 0.1, 4: 0.15 };
 					var discountRate = discounts[memberLevel] || 0;
 					item.memberDiscount = discountRate > 0 ? (roomPrice * discountRate / 100).toFixed(2) : 0;
@@ -363,7 +363,7 @@
 				if (item.order_type === 2) return '微信支付';
 				if (item.order_type === 1 && item.request_data) {
 					var totalFee = item.request_data.total_fee || 0;
-					if (item.goodsInfo?.use_balance && totalFee < parseInt(item.roomPrice * 100)) {
+					if (item.goodsInfo && item.goodsInfo.use_balance && totalFee < parseInt(item.roomPrice * 100)) {
 						return '余额+微信';
 					}
 					return '微信支付';
@@ -371,10 +371,10 @@
 				return PAY_METHOD_MAP[item.pay_method] || '微信支付';
 			},
 			getOrderTypeIcon(item) {
-				return ORDER_TYPE_MAP[item.order_type]?.icon || '📋';
+				return ORDER_TYPE_MAP[item.order_type] && icon || '📋';
 			},
 			getOrderTypeName(item) {
-				return ORDER_TYPE_MAP[item.order_type]?.name || '订单';
+				return ORDER_TYPE_MAP[item.order_type] && name || '订单';
 			},
 			getRoomById(rooms, id) {
 				for (var i = 0; i < rooms.length; i++) {

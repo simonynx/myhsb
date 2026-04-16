@@ -95,7 +95,7 @@
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token']),
 			genderIndex() {
-				return this.userInfo?.gender || 1;
+				return this.userInfo && this.userInfo.gender || 1;
 			},
 		},
 		data() {
@@ -108,7 +108,7 @@
 			};
 		},
 		onLoad() {
-			if (this.userInfo?.birthday) {
+			if (this.userInfo && this.userInfo.birthday) {
 				this.date = this.userInfo.birthday;
 			}
 		},

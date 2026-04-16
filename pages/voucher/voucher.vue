@@ -203,7 +203,7 @@ export default {
 			try {
 				const res = await AUTH.getGoodsList(this.token);
 				if (res._status === 0) {
-					this.goodsList = res.data?.goods || [];
+					this.goodsList = res.data && res.data.goods || [];
 				}
 			} catch (e) {}
 		},

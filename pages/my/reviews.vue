@@ -108,7 +108,7 @@
 					var otherList = [];
 					for (var i = 0; i < list.length; i++) {
 						var r = list[i];
-						if (r.user_id === this.userInfo?.id) {
+						if (r.user_id === this.userInfo && this.userInfo.id) {
 							myReviewItem = r;
 						} else {
 							otherList.push(r);

@@ -118,16 +118,16 @@
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token', 'rechargeTiers']),
 			memberLevelName() {
-				var level = this.userInfo?.member_level || 0;
-				return MEMBER_COLORS[level]?.name || '普通会员';
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
+				return MEMBER_COLORS[level] && MEMBER_COLORS[level].name || '普通会员';
 			},
 			memberIcon() {
-				var level = this.userInfo?.member_level || 0;
-				return MEMBER_COLORS[level]?.icon || '🌱';
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
+				return MEMBER_COLORS[level] && MEMBER_COLORS[level].icon || '🌱';
 			},
 			memberColor() {
-				var level = this.userInfo?.member_level || 0;
-				return MEMBER_COLORS[level]?.color || '#AAAAAA';
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
+				return MEMBER_COLORS[level] && MEMBER_COLORS[level].color || '#AAAAAA';
 			},
 			dynamicAmountList() {
 				if (this.rechargeTiers && this.rechargeTiers.length > 0) {
