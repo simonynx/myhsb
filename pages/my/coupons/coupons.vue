@@ -140,7 +140,7 @@
 				}
 			},
 			async loadMyCoupons() {
-				var statusMap = { 0: null, 1: 1, 2: 1, 3: 2 };
+				var statusMap = { 0: null, 1: 0, 2: 1, 3: 2 };
 				var status = statusMap[this.tabIndex];
 				try {
 					var res = await AUTH.getMyCoupons(this.token, status);
