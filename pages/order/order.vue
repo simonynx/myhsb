@@ -163,7 +163,7 @@
 					<button class="btn-pay" @click.stop="goPay(item)">立即支付</button>
 				</view>
 				<view class="action-section" v-if="item.order_status === 1">
-					<button v-if="item.canRefundOrder" class="btn-refund" @click.stop="refundOrder(item)">申请退款</button>
+					<button v-if="refundable" class="btn-refund" @click.stop="refundOrder(item)">申请退款</button>
 					<button class="btn-delete" @click.stop="deleteOrder(item)">删除记录</button>
 				</view>
 				<view class="action-section" v-else>
@@ -285,7 +285,7 @@
 
 						// 支付方式
 						item.payMethodText = this.getPayMethodText(item);
-						item.canRefundOrder = this.canRefund(item);
+						item.refundable = this.canRefund(item);
 
 						allList.orderList.push(item);
 
