@@ -284,6 +284,10 @@ function updateOrderCoupon(token, params) {
   return request('/orders/update_order_coupon/', 'POST', params, token);
 }
 
+function refundOrder(token, params) {
+  return request('/orders/refund/', 'POST', params, token);
+}
+
 function uploadFile(token, filePath, fileName) {
   var _url = API_BASE_URL + '/upload/' + fileName;
   var header = { 'content-type': 'multipart/form-data' };
@@ -335,6 +339,7 @@ var httpRequest = {
   deleteOrder: deleteOrder,
   cancelOrder: cancelOrder,
   updateOrderCoupon: updateOrderCoupon,
+  refundOrder: refundOrder,
   getRoomDataList: getRoomDataList,
   getRoomAppointments: getRoomAppointments,
   bookingRoom: bookingRoom,

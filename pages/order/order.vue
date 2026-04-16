@@ -162,6 +162,13 @@
 					<button class="btn-cancel" @click.stop="cancelOrder(item)">取消预约</button>
 					<button class="btn-pay" @click.stop="goPay(item)">立即支付</button>
 				</view>
+				<view class="action-section" v-else-if="item.order_status === 1 && canRefund(item)">
+					<button class="btn-refund" @click.stop="refundOrder(item)">申请退款</button>
+					<button class="btn-delete" @click.stop="deleteOrder(item)">删除记录</button>
+				</view>
+				<view class="action-section" v-else-if="item.order_status === 1">
+					<button class="btn-delete" @click.stop="deleteOrder(item)">删除记录</button>
+				</view>
 				<view class="action-section" v-else>
 					<button class="btn-delete" @click.stop="deleteOrder(item)">删除记录</button>
 				</view>
@@ -457,6 +464,48 @@
 					}
 				});
 			},
+			canRefund(item) {
+				// 只有预约订单(order_type===1)可退款，且距预约开始需超过1小时
+				if (item.order_type !== 1) return false;
+				var dateStr = item.date;
+				var timeList = item.time_list || [];
+				if (!dateStr || !timeList.length) return false;
+				var firstSlot = timeList[0];
+				if (!firstSlot || !firstSlot[0]) return false;
+				var apptStr = dateStr + ' ' + firstSlot[0] + ':00';
+				var apptTime = new Date(apptStr.replace(/-/g, '/'));
+				var now = new Date();
+				return apptTime.getTime() - now.getTime() > 3600000;
+			},
+			refundOrder(item) {
+				var self = this;
+				var goodsInfo = item.goodsInfo || {};
+				var refundInfo = [];
+				if (goodsInfo.use_balance) refundInfo.push('余额');
+				if (goodsInfo.use_points) refundInfo.push(goodsInfo.use_points + '积分');
+				if (goodsInfo._coupon_id) refundInfo.push('优惠券');
+				var msg = '确定申请退款？' + (refundInfo.length ? '\n退款将返还：' + refundInfo.join('、') : '');
+				uni.showModal({
+					title: '申请退款',
+					content: msg,
+					success: function(res) {
+						if (!res.confirm) return;
+						uni.showLoading({ title: '请稍后' });
+						AUTH.refundOrder(self.token, { order_number: item.order_number }).then(function(res) {
+							uni.hideLoading();
+							if (!res) return;
+							item.order_status = 10;
+							var { stateTip, stateTipColor } = self.orderStateExp(10);
+							item.stateTip = stateTip;
+							item.stateTipColor = stateTipColor;
+							uni.showToast({ title: '退款申请已提交', icon: 'success' });
+						}).catch(function(err) {
+							uni.hideLoading();
+							uni.showToast({ title: (err && err._reason) || '退款失败', icon: 'none' });
+						});
+					}
+				});
+			},
 			orderStateExp(state) {
 				var stateTip = '';
 				var stateTipColor = '#FF6B9D';
@@ -712,6 +761,11 @@ page {
 	.btn-delete {
 		background: #F5F5F5;
 		color: #999;
+	}
+	.btn-refund {
+		background: #FFF0E6;
+		color: #FF6B00;
+		border: 2rpx solid #FF6B00;
 	}
 }
 
