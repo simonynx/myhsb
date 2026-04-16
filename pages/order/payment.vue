@@ -308,7 +308,8 @@ export default {
 
         selectPay(method) {
             this.payMethod = method;
-
+        },
+        
         doPay() {
             if (this.paying) return;
             if (this.payMethod === 'balance') {
