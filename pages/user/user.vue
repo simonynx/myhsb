@@ -64,6 +64,85 @@
 			</view>
 		</view>
 
+		<!-- 会员权益 -->
+		<view class="vip-card">
+			<view class="vip-header">
+				<text class="vip-title">会员折扣</text>
+				<text class="vip-current" :style="{ color: memberColor }">
+					{{ userInfo.discount ? (userInfo.discount * 10).toFixed(1) + '折' : '原价' }}
+				</text>
+			</view>
+			<view class="vip-levels">
+				<view class="vip-level" :class="{ active: userInfo.member_level >= 0 }">
+					<text class="vl-icon">🌱</text>
+					<text class="vl-name">普通</text>
+					<text class="vl-discount">原价</text>
+				</view>
+				<view class="vip-arrow">→</view>
+				<view class="vip-level" :class="{ active: userInfo.member_level >= 1 }">
+					<text class="vl-icon">🥈</text>
+					<text class="vl-name">银卡</text>
+					<text class="vl-discount">9.5折</text>
+				</view>
+				<view class="vip-arrow">→</view>
+				<view class="vip-level" :class="{ active: userInfo.member_level >= 2 }">
+					<text class="vl-icon">🥇</text>
+					<text class="vl-name">金卡</text>
+					<text class="vl-discount">9折</text>
+				</view>
+				<view class="vip-arrow">→</view>
+				<view class="vip-level" :class="{ active: userInfo.member_level >= 3 }">
+					<text class="vl-icon">💎</text>
+					<text class="vl-name">钻石</text>
+					<text class="vl-discount">8.5折</text>
+				</view>
+			</view>
+			<view class="vip-tip" v-if="nextLevelName">
+				再消费 ¥{{ needToNext }} 升级至{{ nextLevelName }}，享受 {{ nextLevelDiscount }} 专属折扣
+			</view>
+			<view class="vip-tip" v-else>
+				🎉 已升至最高等级，享受 8.5折 专属折扣
+			</view>
+		</view>
+
+		<!-- 每日签到 -->
+		<view class="checkin-card">
+			<view class="checkin-left">
+				<view class="checkin-icon">📅</view>
+				<view class="checkin-info">
+					<text class="checkin-title">每日签到</text>
+					<text class="checkin-streak" v-if="checkInInfo.current_streak > 0">连续 {{ checkInInfo.current_streak }} 天</text>
+					<text class="checkin-streak" v-else>今日未签到</text>
+				</view>
+			</view>
+			<view class="checkin-btn" :class="checkInInfo.can_check_in ? 'can' : 'done'" @click="doCheckIn">
+				<text v-if="checkInInfo.checked_in_today">已签到 ✓</text>
+				<text v-else-if="checkInInfo.can_check_in">签到得积分</text>
+				<text v-else>明日再来</text>
+			</view>
+		</view>
+
+		<!-- 邀请有礼 -->
+		<view class="invite-card">
+			<view class="invite-header">
+				<view class="invite-title-row">
+					<text class="invite-icon">🎁</text>
+					<text class="invite-title">邀请有礼</text>
+				</view>
+				<text class="invite-desc">邀请好友注册，双方各得积分奖励</text>
+			</view>
+			<view class="invite-code-row">
+				<text class="invite-code-label">我的邀请码：</text>
+				<text class="invite-code-value">{{ inviteInfo.invite_code || '----' }}</text>
+				<view class="invite-copy-btn" @click="copyInviteCode">
+					<text>复制</text>
+				</view>
+			</view>
+			<view class="invite-stats">
+				<text class="invite-count">已邀请 {{ inviteInfo.total_invites || 0 }} 人</text>
+			</view>
+		</view>
+
 		<!-- 订单入口 -->
 		<view class="section order-section">
 			<view class="section-header">
@@ -116,11 +195,6 @@
 				</view>
 				<text class="menu-arrow">→</text>
 			</view>
-			<view class="menu-item" @tap="navTo('/pages/user/set-payment')">
-				<text class="menu-icon">🔐</text>
-				<text class="menu-text">支付密码</text>
-				<text class="menu-arrow">→</text>
-			</view>
 			<view class="menu-item" @tap="navTo('/pages/user/setting/setting')">
 				<text class="menu-icon">⚙️</text>
 				<text class="menu-text">设置</text>
@@ -146,10 +220,10 @@
 	} from 'vuex';
 
 	const MEMBER_COLORS = {
-		0: { color: '#AAAAAA', icon: '🌱', name: '普通会员' },
-		1: { color: '#C0C0C0', icon: '🥈', name: '银卡会员' },
-		2: { color: '#FFD700', icon: '🥇', name: '金卡会员' },
-		3: { color: '#FF69B4', icon: '💎', name: '钻石会员' },
+		0: { color: '#AAAAAA', icon: '🌱', name: '普通会员', discount: '原价' },
+		1: { color: '#C0C0C0', icon: '🥈', name: '银卡会员', discount: '9.5折' },
+		2: { color: '#FFD700', icon: '🥇', name: '金卡会员', discount: '9折' },
+		3: { color: '#FF69B4', icon: '💎', name: '钻石会员', discount: '8.5折' },
 	};
 
 	const LEVEL_DOTS = [
@@ -176,14 +250,17 @@
 				return MEMBER_COLORS[level]?.color || '#AAAAAA';
 			},
 			nextLevelName() {
-				// 简单：钻石没有下一级
 				var level = this.userInfo?.member_level || 0;
 				if (level >= 3) return '';
 				return MEMBER_COLORS[level + 1]?.name || '';
 			},
+			nextLevelDiscount() {
+				var level = this.userInfo?.member_level || 0;
+				if (level >= 3) return '';
+				return MEMBER_COLORS[level + 1]?.discount || '';
+			},
 			needToNext() {
-				// 简化计算：银卡500，金卡2000，钻石5000
-				var levels = [0, 500, 2000, 5000];
+				var levels = [0, 1000, 5000, 10000];
 				var level = this.userInfo?.member_level || 0;
 				if (level >= 3) return 0;
 				var total = this.userInfo?.total_consume / 100 || 0;
@@ -193,7 +270,7 @@
 			progressPercent() {
 				var level = this.userInfo?.member_level || 0;
 				if (level >= 3) return 100;
-				var levels = [0, 500, 2000, 5000];
+				var levels = [0, 1000, 5000, 10000];
 				var total = this.userInfo?.total_consume / 100 || 0;
 				var curr = levels[level];
 				var next = levels[level + 1];
@@ -205,7 +282,9 @@
 		},
 		data() {
 			return {
-				orderCounts: { waitPay: 0, waitUse: 0 }
+				orderCounts: { waitPay: 0, waitUse: 0 },
+				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 },
+				inviteInfo: {},
 			};
 		},
 		onShow() {
@@ -216,16 +295,63 @@
 			}
 			// 每次进来刷新用户信息
 			this.getUserInfo();
+			// 加载签到信息和邀请信息
+			this.loadCheckInInfo();
+			this.loadInviteInfo();
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getUserInfo', 'requestUpdateUserInfo']),
 			...mapMutations(['updateUserInfo']),
+			async loadCheckInInfo() {
+				if (!this.hasLogin) return;
+				const res = await AUTH.checkInInfo(this.token);
+				if (res._status === 0 && res.data) {
+					this.checkInInfo = res.data;
+				}
+			},
+			async doCheckIn() {
+				if (!this.hasLogin) {
+					uni.showToast({ title: '请先登录', icon: 'none' });
+					return;
+				}
+				if (!this.checkInInfo.can_check_in) {
+					uni.showToast({ title: '今日已签到', icon: 'none' });
+					return;
+				}
+				const res = await AUTH.checkIn(this.token);
+				const d = res.data;
+				if (d && d.points_earned !== undefined) {
+					this.checkInInfo.checked_in_today = true;
+					this.checkInInfo.can_check_in = false;
+					this.checkInInfo.points_earned_today = d.points_earned;
+					uni.showToast({ title: d.message, icon: 'success' });
+					this.getUserInfo();
+				} else {
+					uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
+				}
+			},
+
+			async loadInviteInfo() {
+				if (!this.hasLogin) return;
+				const res = await AUTH.inviteInfo(this.token);
+				if (res._status === 0 && res.data) {
+					this.inviteInfo = res.data;
+				}
+			},
+			copyInviteCode() {
+				if (!this.inviteInfo || !this.inviteInfo.invite_code) return;
+				uni.setClipboardData({
+					data: this.inviteInfo.invite_code,
+					success: () => uni.showToast({ title: '复制成功', icon: 'success' })
+				});
+			},
 			navTo(url) {
 				uni.navigateTo({ url });
 			},
 			openAuthorizationModal() {
 				uni.navigateTo({ url: '/pages/user/setting/setting' });
 			},
+
 		},
 	}
 </script>
@@ -435,6 +561,175 @@ page {
 .section-more {
 	font-size: 24rpx;
 	color: #999;
+}
+
+.vip-card {
+	margin-top: 24rpx;
+	background: #FFF;
+	border-radius: 24rpx;
+	padding: 32rpx 24rpx;
+	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+
+	.vip-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 28rpx;
+	}
+
+	.vip-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #333;
+	}
+
+	.vip-current {
+		font-size: 48rpx;
+		font-weight: bold;
+	}
+
+	.vip-levels {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0 8rpx;
+	}
+
+	.vip-level {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		opacity: 0.35;
+		transition: opacity 0.3s;
+
+		&.active { opacity: 1; }
+	}
+
+	.vl-icon { font-size: 40rpx; }
+	.vl-name { font-size: 22rpx; color: #666; margin-top: 6rpx; }
+	.vl-discount { font-size: 24rpx; color: #333; font-weight: bold; margin-top: 4rpx; }
+
+	.vip-arrow {
+		font-size: 24rpx;
+		color: #CCC;
+	}
+
+	.vip-tip {
+		margin-top: 24rpx;
+		text-align: center;
+		font-size: 24rpx;
+		color: #999;
+	}
+}
+
+/* 每日签到卡片 */
+.checkin-card {
+	margin-top: 24rpx;
+	background: linear-gradient(135deg, #FF9ECD, #ff6b9d);
+	border-radius: 24rpx;
+	padding: 32rpx;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	color: #fff;
+
+	.checkin-left {
+		display: flex;
+		align-items: center;
+		gap: 20rpx;
+	}
+	.checkin-icon { font-size: 56rpx; }
+	.checkin-info {
+		display: flex;
+		flex-direction: column;
+	}
+	.checkin-title {
+		font-size: 30rpx;
+		font-weight: bold;
+	}
+	.checkin-streak {
+		font-size: 24rpx;
+		opacity: 0.85;
+		margin-top: 4rpx;
+	}
+	.checkin-btn {
+		padding: 14rpx 28rpx;
+		border-radius: 40rpx;
+		font-size: 26rpx;
+		font-weight: bold;
+		background: rgba(255,255,255,0.25);
+		&.can {
+			background: #fff;
+			color: #FF6B9D;
+		}
+		&.done {
+			background: rgba(255,255,255,0.15);
+			color: rgba(255,255,255,0.6);
+		}
+	}
+}
+
+/* 邀请有礼卡片 */
+.invite-card {
+	margin-top: 24rpx;
+	background: #FFF;
+	border-radius: 24rpx;
+	padding: 32rpx 24rpx;
+	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+
+	.invite-header {
+		margin-bottom: 24rpx;
+	}
+	.invite-title-row {
+		display: flex;
+		align-items: center;
+		gap: 10rpx;
+		margin-bottom: 6rpx;
+	}
+	.invite-icon { font-size: 32rpx; }
+	.invite-title {
+		font-size: 30rpx;
+		font-weight: bold;
+		color: #333;
+	}
+	.invite-desc {
+		font-size: 24rpx;
+		color: #999;
+	}
+	.invite-code-row {
+		display: flex;
+		align-items: center;
+		gap: 12rpx;
+		background: #FFF5F9;
+		border-radius: 16rpx;
+		padding: 20rpx 24rpx;
+		margin-bottom: 16rpx;
+	}
+	.invite-code-label {
+		font-size: 26rpx;
+		color: #999;
+	}
+	.invite-code-value {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #FF6B9D;
+		letter-spacing: 4rpx;
+		flex: 1;
+	}
+	.invite-copy-btn {
+		background: #FF6B9D;
+		color: #fff;
+		font-size: 24rpx;
+		padding: 8rpx 20rpx;
+		border-radius: 30rpx;
+	}
+	.invite-stats {
+		text-align: center;
+	}
+	.invite-count {
+		font-size: 24rpx;
+		color: #999;
+	}
 }
 
 .order-section {

@@ -95,14 +95,6 @@
 			}
 		},
 		{
-			"path": "pages/user/set-payment",
-			"style": {
-				"navigationBarTitleText": "支付密码",
-				"navigationBarBackgroundColor": "#FF9ECD",
-				"navigationBarTextStyle": "white"
-			}
-		},
-		{
 			"path": "pages/pay/success/success",
 			"style": {
 				"navigationBarTitleText": "",

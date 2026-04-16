@@ -450,8 +450,6 @@ export default {
     onLoad(option) {
         const roomData = this.$store.state.currentRoom || {};
         const selectItem = this.$store.state.currentSelectItem || {};
-        console.log('[createOrder] currentRoom:', JSON.stringify(roomData));
-        console.log('[createOrder] currentSelectItem:', JSON.stringify(selectItem));
         this.currentProduct = Object.keys(selectItem).length ? selectItem : roomData;
 
         // 日期兜底
@@ -461,7 +459,6 @@ export default {
         }
 
         const selects = selectItem.selects || roomData.selects || [];
-        console.log('[createOrder] selects:', JSON.stringify(selects));
 
         this.selectTimes = [];
         for (let i = 0; i < selects.length; i++) {

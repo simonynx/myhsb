@@ -1,5 +1,19 @@
 <template>
 	<view class="page-wrapper">
+		<!-- 营销弹窗 -->
+		<view class="banner-popup" v-if="activeBanner" @click="closeBanner">
+			<view class="banner-panel" @click.stop="goBannerLink">
+				<image class="banner-img" :src="activeBanner.image_url" mode="aspectFill" />
+				<view class="banner-info" v-if="activeBanner.title">
+					<text class="banner-title">{{ activeBanner.title }}</text>
+					<text class="banner-sub" v-if="activeBanner.subtitle">{{ activeBanner.subtitle }}</text>
+				</view>
+				<view class="banner-close" @click.stop="closeBanner">
+					<text>✕</text>
+				</view>
+			</view>
+		</view>
+
 		<!-- 顶部装饰（渐变背景兼导航栏） -->
 		<view class="top-bar">
 			<view class="top-bar-content">
@@ -321,6 +335,7 @@
 </template>
 
 <script>
+	import AUTH from '../../utils/auth.js'
 	import { mapState, mapActions } from 'vuex';
 	import customTabBar from '@/custom-tab-bar/index.vue';
 	export default {
@@ -334,6 +349,7 @@
 		data() {
 			return {
 				swiperCurrent: 0,
+				activeBanner: null,
 				swiperLength: 0,
 				carouselList: [],
 				addressData: {
@@ -368,6 +384,7 @@
 		},
 		onShow() {
 			if (!this.hasLogin) this.loginAndRegister();
+			this.checkBanner();
 		},
 		onLoad() {
 			this.loadData();
@@ -437,7 +454,35 @@
 			onAddToFavorites() {
 				return { title: '偷偷马住别被老板看到！', imageUrl: '../../static/logo_small.jpg' };
 			},
-		},
+			checkBanner() {
+				if (!this.hasLogin) return;
+				AUTH.activeBanners().then(res => {
+					if (res._status !== 0 || !res.data || res.data.length === 0) return;
+					const banner = res.data[0];
+					// 检验是否在24小时内展示过
+					const key = 'banner_shown_' + banner.id;
+					const last = uni.getStorageSync(key);
+					const now = Date.now();
+					if (last && now - last < 24 * 60 * 60 * 1000) return;
+					this.activeBanner = banner;
+					uni.setStorageSync(key, now);
+				});
+			},			
+			closeBanner() {
+				this.activeBanner = null;
+			},
+			goBannerLink() {
+				if (!this.activeBanner) return;
+				const b = this.activeBanner;
+				// 上报点击
+				if (b.link_type === 'page' && b.link_value) {
+					uni.navigateTo({ url: b.link_value });
+				} else if (b.link_type === 'webview' && b.link_value) {
+					uni.navigateTo({ url: '/pages/webview/webview?url=' + encodeURIComponent(b.link_value) });
+				}
+				this.closeBanner();
+			},
+		}
 	}
 </script>
 
@@ -949,5 +994,64 @@ page {
 }
 
 /* ===== 悬浮预约 ===== */
+
+
+
+/* 营销弹窗 */
+.banner-popup {
+	position: fixed;
+	left: 0;
+	right: 0;
+	top: 0;
+	bottom: 0;
+	background: rgba(0,0,0,0.6);
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.banner-panel {
+	position: relative;
+	width: 600rpx;
+	max-height: 800rpx;
+	border-radius: 24rpx;
+	overflow: hidden;
+	box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.3);
+}
+.banner-img {
+	width: 100%;
+	height: 600rpx;
+	display: block;
+}
+.banner-info {
+	padding: 24rpx;
+	text-align: center;
+}
+.banner-title {
+	font-size: 32rpx;
+	font-weight: bold;
+	color: #333;
+	display: block;
+}
+.banner-sub {
+	font-size: 24rpx;
+	color: #666;
+	display: block;
+	margin-top: 8rpx;
+}
+.banner-close {
+	position: absolute;
+	top: 16rpx;
+	right: 16rpx;
+	width: 56rpx;
+	height: 56rpx;
+	background: rgba(0,0,0,0.4);
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #fff;
+	font-size: 32rpx;
+}
 
 </style>

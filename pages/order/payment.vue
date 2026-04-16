@@ -89,30 +89,7 @@
             </view>
         </block>
 
-        <!-- 支付密码弹窗 -->
-        <view class="pwd-mask" :class="showPwdModal ? 'show' : 'hide'" @click="closePwdModal">
-            <view class="pwd-panel" @click.stop>
-                <view class="pwd-header">
-                    <text class="pwd-title">输入支付密码</text>
-                    <text class="pwd-close yticon icon-guanbi" @click="closePwdModal"></text>
-                </view>
-                <view class="pwd-amount">
-                    <text class="pwd-amount-label">支付金额</text>
-                    <text class="pwd-amount-value">¥{{ (order.pay_amount / 100).toFixed(2) }}</text>
-                </view>
-                <view class="pwd-input-wrap">
-                    <input type="password" class="pwd-input" v-model="payPwd"
-                        placeholder="请输入支付密码" placeholder-class="pwd-placeholder"
-                        :maxlength="6" @input="onPwdInput" />
-                </view>
-                <view class="pwd-tip">
-                    <text class="pwd-forget" @click="goSetPwd">忘记密码？</text>
-                </view>
-                <view class="pwd-submit" :class="payPwd.length >= 6 ? 'ready' : ''" @click="confirmPay">
-                    <text>确认支付</text>
-                </view>
-            </view>
-        </view>
+
     </view>
 </template>
 
@@ -128,8 +105,6 @@ export default {
             overtime: false,
             countdownText: '',
             payMethod: 'wechat',
-            showPwdModal: false,
-            payPwd: '',
             paying: false,
             interval: null,
         };
@@ -137,6 +112,9 @@ export default {
 
     computed: {
         ...mapState(['hasLogin', 'userInfo', 'token']),
+        canUseBalance() {
+            return this.userInfo && this.userInfo.account_balance > 0;
+        },
     },
 
     onLoad(options) {
@@ -145,7 +123,16 @@ export default {
             uni.redirectTo({ url: '/pages/order/order' });
             return;
         }
-        this.order = JSON.parse(decodeURIComponent(options.data));
+        try {
+            this.order = JSON.parse(decodeURIComponent(options.data));
+        } catch(e) {
+            this.order = null;
+        }
+        if (!this.order || !this.order.pay_amount) {
+            uni.showToast({ title: '订单创建失败', icon: 'none' });
+            uni.redirectTo({ url: '/pages/order/order' });
+            return;
+        }
         this.entry = options.entry || '1';
         // 如果下单时选择了余额支付且余额够用，默认用余额
         if (options.useBalance === '1' && this.canUseBalance) {
@@ -182,24 +169,30 @@ export default {
 
         selectPay(method) {
             this.payMethod = method;
-        },
 
         doPay() {
             if (this.paying) return;
             if (this.payMethod === 'balance') {
-                if (!this.userInfo.pay_password) {
-                    uni.showModal({
-                        title: '提示',
-                        content: '请先设置支付密码',
-                        confirmText: '去设置',
-                        success: (res) => {
-                            if (res.confirm) this.goSetPwd();
-                        }
-                    });
-                    return;
-                }
-                this.showPwdModal = true;
-                this.payPwd = '';
+                // 余额足够时直接扣款
+                this.paying = true;
+                uni.showLoading({ title: '支付中...' });
+                AUTH.accountPay(this.token, {
+                    order_number: this.order.order_number,
+                }).then(res => {
+                    uni.hideLoading();
+                    this.paying = false;
+                    if (!res) return;
+                    uni.showToast({ title: '支付成功', icon: 'success' });
+                    setTimeout(() => {
+                        uni.redirectTo({ url: '/pages/order/detail?status=4&id=' + this.order.object_id });
+                    }, 1500);
+                    this.getUserInfo();
+                }).catch((err) => {
+                    uni.hideLoading();
+                    this.paying = false;
+                    const msg = err && err.message ? err.message : (err || '支付失败');
+                    uni.showToast({ title: msg, icon: 'none' });
+                });
             } else {
                 this.weixinPay();
             }
@@ -240,40 +233,7 @@ export default {
             });
         },
 
-        confirmPay() {
-            if (this.payPwd.length < 6 || this.paying) return;
-            this.paying = true;
-            AUTH.accountPay(this.token, {
-                order_number: this.order.order_number,
-                pay_password: this.payPwd,
-                coupon_id: null,
-            }).then(res => {
-                this.paying = false;
-                this.closePwdModal();
-                if (!res) return;
-                uni.showToast({ title: '支付成功', icon: 'success' });
-                setTimeout(() => {
-                    uni.redirectTo({ url: '/pages/order/detail?status=4&id=' + this.order.object_id });
-                }, 1500);
-                this.getUserInfo();
-            }).catch(() => {
-                this.paying = false;
-                this.payPwd = '';
-            });
-        },
 
-        onPwdInput(e) {
-            this.payPwd = e.detail.value;
-        },
-
-        closePwdModal() {
-            this.showPwdModal = false;
-            this.payPwd = '';
-        },
-
-        goSetPwd() {
-            uni.navigateTo({ url: '/pages/user/set-payment?type=2&id=' + this.order.order_number });
-        },
 
         goBack() {
             uni.redirectTo({ url: '/pages/order/order' });
@@ -543,87 +503,5 @@ page {
     }
 }
 
-.pwd-mask {
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0);
-    z-index: 9990;
-    transition: background 0.3s;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
 
-    &.show { background: rgba(0,0,0,0.5); }
-    &.hide { display: none; }
-}
-
-.pwd-panel {
-    width: 100%;
-    background: #fff;
-    border-radius: 30rpx 30rpx 0 0;
-    padding: 40rpx 40rpx 60rpx;
-    transform: translateY(100%);
-    transition: transform 0.3s;
-
-    &.show { transform: translateY(0); }
-
-    .pwd-header {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        margin-bottom: 40rpx;
-
-        .pwd-title { font-size: 32rpx; font-weight: bold; color: $dark; }
-        .pwd-close { position: absolute; right: 0; font-size: 40rpx; color: $gray; }
-    }
-
-    .pwd-amount {
-        text-align: center;
-        margin-bottom: 40rpx;
-
-        .pwd-amount-label { font-size: 26rpx; color: $gray; display: block; margin-bottom: 8rpx; }
-        .pwd-amount-value { font-size: 56rpx; font-weight: bold; color: $primary; }
-    }
-
-    .pwd-input-wrap {
-        .pwd-input {
-            width: 100%;
-            height: 96rpx;
-            background: #F5F5F5;
-            border-radius: 16rpx;
-            text-align: center;
-            font-size: 40rpx;
-            letter-spacing: 8rpx;
-            color: $dark;
-        }
-
-        .pwd-placeholder { color: #CCC; font-size: 28rpx; }
-    }
-
-    .pwd-tip {
-        text-align: center;
-        margin-top: 24rpx;
-
-        .pwd-forget { font-size: 26rpx; color: $primary; }
-    }
-
-    .pwd-submit {
-        margin-top: 32rpx;
-        height: 88rpx;
-        background: #CCC;
-        border-radius: 44rpx;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-size: 32rpx;
-        font-weight: bold;
-
-        &.ready { background: $primary; }
-    }
-}
 </style>

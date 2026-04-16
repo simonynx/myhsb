@@ -168,6 +168,29 @@ function getGoodsList(token) {
   return request('/goods/', 'GET', null, token);
 }
 
+// ==================== 每日签到 ====================
+function checkInInfo(token) {
+  return request('/users/check_in_info/', 'GET', null, token);
+}
+
+function checkIn(token) {
+  return request('/users/check_in/', 'POST', null, token);
+}
+
+// ==================== 邀请有礼 ====================
+function inviteInfo(token) {
+  return request('/users/invite_info/', 'GET', null, token);
+}
+
+function applyInviteCode(token, inviteCode) {
+  var data = { invite_code: inviteCode };
+  return request('/users/apply_invite_code/', 'POST', data, token);
+}
+
+function activeBanners() {
+  return request('/banner/active_banners/', 'GET');
+}
+
 function purchaseGoods(goodsId, token) {
   var data = { goods_id: goodsId };
   return request('/goods/purchase/', 'POST', data, token);
@@ -320,6 +343,13 @@ var httpRequest = {
   grantCoupon: grantCoupon,
   getCouponCampaigns: getCouponCampaigns,
   uploadFile: uploadFile,
+  // 每日签到
+  checkInInfo: checkInInfo,
+  checkIn: checkIn,
+  // 邀请有礼
+  inviteInfo: inviteInfo,
+  applyInviteCode: applyInviteCode,
+  activeBanners: activeBanners,
 };
 
 export default httpRequest;

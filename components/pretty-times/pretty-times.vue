@@ -255,10 +255,8 @@
 						return [this.selectDate + ' ' + cur.begin + ':00', this.selectDate + ' ' + cur.end + ':00'];
 					});
 					this.$set(this.orderTimeArr, this.selectDate, selected);
-					console.log('[handleSelect] isActive:', item.isActive, 'selectedCount:', this.selectedCount, 'orderTimeArr:', JSON.stringify(this.orderTimeArr));
 					this.$nextTick(() => {
 						this.$forceUpdate();
-						console.log('[handleSelect] nextTick canSubmit:', this.canSubmit);
 					});
 				} else {
 					this.timeActive = index;
@@ -320,7 +318,6 @@
 							this.isQuantum ? time.push({ date, item }) : time.push({ date, item: date + ' ' + item });
 						});
 					}
-					console.log('[handleSubmit] isQuantum:', this.isQuantum, 'time:', JSON.stringify(time));
 					this.$emit('change', time);
 				} else {
 					this.$emit('change', this.orderDateTime);

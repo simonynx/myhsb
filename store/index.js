@@ -57,6 +57,8 @@ const store = new Vuex.Store({
       if (userInfo.points !== undefined) state.userInfo.points = userInfo.points;
       if (userInfo.member_level !== undefined) state.userInfo.member_level = userInfo.member_level;
       if (userInfo.member_level_name) state.userInfo.member_level_name = userInfo.member_level_name;
+      if (userInfo.account_balance !== undefined) state.userInfo.account_balance = userInfo.account_balance;
+      if (userInfo.total_consume !== undefined) state.userInfo.total_consume = userInfo.total_consume;
     },
     setOpenid(state, openid) {
       state.openid = openid;
