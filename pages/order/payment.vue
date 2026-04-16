@@ -25,6 +25,44 @@
                     <text class="price">{{ (order.pay_amount / 100).toFixed(2) }}</text>
                 </view>
                 <view class="order-no">订单号 {{ order.order_number }}</view>
+                <view class="order-info" v-if="order.order_type === 4">
+                    <text class="info-tag">线下消费</text>
+                    <text class="info-text">{{ order.goodsInfo?.room_name }} · {{ order.goodsInfo?.duration }}分钟 · {{ order.goodsInfo?.user_count }}人</text>
+                </view>
+            </view>
+
+            <!-- 优惠券（仅线下待付款订单） -->
+            <view class="coupon-section" v-if="isOfflinePending && myCoupons.length > 0">
+                <view class="section-title">使用优惠券</view>
+                <view class="coupon-list">
+                    <view
+                        class="coupon-item"
+                        :class="{ selected: selectedCoupon && selectedCoupon.object_id === c.object_id }"
+                        v-for="c in availableCoupons"
+                        :key="c.object_id"
+                        @click="selectCoupon(c)"
+                    >
+                        <view class="coupon-left">
+                            <text class="coupon-price">¥{{ (c.discount / 100).toFixed(0) }}</text>
+                            <text class="coupon-limit">{{ c.min_consume > 0 ? '满' + (c.min_consume / 100).toFixed(0) + '元' : '无门槛' }}</text>
+                        </view>
+                        <view class="coupon-right">
+                            <text class="coupon-name">{{ c.name }}</text>
+                            <text class="coupon-expire">有效期至 {{ c.expire_time }}</text>
+                        </view>
+                        <view class="coupon-check" v-if="selectedCoupon && selectedCoupon.object_id === c.object_id">✓</view>
+                    </view>
+                    <view class="coupon-item no-coupon" :class="{ selected: !selectedCoupon }" @click="selectCoupon(null)">
+                        <text class="no-coupon-text">不使用优惠券</text>
+                        <view class="coupon-check" v-if="!selectedCoupon">✓</view>
+                    </view>
+                </view>
+                <view class="coupon-tip" v-if="selectedCoupon">已选：{{ selectedCoupon.name }}，优惠 {{ couponDiscountText }}</view>
+            </view>
+            <view class="coupon-section" v-else-if="isOfflinePending">
+                <view class="section-title">使用优惠券</view>
+                <view class="coupon-loading" v-if="!couponsLoaded">加载中...</view>
+                <view class="coupon-empty" v-else>暂无可用优惠券</view>
             </view>
 
             <!-- 支付方式 -->
@@ -107,6 +145,11 @@ export default {
             payMethod: 'wechat',
             paying: false,
             interval: null,
+            // 优惠券相关
+            myCoupons: [],
+            selectedCoupon: null,
+            couponsLoaded: false,
+            updatingCoupon: false,
         };
     },
 
@@ -114,6 +157,27 @@ export default {
         ...mapState(['hasLogin', 'userInfo', 'token']),
         canUseBalance() {
             return this.userInfo && this.userInfo.account_balance > 0;
+        },
+
+        // 是否为线下待付款订单
+        isOfflinePending() {
+            return this.order && this.order.order_type === 4 && this.order.order_status === 0;
+        },
+
+        // 可用优惠券（订单相关）
+        availableCoupons() {
+            if (!this.order) return [];
+            const originalAmount = this.order.goodsInfo?._total_original || this.order.pay_amount;
+            return this.myCoupons.filter(c => {
+                if (c.status !== 'unused') return false;
+                if (c.min_consume > 0 && originalAmount < c.min_consume) return false;
+                return true;
+            });
+        },
+
+        couponDiscountText() {
+            if (!this.selectedCoupon) return '';
+            return '-' + (this.selectedCoupon.discount / 100).toFixed(2) + '元';
         },
     },
 
@@ -139,6 +203,11 @@ export default {
             this.payMethod = 'balance';
         }
         this.startCountdown();
+
+        // 线下待付款订单：加载优惠券
+        if (this.order && this.order.order_type === 4 && this.order.order_status === 0) {
+            this.loadMyCoupons();
+        }
     },
 
     onUnload() {
@@ -147,6 +216,76 @@ export default {
 
     methods: {
         ...mapActions(['getUserInfo']),
+
+        async loadMyCoupons() {
+            if (!this.token) return;
+            try {
+                const res = await AUTH.getMyCoupons(this.token);
+                if (res && res.length > 0) {
+                    // 适配后端 coupon_type+rules 格式
+                    this.myCoupons = res.map(c => {
+                        let discount = 0;
+                        if (c.coupon_type === 'rebate') {
+                            discount = c.rules?.discount || 0;
+                        } else if (c.coupon_type === 'discount') {
+                            discount = 0; // 折扣券不展示固定金额
+                        }
+                        return {
+                            object_id: c.object_id,
+                            name: c.name,
+                            discount,
+                            coupon_type: c.coupon_type,
+                            rules: c.rules,
+                            min_consume: c.min_consume,
+                            expire_time: c.expire_time,
+                            status: c.status === 0 ? 'unused' : (c.status === 1 ? 'used' : 'expired'),
+                        };
+                    });
+                }
+                // 如果订单已有券，选中它
+                const couponId = this.order?.goodsInfo?._coupon_id;
+                if (couponId) {
+                    this.selectedCoupon = this.myCoupons.find(c => c.object_id === couponId) || null;
+                }
+            } catch (e) {
+                console.log('load coupons error:', e);
+            } finally {
+                this.couponsLoaded = true;
+            }
+        },
+
+        async selectCoupon(coupon) {
+            if (this.updatingCoupon) return;
+            this.updatingCoupon = true;
+            try {
+                uni.showLoading({ title: '更新中...' });
+                const res = await AUTH.updateOrderCoupon(this.token, {
+                    order_number: this.order.order_number,
+                    coupon_id: coupon ? coupon.object_id : null,
+                });
+                uni.hideLoading();
+                if (!res) return;
+                // 更新订单应付金额
+                this.order.pay_amount = res.data.pay_amount;
+                // 更新goodsInfo中的优惠券信息
+                if (this.order.goodsInfo) {
+                    this.order.goodsInfo._coupon_id = res.data.coupon_id;
+                    this.order.goodsInfo._coupon_discount = res.data.coupon_discount;
+                    this.order.goodsInfo.use_balance = res.data.balance_used;
+                    this.order.goodsInfo.use_points = res.data.points_used;
+                }
+                this.selectedCoupon = coupon;
+                // 重新计算支付方式
+                if (this.order.pay_amount === 0) {
+                    this.payMethod = 'balance';
+                }
+            } catch (e) {
+                uni.hideLoading();
+                uni.showToast({ title: (e && e.message) || '更新优惠券失败', icon: 'none' });
+            } finally {
+                this.updatingCoupon = false;
+            }
+        },
 
         startCountdown() {
             if (!this.order?.end_time) return;
@@ -350,6 +489,135 @@ page {
     .order-no {
         font-size: 24rpx;
         color: $gray;
+    }
+
+    .order-info {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12rpx;
+        margin-top: 20rpx;
+
+        .info-tag {
+            background: #FFF0E6;
+            color: $primary;
+            font-size: 22rpx;
+            padding: 4rpx 16rpx;
+            border-radius: 20rpx;
+        }
+
+        .info-text {
+            font-size: 24rpx;
+            color: $gray;
+        }
+    }
+}
+
+.coupon-section {
+    margin: 20rpx;
+    background: #fff;
+    border-radius: 20rpx;
+    padding: 30rpx;
+
+    .section-title {
+        font-size: 28rpx;
+        font-weight: bold;
+        color: $dark;
+        margin-bottom: 20rpx;
+    }
+
+    .coupon-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16rpx;
+    }
+
+    .coupon-item {
+        display: flex;
+        align-items: center;
+        border: 2rpx solid #FFD4C4;
+        border-radius: 16rpx;
+        padding: 20rpx 24rpx;
+        position: relative;
+
+        &.selected {
+            border-color: $primary;
+            background: #FFF8F5;
+        }
+
+        &.no-coupon {
+            border-style: dashed;
+            justify-content: center;
+        }
+
+        .coupon-left {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100rpx;
+
+            .coupon-price {
+                font-size: 32rpx;
+                font-weight: bold;
+                color: $primary;
+            }
+
+            .coupon-limit {
+                font-size: 20rpx;
+                color: $gray;
+                margin-top: 4rpx;
+            }
+        }
+
+        .coupon-right {
+            flex: 1;
+            margin-left: 24rpx;
+            display: flex;
+            flex-direction: column;
+
+            .coupon-name {
+                font-size: 26rpx;
+                color: $dark;
+            }
+
+            .coupon-expire {
+                font-size: 22rpx;
+                color: $gray;
+                margin-top: 4rpx;
+            }
+        }
+
+        .coupon-check {
+            width: 40rpx;
+            height: 40rpx;
+            border-radius: 50%;
+            background: $primary;
+            color: #fff;
+            font-size: 24rpx;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .no-coupon-text {
+            font-size: 26rpx;
+            color: $gray;
+        }
+    }
+
+    .coupon-tip {
+        margin-top: 16rpx;
+        font-size: 24rpx;
+        color: $primary;
+        text-align: center;
+    }
+
+    .coupon-loading,
+    .coupon-empty {
+        text-align: center;
+        color: $gray;
+        font-size: 26rpx;
+        padding: 20rpx 0;
     }
 }
 

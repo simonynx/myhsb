@@ -280,6 +280,10 @@ function cancelOrder(token, params) {
   return request('/orders/cancel/', 'POST', params, token);
 }
 
+function updateOrderCoupon(token, params) {
+  return request('/orders/update_order_coupon/', 'POST', params, token);
+}
+
 function uploadFile(token, filePath, fileName) {
   var _url = API_BASE_URL + '/upload/' + fileName;
   var header = { 'content-type': 'multipart/form-data' };
@@ -330,6 +334,7 @@ var httpRequest = {
   wxPay: wxPay,
   deleteOrder: deleteOrder,
   cancelOrder: cancelOrder,
+  updateOrderCoupon: updateOrderCoupon,
   getRoomDataList: getRoomDataList,
   getRoomAppointments: getRoomAppointments,
   bookingRoom: bookingRoom,

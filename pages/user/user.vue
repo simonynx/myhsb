@@ -106,6 +106,14 @@
 				<text v-else>明日再来</text>
 			</view>
 		</view>
+		<!-- 签到奖励说明 -->
+		<view class="checkin-rewards" v-if="checkInInfo.config && checkInInfo.config.milestones">
+			<text class="rewards-label">连续签到：</text>
+			<text class="reward-item" v-for="(m, idx) in checkInInfo.config.milestones" :key="idx">
+				{{ m.days }}天+{{ m.bonus_points }}
+			</text>
+			<text class="reward-item" v-if="checkInInfo.config.daily_points">基础{{ checkInInfo.config.daily_points }}/天</text>
+		</view>
 
 		<!-- 邀请有礼 -->
 		<view class="invite-card">
@@ -650,6 +658,27 @@ page {
 			background: rgba(255,255,255,0.15);
 			color: rgba(255,255,255,0.6);
 		}
+	}
+}
+
+/* 签到奖励说明 */
+.checkin-rewards {
+	margin-top: 16rpx;
+	padding: 0 32rpx 24rpx;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12rpx;
+	.rewards-label {
+		font-size: 22rpx;
+		color: #999;
+	}
+	.reward-item {
+		font-size: 22rpx;
+		color: #FF6B9D;
+		background: #fff0f5;
+		padding: 4rpx 12rpx;
+		border-radius: 20rpx;
 	}
 }
 

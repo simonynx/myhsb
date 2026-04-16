@@ -99,14 +99,24 @@
 				<!-- 线下消费详情 -->
 				<view class="detail-section" v-if="item.order_type === 4">
 					<view class="detail-row">
-						<text class="detail-icon">📋</text>
-						<text class="detail-label">消费类型</text>
-						<text class="detail-value">线下消费</text>
+						<text class="detail-icon">🏠</text>
+						<text class="detail-label">房间</text>
+						<text class="detail-value">{{ item.goodsInfo?.room_name || '未知房间' }}</text>
 					</view>
-					<view class="detail-row" v-if="item.goodsInfo">
-						<text class="detail-icon">💰</text>
-						<text class="detail-label">消费金额</text>
-						<text class="detail-value">¥{{ (item.pay_amount / 100).toFixed(2) }}</text>
+					<view class="detail-row" v-if="item.goodsInfo?.duration">
+						<text class="detail-icon">⏱</text>
+						<text class="detail-label">消费时长</text>
+						<text class="detail-value">{{ item.goodsInfo.duration }}分钟</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo?.user_count">
+						<text class="detail-icon">👥</text>
+						<text class="detail-label">消费人数</text>
+						<text class="detail-value">{{ item.goodsInfo.user_count }}人</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo?.contact_name">
+						<text class="detail-icon">👤</text>
+						<text class="detail-label">联系人</text>
+						<text class="detail-value">{{ item.goodsInfo.contact_name }}</text>
 					</view>
 				</view>
 
@@ -115,6 +125,10 @@
 					<view class="price-row" v-if="item.room && item.goodsInfo">
 						<text class="price-label">房间费用</text>
 						<text class="price-value">¥{{ item.roomPrice }}</text>
+					</view>
+					<view class="price-row" v-if="item.order_type === 4 && parseFloat(item.originalPrice) > 0">
+						<text class="price-label">消费金额</text>
+						<text class="price-value">¥{{ item.originalPrice }}</text>
 					</view>
 					<view class="price-row" v-if="item.memberDiscount > 0">
 						<text class="price-label">会员折扣</text>
@@ -325,6 +339,14 @@
 					} else {
 						item.couponDiscount = 0;
 					}
+				} else if (item.order_type === 4) {
+					// 线下消费订单
+					var totalOrig = (goodsInfo._total_original || item.pay_amount) / 100;
+					item.originalPrice = totalOrig.toFixed(2);
+					item.roomPrice = totalOrig.toFixed(2);
+					item.memberDiscount = 0;
+					item.pointsDeduction = goodsInfo._points_deducted ? (goodsInfo._points_deducted / 100).toFixed(2) : 0;
+					item.couponDiscount = goodsInfo._coupon_discount ? (goodsInfo._coupon_discount / 100).toFixed(2) : 0;
 				} else {
 					item.roomPrice = '0.00';
 					item.memberDiscount = 0;

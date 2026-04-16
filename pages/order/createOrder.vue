@@ -71,30 +71,30 @@
                         <view class="points-header">
                             <text class="row-label">
                                 <text class="tag">积分</text>
-                                当前{{ userInfo.points }}积分，抵¥{{ (userInfo.points / 100).toFixed(2) }}
+                                当前{{ userInfo.points }}积分,抵¥{{ (userInfo.points / 100).toFixed(2) }}
                             </text>
-                            <switch 
-                                color="#FFCC33" 
-                                :checked="usePoints" 
+                            <switch
+                                color="#FFCC33"
+                                :checked="usePoints"
                                 @change="togglePoints"
                                 :disabled="!canUsePoints"
                             />
                         </view>
                         <view class="points-slider" v-if="usePoints && canUsePoints">
-                            <slider 
-                                :value="pointsToUse" 
-                                :min="0" 
-                                :max="maxUsablePoints" 
-                                :step="100"
+                            <slider
+                                :value="pointsToUse"
+                                :min="0"
+                                :max="maxUsablePoints"
+                                :step="pointsStep"
                                 activeColor="#FFCC33"
                                 backgroundColor="#E0E0E0"
                                 block-size="18"
                                 @change="onPointsChange"
                             />
                             <view class="points-input-row">
-                                <input 
-                                    type="number" 
-                                    v-model="pointsInput" 
+                                <input
+                                    type="number"
+                                    v-model="pointsInput"
                                     class="points-input"
                                     :min="0"
                                     :max="maxUsablePoints"
@@ -112,7 +112,7 @@
                 <view class="price-row points-zero-row" v-else>
                     <text class="row-label">
                         <text class="tag">积分</text>
-                        当前0积分，消费预约可获取积分
+                        当前0积分,消费预约可获取积分
                     </text>
                 </view>
 
@@ -140,18 +140,18 @@
                     </text>
                     <view class="balance-right">
                         <text class="balance-insufficient" v-if="!canUseBalance && balanceAfterAll > 0">
-                            余额不足，还需¥{{ (balanceAfterAll / 100).toFixed(2) }}
+                            余额不足,还需¥{{ (balanceAfterAll / 100).toFixed(2) }}
                         </text>
-                        <switch 
-                            color="#FFCC33" 
-                            :checked="useBalance && canUseBalance" 
+                        <switch
+                            color="#FFCC33"
+                            :checked="useBalance && canUseBalance"
                             @change="toggleBalance"
                             :disabled="!canUseBalance"
                         />
                     </view>
                 </view>
                 <view class="balance-hint" v-if="!canUseBalance && balanceAfterAll > 0" @click="goRecharge">
-                    <text class="hint-text">余额不足？去</text>
+                    <text class="hint-text">余额不足?去</text>
                     <text class="hint-link">充值</text>
                     <text class="hint-text"> →</text>
                 </view>
@@ -170,10 +170,10 @@
         <!-- 备注 -->
         <view class="remark-section">
             <text class="remark-label">备注</text>
-            <input 
-                class="remark-input" 
-                v-model="desc" 
-                placeholder="有特殊需求请备注（选填）" 
+            <input
+                class="remark-input"
+                v-model="desc"
+                placeholder="有特殊需求请备注(选填)"
                 placeholder-class="placeholder"
             />
         </view>
@@ -183,7 +183,7 @@
             <view class="bottom-info">
                 <text class="bottom-label">实付款</text>
                 <text class="bottom-price">¥{{ actualPrice }}</text>
-                <text class="bottom-points" v-if="usePoints && pointsToUse > 0">（含{{ pointsToUse }}积分）</text>
+                <text class="bottom-points" v-if="usePoints && pointsToUse > 0">(含{{ pointsToUse }}积分)</text>
             </view>
             <view class="submit-btn" :class="submitting ? 'btn-disabled' : ''" @click="submitOrder">
                 <text v-if="!submitting">提交订单</text>
@@ -205,9 +205,9 @@
                     </view>
                     <!-- 可用券 -->
                     <view class="coupon-group-title" v-if="availableCoupons.length > 0">可用优惠券</view>
-                    <view 
-                        class="coupon-card" 
-                        v-for="c in availableCoupons" 
+                    <view
+                        class="coupon-card"
+                        v-for="c in availableCoupons"
                         :key="c.object_id"
                         :class="selectedCoupon && selectedCoupon.object_id === c.object_id ? 'selected' : ''"
                         @click="selectCoupon(c)"
@@ -224,9 +224,9 @@
                     </view>
                     <!-- 不可用券 -->
                     <view class="coupon-group-title" v-if="unavailableCoupons.length > 0">不可用优惠券</view>
-                    <view 
-                        class="coupon-card disabled" 
-                        v-for="c in unavailableCoupons" 
+                    <view
+                        class="coupon-card disabled"
+                        v-for="c in unavailableCoupons"
                         :key="c.object_id"
                     >
                         <view class="coupon-left">
@@ -293,7 +293,7 @@ export default {
             return this.selectTimes.join(', ');
         },
 
-        // 原始价格（分）
+        // 原始价格(分)
         roomPriceFen() {
             if (!this.currentProduct) return 0;
             return this.currentProduct.price_per_hour * this.selectTimes.length;
@@ -329,7 +329,7 @@ export default {
             return names[this.memberLevel] || '';
         },
 
-        // 会员折扣（厘，1000=10折, 810=8.1折）
+        // 会员折扣(厘,1000=10折, 810=8.1折)
         memberDiscountRate() {
             const rates = [0, 900, 850, 800, 750]; // 青铜9折, 白银8.5折, 黄金8折, 钻石7.5折
             return rates[this.memberLevel] || 0;
@@ -339,7 +339,7 @@ export default {
             return (this.memberDiscountRate / 100).toFixed(1);
         },
 
-        // 会员折扣金额（分）
+        // 会员折扣金额(分)
         memberDiscountAmountFen() {
             if (!this.memberDiscountRate) return 0;
             return Math.round(this.originalPriceFen * (1 - this.memberDiscountRate / 1000));
@@ -349,27 +349,38 @@ export default {
             return (this.memberDiscountAmountFen / 100).toFixed(2);
         },
 
-        // 折后价格（分）
+        // 折后价格(分)
         afterMemberPriceFen() {
             return this.originalPriceFen - this.memberDiscountAmountFen;
         },
 
         // 积分相关
+        // 积分最大可用(整数,根据配置的步长和上限生成档位)
+        pointsStep() {
+            return this.userInfo.points_config?.points_step || 100;
+        },
+        pointsMaxUse() {
+            return this.userInfo.points_config?.points_max_use || 10000;
+        },
+        pointsMinUse() {
+            return this.userInfo.points_config?.points_min_use || 100;
+        },
         maxUsablePoints() {
-            // 最多用积分抵扣剩余金额
-            const maxByMoney = this.afterMemberPriceFen; // 1积分 = 0.01元 = 1分
-            return Math.min(this.userInfo.points || 0, maxByMoney, 10000); // 上限10000积分
+            // 档位上限 = min(用户积分余额, 配置的最大抵扣量),并向下取整到步长的整数倍
+            const raw = Math.min(this.userInfo.points || 0, this.pointsMaxUse);
+            return Math.floor(raw / this.pointsStep) * this.pointsStep;
         },
 
         canUsePoints() {
-            return this.userInfo.points > 0 && this.afterMemberPriceFen > 0;
+            // 必须满配置的最低门槛才能用
+            return this.userInfo.points >= this.pointsMinUse && this.afterMemberPriceFen > 0;
         },
 
         pointsConvertMoney() {
             return (this.pointsToUse / 100).toFixed(2);
         },
 
-        // 积分抵扣后剩余（分）
+        // 积分抵扣后剩余(分)
         afterPointsPriceFen() {
             if (!this.usePoints) return this.afterMemberPriceFen;
             return Math.max(0, this.afterMemberPriceFen - this.pointsToUse);
@@ -381,7 +392,7 @@ export default {
             return (this.selectedCoupon.discount / 100).toFixed(2);
         },
 
-        // 优惠券减免后（分）
+        // 优惠券减免后(分)
         afterCouponPriceFen() {
             if (!this.selectedCoupon) return this.afterPointsPriceFen;
             return Math.max(0, this.afterPointsPriceFen - this.selectedCoupon.discount);
@@ -415,25 +426,26 @@ export default {
         },
 
         canUseBalance() {
-            return this.balanceFen > 0;
+            // 余额必须足够支付最终金额(不支持部分抵扣)
+            return this.balanceFen > 0 && this.balanceFen >= this.afterCouponPriceFen;
         },
 
-        // 余额抵扣后剩余（分）
+        // 余额抵扣后剩余(分)
         afterBalancePriceFen() {
             if (!this.useBalance || !this.canUseBalance) return this.afterCouponPriceFen;
             return Math.max(0, this.afterCouponPriceFen - this.balanceFen);
         },
 
-        // 余额不足以支付时，余额不足金额
+        // 余额不足以支付时,余额不足金额
         balanceAfterAll() {
             if (this.afterCouponPriceFen <= 0) return 0;
             return Math.max(0, this.afterCouponPriceFen - this.balanceFen);
         },
 
-        // 最终实付金额（分）
+        // 最终实付金额(分)
         finalPriceFen() {
             if (this.useBalance && this.canUseBalance) {
-                return Math.min(this.balanceFen, this.afterCouponPriceFen);
+                return 0; // 余额全额抵扣,实付为 0
             }
             return this.afterCouponPriceFen;
         },
@@ -488,7 +500,28 @@ export default {
             try {
                 const res = await AUTH.getMyCoupons(this.token);
                 if (res && res.length > 0) {
-                    this.myCoupons = res;
+                    // 适配后端 coupon_type+rules 格式 → 前端旧的 discount/min_consume 格式
+                    this.myCoupons = res.map(c => {
+                        let discount = 0;
+                        if (c.coupon_type === 'rebate') {
+                            discount = c.rules?.discount || 0;
+                        } else if (c.coupon_type === 'discount') {
+                            // 折扣券按85折估算一个固定优惠额用于展示（实际金额由后端按订单计算）
+                            discount = 0; // 动态折扣，picker里显示为"待计算"
+                        } // gift类型 discount=0
+                        return {
+                            object_id: c.object_id,
+                            name: c.name,
+                            description: c.description,
+                            discount: discount,
+                            coupon_type: c.coupon_type,
+                            rules: c.rules,
+                            min_consume: c.min_consume,
+                            expire_time: c.expire_time,
+                            status: c.status === 0 ? 'unused' : (c.status === 1 ? 'used' : 'expired'),
+                            is_valid: c.is_valid,
+                        };
+                    });
                 }
             } catch (e) {
                 console.log('load coupons error:', e);
@@ -532,13 +565,16 @@ export default {
         },
 
         onPointsChange(e) {
-            this.pointsToUse = e.detail.value;
-            this.pointsInput = String(this.pointsToUse);
+            let val = Math.floor(e.detail.value / 100) * 100; // 强制100的整数倍
+            val = Math.max(100, Math.min(val, this.maxUsablePoints)); // 最低100
+            this.pointsToUse = val;
+            this.pointsInput = String(val);
         },
 
         onPointsInputBlur(e) {
             let val = parseInt(e.detail.value) || 0;
-            val = Math.max(0, Math.min(val, this.maxUsablePoints));
+            val = Math.floor(val / 100) * 100; // 强制100的整数倍
+            val = Math.max(100, Math.min(val, this.maxUsablePoints)); // 最低100
             this.pointsToUse = val;
             this.pointsInput = String(val);
         },
@@ -596,13 +632,13 @@ export default {
                 const orderNumber = res.data.order_number;
                 const payAmount = res.data.pay_amount || 0;
 
-                // 如果实付为0（余额/积分全覆盖），直接跳转成功
+                // 如果实付为0(余额/积分全覆盖),直接跳转成功
                 if (payAmount === 0) {
                     uni.redirectTo({ url: `/pages/order/detail?status=4&id=${res.data.object_id}` });
                     return;
                 }
 
-                // 有金额需支付，跳转支付页面
+                // 有金额需支付,跳转支付页面
                 uni.redirectTo({
                     url: `/pages/order/payment?parent_sn=${orderNumber}&entry=1&useBalance=${this.useBalance ? 1 : 0}&data=${encodeURIComponent(JSON.stringify(res.data))}`
                 });
