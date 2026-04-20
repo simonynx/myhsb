@@ -140,6 +140,11 @@
 				}
 			},
 			async loadMyCoupons() {
+				if (this.tabIndex === 0) {
+					// tab 0 不走这里，loadAvailable 已经处理了可领取列表
+					this.myCoupons = [];
+					return;
+				}
 				var statusMap = { 0: null, 1: 0, 2: 1, 3: 2 };
 				var status = statusMap[this.tabIndex];
 				try {
@@ -190,7 +195,7 @@
 			getCouponValue(item) {
 				var rules = item.rules || {};
 				if (item.coupon_type === 'rebate') {
-					return rules.discount || 0;
+					return (rules.discount || 0) / 100;
 				} else if (item.coupon_type === 'discount') {
 					var rate = rules.discount_rate || 1;
 					return Math.round((1 - rate) * 100) + '折';
