@@ -74,7 +74,7 @@
 				<view class="item-right">
 					<text class="item-name">{{ item.name }}</text>
 					<text class="item-desc" v-if="item.description">{{ item.description }}</text>
-					<text class="item-expire" v-if="item.status === 0">有效期至 {{ item.expired_at ? item.expired_at.substring(0,10) : '永久' }}</text>
+					<text class="item-expire" v-if="item.status === 0">有效期至 {{ item.expire_time ? item.expire_time.substring(0,10) : '永久' }}</text>
 					<text class="item-status-text" v-if="item.status === 1">已使用</text>
 					<text class="item-status-text expired" v-if="item.status === 2">已过期</text>
 				</view>
@@ -366,6 +366,7 @@ page {
 	overflow: hidden;
 	position: relative;
 	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+	margin-bottom: 20rpx;
 	&.used { opacity: 0.6; }
 	&.expired { opacity: 0.5; }
 }
