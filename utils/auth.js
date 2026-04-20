@@ -91,8 +91,11 @@ function requestSubscribeMessage() {
 
 // ==================== 业务 API ====================
 
-function univerifyLogin(loginCode) {
+function univerifyLogin(loginCode, inviteCode) {
   var data = { js_code: loginCode };
+  if (inviteCode) {
+    data.invite_code = inviteCode;
+  }
   return request('/auth/signin_by_weixin/', 'POST', data);
 }
 

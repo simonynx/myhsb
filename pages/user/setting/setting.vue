@@ -30,14 +30,12 @@
 
 			<view class="form-item">
 				<text class="form-label">手机号</text>
-				<input
-					class="form-input"
-					type="tel"
-					v-model="userInfo.phone"
-					@blur="bindmobile"
-					placeholder="用于接收预约通知"
-					placeholder-style="color: #CCC;"
-				/>
+				<view class="phone-row">
+					<text class="phone-value">{{ userInfo.phone || '未绑定' }}</text>
+					<button class="phone-btn" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
+						{{ userInfo.phone ? '更换' : '授权' }}
+					</button>
+				</view>
 			</view>
 
 			<view class="form-item">
@@ -76,6 +74,11 @@
 			<view class="menu-item" @tap="showBalance">
 				<text class="menu-icon">💰</text>
 				<text class="menu-text">余额明细</text>
+				<text class="menu-arrow">→</text>
+			</view>
+			<view class="menu-item" @tap="showInviteCode" v-if="!userInfo.invite_code">
+				<text class="menu-icon">🎁</text>
+				<text class="menu-text">填写邀请码</text>
 				<text class="menu-arrow">→</text>
 			</view>
 			<view class="menu-item" @tap="logout">
@@ -145,12 +148,47 @@
 				this.userInfo.nickname = e.detail.value;
 				this.updateUserInfo({ nickname: e.detail.value });
 			},
-			bindmobile(e) {
-				this.userInfo.phone = e.detail.value;
-				this.updateUserInfo({ phone: e.detail.value });
+			onGetPhoneNumber(e) {
+				if (e.detail.errMsg !== 'getPhoneNumber:ok') return;
+				AUTH.getPhoneNumber(e, this.token).then((res) => {
+					if (res.data && res.data.phoneNumber) {
+						this.userInfo.phone = res.data.phoneNumber;
+						this.updateUserInfo({ phone: res.data.phoneNumber });
+						this.saveProfile();
+					}
+				}).catch((err) => {
+					uni.showToast({ title: '获取手机号失败', icon: 'none' });
+				});
+			},
+			showInviteCode() {
+				uni.showModal({
+					title: '填写邀请码',
+					editable: true,
+					placeholderText: '请输入邀请码',
+					success: (res) => {
+						if (res.confirm && res.content && res.content.trim()) {
+							this.applyInviteCode(res.content.trim());
+						}
+					}
+				});
+			},
+			applyInviteCode(code) {
+				uni.showLoading({ title: '请稍候...' });
+				AUTH.applyInviteCode(this.token, code).then((res) => {
+					uni.hideLoading();
+					if (res._status === 0) {
+						uni.showToast({ title: '绑定成功，双方各获得积分', icon: 'success' });
+						this.getUserInfo();
+					} else {
+						uni.showToast({ title: res._reason || '邀请码无效', icon: 'none' });
+					}
+				}).catch(() => {
+					uni.hideLoading();
+					uni.showToast({ title: '邀请码无效', icon: 'none' });
+				});
 			},
 			bindPickerChange(e) {
-				this.userInfo.gender = parseInt(e.detail.value) === 0 ? 1 : 0;
+				this.userInfo.gender = parseInt(e.detail.value) === 0 ? 0 : 1;
 				this.updateUserInfo({ gender: this.userInfo.gender });
 			},
 			bindDateChange(e) {
@@ -279,6 +317,26 @@ page {
 		font-size: 28rpx;
 		color: #333;
 		text-align: right;
+	}
+	.phone-row {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 16rpx;
+	}
+	.phone-value {
+		font-size: 28rpx;
+		color: #333;
+	}
+	.phone-btn {
+		font-size: 24rpx;
+		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		color: #FFF;
+		border-radius: 30rpx;
+		padding: 0 20rpx;
+		line-height: 2.2;
+		&::after { border: none; }
 	}
 	.form-picker {
 		flex: 1;

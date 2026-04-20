@@ -28,7 +28,8 @@ const store = new Vuex.Store({
     currentRoom: null,
     currentSelectItem: null,
 
-    univerifyErrorMsg: ''
+    univerifyErrorMsg: '',
+    pending_invite_code: null,
   },
 
   mutations: {
@@ -103,6 +104,9 @@ const store = new Vuex.Store({
     },
     setUniverifyErrorMsg(state, payload = '') {
       state.univerifyErrorMsg = payload;
+    },
+    setPendingInviteCode(state, code) {
+      state.pending_invite_code = code;
     }
   },
 
@@ -146,7 +150,7 @@ const store = new Vuex.Store({
           return Promise.reject(res._reason);
         }
 
-        // Step 3: 登录成功，保存状态
+        // Step 3: 检测是否新用户，保存 token 和邀请码
         commit('login', 'weixin');
         commit('setUniverifyLogin', true);
         commit('setToken', res.data.token);
@@ -157,6 +161,18 @@ const store = new Vuex.Store({
           dispatch('getUserInfo'),
           dispatch('getConstanceInfo')
         ]);
+
+        // Step 5: 如果是新用户，跳转到欢迎页
+        if (res.data.is_new_user) {
+          commit('setPendingInviteCode', res.data.invite_code || null);
+          uni.navigateTo({ url: '/pages/user/welcome/welcome' });
+          return state.openid;
+        }
+
+        // Step 6: 静默请求订阅消息权限（不强制）
+        dispatch('requestSubscribeMessage');
+
+        return state.openid;
 
         // Step 5: 静默请求订阅消息权限（不强制）
         dispatch('requestSubscribeMessage');
@@ -279,6 +295,37 @@ const store = new Vuex.Store({
         if (!res || res._status !== 0) return Promise.reject(res._reason || '提交失败');
         return res;
       }).catch((err) => Promise.reject(err));
+    },
+
+    /**
+     * 完成欢迎页初始化（新用户填写资料）
+     */
+    completeOnboarding: async function({ state, commit }, { nickname, avatar, phone, gender, birthday, invite_code }) {
+      try {
+        // 更新用户资料
+        if (nickname || avatar || phone || gender !== undefined || birthday !== undefined) {
+          await AUTH.setUserProflie(
+            state.token,
+            phone || state.userInfo.phone || '',
+            nickname || state.userInfo.nickname || '',
+            avatar || state.userInfo.avatar || '',
+            gender !== undefined ? gender : state.userInfo.gender,
+            birthday || state.userInfo.birthday || ''
+          );
+          // 同步更新本地 userInfo
+          commit('updateUserInfo', { nickname, avatar, phone, gender, birthday });
+        }
+        // 如果有邀请码且注册时未填写（后端已处理则跳过），在此补填
+        if (invite_code) {
+          await AUTH.applyInviteCode(state.token, invite_code);
+        }
+        // 请求订阅消息
+        dispatch('requestSubscribeMessage');
+        return true;
+      } catch (error) {
+        console.error('完成初始化失败:', error);
+        return false;
+      }
     },
 
     /**

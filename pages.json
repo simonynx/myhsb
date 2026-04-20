@@ -71,6 +71,14 @@
 			}
 		},
 		{
+			"path": "pages/user/welcome/welcome",
+			"style": {
+				"navigationBarTitleText": "欢迎加入",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/user/user",
 			"style": {
 				"navigationBarTitleText": "",
