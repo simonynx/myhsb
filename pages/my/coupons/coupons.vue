@@ -25,8 +25,11 @@
 				<text class="section-emoji">🎁</text>
 				<text class="section-text">可领取优惠券</text>
 			</view>
-			<view class="coupon-list" v-if="availableList.length > 0">
-				<view class="coupon-card" v-for="(item, idx) in availableList" :key="idx">
+			<view
+					:class="['coupon-card', { used: item.status === 1, expired: item.status === 2 }]"
+					v-for="(item, idx) in availableList"
+					:key="idx"
+				>
 					<view class="coupon-left">
 						<view class="coupon-value">
 							<text class="value-num">{{ getCouponValue(item) }}</text>
@@ -59,10 +62,9 @@
 		<!-- 我的优惠券列表 -->
 		<scroll-view class="my-coupon-list" scroll-y v-if="myCoupons.length > 0">
 			<view
-				class="coupon-item"
+				:class="['coupon-item', { used: item.status === 1, expired: item.status === 2 }]"
 				v-for="(item, idx) in myCoupons"
 				:key="idx"
-				:class="{ used: item.status === 1, expired: item.status === 2 }"
 			>
 				<view class="item-left">
 					<view class="item-value">
