@@ -60,7 +60,30 @@ function getPhoneNumber(e) {
       return;
     }
     var data = { encryptedData: e.detail.encryptedData, iv: e.detail.iv };
-    request('/auth/decrypt_phone/', 'POST', data).then(resolve).catch(reject);
+    request('/auth/decrypt_phone/', 'POST', data).then(resolve).catch(function(err) {
+      // 如果是 session_key 过期，先刷新再重试
+      if (err && err._reason && err._reason.indexOf('SESSION_KEY_EXPIRED') >= 0) {
+        uni.login({
+          provider: 'weixin',
+          success: function(loginRes) {
+            if (!loginRes || loginRes.errMsg !== 'login:ok') {
+              reject('登录失败，请重试');
+              return;
+            }
+            // 刷新 session_key
+            request('/auth/refresh_session_key/', 'POST', { code: loginRes.code }).then(function() {
+              // 重试解密
+              request('/auth/decrypt_phone/', 'POST', data).then(resolve).catch(reject);
+            }).catch(reject);
+          },
+          fail: function(err) {
+            reject(err.errMsg || '登录失败');
+          }
+        });
+      } else {
+        reject(err);
+      }
+    });
   });
 }
 
