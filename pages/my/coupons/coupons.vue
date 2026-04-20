@@ -36,6 +36,7 @@
 					</view>
 					<view class="coupon-right">
 						<text class="coupon-name">{{ item.name }}</text>
+						<text class="coupon-desc-mkt" v-if="item.description">{{ item.description }}</text>
 						<text class="coupon-expire" v-if="item.validity_days">领取后{{ item.validity_days }}天有效</text>
 						<text class="coupon-expire" v-else>有效期至 {{ item.end_time ? item.end_time.substring(0,10) : '无限' }}</text>
 						<button
@@ -68,11 +69,12 @@
 						<text class="item-rmb">¥</text>
 						<text class="item-num">{{ getCouponValue(item) }}</text>
 					</view>
-					<text class="item-condition" v-if="item.min_consume > 0">满{{ item.min_consume / 100 }}元可用</text>
+					<text class="item-condition" v-if="item.coupon_type !== 'rebate' && item.min_consume > 0">满{{ item.min_consume / 100 }}元可用</text>
 					<text class="item-condition" v-else>无门槛</text>
 				</view>
 				<view class="item-right">
 					<text class="item-name">{{ item.name }}</text>
+					<text class="item-desc-mkt" v-if="item.description">{{ item.description }}</text>
 					<text class="item-desc">{{ getCouponDesc(item) }}</text>
 					<text class="item-expire" v-if="item.status === 0">有效期至 {{ item.expire_time ? item.expire_time.substring(0,10) : '永久' }}</text>
 					<text class="item-status-text" v-if="item.status === 1">已使用</text>
@@ -211,19 +213,24 @@
 				var rules = item.rules || {};
 				if (item.coupon_type === 'rebate') {
 					var min = rules.min_amount || 0;
-					var rule = min > 0 ? '满' + min / 100 + '元可用' : '无门槛';
-					var desc = item.description || '';
-					return desc ? desc + ' | ' + rule : rule;
+					var discount = rules.discount || 0;
+					var threshold = min > 0 ? ('满' + min / 100 + '元' + '可用') : '无门槛';
+					var amount = discount > 0 ? ('立减' + discount / 100 + '元') : '';
+					return amount ? (threshold + ' | ' + amount) : threshold;
 				} else if (item.coupon_type === 'discount') {
-					var parts = ['折扣券'];
-							if (item.description) parts.unshift(item.description);
-							var max = rules.max_discount;
-							if (max) parts.push('最高减' + max / 100 + '元');
-							return parts.join('，');
+					var parts = [];
+					var min = rules.min_amount;
+					if (min > 0) parts.push('满' + min / 100 + '元' + '可用');
+					var max = rules.max_discount;
+					if (max > 0) parts.push('最高减' + max / 100 + '元');
+					if (parts.length === 0) parts.push('无门槛');
+					return parts.join(' | ');
 				} else if (item.coupon_type === 'gift') {
-					return '赠品券';
+					var val = rules.gift_value;
+					if (val) return '价值' + val + '积分';
+					return '';
 				}
-				return item.description || '';
+				return '';
 			},
 		},
 	};
@@ -330,6 +337,18 @@ page {
 	.value-num { font-size: 52rpx; font-weight: bold; color: #FFF; }
 	.value-unit { font-size: 24rpx; color: rgba(255,255,255,0.8); }
 	.coupon-desc { font-size: 20rpx; color: rgba(255,255,255,0.8); margin-top: 8rpx; }
+	.coupon-desc-mkt {
+		background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
+		color: #FFF;
+		font-size: 22rpx;
+		padding: 6rpx 16rpx;
+		border-radius: 20rpx;
+		margin-top: 6rpx;
+		display: inline-block;
+		max-width: 100%;
+		word-break: break-all;
+		line-height: 1.4;
+	}
 }
 .coupon-right {
 	flex: 1;
@@ -397,6 +416,18 @@ page {
 	gap: 6rpx;
 	.item-name { font-size: 28rpx; font-weight: bold; color: #333; }
 	.item-desc { font-size: 22rpx; color: #999; }
+	.item-desc-mkt {
+		background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
+		color: #FFF;
+		font-size: 22rpx;
+		padding: 6rpx 16rpx;
+		border-radius: 20rpx;
+		margin-top: 6rpx;
+		display: inline-block;
+		max-width: 100%;
+		word-break: break-all;
+		line-height: 1.4;
+	}
 	.item-expire { font-size: 22rpx; color: #999; margin-top: auto; }
 	.item-status-text { font-size: 24rpx; color: #52C41A; font-weight: bold; margin-top: auto; }
 	.item-status-text.expired { color: #FF6B6B; }
