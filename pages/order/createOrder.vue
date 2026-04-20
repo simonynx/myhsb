@@ -34,7 +34,7 @@
                     <view class="stepper-btn" @click="incPeople">+</view>
                 </view>
             </view>
-            <view class="room-prices">
+            <view class="room-prices" v-if="currentProduct">
                 <view class="price-row">
                     <text class="price-label">包厢 {{ (currentProduct.price_per_hour / 100).toFixed(0) }}/小时 × {{ selectTimes.length }}时段</text>
                     <text class="price-value">¥{{ roomPrice }}</text>
@@ -403,7 +403,7 @@ export default {
             const priceAfterPoints = this.afterPointsPriceFen;
             return this.myCoupons.filter(c => {
                 if (c.status !== 'unused') return false;
-                if (c.min_consume > 0 && priceAfterPoints < c.min_consume) return false;
+                if (c.min_consume > 0 && priceAfterPoints <= c.min_consume) return false;
                 return true;
             }).map(c => ({ ...c, discount: c.discount || 0 }));
         },
@@ -412,7 +412,7 @@ export default {
             const priceAfterPoints = this.afterPointsPriceFen;
             return this.myCoupons.filter(c => {
                 if (c.status !== 'unused') return true;
-                if (c.min_consume > 0 && priceAfterPoints < c.min_consume) {
+                if (c.min_consume > 0 && priceAfterPoints <= c.min_consume) {
                     c.disable_reason = `需满${(c.min_consume / 100).toFixed(0)}元`;
                     return true;
                 }
@@ -455,7 +455,8 @@ export default {
         },
 
         submitDisabled() {
-            return this.submitting || this.finalPriceFen <= 0;
+            // 有金额需要支付时才禁用；余额全额抵扣时（finalPriceFen=0）也允许提交，因为后端会直接跳转成功页
+            return this.submitting;
         },
     },
 
