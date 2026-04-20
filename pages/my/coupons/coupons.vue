@@ -73,7 +73,7 @@
 				</view>
 				<view class="item-right">
 					<text class="item-name">{{ item.name }}</text>
-					<text class="item-desc" v-if="item.description">{{ item.description }}</text>
+					<text class="item-desc">{{ getCouponDesc(item) }}</text>
 					<text class="item-expire" v-if="item.status === 0">有效期至 {{ item.expire_time ? item.expire_time.substring(0,10) : '永久' }}</text>
 					<text class="item-status-text" v-if="item.status === 1">已使用</text>
 					<text class="item-status-text expired" v-if="item.status === 2">已过期</text>
@@ -198,7 +198,7 @@
 					return (rules.discount || 0) / 100;
 				} else if (item.coupon_type === 'discount') {
 					var rate = rules.discount_rate || 1;
-					return Math.round((1 - rate) * 100) + '折';
+					return Math.round(rate * 10) / 10 + '折';
 				}
 				return rules.gift_value || '-';
 			},
@@ -211,9 +211,15 @@
 				var rules = item.rules || {};
 				if (item.coupon_type === 'rebate') {
 					var min = rules.min_amount || 0;
-					return min > 0 ? '满' + min / 100 + '元可用' : '无门槛';
+					var rule = min > 0 ? '满' + min / 100 + '元可用' : '无门槛';
+					var desc = item.description || '';
+					return desc ? desc + ' | ' + rule : rule;
 				} else if (item.coupon_type === 'discount') {
-					return '折扣券';
+					var parts = ['折扣券'];
+							if (item.description) parts.unshift(item.description);
+							var max = rules.max_discount;
+							if (max) parts.push('最高减' + max / 100 + '元');
+							return parts.join('，');
 				} else if (item.coupon_type === 'gift') {
 					return '赠品券';
 				}
