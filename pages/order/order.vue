@@ -371,10 +371,12 @@
 				return PAY_METHOD_MAP[item.pay_method] || '微信支付';
 			},
 			getOrderTypeIcon(item) {
-				return ORDER_TYPE_MAP[item.order_type] && icon || '📋';
+				var map = ORDER_TYPE_MAP[item.order_type];
+				return map && map.icon || '📋';
 			},
 			getOrderTypeName(item) {
-				return ORDER_TYPE_MAP[item.order_type] && name || '订单';
+				var map = ORDER_TYPE_MAP[item.order_type];
+				return map && map.name || '订单';
 			},
 			getRoomById(rooms, id) {
 				for (var i = 0; i < rooms.length; i++) {
