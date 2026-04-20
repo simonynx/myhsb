@@ -25,23 +25,26 @@
 				<text class="section-emoji">🎁</text>
 				<text class="section-text">可领取优惠券</text>
 			</view>
-			<view
-					:class="['coupon-card', { used: item.status === 1, expired: item.status === 2 }]"
+			<view class="coupon-list" v-if="availableList.length > 0">
+				<view
+					class="coupon-item"
 					v-for="(item, idx) in availableList"
 					:key="idx"
 				>
-					<view class="coupon-left">
-						<view class="coupon-value">
-							<text class="value-num">{{ getCouponValue(item) }}</text>
-							<text class="value-unit">{{ getCouponUnit(item) }}</text>
+					<view class="item-left">
+						<view class="item-value">
+							<text class="item-rmb">{{ getCouponUnit(item) === '积分' ? '' : '¥' }}</text>
+							<text class="item-num">{{ getCouponValue(item) }}</text>
 						</view>
-						<text class="coupon-desc">{{ getCouponDesc(item) }}</text>
+						<text class="item-condition" v-if="item.min_consume > 0">满{{ item.min_consume / 100 }}元可用</text>
+						<text class="item-condition" v-else>无门槛</text>
 					</view>
-					<view class="coupon-right">
-						<text class="coupon-name">{{ item.name }}</text>
-						<text class="coupon-desc-mkt" v-if="item.description">{{ item.description }}</text>
-						<text class="coupon-expire" v-if="item.validity_days">领取后{{ item.validity_days }}天有效</text>
-						<text class="coupon-expire" v-else>有效期至 {{ item.end_time ? item.end_time.substring(0,10) : '无限' }}</text>
+					<view class="item-right">
+						<text class="item-name">{{ item.name }}</text>
+						<text class="item-desc-mkt" v-if="item.description">{{ item.description }}</text>
+						<text class="item-desc">{{ getCouponDesc(item) }}</text>
+						<text class="item-expire" v-if="item.validity_days">领取后{{ item.validity_days }}天有效</text>
+						<text class="item-expire" v-else>有效期至 {{ item.end_time ? item.end_time.substring(0,10) : '无期限' }}</text>
 						<button
 							class="coupon-btn"
 							v-if="!item.user_received"
@@ -68,10 +71,10 @@
 			>
 				<view class="item-left">
 					<view class="item-value">
-						<text class="item-rmb">¥</text>
+						<text class="item-rmb">{{ getCouponUnit(item) === '积分' ? '' : '¥' }}</text>
 						<text class="item-num">{{ getCouponValue(item) }}</text>
 					</view>
-					<text class="item-condition" v-if="item.coupon_type !== 'rebate' && item.min_consume > 0">满{{ item.min_consume / 100 }}元可用</text>
+					<text class="item-condition" v-if="item.min_consume > 0">满{{ item.min_consume / 100 }}元可用</text>
 					<text class="item-condition" v-else>无门槛</text>
 				</view>
 				<view class="item-right">
@@ -202,7 +205,7 @@
 					return (rules.discount || 0) / 100;
 				} else if (item.coupon_type === 'discount') {
 					var rate = rules.discount_rate || 1;
-					return Math.round(rate * 10) / 10 + '折';
+					return Math.round(rate * 100) / 10 + '折';
 				}
 				return rules.gift_value || '-';
 			},
@@ -312,71 +315,6 @@ page {
 	margin-bottom: 20rpx;
 	.section-emoji { font-size: 36rpx; }
 	.section-text { font-size: 32rpx; font-weight: bold; color: #333; }
-}
-
-/* ===== 可领优惠券列表 ===== */
-.coupon-list {
-	display: flex;
-	flex-direction: column;
-	gap: 20rpx;
-}
-.coupon-card {
-	display: flex;
-	background: #FFF;
-	border-radius: 20rpx;
-	overflow: hidden;
-	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
-}
-.coupon-left {
-	width: 220rpx;
-	background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	padding: 24rpx 16rpx;
-	.coupon-value { display: flex; align-items: baseline; gap: 4rpx; }
-	.value-num { font-size: 52rpx; font-weight: bold; color: #FFF; }
-	.value-unit { font-size: 24rpx; color: rgba(255,255,255,0.8); }
-	.coupon-desc { font-size: 20rpx; color: rgba(255,255,255,0.8); margin-top: 8rpx; }
-	.coupon-desc-mkt {
-		background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
-		color: #FFF;
-		font-size: 22rpx;
-		padding: 6rpx 16rpx;
-		border-radius: 20rpx;
-		margin-top: 6rpx;
-		display: inline-block;
-		max-width: 100%;
-		word-break: break-all;
-		line-height: 1.4;
-	}
-}
-.coupon-right {
-	flex: 1;
-	padding: 20rpx 24rpx;
-	display: flex;
-	flex-direction: column;
-	gap: 8rpx;
-	.coupon-name { font-size: 28rpx; font-weight: bold; color: #333; }
-	.coupon-expire { font-size: 22rpx; color: #999; margin-top: auto; }
-	.coupon-btn {
-		margin: 8rpx 0 0;
-		padding: 0;
-		font-size: 24rpx;
-		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
-		color: #FFF;
-		border-radius: 40rpx;
-		line-height: 2.2;
-		text-align: center;
-		&[disabled] { background: #CCC; color: #FFF; }
-		&::after { border: none; }
-	}
-	.coupon-received {
-		font-size: 24rpx;
-		color: #999;
-		margin-top: 8rpx;
-	}
 }
 
 /* ===== 我的优惠券列表 ===== */
