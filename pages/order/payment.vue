@@ -289,10 +289,10 @@ export default {
 
         startCountdown() {
             if (!(this.order && this.order.end_time)) return;
-            const endTime = new Date(this.order.end_time).getTime() / 1000;
+            const endTimeMs = this.order.end_time * 1000;
             const tick = () => {
-                const now = Date.now() / 1000;
-                const left = Math.max(0, Math.floor(endTime - now));
+                const now = Date.now();
+                const left = Math.max(0, Math.floor((endTimeMs - now) / 1000));
                 if (left <= 0) {
                     this.overtime = true;
                     if (this.interval) clearInterval(this.interval);

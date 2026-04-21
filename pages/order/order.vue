@@ -412,21 +412,28 @@
 				this.countdownTimer = setInterval(function() {
 					var now = Date.now();
 					var lists = self.navList;
+					var updated = false;
 					for (var i = 0; i < lists.length; i++) {
 						var orders = lists[i].orderList;
 						for (var j = 0; j < orders.length; j++) {
 							var item = orders[j];
 							if (item.order_status !== 0 || !item.end_time) continue;
 							var left = item.end_time * 1000 - now;
+							var text;
 							if (left <= 0) {
-								item.countdownText = '已超时';
+								text = '已超时';
 							} else {
 								var mm = Math.floor(left / 60000);
 								var ss = Math.floor((left % 60000) / 1000);
-								item.countdownText = '剩余 ' + mm + ' 分 ' + (ss < 10 ? '0' : '') + ss + ' 秒';
+								text = '剩余 ' + mm + ' 分 ' + (ss < 10 ? '0' : '') + ss + ' 秒';
+							}
+							if (item.countdownText !== text) {
+								item.countdownText = text;
+								updated = true;
 							}
 						}
 					}
+					if (updated) self.$forceUpdate();
 				}, 1000);
 			},
 			tabClick(index) {
