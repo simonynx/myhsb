@@ -192,7 +192,7 @@ export default {
         } catch(e) {
             this.order = null;
         }
-        if (!this.order || !this.order.pay_amount) {
+        if (!this.order || this.order.pay_amount === undefined || this.order.pay_amount === null) {
             uni.showToast({ title: '订单创建失败', icon: 'none' });
             uni.redirectTo({ url: '/pages/order/order' });
             return;
@@ -326,7 +326,7 @@ export default {
                     // 后台验证发起重新获取用户信息
                     this.syncOrderStatus();
                     setTimeout(() => {
-                        uni.redirectTo({ url: '/pages/order/detail?status=4&id=' + this.order.object_id });
+                        uni.redirectTo({ url: '/pages/order/order?state=0&id=' + this.order.object_id });
                     }, 1500);
                 }).catch((err) => {
                     uni.hideLoading();
@@ -364,7 +364,7 @@ export default {
                 signType: res.data.signType,
                 paySign: res.data.sign,
                 success: function(res) {
-                    uni.redirectTo({ url: '/pages/order/detail?status=4&id=' + _this.order.object_id });
+                    uni.redirectTo({ url: '/pages/order/order?state=0&id=' + _this.order.object_id });
                 },
                 fail: function(err) {
                     if (err.errMsg && err.errMsg.indexOf('cancel') >= 0) return;

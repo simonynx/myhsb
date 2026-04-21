@@ -635,7 +635,7 @@ export default {
 
                 // 如果实付为0(余额/积分全覆盖),直接跳转成功
                 if (payAmount === 0) {
-                    uni.redirectTo({ url: `/pages/order/detail?status=4&id=${res.data.object_id}` });
+                    uni.redirectTo({ url: `/pages/order/order?state=0&id=${res.data.object_id}` });
                     return;
                 }
 
