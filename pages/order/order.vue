@@ -159,6 +159,7 @@
 
 				<!-- 操作按钮 -->
 				<view class="action-section" v-if="item.order_status === 0">
+					<view class="countdown-tip" v-if="item.end_time && item.countdownText">{{ item.countdownText }}</view>
 					<button class="btn-cancel" @click.stop="cancelOrder(item)">取消预约</button>
 					<button class="btn-pay" @click.stop="goPay(item)">立即支付</button>
 				</view>
@@ -229,6 +230,10 @@
 			if (options.state !== undefined) {
 				this.tabCurrentIndex = parseInt(options.state);
 			}
+			this.countdownTimer = null;
+			this.$once('hook:onUnload', () => {
+				if (this.countdownTimer) clearInterval(this.countdownTimer);
+			});
 		},
 		onShow() {
 			this.refreshData();
@@ -312,6 +317,7 @@
 					console.error('加载订单失败:', e);
 				}
 				uni.hideLoading();
+				this.startCountdown();
 			},
 			computePriceDetails(item) {
 				var goodsInfo = item.goodsInfo;
@@ -392,13 +398,36 @@
 			},
 			formatTime(timeStr) {
 				if (!timeStr) return '-';
-				var d = new Date(timeStr);
+				var d = new Date(timeStr < 1e12 ? timeStr * 1000 : timeStr);
 				var y = d.getFullYear();
 				var m = String(d.getMonth() + 1).padStart(2, '0');
 				var day = String(d.getDate()).padStart(2, '0');
 				var h = String(d.getHours()).padStart(2, '0');
 				var min = String(d.getMinutes()).padStart(2, '0');
 				return y + '-' + m + '-' + day + ' ' + h + ':' + min;
+			},
+			startCountdown() {
+				var self = this;
+				if (this.countdownTimer) clearInterval(this.countdownTimer);
+				this.countdownTimer = setInterval(function() {
+					var now = Date.now();
+					var lists = self.navList;
+					for (var i = 0; i < lists.length; i++) {
+						var orders = lists[i].orderList;
+						for (var j = 0; j < orders.length; j++) {
+							var item = orders[j];
+							if (item.order_status !== 0 || !item.end_time) continue;
+							var left = item.end_time * 1000 - now;
+							if (left <= 0) {
+								item.countdownText = '已超时';
+							} else {
+								var mm = Math.floor(left / 60000);
+								var ss = Math.floor((left % 60000) / 1000);
+								item.countdownText = '剩余 ' + mm + ' 分 ' + (ss < 10 ? '0' : '') + ss + ' 秒';
+							}
+						}
+					}
+				}, 1000);
 			},
 			tabClick(index) {
 				if (this.tabCurrentIndex === index) return;
@@ -736,9 +765,16 @@ page {
 }
 
 /* ===== 操作按钮 ===== */
+.countdown-tip {
+	font-size: 24rpx;
+	color: #FF6B6B;
+	margin-right: auto;
+	padding: 8rpx 0;
+}
 .action-section {
 	display: flex;
 	justify-content: flex-end;
+	align-items: center;
 	gap: 16rpx;
 	padding: 16rpx 24rpx;
 	button {

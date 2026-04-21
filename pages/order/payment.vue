@@ -12,13 +12,13 @@
             <view class="overtime-icon">⏰</view>
             <view class="overtime-title">订单已超时</view>
             <view class="overtime-sub">支付时间已过，订单已自动取消</view>
-            <view class="overtime-order">订单号：{{ order.order_number }}</view>
+            <view class="overtime-order" v-if="order">订单号：{{ order.order_number }}</view>
             <view class="overtime-btn" @click="goOrderList">返回订单列表</view>
         </view>
 
-        <block v-else>
+        <block v-else-if="order">
             <!-- 金额卡片 -->
-            <view class="amount-card">
+            <view class="amount-card" v-if="order">
                 <view class="amount-label">需支付</view>
                 <view class="amount-price">
                     <text class="yuan">¥</text>
