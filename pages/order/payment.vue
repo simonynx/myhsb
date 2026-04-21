@@ -321,12 +321,13 @@ export default {
                 }).then(res => {
                     uni.hideLoading();
                     this.paying = false;
-                    if (!res) return;
                     uni.showToast({ title: '支付成功', icon: 'success' });
+                    this.getUserInfo();
+                    // 后台验证发起重新获取用户信息
+                    this.syncOrderStatus();
                     setTimeout(() => {
                         uni.redirectTo({ url: '/pages/order/detail?status=4&id=' + this.order.object_id });
                     }, 1500);
-                    this.getUserInfo();
                 }).catch((err) => {
                     uni.hideLoading();
                     this.paying = false;
@@ -374,6 +375,18 @@ export default {
         },
 
 
+
+        syncOrderStatus() {
+            var _this = this;
+            AUTH.getOrderList(-1, this.token).then(function(res) {
+                if (!res || !res.data) return;
+                var orders = res.data.orders || [];
+                var myOrder = orders.find(function(o) { return o.order_number === _this.order.order_number; });
+                if (myOrder && myOrder.order_status === 1) {
+                    _this.order.order_status = 1;
+                }
+            }).catch(function() {});
+        },
 
         goBack() {
             uni.redirectTo({ url: '/pages/order/order' });
