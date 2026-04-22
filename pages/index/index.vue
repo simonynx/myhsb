@@ -18,7 +18,7 @@
 		<view class="top-bar">
 			<view class="top-bar-content">
 				<text class="top-emoji">🎲</text>
-				<text class="top-title">摸鱼划水吧</text>
+				<text class="top-title">{{ constance.store_name || '摸鱼划水吧' }}</text>
 				<text class="top-emoji">🎯</text>
 			</view>
 			<text class="top-subtitle">主机游戏 · 桌游 · 漫画小说 · 亲子阅读</text>
@@ -238,7 +238,7 @@
 			</view>
 			<view class="shop-info-card">
 				<view class="shop-name-row">
-					<text class="shop-name">摸鱼划水吧</text>
+					<text class="shop-name">{{ constance.store_name || '摸鱼划水吧' }}</text>
 					<view class="shop-status">
 						<text class="status-dot"></text>
 						<text class="status-text">营业中</text>
@@ -249,7 +249,7 @@
 					<text class="info-icon">📍</text>
 					<view class="info-content">
 						<text class="info-label">地址</text>
-						<text class="info-value">{{addressData.address + addressData.area}}</text>
+						<text class="info-value">{{(constance.store_address || addressData.address) + (constance.store_area || addressData.area)}}</text>
 					</view>
 					<text class="info-arrow">→</text>
 				</view>
@@ -258,7 +258,7 @@
 					<text class="info-icon">🕐</text>
 					<view class="info-content">
 						<text class="info-label">营业时间</text>
-						<text class="info-value">10:00 - 22:00</text>
+						<text class="info-value">{{ constance.business_hours || '10:00 - 22:00' }}</text>
 					</view>
 				</view>
 
@@ -393,11 +393,11 @@
 			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getReviewList']),
 			openLocation() {
 				uni.openLocation({
-					latitude: 26.068525,
-					longitude: 119.303882,
+					latitude: parseFloat(this.constance.store_latitude || 26.068525),
+					longitude: parseFloat(this.constance.store_longitude || 119.303882),
 					scale: 5,
-					name: this.addressData.name,
-					address: this.addressData.address + this.addressData.area
+					name: this.constance.store_name || this.addressData.name,
+					address: (this.constance.store_address || this.addressData.address) + (this.constance.store_area || this.addressData.area)
 				});
 			},
 			goToReserve() {
