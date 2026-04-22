@@ -356,7 +356,7 @@ page {
 .page-wrapper {
 	padding-top: 0;
 	min-height: 100vh;
-	padding-bottom: 40rpx;
+	padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 /* ===== 用户卡片 ===== */
 .profile-card {

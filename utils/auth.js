@@ -169,13 +169,14 @@ function bookingRoomWithBalance(token, roomId, date, contactName, userCount, tim
   return request('/rooms/booking_balance/', 'POST', data, token);
 }
 
-function setUserProflie(token, phone, nickName, avatarUrl, gender, birthday) {
+function setUserProflie(token, phone, nickName, avatarUrl, gender, birthday, tags) {
   var data = {
     phone: phone,
     nickname: nickName,
     avatar: avatarUrl,
     gender: gender,
-    birthday: birthday
+    birthday: birthday,
+    tags: tags
   };
   return request('/users/me/', 'POST', data, token);
 }

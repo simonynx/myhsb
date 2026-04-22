@@ -50,7 +50,7 @@ const store = new Vuex.Store({
     },
     updateUserInfo(state, userInfo) {
       if (!state.userInfo) state.userInfo = {};
-      if (userInfo.gender) state.userInfo.gender = userInfo.gender;
+      if (userInfo.gender !== undefined) state.userInfo.gender = userInfo.gender;
       if (userInfo.birthday) state.userInfo.birthday = userInfo.birthday;
       if (userInfo.avatar) state.userInfo.avatar = userInfo.avatar;
       if (userInfo.nickname) state.userInfo.nickname = userInfo.nickname;
@@ -60,6 +60,7 @@ const store = new Vuex.Store({
       if (userInfo.member_level_name) state.userInfo.member_level_name = userInfo.member_level_name;
       if (userInfo.account_balance !== undefined) state.userInfo.account_balance = userInfo.account_balance;
       if (userInfo.total_consume !== undefined) state.userInfo.total_consume = userInfo.total_consume;
+      if (userInfo.tags !== undefined) state.userInfo.tags = userInfo.tags;
     },
     setOpenid(state, openid) {
       state.openid = openid;
@@ -234,7 +235,8 @@ const store = new Vuex.Store({
         state.userInfo.nickname,
         state.userInfo.avatar,
         state.userInfo.gender,
-        state.userInfo.birthday
+        state.userInfo.birthday,
+        state.userInfo.tags
       ).then((res) => {
         if (res._status !== 0) {
           uni.showModal({
