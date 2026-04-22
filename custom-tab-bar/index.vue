@@ -80,20 +80,31 @@ export default {
 	mounted() {
 		const info = uni.getSystemInfoSync();
 		this.safeAreaBottom = info.safeAreaInsets && info.safeAreaInsets.bottom || 0;
-		// 初始化同步当前 tab
-		const pages = getCurrentPages();
-		if (pages.length) {
-			const path = '/' + pages[pages.length - 1].route;
-			const key = TAB_KEYS[path];
-			if (key) this.current = key;
-		}
+		this.syncCurrentTab();
 		// 监听 tab 切换事件（用户点击 tab 栏时触发）
 		uni.$on('tabItemTap', this.onTabItemTap);
 	},
 	beforeDestroy() {
 		uni.$off('tabItemTap', this.onTabItemTap);
 	},
+	// 微信小程序自定义 tabBar 组件支持 pageLifetimes，tab 页面显示时自动刷新
+	pageLifetimes: {
+		show() {
+			this.syncCurrentTab();
+		}
+	},
 	methods: {
+		syncCurrentTab() {
+			const pages = getCurrentPages();
+			if (pages.length) {
+				const path = '/' + pages[pages.length - 1].route;
+				const key = TAB_KEYS[path];
+				if (key && this.current !== key) {
+					this.current = key;
+				}
+			}
+		},
+
 		onTabItemTap({ index }) {
 			const keys = ['index', 'voucher', 'appoint', 'user'];
 			const key = keys[index];

@@ -951,7 +951,7 @@ page { background: $bg; padding-bottom: 120rpx; }
 .time-popup {
     position: fixed;
     left: 0; right: 0; top: 0; bottom: 0;
-    z-index: 999;
+    z-index: 10001;
 
     &.show { display: flex; }
     &.hide { display: flex; }
