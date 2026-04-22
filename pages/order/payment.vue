@@ -86,17 +86,23 @@
                     </view>
                 </view>
 
-                <view class="pay-method" :class="payMethod === 'balance' ? 'active' : ''" @click="selectPay('balance')">
+                <view class="pay-method" :class="[payMethod === 'balance' ? 'active' : '', !canUseBalance ? 'disabled' : '']" @click="selectPay('balance')">
                     <view class="method-left">
                         <view class="method-icon" style="background:#FFB933;">
                             <text class="icon-text">余额</text>
                         </view>
                         <view class="method-info">
                             <view class="method-name">余额支付</view>
-                            <view class="method-desc">可用余额 ¥{{ (userInfo.account_balance / 100).toFixed(2) }}</view>
+                            <view class="method-desc" v-if="canUseBalance">
+                                {{ balanceDeductText }}
+                            </view>
+                            <view class="method-desc" v-else>
+                                可用余额 ¥{{ (userInfo.account_balance / 100).toFixed(2) }}
+                                <text class="insufficient-tip">（还差 ¥{{ (balanceShortfall / 100).toFixed(2) }}）</text>
+                            </view>
                         </view>
                     </view>
-                    <view class="method-check">
+                    <view class="method-check" v-if="canUseBalance">
                         <view class="check-circle" :class="payMethod === 'balance' ? 'active' : ''">
                             <text v-if="payMethod === 'balance'">✓</text>
                         </view>
@@ -142,7 +148,7 @@ export default {
             entry: '1',
             overtime: false,
             countdownText: '',
-            payMethod: 'wechat',
+            payMethod: null,
             paying: false,
             interval: null,
             // 优惠券相关
@@ -156,7 +162,17 @@ export default {
     computed: {
         ...mapState(['hasLogin', 'userInfo', 'token']),
         canUseBalance() {
-            return this.userInfo && this.userInfo.account_balance > 0;
+            return this.userInfo && this.userInfo.account_balance >= (this.order ? this.order.pay_amount : 0);
+        },
+
+        balanceShortfall() {
+            if (!this.order || !this.userInfo) return 0;
+            return Math.max(0, (this.order.pay_amount || 0) - (this.userInfo.account_balance || 0));
+        },
+
+        balanceDeductText() {
+            if (!this.canUseBalance || !this.order) return '';
+            return `可抵扣 ¥${(this.order.pay_amount / 100).toFixed(2)}`;
         },
 
         // 是否为线下待付款订单
@@ -198,10 +214,8 @@ export default {
             return;
         }
         this.entry = options.entry || '1';
-        // 如果下单时选择了余额支付且余额够用，默认用余额
-        if (options.useBalance === '1' && this.canUseBalance) {
-            this.payMethod = 'balance';
-        }
+        // 默认支付方式：余额足够优先余额，不足则微信
+        this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
         this.startCountdown();
 
         // 线下待付款订单：加载优惠券
@@ -271,7 +285,6 @@ export default {
                 if (this.order.goodsInfo) {
                     this.order.goodsInfo._coupon_id = res.data.coupon_id;
                     this.order.goodsInfo._coupon_discount = res.data.coupon_discount;
-                    this.order.goodsInfo.use_balance = res.data.balance_used;
                     this.order.goodsInfo.use_points = res.data.points_used;
                 }
                 this.selectedCoupon = coupon;
@@ -307,12 +320,29 @@ export default {
         },
 
         selectPay(method) {
+            if (method === 'balance' && !this.canUseBalance) {
+                // 余额不足时引导充值
+                uni.showModal({
+                    title: '余额不足',
+                    content: `当前余额还差 ¥${(this.balanceShortfall / 100).toFixed(2)}，是否去充值？`,
+                    confirmText: '去充值',
+                    cancelText: '取消',
+                    success: (res) => {
+                        if (res.confirm) {
+                            uni.navigateTo({ url: '/pages/user/deposit/deposit' });
+                        }
+                    }
+                });
+                return;
+            }
             this.payMethod = method;
         },
         
         doPay() {
             if (this.paying) return;
-            if (this.payMethod === 'balance') {
+            // pay_amount 为 0 时（余额/积分已全覆盖），强制走余额支付
+            const isZeroPay = this.order && this.order.pay_amount === 0;
+            if (this.payMethod === 'balance' || isZeroPay) {
                 // 余额足够时直接扣款
                 this.paying = true;
                 uni.showLoading({ title: '支付中...' });
@@ -664,6 +694,11 @@ page {
             background: #FFF8F5;
         }
 
+        &.disabled {
+            opacity: 0.6;
+            background: #F5F5F5;
+        }
+
         .method-left {
             display: flex;
             align-items: center;
@@ -702,6 +737,11 @@ page {
             .method-desc {
                 font-size: 24rpx;
                 color: $gray;
+
+                .insufficient-tip {
+                    color: #FF4D4F;
+                    font-size: 22rpx;
+                }
             }
         }
 
