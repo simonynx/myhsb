@@ -88,6 +88,7 @@ export default {
 				{ key: 'index', name: '首页', path: '/pages/index/index' },
 				{ key: 'voucher', name: '卡券', path: '/pages/voucher/voucher' },
 				{ key: 'appoint', name: '预约', path: '/pages/tabBar/appoint/appoint' },
+				{ key: 'group', name: '拼团', path: '/pages/group/group' },
 				{ key: 'user', name: '我的', path: '/pages/user/user' },
 			],
 		};
@@ -242,6 +243,8 @@ $surface: rgba(255, 255, 255, 0.88);
 .center-ring {
 	position: absolute;
 	top: -6rpx;
+	left: 50%;
+	transform: translateX(-50%);
 	width: 108rpx;
 	height: 108rpx;
 	border-radius: 50%;
