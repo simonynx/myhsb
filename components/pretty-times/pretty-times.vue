@@ -299,6 +299,13 @@
 				}
 			},
 
+			reset() {
+				this.orderTimeArr = {};
+				this.timeQuanBegin = '';
+				this.timeQuanEnd = '';
+				this.initOnload();
+			},
+
 			handleChange() {
 				if (this.timeQuanBegin > this.timeQuanEnd) {
 					[this.timeQuanBegin, this.timeQuanEnd] = [this.timeQuanEnd, this.timeQuanBegin];

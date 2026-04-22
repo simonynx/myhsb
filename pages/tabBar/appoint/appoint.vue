@@ -394,6 +394,7 @@ export default {
                 this.specClass = 'hide';
                 setTimeout(() => { this.specClass = 'none'; }, 250);
             } else if (this.specClass === 'none') {
+                this.$refs.timesComponent && this.$refs.timesComponent.reset();
                 this.specClass = 'show';
             }
         },

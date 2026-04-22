@@ -460,7 +460,8 @@ export default {
                 this.specClass = 'hide';
                 setTimeout(() => { this.specClass = 'none'; }, 250);
             } else {
-                // 打开弹窗时，先清空 disableTimeSlot，再拉取当天的 appointments
+                // 打开弹窗时，先清空之前选中的时段，再拉取当天的 appointments
+                this.$refs.timesComponent && this.$refs.timesComponent.reset();
                 this.disableTimeSlot = [];
                 this._fetchDisableTimeSlot(this.currentSelectDate);
                 this.specClass = 'show';
