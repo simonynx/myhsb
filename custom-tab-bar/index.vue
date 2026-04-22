@@ -37,11 +37,25 @@
 				</view>
 			</view>
 
+			<!-- 拼团 -->
+			<view
+				class="tab-item"
+				:class="{ active: current === 'group' }"
+				@click="switchTab(tabs[3])"
+			>
+				<view class="tab-icon-wrap" :class="{ active: current === 'group', bump: bumpKey === 'group' }">
+					<text class="tab-svg">
+						<text class="svg-path" :class="{ filled: current === 'group' }">{{ current === 'group' ? '👥' : '👤' }}</text>
+					</text>
+				</view>
+				<text class="tab-label" :class="{ active: current === 'group' }">拼团</text>
+			</view>
+
 			<!-- 我的 -->
 			<view
 				class="tab-item"
 				:class="{ active: current === 'user' }"
-				@click="switchTab(tabs[3])"
+				@click="switchTab(tabs[4])"
 			>
 				<view class="tab-icon-wrap" :class="{ active: current === 'user', bump: bumpKey === 'user' }">
 					<text class="tab-svg">
@@ -59,6 +73,7 @@ const TAB_KEYS = {
 	'/pages/index/index': 'index',
 	'/pages/voucher/voucher': 'voucher',
 	'/pages/tabBar/appoint/appoint': 'appoint',
+	'/pages/group/group': 'group',
 	'/pages/user/user': 'user',
 };
 

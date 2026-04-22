@@ -63,7 +63,7 @@
 		</view>
 
 		<!-- 底部栏 -->
-		<view class="bottom-bar">
+		<view class="bottom-bar" v-if="showSubmitButton">
 			<view class="selected-info" v-if="isMultiple">
 				<text class="info-label">已选时段</text>
 				<text class="info-count" v-if="selectedCount > 0">{{ selectedCount }} 个时段</text>
@@ -304,6 +304,24 @@
 				this.timeQuanBegin = '';
 				this.timeQuanEnd = '';
 				this.initOnload();
+			},
+			getSelection() {
+				if (this.isSection) {
+					if (this.timeQuanBegin > this.timeQuanEnd) {
+						return { beginTime: this.selectDate + ' ' + this.timeQuanEnd, endTime: this.selectDate + ' ' + this.timeQuanBegin };
+					}
+					return { beginTime: this.selectDate + ' ' + this.timeQuanBegin, endTime: this.selectDate + ' ' + this.timeQuanEnd };
+				}
+				if (this.isMultiple) {
+					let time = [];
+					for (const date in this.orderTimeArr) {
+						this.orderTimeArr[date].forEach(item => {
+							this.isQuantum ? time.push({ date, item }) : time.push({ date, item: date + ' ' + item });
+						});
+					}
+					return time;
+				}
+				return this.orderDateTime;
 			},
 
 			handleChange() {

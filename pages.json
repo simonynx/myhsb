@@ -165,6 +165,23 @@
 				"navigationBarBackgroundColor": "#FF9ECD",
 				"navigationBarTextStyle": "white"
 			}
+		},
+		{
+			"path": "pages/group/group",
+			"style": {
+				"navigationBarTitleText": "拼团广场",
+				"navigationBarBackgroundColor": "#FF6432",
+				"navigationBarTextStyle": "white",
+				"enablePullDownRefresh": true
+			}
+		},
+		{
+			"path": "pages/group/detail",
+			"style": {
+				"navigationBarTitleText": "拼团详情",
+				"navigationBarBackgroundColor": "#FF6432",
+				"navigationBarTextStyle": "white"
+			}
 		}
 	],
 	"globalStyle": {
@@ -205,6 +222,12 @@
 				"iconPath": "static/tab-cart.png",
 				"selectedIconPath": "static/tab-cart-current.png",
 				"text": "预约"
+			},
+			{
+				"pagePath": "pages/group/group",
+				"iconPath": "static/tab-my.png",
+				"selectedIconPath": "static/tab-my-current.png",
+				"text": "拼团"
 			},
 			{
 				"pagePath": "pages/user/user",

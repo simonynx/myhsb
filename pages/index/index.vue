@@ -76,6 +76,18 @@
 			</view>
 		</view>
 
+		<!-- 拼团入口 -->
+		<view class="group-entry" @tap="goToGroup">
+			<view class="group-left">
+				<text class="group-emoji">👥</text>
+				<view class="group-text">
+					<text class="group-title">一起拼团更划算</text>
+					<text class="group-desc">和小伙伴组队预约，人均立省</text>
+				</view>
+			</view>
+			<text class="group-arrow">→</text>
+		</view>
+
 		<!-- 核心数据 -->
 		<view class="stats-row">
 			<view class="stat-item">
@@ -404,6 +416,9 @@
 			goToReserve() {
 				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
 			},
+			goToGroup() {
+				uni.switchTab({ url: '/pages/group/group' });
+			},
 			goToMyReviews() {
 				uni.navigateTo({ url: '/pages/my/reviews' });
 			},
@@ -680,6 +695,47 @@ page {
 			font-size: 28rpx;
 			font-weight: bold;
 		}
+	}
+}
+
+/* ===== 拼团入口 ===== */
+.group-entry {
+	margin: 0 24rpx 24rpx;
+	padding: 28rpx;
+	background: linear-gradient(135deg, #FFF0EB, #FFE8F0);
+	border-radius: 28rpx;
+	border: 2rpx solid #FFD0C0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	box-shadow: 0 8rpx 24rpx rgba(255,100,50,0.1);
+
+	.group-left {
+		display: flex;
+		align-items: center;
+
+		.group-emoji { font-size: 56rpx; margin-right: 20rpx; }
+
+		.group-text {
+			.group-title {
+				display: block;
+				font-size: 32rpx;
+				font-weight: bold;
+				color: #333;
+				margin-bottom: 6rpx;
+			}
+			.group-desc {
+				display: block;
+				font-size: 22rpx;
+				color: #888;
+			}
+		}
+	}
+
+	.group-arrow {
+		font-size: 36rpx;
+		color: #FF6432;
+		font-weight: bold;
 	}
 }
 

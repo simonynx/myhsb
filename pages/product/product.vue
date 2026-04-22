@@ -221,7 +221,25 @@
                         :beginTime="currentBeginTime"
                         :endTime="currentEndTime"
                         :selectedDate="currentSelectDate"
+                        :showSubmitButton="false"
                     ></times>
+                </view>
+
+                <!-- 底部操作栏 -->
+                <view class="panel-footer">
+                    <view class="pf-info">
+                        <text class="pf-label">已选时段</text>
+                        <text class="pf-count" v-if="specSelected.length">{{ specSelected.length }} 个时段</text>
+                        <text class="pf-count zero" v-else>请选择预约时段</text>
+                    </view>
+                    <view class="pf-btns">
+                        <view class="pf-btn group" @click="handleCreateGroup">
+                            <text>发起拼团</text>
+                        </view>
+                        <view class="pf-btn book" :class="{ disabled: !specSelected.length }" @click="handleDirectBook">
+                            <text>直接预约</text>
+                        </view>
+                    </view>
                 </view>
             </view>
         </view>
@@ -484,6 +502,65 @@ export default {
             this.room.selects = this.specSelected;
             this.$store.commit('setCurrentSelectItem', this.room);
             uni.navigateTo({ url: '/pages/order/createOrder' });
+        },
+
+        handleDirectBook() {
+            const times = this.$refs.timesComponent && this.$refs.timesComponent.getSelection();
+            if (!times || !times.length) {
+                uni.showToast({ title: '请先选择预约时段', icon: 'none' });
+                return;
+            }
+            const selects = times.map(t => [t.item[0], t.item[1]]);
+            this.specSelected = selects;
+            this.room.selects = this.specSelected;
+            this.$store.commit('setCurrentSelectItem', this.room);
+            uni.navigateTo({ url: '/pages/order/createOrder' });
+        },
+
+        handleCreateGroup() {
+            const times = this.$refs.timesComponent && this.$refs.timesComponent.getSelection();
+            if (!times || !times.length) {
+                uni.showToast({ title: '请先选择预约时段', icon: 'none' });
+                return;
+            }
+            const first = times[0];
+            const last = times[times.length - 1];
+            const beginTime = first.item[0].split(' ')[1].substring(0, 5);
+            const endTime = last.item[1].split(' ')[1].substring(0, 5);
+            const room = this.room;
+            const data = {
+                room_id: room.object_id,
+                date: this.currentSelectDate,
+                begin_time: beginTime,
+                end_time: endTime,
+                max_members: 4,
+                price_per_person: room.price_per_person || 0,
+                note: '',
+            };
+            uni.showLoading({ title: '创建中...' });
+            AUTH.createGroup(this.token, data).then(res => {
+                uni.hideLoading();
+                if (res && res._status === 0 && res.data) {
+                    uni.showToast({ title: '拼团创建成功', icon: 'success' });
+                    uni.navigateTo({ url: '/pages/group/detail?id=' + res.data.object_id });
+                } else {
+                    var msg = (res && res._reason) || '创建失败';
+                    if (msg.indexOf('余额不足') !== -1) {
+                        uni.showModal({
+                            title: '余额不足',
+                            content: '发起拼团需要支付人均费用，是否去充值？',
+                            success: (r) => {
+                                if (r.confirm) uni.navigateTo({ url: '/pages/user/deposit/deposit' });
+                            }
+                        });
+                    } else {
+                        uni.showToast({ title: msg, icon: 'none' });
+                    }
+                }
+            }).catch(err => {
+                uni.hideLoading();
+                uni.showToast({ title: '创建失败', icon: 'none' });
+            });
         },
 
         handleTimesSelectDateChange(date) {
@@ -995,7 +1072,67 @@ page { background: $bg; padding-bottom: 120rpx; }
         .panel-close { font-size: 44rpx; color: $gray; padding: 10rpx; }
     }
 
-    .panel-times { flex: 1; overflow-y: auto; padding: 20rpx 0 40rpx; min-height: 0; }
+    .panel-times { flex: 1; overflow-y: auto; padding: 20rpx 0 0; min-height: 0; }
+
+    .panel-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20rpx 30rpx;
+        padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+        background: #fff;
+        border-top: 1rpx solid #EEEEEE;
+        box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.04);
+
+        .pf-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+
+            .pf-label {
+                font-size: 22rpx;
+                color: #999;
+                margin-bottom: 4rpx;
+            }
+
+            .pf-count {
+                font-size: 28rpx;
+                font-weight: bold;
+                color: $primary;
+                &.zero { color: #999; font-weight: normal; }
+            }
+        }
+
+        .pf-btns {
+            display: flex;
+            align-items: center;
+            gap: 16rpx;
+        }
+
+        .pf-btn {
+            height: 76rpx;
+            border-radius: 38rpx;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28rpx;
+            font-weight: bold;
+            color: #fff;
+            padding: 0 32rpx;
+            transition: background 0.2s;
+
+            &.group {
+                background: linear-gradient(135deg, #FF9ECD, #FF6432);
+            }
+
+            &.book {
+                background: $primary;
+                &.disabled {
+                    background: #CCC;
+                }
+            }
+        }
+    }
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

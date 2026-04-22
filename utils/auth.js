@@ -208,6 +208,42 @@ function checkIn(token) {
   return request('/users/check_in/', 'POST', null, token);
 }
 
+// ==================== 拼团 ====================
+function getGroupList(token, params) {
+  var query = '';
+  if (params) {
+    var parts = [];
+    if (params.date) parts.push('date=' + encodeURIComponent(params.date));
+    if (params.room_id) parts.push('room_id=' + encodeURIComponent(params.room_id));
+    if (parts.length) query = '?' + parts.join('&');
+  }
+  return request('/groups/' + query, 'GET', null, token);
+}
+
+function getGroupDetail(token, groupId) {
+  return request('/groups/' + groupId + '/', 'GET', null, token);
+}
+
+function createGroup(token, data) {
+  return request('/groups/', 'POST', data, token);
+}
+
+function joinGroup(token, groupId) {
+  return request('/groups/' + groupId + '/join/', 'POST', {}, token);
+}
+
+function leaveGroup(token, groupId) {
+  return request('/groups/' + groupId + '/leave/', 'POST', {}, token);
+}
+
+function cancelGroup(token, groupId) {
+  return request('/groups/' + groupId + '/cancel/', 'POST', {}, token);
+}
+
+function myGroups(token) {
+  return request('/groups/my_groups/', 'GET', null, token);
+}
+
 // ==================== 邀请有礼 ====================
 function inviteInfo(token) {
   return request('/users/invite_info/', 'GET', null, token);
@@ -388,6 +424,14 @@ var httpRequest = {
   checkInInfo: checkInInfo,
   checkIn: checkIn,
   memberConfig: memberConfig,
+  // 拼团
+  getGroupList: getGroupList,
+  getGroupDetail: getGroupDetail,
+  createGroup: createGroup,
+  joinGroup: joinGroup,
+  leaveGroup: leaveGroup,
+  cancelGroup: cancelGroup,
+  myGroups: myGroups,
   // 邀请有礼
   inviteInfo: inviteInfo,
   applyInviteCode: applyInviteCode,
