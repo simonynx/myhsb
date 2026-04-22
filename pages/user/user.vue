@@ -272,6 +272,7 @@
 			};
 		},
 		onShow() {
+			uni.$emit('tabBarChange', { key: 'user' });
 			if (!this.hasLogin) {
 				this.loginAndRegister();
 			} else if (!this.userInfo) {

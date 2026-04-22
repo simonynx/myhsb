@@ -383,6 +383,7 @@
 			};
 		},
 		onShow() {
+			uni.$emit('tabBarChange', { key: 'index' });
 			if (!this.hasLogin) this.loginAndRegister();
 			this.checkBanner();
 		},

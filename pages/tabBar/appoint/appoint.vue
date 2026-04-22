@@ -214,6 +214,7 @@ export default {
     },
 
     onShow() {
+        uni.$emit('tabBarChange', { key: 'appoint' });
         if (!this.hasLogin) {
             this.loginAndRegister().then(() => this.fetchRoomList());
         } else {

@@ -82,16 +82,10 @@ export default {
 		this.safeAreaBottom = info.safeAreaInsets && info.safeAreaInsets.bottom || 0;
 		this.syncCurrentTab();
 		// 监听 tab 切换事件（用户点击 tab 栏时触发）
-		uni.$on('tabItemTap', this.onTabItemTap);
+		uni.$on('tabBarChange', this.onTabBarChange);
 	},
 	beforeDestroy() {
-		uni.$off('tabItemTap', this.onTabItemTap);
-	},
-	// 微信小程序自定义 tabBar 组件支持 pageLifetimes，tab 页面显示时自动刷新
-	pageLifetimes: {
-		show() {
-			this.syncCurrentTab();
-		}
+		uni.$off('tabBarChange', this.onTabBarChange);
 	},
 	methods: {
 		syncCurrentTab() {
@@ -105,12 +99,11 @@ export default {
 			}
 		},
 
-		onTabItemTap({ index }) {
-			const keys = ['index', 'voucher', 'appoint', 'user'];
-			const key = keys[index];
+		onTabBarChange({ key }) {
 			if (!key) return;
 			if (this.current !== key) {
 				this.current = key;
+
 			}
 			this.doBump(key);
 		},
@@ -120,7 +113,7 @@ export default {
 				this.doBump(tab.key);
 				return;
 			}
-			this.current = tab.key;
+			// 不预改 current，等页面 onShow 自己通知，避免快速切点出错
 			this.doBump(tab.key);
 			uni.switchTab({ url: tab.path });
 		},

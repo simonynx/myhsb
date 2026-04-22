@@ -174,6 +174,7 @@ export default {
 		};
 	},
 	onShow() {
+		uni.$emit('tabBarChange', { key: 'voucher' });
 		if (!this.hasLogin) {
 			this.loginAndRegister().then(() => this.loadAll());
 		} else {
