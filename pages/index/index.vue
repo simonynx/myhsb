@@ -447,13 +447,30 @@
 				this.swiperCurrent = e.detail.current;
 			},
 			onShareAppMessage() {
-				return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl: '../../static/logo_small.jpg', path: '/pages/index/index' };
+				const titles = [
+					'下班别卷了！来摸鱼划水吧放松一下 🎮',
+					'主机游戏·桌游·漫画，这家宝藏店藏不住了！',
+					'周末不知道去哪？来这可以躺一整天',
+					'亲子阅读+主机游戏，一家老小都能嗨',
+					'我的秘密基地，今天分享给你了 🤫',
+				];
+				return {
+					title: titles[Math.floor(Math.random() * titles.length)],
+					imageUrl: '/static/logo_small.jpg',
+					path: '/pages/index/index',
+				};
 			},
 			onShareTimeline() {
-				return { title: '什么还在996？赶紧来摸鱼吧！', imageUrl: '../../static/logo_small.jpg' };
+				return {
+					title: '什么还在996？赶紧来摸鱼吧！',
+					imageUrl: '/static/logo_small.jpg',
+				};
 			},
 			onAddToFavorites() {
-				return { title: '偷偷马住别被老板看到！', imageUrl: '../../static/logo_small.jpg' };
+				return {
+					title: '偷偷马住别被老板看到！',
+					imageUrl: '/static/logo_small.jpg',
+				};
 			},
 			checkBanner() {
 				if (!this.hasLogin) return;

@@ -571,7 +571,12 @@
 			color: #FFF;
 			border-radius: 30rpx;
 			padding: 0 20rpx;
-			line-height: 2.2;
+			height: 52rpx;
+			line-height: 52rpx;
+			margin: 0;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
 			&::after { border: none; }
 		}
 		.form-picker {
@@ -599,9 +604,10 @@
 	.tag-wrap {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 16rpx;
 		padding: 0 24rpx 28rpx;
 		.tag {
+			margin-right: 16rpx;
+			margin-bottom: 16rpx;
 			font-size: 26rpx;
 			color: #666;
 			background: #F5F5F5;
@@ -619,8 +625,8 @@
 		}
 	}
 
-	/* ===== 订阅开关 ===== */
-	.subscribe-item {
+	/* ===== 列表项左侧（消息通知/邀请码/清除缓存/关于我们/联系客服共用） ===== */
+	.form-item {
 		.item-left {
 			display: flex;
 			align-items: center;
@@ -642,6 +648,11 @@
 					margin-top: 4rpx;
 				}
 			}
+		}
+		.picker-arrow {
+			font-size: 32rpx;
+			color: #CCC;
+			margin-left: 8rpx;
 		}
 	}
 	.toggle-wrap {
@@ -677,8 +688,12 @@
 		color: #FFF;
 		border-radius: 30rpx;
 		padding: 0 24rpx;
-		line-height: 2.2;
+		height: 56rpx;
+		line-height: 56rpx;
 		margin: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		&::after { border: none; }
 	}
 

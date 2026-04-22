@@ -59,7 +59,7 @@
 			<view class="level-dots">
 				<view class="level-dot" v-for="l in levelDots" :key="l.level" :class="{ active: userInfo.member_level >= l.level }">
 					<text class="dot-icon">{{ l.icon }}</text>
-					<text class="dot-name">{{ l.icon }}</text>
+					<text class="dot-name">{{ l.name }}</text>
 				</view>
 			</view>
 		</view>
@@ -68,9 +68,9 @@
 		<view class="vip-card">
 			<view class="vip-header">
 				<text class="vip-title">会员权益</text>
-				<text class="vip-current" :style="{ color: memberColor }">
-					{{ memberLevelName }} {{ userInfo.discount ? (userInfo.discount >= 100 ? '原价' : userInfo.discount + '折') : '原价' }}
-				</text>
+				<view class="vip-badge" :style="{ background: memberColor }">
+					<text class="vip-badge-text">{{ userInfo.discount ? (userInfo.discount >= 100 ? '原价' : userInfo.discount + '折') : '原价' }}</text>
+				</view>
 			</view>
 			<view class="vip-levels">
 				<block v-for="(lv, idx) in memberConfig" :key="lv.level">
@@ -83,10 +83,10 @@
 				</block>
 			</view>
 			<view class="vip-tip" v-if="nextLevelName">
-				再消费 ¥{{ needToNext }} 升级至{{ nextLevelName }}，享受 {{ nextLevelDiscount >= 100 ? '原价' : nextLevelDiscount + '折' }} 专属折扣
+				再消费 <text class="tip-highlight">¥{{ needToNext }}</text> 升级{{ nextLevelName }}
 			</view>
 			<view class="vip-tip" v-else>
-				🎉 已升至最高等级，享受 {{ !nextLevelDiscount || nextLevelDiscount >= 100 ? '原价' : nextLevelDiscount + '折' }} 专属折扣
+				🎉 已升至最高等级
 			</view>
 		</view>
 
@@ -131,6 +131,10 @@
 					<text>复制</text>
 				</view>
 			</view>
+			<button class="invite-share-btn" open-type="share">
+				<text class="share-btn-icon">🚀</text>
+				<text class="share-btn-text">立即邀请好友</text>
+			</button>
 			<view class="invite-stats">
 				<text class="invite-count">已邀请 {{ inviteInfo.total_invites || 0 }} 人</text>
 			</view>
@@ -217,50 +221,51 @@
 		components: { customTabBar },
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token']),
-			memberLevelName() {
+			memberLevelData() {
 				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				return (this.memberConfig.find(l => l.level === level) && this.memberConfig.find(l => l.level === level).name) || '普通会员';
+				return this.memberConfig.find(l => l.level === level) || null;
+			},
+			memberLevelName() {
+				return (this.memberLevelData && this.memberLevelData.name) || '普通会员';
 			},
 			memberIcon() {
-				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				return (this.memberConfig.find(l => l.level === level) && this.memberConfig.find(l => l.level === level).icon) || '🌱';
+				return (this.memberLevelData && this.memberLevelData.icon) || '🌱';
 			},
 			memberColor() {
+				return (this.memberLevelData && this.memberLevelData.color) || '#AAAAAA';
+			},
+			nextLevelData() {
 				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				return (this.memberConfig.find(l => l.level === level) && this.memberConfig.find(l => l.level === level).color) || '#AAAAAA';
+				var maxLevel = this.memberConfig.length > 0 ? Math.max(...this.memberConfig.map(l => l.level)) : 0;
+				if (level >= maxLevel) return null;
+				return this.memberConfig.find(l => l.level === level + 1) || null;
 			},
 			nextLevelName() {
-				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				if (level >= 3) return '';
-				return (this.memberConfig.find(l => l.level === level + 1) && this.memberConfig.find(l => l.level === level + 1).name) || '';
+				return (this.nextLevelData && this.nextLevelData.name) || '';
 			},
 			nextLevelDiscount() {
-				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				if (level >= 3) return '';
-				return (this.memberConfig.find(l => l.level === level + 1) && this.memberConfig.find(l => l.level === level + 1).discount) || '';
+				return (this.nextLevelData && this.nextLevelData.discount) || '';
 			},
 			needToNext() {
-				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				if (level >= 3) return 0;
-				var nextLevelData = this.memberConfig.find(l => l.level === level + 1);
-				if (!nextLevelData) return 0;
-				var next = nextLevelData.threshold / 100;
+				if (!this.nextLevelData) return 0;
+				var next = this.nextLevelData.threshold / 100;
 				var total = this.userInfo && this.userInfo.total_consume / 100 || 0;
 				return Math.max(0, next - total).toFixed(0);
 			},
 			progressPercent() {
 				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				if (level >= 3) return 100;
-				var currLevel = this.memberConfig.find(l => l.level === level);
-				var nextLevel = this.memberConfig.find(l => l.level === level + 1);
-				if (!currLevel || !nextLevel) return 0;
+				var maxLevel = this.memberConfig.length > 0 ? Math.max(...this.memberConfig.map(l => l.level)) : 0;
+				if (level >= maxLevel) return 100;
+				var currLevel = this.memberLevelData;
+				var nextLevel = this.nextLevelData;
+				if (!currLevel || !nextLevel || nextLevel.threshold === currLevel.threshold) return 0;
 				var curr = currLevel.threshold / 100;
 				var next = nextLevel.threshold / 100;
 				var total = this.userInfo && this.userInfo.total_consume / 100 || 0;
 				return Math.min(100, ((total - curr) / (next - curr)) * 100).toFixed(0);
 			},
 			levelDots() {
-				return this.memberConfig.map(l => ({ level: l.level, icon: l.icon }));
+				return this.memberConfig.map(l => ({ level: l.level, icon: l.icon, name: l.name }));
 			},
 		},
 		data() {
@@ -344,7 +349,16 @@
 			openAuthorizationModal() {
 				uni.navigateTo({ url: '/pages/user/setting/setting' });
 			},
-
+		},
+		onShareAppMessage() {
+			const path = this.userInfo && this.userInfo.invite_code
+				? '/pages/index/index?invite_code=' + this.userInfo.invite_code
+				: '/pages/index/index';
+			return {
+				title: '我在摸鱼划水吧等你，一起来玩双方都有积分！',
+				imageUrl: '/static/logo_small.jpg',
+				path: path,
+			};
 		},
 	}
 </script>
@@ -529,8 +543,9 @@ page {
 	align-items: center;
 }
 .level-dot .dot-icon { font-size: 32rpx; opacity: 0.25; }
-.level-dot .dot-name { font-size: 20rpx; margin-top: 4rpx; }
+.level-dot .dot-name { font-size: 20rpx; color: #CCC; margin-top: 4rpx; }
 .level-dot.active .dot-icon { opacity: 1; }
+.level-dot.active .dot-name { color: #FF6B9D; font-weight: bold; }
 
 /* ===== 通用区块容器 ===== */
 .section {
@@ -557,7 +572,7 @@ page {
 }
 
 .vip-card {
-	margin-top: 24rpx;
+	margin: 24rpx 24rpx 0;
 	background: #FFF;
 	border-radius: 24rpx;
 	padding: 32rpx 24rpx;
@@ -576,26 +591,43 @@ page {
 		color: #333;
 	}
 
-	.vip-current {
-		font-size: 48rpx;
+	.vip-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: 6rpx 20rpx;
+		border-radius: 24rpx;
+	}
+	.vip-badge-text {
+		font-size: 26rpx;
 		font-weight: bold;
+		color: #FFF;
 	}
 
 	.vip-levels {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
+		justify-content: center;
 		padding: 0 8rpx;
+		gap: 16rpx;
 	}
 
 	.vip-level {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		opacity: 0.35;
-		transition: opacity 0.3s;
+		padding: 16rpx 12rpx;
+		border-radius: 16rpx;
+		min-width: 120rpx;
+		opacity: 0.4;
+		transition: all 0.3s;
+		background: #F8F8F8;
 
-		&.active { opacity: 1; }
+		&.active {
+			opacity: 1;
+			background: #FFF5F8;
+			box-shadow: 0 4rpx 12rpx rgba(255,107,157,0.15);
+			transform: translateY(-4rpx);
+		}
 	}
 
 	.vl-icon { font-size: 40rpx; }
@@ -605,6 +637,7 @@ page {
 	.vip-arrow {
 		font-size: 24rpx;
 		color: #CCC;
+		flex-shrink: 0;
 	}
 
 	.vip-tip {
@@ -612,6 +645,10 @@ page {
 		text-align: center;
 		font-size: 24rpx;
 		color: #999;
+	}
+	.tip-highlight {
+		color: #FF6B9D;
+		font-weight: bold;
 	}
 }
 
@@ -736,6 +773,27 @@ page {
 		font-size: 24rpx;
 		padding: 8rpx 20rpx;
 		border-radius: 30rpx;
+	}
+	.invite-share-btn {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		color: #FFF;
+		font-size: 30rpx;
+		font-weight: bold;
+		padding: 24rpx 0;
+		border-radius: 50rpx;
+		margin: 0 0 16rpx 0;
+		box-shadow: 0 8rpx 24rpx rgba(255,107,157,0.35);
+		transition: transform 0.1s;
+		&:active {
+			transform: scale(0.98);
+		}
+		&::after { border: none; }
+		.share-btn-icon { font-size: 32rpx; margin-right: 12rpx; }
+		.share-btn-text { font-size: 30rpx; }
 	}
 	.invite-stats {
 		text-align: center;

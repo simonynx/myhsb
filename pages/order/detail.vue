@@ -346,16 +346,17 @@
 				return helper.toInt(val);
 			}
 		},
-		//分享给好友拼单
+		//分享给好友
 		onShareAppMessage(res) {
-			var imageUrl = this.orderData.orderSku[0] ? this.orderData.orderSku[0].sku_image : '';
-			if (res.from === 'button') {
-				console.log("来自页面内按钮分享")
+			var title = '我在摸鱼划水吧的体验不错，推荐给你！';
+			var sku = this.orderData && this.orderData.orderSku && this.orderData.orderSku[0];
+			if (sku && sku.goods_name) {
+				title = '我在摸鱼划水吧预约了「' + sku.goods_name + '」，推荐你也来！';
 			}
-			return {			
-				path: "/pages/group/index?id=" + this.orderData.member[0].group_order_id+'&sku_id='+this.orderData.orderSku[0].sku_id,
-				title: '分享一个好物给你，快加入拼团吧！',
-				imageUrl: imageUrl, 
+			return {
+				path: '/pages/index/index',
+				title: title,
+				imageUrl: '/static/logo_small.jpg',
 			}
 		},
 		methods: {
