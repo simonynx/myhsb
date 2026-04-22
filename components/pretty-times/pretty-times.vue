@@ -165,8 +165,9 @@
 
 				this.timeArr.forEach((item, index) => {
 					if (this.isQuantum) {
-						const cur_be_time = this.selectDate + ' ' + item.begin;
-						const cur_end_time = this.selectDate + ' ' + item.end;
+						// 统一补秒，避免 '09:00:00' <= '09:00' 字符串比较失败
+						const cur_be_time = this.selectDate + ' ' + item.begin + ':00';
+						const cur_end_time = this.selectDate + ' ' + item.end + ':00';
 						for (const time of this.disableTimeSlot) {
 							const [begin_time = "", end_time = ""] = time;
 							if (begin_time && end_time && begin_time <= cur_be_time && cur_end_time <= end_time) {
@@ -191,7 +192,7 @@
 								item.disable = true;
 							}
 						});
-						const cur_time = this.selectDate + ' ' + item.time;
+						const cur_time = this.selectDate + ' ' + item.time + ':00';
 						for (const time of this.disableTimeSlot) {
 							const [begin_time = "", end_time = ""] = time;
 							if (begin_time && end_time && begin_time <= cur_time && cur_time <= end_time) {

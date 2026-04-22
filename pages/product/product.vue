@@ -295,8 +295,10 @@ export default {
     },
 
     onLoad(option) {
-        this.roomDate = option.date || '';
-        this.currentSelectDate = option.date || '';
+        const today = new Date();
+        const todayStr = today.getFullYear() + '-' + (today.getMonth() + 1).toString().padStart(2, '0') + '-' + today.getDate().toString().padStart(2, '0');
+        this.roomDate = option.date || todayStr;
+        this.currentSelectDate = option.date || todayStr;
         // 直接从 Vuex 取 room 数据（appoint.vue 已经存了整个 room 对象）
         const roomData = this.$store.state.currentRoom;
         if (roomData && roomData.object_id) {

@@ -252,11 +252,13 @@ export default {
             }
             this.weekDays = days;
             this.selectedDayIndex = 0;
+            this.currentSelectDate = this.formatDate(days[0].fullDate);
         },
 
         selectDay(idx) {
             if (this.selectedDayIndex === idx) return;
             this.selectedDayIndex = idx;
+            this.currentSelectDate = this.formatDate(this.weekDays[idx].fullDate);
             this.fetchRoomList();
         },
 
