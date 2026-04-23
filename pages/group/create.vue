@@ -159,9 +159,9 @@
 
             <!-- 发起人折扣明细（只影响发起人自己的份额） -->
             <view class="cost-divider" style="margin: 12rpx 0;"></view>
-            <view class="cost-row" v-if="memberDiscountAmount > 0">
-                <text class="cost-label">会员折扣（{{ memberDiscountPercent }}折，仅发起人）</text>
-                <text class="cost-value discount">-¥{{ (memberDiscountAmount / 100).toFixed(2) }}</text>
+            <view class="cost-row">
+                <text class="cost-label">会员折扣（{{ memberDiscountPercent < 100 ? memberDiscountPercent + '折' : '无折扣' }}，仅发起人）</text>
+                <text class="cost-value" :class="{ discount: memberDiscountAmount > 0 }">{{ memberDiscountAmount > 0 ? '-¥' + (memberDiscountAmount / 100).toFixed(2) : '-' }}</text>
             </view>
 
             <view class="setting-item vertical">
@@ -212,14 +212,14 @@
         <!-- 底部操作栏 -->
         <view class="bottom-bar">
             <view class="bottom-left">
-                <text class="bottom-label">发起人最终支付</text>
+                <text class="bottom-label">发起人最终支付 ¥{{ actualInitiatorPaidYuan }}</text>
                 <text class="bottom-price">¥{{ actualInitiatorPaidYuan }}</text>
-                <text class="bottom-hint" v-if="initiatorBaseFen > actualInitiatorPaidFen">
-                    （承担¥{{ initiatorBaseYuan }}，优惠减免¥{{ ((initiatorBaseFen - actualInitiatorPaidFen) / 100).toFixed(2) }}）
+                <text class="bottom-hint" :class="{ 'text-danger': !isBalanceEnough }">
+                    当前余额 ¥{{ accountBalanceYuan }} {{ isBalanceEnough ? '（余额充足）' : '（余额不足）' }}
                 </text>
             </view>
             <view class="submit-btn" :class="{ disabled: !isBalanceEnough }" @click="handleSubmit">
-                <text>{{ isBalanceEnough ? '🚀 发起拼团' : '💰 余额不足' }}</text>
+                <text>{{ isBalanceEnough ? '🚀 发起拼团' : '💰 去充值' }}</text>
             </view>
         </view>
     </view>
@@ -468,21 +468,23 @@ export default {
             };
 
             // 支付确认弹窗
-            const lines = [
-                `房间基础总价：¥${this.baseCostYuan}`,
-                `成员人均：¥${this.memberPriceYuan}`,
-                `发起人承担：¥${this.initiatorBaseYuan}`,
+            const detailLines = [
+                `房间总价    ¥${this.baseCostYuan}`,
+                `成员人均    ¥${this.memberPriceYuan}`,
+                `发起人承担  ¥${this.initiatorBaseYuan}`,
             ];
             if (this.memberDiscountAmount > 0) {
-                lines.push(`会员折扣：-¥${(this.memberDiscountAmount / 100).toFixed(2)}`);
+                detailLines.push(`会员折扣    -¥${(this.memberDiscountAmount / 100).toFixed(2)}`);
             }
-            lines.push(`发起人最终支付：¥${this.actualInitiatorPaidYuan}`);
-            lines.push(`目标人数：${this.maxMembers} 人`);
-            lines.push(`有效期：${this.expireHours} 小时`);
+            detailLines.push(`────────────`);
+            detailLines.push(`最终支付    ¥${this.actualInitiatorPaidYuan}`);
+            detailLines.push(`────────────`);
+            detailLines.push(`目标人数    ${this.maxMembers} 人`);
+            detailLines.push(`有效期      ${this.expireHours} 小时`);
 
             uni.showModal({
                 title: '确认支付',
-                content: lines.join('\n'),
+                content: detailLines.join('\n'),
                 confirmText: '确认支付',
                 cancelText: '再想想',
                 success: (modalRes) => {
@@ -1045,6 +1047,11 @@ $border: #EEEEEE;
             font-size: 20rpx;
             color: $gray;
             margin-top: 4rpx;
+
+            &.text-danger {
+                color: #FF3B30;
+                font-weight: bold;
+            }
         }
     }
 
