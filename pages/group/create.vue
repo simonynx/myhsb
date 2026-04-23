@@ -157,11 +157,17 @@
                 </view>
             </view>
 
-            <!-- 发起人折扣明细（只影响发起人自己的份额） -->
+            <!-- 发起人折扣明细 -->
             <view class="cost-divider" style="margin: 12rpx 0;"></view>
             <view class="cost-row">
                 <text class="cost-label">会员折扣（{{ memberDiscountPercent < 100 ? memberDiscountPercent + '折' : '无折扣' }}，仅发起人）</text>
                 <text class="cost-value" :class="{ discount: memberDiscountAmount > 0 }">{{ memberDiscountAmount > 0 ? '-¥' + (memberDiscountAmount / 100).toFixed(2) : '-' }}</text>
+            </view>
+
+            <!-- 余额提示 -->
+            <view class="balance-hint" :class="{ 'balance-danger': !isBalanceEnough }">
+                <text class="balance-icon">{{ isBalanceEnough ? '✅' : '⚠️' }}</text>
+                <text class="balance-text">当前余额 ¥{{ accountBalanceYuan }}，{{ isBalanceEnough ? '余额充足' : '余额不足，请充值' }}</text>
             </view>
 
             <view class="setting-item vertical">
@@ -212,14 +218,61 @@
         <!-- 底部操作栏 -->
         <view class="bottom-bar">
             <view class="bottom-left">
-                <text class="bottom-label">发起人最终支付 ¥{{ actualInitiatorPaidYuan }}</text>
+                <text class="bottom-label">发起人最终支付</text>
                 <text class="bottom-price">¥{{ actualInitiatorPaidYuan }}</text>
-                <text class="bottom-hint" :class="{ 'text-danger': !isBalanceEnough }">
-                    当前余额 ¥{{ accountBalanceYuan }} {{ isBalanceEnough ? '（余额充足）' : '（余额不足）' }}
-                </text>
             </view>
             <view class="submit-btn" :class="{ disabled: !isBalanceEnough }" @click="handleSubmit">
                 <text>{{ isBalanceEnough ? '🚀 发起拼团' : '💰 去充值' }}</text>
+            </view>
+        </view>
+
+        <!-- 自定义支付确认弹窗 -->
+        <view class="modal-mask" v-if="showConfirmModal" @click="cancelConfirm">
+            <view class="modal-content" @click.stop>
+                <view class="modal-header">
+                    <text class="modal-title">确认支付</text>
+                    <text class="modal-close" @click="cancelConfirm">✕</text>
+                </view>
+                <view class="modal-body">
+                    <view class="modal-row">
+                        <text class="modal-label">房间总价</text>
+                        <text class="modal-value">¥{{ baseCostYuan }}</text>
+                    </view>
+                    <view class="modal-row">
+                        <text class="modal-label">成员人均</text>
+                        <text class="modal-value">¥{{ memberPriceYuan }}</text>
+                    </view>
+                    <view class="modal-row">
+                        <text class="modal-label">发起人承担</text>
+                        <text class="modal-value">¥{{ initiatorBaseYuan }}</text>
+                    </view>
+                    <view class="modal-row" v-if="memberDiscountAmount > 0">
+                        <text class="modal-label">会员折扣</text>
+                        <text class="modal-value discount">-¥{{ (memberDiscountAmount / 100).toFixed(2) }}</text>
+                    </view>
+                    <view class="modal-divider"></view>
+                    <view class="modal-row total">
+                        <text class="modal-label">最终支付</text>
+                        <text class="modal-value final">¥{{ actualInitiatorPaidYuan }}</text>
+                    </view>
+                    <view class="modal-divider"></view>
+                    <view class="modal-row">
+                        <text class="modal-label">目标人数</text>
+                        <text class="modal-value">{{ maxMembers }} 人</text>
+                    </view>
+                    <view class="modal-row">
+                        <text class="modal-label">有效期</text>
+                        <text class="modal-value">{{ expireHours }} 小时</text>
+                    </view>
+                </view>
+                <view class="modal-footer">
+                    <view class="modal-btn cancel" @click="cancelConfirm">
+                        <text>再想想</text>
+                    </view>
+                    <view class="modal-btn confirm" @click="confirmSubmit">
+                        <text>确认支付</text>
+                    </view>
+                </view>
             </view>
         </view>
     </view>
@@ -249,6 +302,7 @@ export default {
             expireHours: 24,
             groupDiscountPercent: 100,
             memberDiscountPercent: 100,
+            showConfirmModal: false,
         };
     },
 
@@ -467,31 +521,24 @@ export default {
                 expire_hours: this.expireHours,
             };
 
-            // 支付确认弹窗
-            const detailLines = [
-                `房间总价    ¥${this.baseCostYuan}`,
-                `成员人均    ¥${this.memberPriceYuan}`,
-                `发起人承担  ¥${this.initiatorBaseYuan}`,
-            ];
-            if (this.memberDiscountAmount > 0) {
-                detailLines.push(`会员折扣    -¥${(this.memberDiscountAmount / 100).toFixed(2)}`);
-            }
-            detailLines.push(`────────────`);
-            detailLines.push(`最终支付    ¥${this.actualInitiatorPaidYuan}`);
-            detailLines.push(`────────────`);
-            detailLines.push(`目标人数    ${this.maxMembers} 人`);
-            detailLines.push(`有效期      ${this.expireHours} 小时`);
+            // 显示自定义支付确认弹窗
+            this.showConfirmModal = true;
+            this._pendingSubmitData = data;
+        },
 
-            uni.showModal({
-                title: '确认支付',
-                content: detailLines.join('\n'),
-                confirmText: '确认支付',
-                cancelText: '再想想',
-                success: (modalRes) => {
-                    if (!modalRes.confirm) return;
+        cancelConfirm() {
+            this.showConfirmModal = false;
+            this._pendingSubmitData = null;
+        },
 
-                    uni.showLoading({ title: '创建中...' });
-                    AUTH.createGroup(this.token, data).then(res => {
+        confirmSubmit() {
+            const data = this._pendingSubmitData;
+            if (!data) return;
+            this.showConfirmModal = false;
+            this._pendingSubmitData = null;
+
+            uni.showLoading({ title: '创建中...' });
+            AUTH.createGroup(this.token, data).then(res => {
                         uni.hideLoading();
                         if (res && res._status === 0 && res.data) {
                             const subsidyHint = res.data && res.data._subsidy_hint;
@@ -532,8 +579,6 @@ export default {
                         uni.hideLoading();
                         uni.showToast({ title: '创建失败', icon: 'none' });
                     });
-                }
-            });
         },
     },
 };
@@ -890,53 +935,6 @@ $border: #EEEEEE;
         margin: 16rpx 0;
     }
 
-    .cost-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12rpx 0;
-
-        &.total {
-            .cost-value {
-                color: $primary;
-                font-size: 34rpx;
-            }
-        }
-
-        &.suggest {
-            background: #F6FFED;
-            margin: 12rpx -12rpx 0;
-            padding: 16rpx 12rpx;
-            border-radius: 16rpx;
-
-            .suggest-price {
-                color: $green;
-                font-size: 36rpx;
-            }
-        }
-
-        .cost-label {
-            font-size: 28rpx;
-            color: $dark;
-            font-weight: 500;
-        }
-
-        .cost-value {
-            font-size: 30rpx;
-            color: $dark;
-            font-weight: bold;
-
-            &.discount {
-                color: $green;
-            }
-
-            &.final-price {
-                color: $primary;
-                font-size: 34rpx;
-            }
-        }
-    }
-
     .cost-action {
         margin-top: 16rpx;
         padding: 16rpx;
@@ -947,6 +945,83 @@ $border: #EEEEEE;
         .cost-action-text {
             font-size: 26rpx;
             color: #B88800;
+        }
+    }
+}
+
+// 全局费用行样式（cost-card 和 setting-card 共用）
+.cost-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12rpx 0;
+
+    &.total {
+        .cost-value {
+            color: $primary;
+            font-size: 34rpx;
+        }
+    }
+
+    &.suggest {
+        background: #F6FFED;
+        margin: 12rpx -12rpx 0;
+        padding: 16rpx 12rpx;
+        border-radius: 16rpx;
+
+        .suggest-price {
+            color: $green;
+            font-size: 36rpx;
+        }
+    }
+
+    .cost-label {
+        font-size: 28rpx;
+        color: $dark;
+        font-weight: 500;
+    }
+
+    .cost-value {
+        font-size: 30rpx;
+        color: $dark;
+        font-weight: bold;
+
+        &.discount {
+            color: $green;
+        }
+
+        &.final-price {
+            color: $primary;
+            font-size: 34rpx;
+        }
+    }
+}
+
+// 余额提示（setting-card 内）
+.balance-hint {
+    display: flex;
+    align-items: center;
+    padding: 16rpx 20rpx;
+    background: #F6FFED;
+    border-radius: 16rpx;
+    margin: 12rpx 0;
+
+    .balance-icon {
+        font-size: 28rpx;
+        margin-right: 10rpx;
+    }
+
+    .balance-text {
+        font-size: 26rpx;
+        color: $dark;
+        font-weight: 500;
+    }
+
+    &.balance-danger {
+        background: #FFF2F0;
+
+        .balance-text {
+            color: #FF3B30;
         }
     }
 }
@@ -1073,6 +1148,119 @@ $border: #EEEEEE;
             background: #CCCCCC;
             box-shadow: none;
             border-color: #BBBBBB;
+        }
+    }
+}
+
+// 自定义支付确认弹窗（必须与 .bottom-bar 同级，不能嵌套在 .bottom-bar 内部）
+.modal-mask {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    width: 600rpx;
+    background: #fff;
+    border-radius: 32rpx;
+    overflow: hidden;
+    box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28rpx 32rpx 16rpx;
+
+    .modal-title {
+        font-size: 34rpx;
+        font-weight: bold;
+        color: $dark;
+    }
+
+    .modal-close {
+        font-size: 32rpx;
+        color: $gray;
+        padding: 8rpx;
+    }
+}
+
+.modal-body {
+    padding: 8rpx 32rpx 24rpx;
+
+    .modal-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14rpx 0;
+
+        &.total {
+            .modal-label {
+                font-size: 30rpx;
+                font-weight: bold;
+            }
+            .modal-value.final {
+                color: $primary;
+                font-size: 36rpx;
+            }
+        }
+    }
+
+    .modal-label {
+        font-size: 28rpx;
+        color: #666;
+    }
+
+    .modal-value {
+        font-size: 30rpx;
+        color: $dark;
+        font-weight: bold;
+
+        &.discount {
+            color: $green;
+        }
+    }
+
+    .modal-divider {
+        height: 2rpx;
+        background: #EEEEEE;
+        margin: 8rpx 0;
+    }
+}
+
+.modal-footer {
+    display: flex;
+    border-top: 2rpx solid #EEEEEE;
+
+    .modal-btn {
+        flex: 1;
+        height: 96rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30rpx;
+        font-weight: 500;
+
+        &.cancel {
+            color: #666;
+            border-right: 2rpx solid #EEEEEE;
+        }
+
+        &.confirm {
+            color: $primary;
+            font-weight: bold;
+        }
+
+        &:active {
+            background: #F5F5F5;
         }
     }
 }

@@ -145,30 +145,6 @@ function getRoomAppointments(token, roomId, date) {
   return request('/rooms/appointments/?room_id=' + roomId + '&date=' + date, 'GET', null, token);
 }
 
-function bookingRoom(token, roomId, date, contactName, userCount, timeList, remark) {
-  var data = {
-    room_id: roomId,
-    contact_name: contactName,
-    user_count: userCount,
-    date: date,
-    time_list: timeList,
-    remark: remark
-  };
-  return request('/rooms/booking/', 'POST', data, token);
-}
-
-function bookingRoomWithBalance(token, roomId, date, contactName, userCount, timeList, remark) {
-  var data = {
-    room_id: roomId,
-    contact_name: contactName,
-    user_count: userCount,
-    date: date,
-    time_list: timeList,
-    remark: remark
-  };
-  return request('/rooms/booking_balance/', 'POST', data, token);
-}
-
 function setUserProflie(token, phone, nickName, avatarUrl, gender, birthday, tags) {
   var data = {
     phone: phone,
@@ -405,8 +381,6 @@ var httpRequest = {
   refundOrder: refundOrder,
   getRoomDataList: getRoomDataList,
   getRoomAppointments: getRoomAppointments,
-  bookingRoom: bookingRoom,
-  bookingRoomWithBalance: bookingRoomWithBalance,
   getGoodsList: getGoodsList,
   purchaseGoods: purchaseGoods,
   getConstance: getConstance,

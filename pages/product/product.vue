@@ -233,10 +233,10 @@
                         <text class="pf-count zero" v-else>请选择预约时段</text>
                     </view>
                     <view class="pf-btns">
-                        <view class="pf-btn group" @click="handleCreateGroup">
+                        <view class="pf-btn group" :class="{ disabled: !specSelected.length }" @click="specSelected.length && handleCreateGroup()">
                             <text>发起拼团</text>
                         </view>
-                        <view class="pf-btn book" :class="{ disabled: !specSelected.length }" @click="handleDirectBook">
+                        <view class="pf-btn book" :class="{ disabled: !specSelected.length }" @click="specSelected.length && handleDirectBook()">
                             <text>直接预约</text>
                         </view>
                     </view>
@@ -1103,6 +1103,9 @@ page { background: $bg; padding-bottom: 120rpx; }
 
             &.group {
                 background: linear-gradient(135deg, #FF9ECD, #FF6432);
+                &.disabled {
+                    background: #CCC;
+                }
             }
 
             &.book {
