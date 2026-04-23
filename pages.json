@@ -172,7 +172,8 @@
 				"navigationBarTitleText": "拼团广场",
 				"navigationBarBackgroundColor": "#FF6432",
 				"navigationBarTextStyle": "white",
-				"enablePullDownRefresh": true
+				"enablePullDownRefresh": true,
+				"navigationStyle": "custom"
 			}
 		},
 		{
