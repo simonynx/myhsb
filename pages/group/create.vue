@@ -16,7 +16,7 @@
                 <text class="room-name">{{ roomName }}</text>
                 <view class="room-tags">
                     <text class="tag">📅 {{ date }}</text>
-                    <text class="tag">⏰ {{ beginTime }} ~ {{ endTime }}</text>
+                    <text class="tag" v-for="(slot, idx) in timeSlots" :key="idx">⏰ {{ slot }}</text>
                     <text class="tag">🕐 共 {{ duration }} 小时</text>
                 </view>
             </view>
@@ -184,6 +184,7 @@ export default {
             pricePerPersonYuan: '0.00',
             note: '',
             priceManuallyChanged: false,
+            timeSlots: [],
         };
     },
 
@@ -225,6 +226,17 @@ export default {
         this.duration = parseInt(options.duration) || 1;
         this.pricePerHour = parseInt(options.price_per_hour) || 0;
         this.pricePerPersonRef = parseInt(options.price_per_person) || 0;
+
+        // 时段列表：['10:00~11:00', '14:00~15:00']，JSON编码传入
+        try {
+            this.timeSlots = JSON.parse(decodeURIComponent(options.time_list || '[]'));
+        } catch (e) {
+            this.timeSlots = [];
+        }
+        // 如果没有传时段列表，用首尾时间兜底
+        if (this.timeSlots.length === 0 && this.beginTime && this.endTime) {
+            this.timeSlots = [this.beginTime + '~' + this.endTime];
+        }
 
         // 默认人均 = 总费用 / 人数
         const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);

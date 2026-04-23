@@ -529,6 +529,7 @@ export default {
             const endTime = last.item[1].split(' ')[1].substring(0, 5);
             const room = this.room;
             const duration = Math.max(1, parseInt(endTime.split(':')[0]) - parseInt(beginTime.split(':')[0]));
+            const timeList = times.map(t => t.item[0].split(' ')[1].substring(0, 5) + '~' + t.item[1].split(' ')[1].substring(0, 5));
             const query = 'room_id=' + room.object_id
                 + '&room_name=' + encodeURIComponent(room.name || '')
                 + '&room_image=' + encodeURIComponent(room.image1 || '')
@@ -537,7 +538,8 @@ export default {
                 + '&end_time=' + endTime
                 + '&duration=' + duration
                 + '&price_per_person=' + (room.price_per_person || 0)
-                + '&price_per_hour=' + (room.price_per_hour || 0);
+                + '&price_per_hour=' + (room.price_per_hour || 0)
+                + '&time_list=' + encodeURIComponent(JSON.stringify(timeList));
             uni.navigateTo({ url: '/pages/group/create?' + query });
         },
 
