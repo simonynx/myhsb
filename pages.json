@@ -186,9 +186,10 @@
 		{
 			"path": "pages/group/create",
 			"style": {
-				"navigationBarTitleText": "发起拼团",
-				"navigationBarBackgroundColor": "#FF6432",
-				"navigationBarTextStyle": "white"
+				"navigationBarTitleText": "",
+				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarTextStyle": "white",
+				"navigationStyle": "custom"
 			}
 		}
 	],

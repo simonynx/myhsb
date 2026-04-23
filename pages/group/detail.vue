@@ -43,6 +43,10 @@
                     <text class="info-label">状态</text>
                     <view class="status-badge" :class="group.status">{{ statusText(group.status) }}</view>
                 </view>
+                <view class="info-row" v-if="group.status === 'success' && group.appointment">
+                    <text class="info-label">预约单号</text>
+                    <text class="info-value">{{ group.appointment.order_number }}</text>
+                </view>
             </view>
 
             <!-- 成员列表 -->
@@ -114,7 +118,7 @@
                 <text>加入拼团</text>
             </view>
             <view class="action-btn disabled" v-else>
-                <text>{{ group.status === 'full' ? '已满员' : '已结束' }}</text>
+                <text>{{ group.status === 'success' ? '已成团' : '已结束' }}</text>
             </view>
         </view>
     </view>
