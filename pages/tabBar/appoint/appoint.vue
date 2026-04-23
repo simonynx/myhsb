@@ -460,13 +460,16 @@ export default {
             const beginTime = first.item[0].split(' ')[1].substring(0, 5);
             const endTime = last.item[1].split(' ')[1].substring(0, 5);
             const room = this.currentSelectItem;
+            const duration = Math.max(1, parseInt(endTime.split(':')[0]) - parseInt(beginTime.split(':')[0]));
             const query = 'room_id=' + room.object_id
                 + '&room_name=' + encodeURIComponent(room.name || '')
                 + '&room_image=' + encodeURIComponent(room.image1 || '')
                 + '&date=' + this.currentSelectDate
                 + '&begin_time=' + beginTime
                 + '&end_time=' + endTime
-                + '&price_per_person=' + (room.price_per_person || 0);
+                + '&duration=' + duration
+                + '&price_per_person=' + (room.price_per_person || 0)
+                + '&price_per_hour=' + (room.price_per_hour || 0);
             uni.navigateTo({ url: '/pages/group/create?' + query });
         },
 

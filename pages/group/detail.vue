@@ -108,8 +108,8 @@
                 <text>邀请好友</text>
             </view>
 
-            <view class="action-btn primary" v-if="isInitiator && group.status === 'open'" @click="handleCancel">
-                <text>取消拼团</text>
+            <view class="action-btn warn" v-if="isInitiator && group.status === 'open'" @click="handleCancel">
+                <text>🚫 解散拼团</text>
             </view>
             <view class="action-btn warn" v-else-if="isMember && group.status === 'open'" @click="handleLeave">
                 <text>退出拼团</text>
@@ -317,8 +317,8 @@ export default {
 
         handleCancel() {
             uni.showModal({
-                title: '取消拼团',
-                content: '取消后所有成员（包括你）都将退款，是否确认？',
+                title: '解散拼团',
+                content: '解散后所有成员（包括你）已支付的费用将原路退回余额，是否确认解散？',
                 success: (res) => {
                     if (res.confirm) {
                         uni.showLoading({ title: '处理中...' });

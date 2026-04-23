@@ -17,31 +17,47 @@
                 <view class="room-tags">
                     <text class="tag">📅 {{ date }}</text>
                     <text class="tag">⏰ {{ beginTime }} ~ {{ endTime }}</text>
+                    <text class="tag">🕐 共 {{ duration }} 小时</text>
                 </view>
             </view>
         </view>
 
-        <!-- 费用明细 -->
-        <view class="bill-card">
-            <view class="bill-title">💰 费用明细</view>
-            <view class="bill-row">
-                <text class="bill-label">目标人数</text>
-                <text class="bill-value">{{ maxMembers }} 人</text>
+        <!-- 费用参考卡片 -->
+        <view class="cost-card">
+            <view class="cost-title">💰 费用参考</view>
+
+            <view class="cost-row">
+                <text class="cost-label">房间每小时</text>
+                <text class="cost-value">¥{{ (pricePerHour / 100).toFixed(2) }}</text>
             </view>
-            <view class="bill-row">
-                <text class="bill-label">人均费用</text>
-                <text class="bill-value price">¥{{ pricePerPersonYuan }}</text>
+            <view class="cost-row">
+                <text class="cost-label">预约时长</text>
+                <text class="cost-value">{{ duration }} 小时</text>
             </view>
-            <view class="bill-divider"></view>
-            <view class="bill-row">
-                <text class="bill-label">房间总预算</text>
-                <text class="bill-value light">¥{{ totalBudget }}</text>
+            <view class="cost-row">
+                <text class="cost-label">房间总费用</text>
+                <text class="cost-value highlight">¥{{ roomTotalCost }}</text>
             </view>
-            <view class="bill-row highlight">
-                <text class="bill-label">发起人实际支付</text>
-                <text class="bill-value pay">¥{{ pricePerPersonYuan }}</text>
+
+            <view class="cost-divider"></view>
+
+            <view class="cost-row">
+                <text class="cost-label">目标人数</text>
+                <text class="cost-value">{{ maxMembers }} 人</text>
             </view>
-            <view class="bill-tip">💡 只需支付您自己的份额，其他成员加入时各付各的</view>
+            <view class="cost-row">
+                <text class="cost-label">人均费用</text>
+                <text class="cost-value">¥{{ pricePerPersonYuan }}</text>
+            </view>
+            <view class="cost-row">
+                <text class="cost-label">拼团总预算</text>
+                <text class="cost-value">¥{{ groupBudget }}</text>
+            </view>
+
+            <view class="cost-result" :class="budgetClass">
+                <text class="result-icon">{{ budgetIcon }}</text>
+                <text class="result-text">{{ budgetHint }}</text>
+            </view>
         </view>
 
         <!-- 设置卡片 -->
@@ -98,6 +114,33 @@
             </view>
         </view>
 
+        <!-- 规则提示卡片 -->
+        <view class="rule-card">
+            <view class="rule-title">📋 拼团规则</view>
+            <view class="rule-list">
+                <view class="rule-item">
+                    <text class="rule-dot">1</text>
+                    <text class="rule-text">拼团有效期 <text class="rule-bold">24 小时</text>，超时自动解散并退款</text>
+                </view>
+                <view class="rule-item">
+                    <text class="rule-dot">2</text>
+                    <text class="rule-text">满员后自动成团，系统将为您锁定房间时段并创建预约</text>
+                </view>
+                <view class="rule-item">
+                    <text class="rule-dot">3</text>
+                    <text class="rule-text">发起人可随时<text class="rule-bold">解散拼团</text>，全员费用原路退回</text>
+                </view>
+                <view class="rule-item">
+                    <text class="rule-dot">4</text>
+                    <text class="rule-text">成员可随时退出，退出后费用退回余额</text>
+                </view>
+                <view class="rule-item">
+                    <text class="rule-dot">5</text>
+                    <text class="rule-text">成团后会给所有人发送微信预约提醒消息</text>
+                </view>
+            </view>
+        </view>
+
         <!-- 底部占位 -->
         <view class="bottom-placeholder"></view>
 
@@ -106,6 +149,7 @@
             <view class="bottom-left">
                 <text class="bottom-label">需支付</text>
                 <text class="bottom-price">¥{{ pricePerPersonYuan }}</text>
+                <text class="bottom-hint">（仅自己的份额）</text>
             </view>
             <view class="submit-btn" @click="handleSubmit">
                 <text>🚀 发起拼团</text>
@@ -127,6 +171,8 @@ export default {
             date: '',
             beginTime: '',
             endTime: '',
+            duration: 1,
+            pricePerHour: 0,
             maxMembers: 4,
             pricePerPersonYuan: '0.00',
             note: '',
@@ -135,10 +181,30 @@ export default {
 
     computed: {
         ...mapState(['token']),
-        totalBudget() {
-            const members = this.maxMembers || 1;
+        roomTotalCost() {
+            return ((this.pricePerHour * this.duration) / 100).toFixed(2);
+        },
+        groupBudget() {
             const price = parseFloat(this.pricePerPersonYuan) || 0;
-            return (members * price).toFixed(2);
+            return (this.maxMembers * price).toFixed(2);
+        },
+        budgetClass() {
+            const budget = parseFloat(this.groupBudget) || 0;
+            const cost = parseFloat(this.roomTotalCost) || 0;
+            if (budget >= cost) return 'ok';
+            return 'warn';
+        },
+        budgetIcon() {
+            return this.budgetClass === 'ok' ? '✅' : '⚠️';
+        },
+        budgetHint() {
+            const budget = parseFloat(this.groupBudget) || 0;
+            const cost = parseFloat(this.roomTotalCost) || 0;
+            if (budget >= cost) {
+                return `拼团收入 ¥${this.groupBudget} 可覆盖房间费用 ¥${this.roomTotalCost}`;
+            }
+            const diff = (cost - budget).toFixed(2);
+            return `拼团收入不足，差额 ¥${diff} 需店主自行承担`;
         },
     },
 
@@ -149,6 +215,8 @@ export default {
         this.date = options.date || '';
         this.beginTime = options.begin_time || '';
         this.endTime = options.end_time || '';
+        this.duration = parseInt(options.duration) || 1;
+        this.pricePerHour = parseInt(options.price_per_hour) || 0;
         const defaultPrice = parseFloat(options.price_per_person) || 0;
         this.pricePerPersonYuan = (defaultPrice / 100).toFixed(2);
     },
@@ -198,10 +266,26 @@ export default {
             AUTH.createGroup(this.token, data).then(res => {
                 uni.hideLoading();
                 if (res && res._status === 0 && res.data) {
-                    uni.showToast({ title: '拼团创建成功', icon: 'success' });
-                    setTimeout(() => {
-                        uni.redirectTo({ url: '/pages/group/detail?id=' + res.data.object_id });
-                    }, 800);
+                    const hint = res.data && res.data._cost_hint;
+                    if (hint) {
+                        uni.showModal({
+                            title: '费用提示',
+                            content: hint + '，是否继续创建？',
+                            success: (r) => {
+                                if (r.confirm) {
+                                    uni.showToast({ title: '拼团创建成功', icon: 'success' });
+                                    setTimeout(() => {
+                                        uni.redirectTo({ url: '/pages/group/detail?id=' + res.data.object_id });
+                                    }, 800);
+                                }
+                            }
+                        });
+                    } else {
+                        uni.showToast({ title: '拼团创建成功', icon: 'success' });
+                        setTimeout(() => {
+                            uni.redirectTo({ url: '/pages/group/detail?id=' + res.data.object_id });
+                        }, 800);
+                    }
                 } else {
                     var msg = (res && res._reason) || '创建失败';
                     if (msg.indexOf('余额不足') !== -1) {
@@ -239,7 +323,7 @@ $border: #EEEEEE;
 .container {
     min-height: 100vh;
     background: linear-gradient(180deg, #FFF0F5 0%, #F8F8F8 300rpx);
-    padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
+    padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
 }
 
 // 自定义顶部栏
@@ -323,8 +407,8 @@ $border: #EEEEEE;
     }
 }
 
-// 费用明细
-.bill-card {
+// 费用参考卡片
+.cost-card {
     margin: 0 24rpx 24rpx;
     background: #fff;
     border-radius: 32rpx;
@@ -332,7 +416,7 @@ $border: #EEEEEE;
     box-shadow: 0 8rpx 32rpx rgba(255,100,50,0.06);
     border: 4rpx solid #FFF8E1;
 
-    .bill-title {
+    .cost-title {
         font-size: 32rpx;
         font-weight: bold;
         color: $dark;
@@ -340,58 +424,67 @@ $border: #EEEEEE;
         display: block;
     }
 
-    .bill-row {
+    .cost-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 14rpx 0;
+        padding: 12rpx 0;
 
-        &.highlight {
-            background: linear-gradient(90deg, #FFF0EB, #FFE8F0);
-            margin: 16rpx -12rpx;
-            padding: 18rpx 12rpx;
-            border-radius: 20rpx;
-        }
-
-        .bill-label {
+        .cost-label {
             font-size: 28rpx;
             color: $gray;
         }
 
-        .bill-value {
+        .cost-value {
             font-size: 30rpx;
             color: $dark;
             font-weight: bold;
 
-            &.price { color: $primary; }
-            &.light { color: $gray; font-weight: normal; }
-            &.pay {
+            &.highlight {
                 color: $primary;
-                font-size: 36rpx;
+                font-size: 32rpx;
             }
         }
     }
 
-    .bill-divider {
+    .cost-divider {
         height: 2rpx;
         background: $border;
-        margin: 10rpx 0;
+        margin: 16rpx 0;
     }
 
-    .bill-tip {
-        font-size: 22rpx;
-        color: #B8883A;
-        background: #FFF8E1;
-        padding: 14rpx 18rpx;
-        border-radius: 16rpx;
-        margin-top: 16rpx;
-        line-height: 1.5;
+    .cost-result {
+        margin-top: 20rpx;
+        padding: 18rpx 20rpx;
+        border-radius: 20rpx;
+        display: flex;
+        align-items: center;
+        gap: 12rpx;
+
+        &.ok {
+            background: #F6FFED;
+        }
+
+        &.warn {
+            background: #FFF7E6;
+        }
+
+        .result-icon {
+            font-size: 32rpx;
+        }
+
+        .result-text {
+            font-size: 26rpx;
+            color: $dark;
+            line-height: 1.4;
+            flex: 1;
+        }
     }
 }
 
 // 设置卡片
 .setting-card {
-    margin: 0 24rpx;
+    margin: 0 24rpx 24rpx;
     background: #fff;
     border-radius: 32rpx;
     padding: 28rpx;
@@ -520,6 +613,63 @@ $border: #EEEEEE;
     margin-top: 10rpx;
 }
 
+// 规则卡片
+.rule-card {
+    margin: 0 24rpx 24rpx;
+    background: #fff;
+    border-radius: 32rpx;
+    padding: 28rpx;
+    box-shadow: 0 8rpx 32rpx rgba(107,203,119,0.06);
+    border: 4rpx solid #E8F8EC;
+
+    .rule-title {
+        font-size: 32rpx;
+        font-weight: bold;
+        color: $dark;
+        margin-bottom: 20rpx;
+        display: block;
+    }
+
+    .rule-list {
+        display: flex;
+        flex-direction: column;
+        gap: 18rpx;
+    }
+
+    .rule-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 14rpx;
+
+        .rule-dot {
+            width: 40rpx;
+            height: 40rpx;
+            border-radius: 50%;
+            background: linear-gradient(135deg, $green, #34C759);
+            color: #fff;
+            font-size: 22rpx;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 2rpx;
+        }
+
+        .rule-text {
+            font-size: 26rpx;
+            color: #666;
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        .rule-bold {
+            color: $dark;
+            font-weight: bold;
+        }
+    }
+}
+
 .bottom-placeholder {
     height: 40rpx;
 }
@@ -553,6 +703,12 @@ $border: #EEEEEE;
             font-size: 44rpx;
             font-weight: bold;
             color: $primary;
+        }
+
+        .bottom-hint {
+            font-size: 20rpx;
+            color: $gray;
+            margin-top: 4rpx;
         }
     }
 
