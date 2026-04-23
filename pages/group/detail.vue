@@ -28,8 +28,12 @@
                     <text class="info-value">{{ group.begin_time }} ~ {{ group.end_time }}</text>
                 </view>
                 <view class="info-row">
-                    <text class="info-label">人均费用</text>
+                    <text class="info-label">成员人均</text>
                     <text class="info-value price">¥{{ group.price_per_person / 100 }}</text>
+                </view>
+                <view class="info-row" v-if="group.initiator_paid">
+                    <text class="info-label">发起人支付</text>
+                    <text class="info-value price">¥{{ group.initiator_paid / 100 }}</text>
                 </view>
                 <view class="info-row">
                     <text class="info-label">目标人数</text>
@@ -259,7 +263,7 @@ export default {
             if (!this.canJoin) return;
             uni.showModal({
                 title: '加入拼团',
-                content: '加入拼团将支付 ¥' + (this.group.price_per_person / 100) + '，是否确认？',
+                content: '加入拼团将支付 ¥' + (this.group.price_per_person / 100) + '（成员人均），是否确认？',
                 success: (res) => {
                     if (res.confirm) {
                         uni.showLoading({ title: '处理中...' });

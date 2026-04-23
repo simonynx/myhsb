@@ -52,6 +52,37 @@
                     </view>
                 </view>
             </view>
+
+            <!-- 过期时间选择 -->
+            <view class="setting-item">
+                <view class="setting-left">
+                    <text class="setting-icon">⏳</text>
+                    <text class="setting-label">有效期</text>
+                </view>
+                <view class="expire-pills">
+                    <view
+                        class="expire-pill"
+                        :class="{ active: expireHours === 12 }"
+                        @click="expireHours = 12"
+                    >
+                        <text>12小时</text>
+                    </view>
+                    <view
+                        class="expire-pill"
+                        :class="{ active: expireHours === 24 }"
+                        @click="expireHours = 24"
+                    >
+                        <text>24小时</text>
+                    </view>
+                    <view
+                        class="expire-pill"
+                        :class="{ active: expireHours === 48 }"
+                        @click="expireHours = 48"
+                    >
+                        <text>48小时</text>
+                    </view>
+                </view>
+            </view>
         </view>
 
         <!-- 费用计算（根据人数实时变化） -->
@@ -88,10 +119,24 @@
 
         <!-- 实际人均设置 -->
         <view class="setting-card">
+            <!-- 发起人应付 -->
+            <view class="setting-item">
+                <view class="setting-left">
+                    <text class="setting-icon">👑</text>
+                    <text class="setting-label">发起人支付</text>
+                </view>
+                <view class="initiator-pay">
+                    <text class="initiator-amount">¥{{ initiatorPaidYuan }}</text>
+                    <text v-if="initiatorPaidFen > memberPriceFen" class="initiator-subsidy">
+                        (含补贴 ¥{{ ((initiatorPaidFen - memberPriceFen) / 100).toFixed(2) }})
+                    </text>
+                </view>
+            </view>
+
             <view class="setting-item">
                 <view class="setting-left">
                     <text class="setting-icon">💎</text>
-                    <text class="setting-label">实际人均</text>
+                    <text class="setting-label">成员人均</text>
                 </view>
                 <view class="price-input-wrap">
                     <text class="price-prefix">¥</text>
@@ -126,7 +171,7 @@
             <view class="rule-list">
                 <view class="rule-item">
                     <text class="rule-dot">1</text>
-                    <text class="rule-text">拼团有效期 <text class="rule-bold">24 小时</text>，超时自动解散并退款</text>
+                    <text class="rule-text">拼团有效期 <text class="rule-bold">{{ expireHours }} 小时</text>，超时自动解散并退款</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">2</text>
@@ -153,9 +198,9 @@
         <!-- 底部操作栏 -->
         <view class="bottom-bar">
             <view class="bottom-left">
-                <text class="bottom-label">您需支付</text>
-                <text class="bottom-price">¥{{ pricePerPersonYuan }}</text>
-                <text class="bottom-hint">（仅自己的一份）</text>
+                <text class="bottom-label">发起人需支付</text>
+                <text class="bottom-price">¥{{ initiatorPaidYuan }}</text>
+                <text class="bottom-hint">（含房间补贴）</text>
             </view>
             <view class="submit-btn" @click="handleSubmit">
                 <text>🚀 发起拼团</text>
@@ -185,11 +230,15 @@ export default {
             note: '',
             priceManuallyChanged: false,
             timeSlots: [],
+            expireHours: 24,
         };
     },
 
     computed: {
         ...mapState(['token']),
+        roomTotalCostFen() {
+            return (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
+        },
         timeCost() {
             return ((this.pricePerHour * this.duration) / 100).toFixed(2);
         },
@@ -197,13 +246,24 @@ export default {
             return ((this.pricePerPersonRef * this.maxMembers) / 100).toFixed(2);
         },
         roomTotalCost() {
-            const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
-            return (total / 100).toFixed(2);
+            return (this.roomTotalCostFen / 100).toFixed(2);
+        },
+        suggestedPriceFen() {
+            if (this.maxMembers <= 0) return 0;
+            return Math.ceil(this.roomTotalCostFen / this.maxMembers);
         },
         suggestedPrice() {
-            if (this.maxMembers <= 0) return '0.00';
-            const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
-            return (total / 100 / this.maxMembers).toFixed(2);
+            return (this.suggestedPriceFen / 100).toFixed(2);
+        },
+        memberPriceFen() {
+            const val = parseFloat(this.pricePerPersonYuan);
+            return Math.floor((val || 0) * 100);
+        },
+        initiatorPaidFen() {
+            return this.roomTotalCostFen - (this.maxMembers - 1) * this.memberPriceFen;
+        },
+        initiatorPaidYuan() {
+            return (this.initiatorPaidFen / 100).toFixed(2);
         },
     },
 
@@ -211,7 +271,7 @@ export default {
         maxMembers(newVal) {
             if (!this.priceManuallyChanged) {
                 const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * newVal);
-                this.pricePerPersonYuan = (total / 100 / newVal).toFixed(2);
+                this.pricePerPersonYuan = (Math.ceil(total / newVal) / 100).toFixed(2);
             }
         },
     },
@@ -238,9 +298,9 @@ export default {
             this.timeSlots = [this.beginTime + '~' + this.endTime];
         }
 
-        // 默认人均 = 总费用 / 人数
+        // 默认成员人均 = 建议人均（向上取整）
         const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
-        this.pricePerPersonYuan = (total / 100 / this.maxMembers).toFixed(2);
+        this.pricePerPersonYuan = (Math.ceil(total / this.maxMembers) / 100).toFixed(2);
     },
 
     methods: {
@@ -279,8 +339,12 @@ export default {
                 return;
             }
             const price = parseFloat(this.pricePerPersonYuan);
-            if (!price || price <= 0) {
-                uni.showToast({ title: '请输入有效的人均费用', icon: 'none' });
+            if (!price || price < 0) {
+                uni.showToast({ title: '请输入有效的成员人均', icon: 'none' });
+                return;
+            }
+            if (this.memberPriceFen > this.suggestedPriceFen) {
+                uni.showToast({ title: `成员人均不能超过建议人均 ¥${this.suggestedPrice}`, icon: 'none' });
                 return;
             }
 
@@ -292,6 +356,7 @@ export default {
                 max_members: this.maxMembers,
                 price_per_person: Math.floor(price * 100),
                 note: this.note.trim(),
+                expire_hours: this.expireHours,
             };
 
             uni.showLoading({ title: '创建中...' });
@@ -551,6 +616,56 @@ $border: #EEEEEE;
         color: $dark;
         min-width: 60rpx;
         text-align: center;
+    }
+}
+
+// 有效期选择 pills
+.expire-pills {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+
+    .expire-pill {
+        padding: 10rpx 24rpx;
+        border-radius: 24rpx;
+        background: $light;
+        border: 2rpx solid $border;
+        transition: all 0.2s;
+
+        text {
+            font-size: 26rpx;
+            color: $gray;
+        }
+
+        &.active {
+            background: linear-gradient(135deg, $pink, $primary);
+            border-color: $primary;
+            box-shadow: 0 4rpx 12rpx rgba(255,100,50,0.2);
+
+            text {
+                color: #fff;
+                font-weight: bold;
+            }
+        }
+    }
+}
+
+// 发起人支付展示
+.initiator-pay {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+
+    .initiator-amount {
+        font-size: 36rpx;
+        font-weight: bold;
+        color: $primary;
+    }
+
+    .initiator-subsidy {
+        font-size: 22rpx;
+        color: $gray;
+        margin-top: 4rpx;
     }
 }
 
