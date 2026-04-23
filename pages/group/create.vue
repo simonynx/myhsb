@@ -22,49 +22,21 @@
             </view>
         </view>
 
-        <!-- 费用参考卡片 -->
-        <view class="cost-card">
-            <view class="cost-title">💰 费用参考</view>
-
-            <view class="cost-row">
-                <text class="cost-label">房间每小时</text>
-                <text class="cost-value">¥{{ (pricePerHour / 100).toFixed(2) }}</text>
+        <!-- 房间定价（只读参考） -->
+        <view class="price-ref-card">
+            <view class="price-ref-title">🏷️ 房间定价</view>
+            <view class="price-ref-row">
+                <text class="ref-label">房间每小时</text>
+                <text class="ref-value">¥{{ (pricePerHour / 100).toFixed(2) }}</text>
             </view>
-            <view class="cost-row">
-                <text class="cost-label">预约时长</text>
-                <text class="cost-value">{{ duration }} 小时</text>
-            </view>
-            <view class="cost-row">
-                <text class="cost-label">房间总费用</text>
-                <text class="cost-value highlight">¥{{ roomTotalCost }}</text>
-            </view>
-
-            <view class="cost-divider"></view>
-
-            <view class="cost-row">
-                <text class="cost-label">目标人数</text>
-                <text class="cost-value">{{ maxMembers }} 人</text>
-            </view>
-            <view class="cost-row">
-                <text class="cost-label">人均费用</text>
-                <text class="cost-value">¥{{ pricePerPersonYuan }}</text>
-            </view>
-            <view class="cost-row">
-                <text class="cost-label">拼团总预算</text>
-                <text class="cost-value">¥{{ groupBudget }}</text>
-            </view>
-
-            <view class="cost-result" :class="budgetClass">
-                <text class="result-icon">{{ budgetIcon }}</text>
-                <text class="result-text">{{ budgetHint }}</text>
+            <view class="price-ref-row">
+                <text class="ref-label">每人附加费</text>
+                <text class="ref-value">¥{{ (pricePerPersonRef / 100).toFixed(2) }}</text>
             </view>
         </view>
 
-        <!-- 设置卡片 -->
+        <!-- 人数设置 -->
         <view class="setting-card">
-            <view class="setting-title">⚙️ 拼团设置</view>
-
-            <!-- 人数步进器 -->
             <view class="setting-item">
                 <view class="setting-left">
                     <text class="setting-icon">👥</text>
@@ -80,12 +52,46 @@
                     </view>
                 </view>
             </view>
+        </view>
 
-            <!-- 人均价格 -->
+        <!-- 费用计算（根据人数实时变化） -->
+        <view class="cost-card">
+            <view class="cost-title">🧮 费用计算</view>
+
+            <view class="cost-formula">
+                <view class="formula-line">
+                    <text class="formula-text">时长费用 = ¥{{ (pricePerHour / 100).toFixed(2) }} × {{ duration }}小时</text>
+                    <text class="formula-result">¥{{ timeCost }}</text>
+                </view>
+                <view class="formula-line">
+                    <text class="formula-text">人头附加费 = ¥{{ (pricePerPersonRef / 100).toFixed(2) }} × {{ maxMembers }}人</text>
+                    <text class="formula-result">¥{{ personCost }}</text>
+                </view>
+            </view>
+
+            <view class="cost-divider"></view>
+
+            <view class="cost-row total">
+                <text class="cost-label">房间总费用</text>
+                <text class="cost-value">¥{{ roomTotalCost }}</text>
+            </view>
+
+            <view class="cost-row suggest">
+                <text class="cost-label">建议人均</text>
+                <text class="cost-value suggest-price">¥{{ suggestedPrice }}</text>
+            </view>
+
+            <view class="cost-action" @click="useSuggestedPrice">
+                <text class="cost-action-text">💡 点击使用建议人均 ¥{{ suggestedPrice }}</text>
+            </view>
+        </view>
+
+        <!-- 实际人均设置 -->
+        <view class="setting-card">
             <view class="setting-item">
                 <view class="setting-left">
                     <text class="setting-icon">💎</text>
-                    <text class="setting-label">人均费用</text>
+                    <text class="setting-label">实际人均</text>
                 </view>
                 <view class="price-input-wrap">
                     <text class="price-prefix">¥</text>
@@ -93,12 +99,12 @@
                         class="price-input"
                         type="digit"
                         v-model="pricePerPersonYuan"
+                        @focus="onPriceFocus"
                         @blur="formatPrice"
                     />
                 </view>
             </view>
 
-            <!-- 备注 -->
             <view class="setting-item vertical">
                 <view class="setting-left">
                     <text class="setting-icon">📝</text>
@@ -128,7 +134,7 @@
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">3</text>
-                    <text class="rule-text">发起人可随时<text class="rule-bold">解散拼团</text>，全员费用原路退回</text>
+                    <text class="rule-text">发起人可随时<text class="rule-bold">解散拼团</text>，全员费用原路退回余额</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">4</text>
@@ -147,9 +153,9 @@
         <!-- 底部操作栏 -->
         <view class="bottom-bar">
             <view class="bottom-left">
-                <text class="bottom-label">需支付</text>
+                <text class="bottom-label">您需支付</text>
                 <text class="bottom-price">¥{{ pricePerPersonYuan }}</text>
-                <text class="bottom-hint">（仅自己的份额）</text>
+                <text class="bottom-hint">（仅自己的一份）</text>
             </view>
             <view class="submit-btn" @click="handleSubmit">
                 <text>🚀 发起拼团</text>
@@ -173,38 +179,39 @@ export default {
             endTime: '',
             duration: 1,
             pricePerHour: 0,
+            pricePerPersonRef: 0,
             maxMembers: 4,
             pricePerPersonYuan: '0.00',
             note: '',
+            priceManuallyChanged: false,
         };
     },
 
     computed: {
         ...mapState(['token']),
-        roomTotalCost() {
+        timeCost() {
             return ((this.pricePerHour * this.duration) / 100).toFixed(2);
         },
-        groupBudget() {
-            const price = parseFloat(this.pricePerPersonYuan) || 0;
-            return (this.maxMembers * price).toFixed(2);
+        personCost() {
+            return ((this.pricePerPersonRef * this.maxMembers) / 100).toFixed(2);
         },
-        budgetClass() {
-            const budget = parseFloat(this.groupBudget) || 0;
-            const cost = parseFloat(this.roomTotalCost) || 0;
-            if (budget >= cost) return 'ok';
-            return 'warn';
+        roomTotalCost() {
+            const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
+            return (total / 100).toFixed(2);
         },
-        budgetIcon() {
-            return this.budgetClass === 'ok' ? '✅' : '⚠️';
+        suggestedPrice() {
+            if (this.maxMembers <= 0) return '0.00';
+            const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
+            return (total / 100 / this.maxMembers).toFixed(2);
         },
-        budgetHint() {
-            const budget = parseFloat(this.groupBudget) || 0;
-            const cost = parseFloat(this.roomTotalCost) || 0;
-            if (budget >= cost) {
-                return `拼团收入 ¥${this.groupBudget} 可覆盖房间费用 ¥${this.roomTotalCost}`;
+    },
+
+    watch: {
+        maxMembers(newVal) {
+            if (!this.priceManuallyChanged) {
+                const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * newVal);
+                this.pricePerPersonYuan = (total / 100 / newVal).toFixed(2);
             }
-            const diff = (cost - budget).toFixed(2);
-            return `拼团收入不足，差额 ¥${diff} 需店主自行承担`;
         },
     },
 
@@ -217,8 +224,11 @@ export default {
         this.endTime = options.end_time || '';
         this.duration = parseInt(options.duration) || 1;
         this.pricePerHour = parseInt(options.price_per_hour) || 0;
-        const defaultPrice = parseFloat(options.price_per_person) || 0;
-        this.pricePerPersonYuan = (defaultPrice / 100).toFixed(2);
+        this.pricePerPersonRef = parseInt(options.price_per_person) || 0;
+
+        // 默认人均 = 总费用 / 人数
+        const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
+        this.pricePerPersonYuan = (total / 100 / this.maxMembers).toFixed(2);
     },
 
     methods: {
@@ -232,6 +242,10 @@ export default {
             this.maxMembers = next;
         },
 
+        onPriceFocus() {
+            this.priceManuallyChanged = true;
+        },
+
         formatPrice() {
             const val = parseFloat(this.pricePerPersonYuan);
             if (!val || val <= 0) {
@@ -239,6 +253,12 @@ export default {
             } else {
                 this.pricePerPersonYuan = val.toFixed(2);
             }
+        },
+
+        useSuggestedPrice() {
+            this.pricePerPersonYuan = this.suggestedPrice;
+            this.priceManuallyChanged = false;
+            uni.showToast({ title: '已使用建议人均', icon: 'none' });
         },
 
         handleSubmit() {
@@ -407,77 +427,38 @@ $border: #EEEEEE;
     }
 }
 
-// 费用参考卡片
-.cost-card {
+// 房间定价参考
+.price-ref-card {
     margin: 0 24rpx 24rpx;
     background: #fff;
     border-radius: 32rpx;
     padding: 28rpx;
-    box-shadow: 0 8rpx 32rpx rgba(255,100,50,0.06);
-    border: 4rpx solid #FFF8E1;
+    box-shadow: 0 8rpx 32rpx rgba(77,150,255,0.06);
+    border: 4rpx solid #E8F4FF;
 
-    .cost-title {
-        font-size: 32rpx;
+    .price-ref-title {
+        font-size: 30rpx;
         font-weight: bold;
         color: $dark;
-        margin-bottom: 20rpx;
+        margin-bottom: 16rpx;
         display: block;
     }
 
-    .cost-row {
+    .price-ref-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12rpx 0;
+        padding: 10rpx 0;
 
-        .cost-label {
-            font-size: 28rpx;
+        .ref-label {
+            font-size: 26rpx;
             color: $gray;
         }
 
-        .cost-value {
-            font-size: 30rpx;
+        .ref-value {
+            font-size: 28rpx;
             color: $dark;
             font-weight: bold;
-
-            &.highlight {
-                color: $primary;
-                font-size: 32rpx;
-            }
-        }
-    }
-
-    .cost-divider {
-        height: 2rpx;
-        background: $border;
-        margin: 16rpx 0;
-    }
-
-    .cost-result {
-        margin-top: 20rpx;
-        padding: 18rpx 20rpx;
-        border-radius: 20rpx;
-        display: flex;
-        align-items: center;
-        gap: 12rpx;
-
-        &.ok {
-            background: #F6FFED;
-        }
-
-        &.warn {
-            background: #FFF7E6;
-        }
-
-        .result-icon {
-            font-size: 32rpx;
-        }
-
-        .result-text {
-            font-size: 26rpx;
-            color: $dark;
-            line-height: 1.4;
-            flex: 1;
         }
     }
 }
@@ -487,17 +468,8 @@ $border: #EEEEEE;
     margin: 0 24rpx 24rpx;
     background: #fff;
     border-radius: 32rpx;
-    padding: 28rpx;
+    padding: 10rpx 28rpx;
     box-shadow: 0 8rpx 32rpx rgba(77,150,255,0.06);
-    border: 4rpx solid #E8F4FF;
-
-    .setting-title {
-        font-size: 32rpx;
-        font-weight: bold;
-        color: $dark;
-        margin-bottom: 20rpx;
-        display: block;
-    }
 
     .setting-item {
         display: flex;
@@ -611,6 +583,101 @@ $border: #EEEEEE;
     font-size: 22rpx;
     color: $gray;
     margin-top: 10rpx;
+}
+
+// 费用计算卡片
+.cost-card {
+    margin: 0 24rpx 24rpx;
+    background: #fff;
+    border-radius: 32rpx;
+    padding: 28rpx;
+    box-shadow: 0 8rpx 32rpx rgba(255,100,50,0.06);
+    border: 4rpx solid #FFF8E1;
+
+    .cost-title {
+        font-size: 32rpx;
+        font-weight: bold;
+        color: $dark;
+        margin-bottom: 20rpx;
+        display: block;
+    }
+
+    .cost-formula {
+        .formula-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10rpx 0;
+
+            .formula-text {
+                font-size: 26rpx;
+                color: $gray;
+            }
+
+            .formula-result {
+                font-size: 28rpx;
+                color: $dark;
+                font-weight: 500;
+            }
+        }
+    }
+
+    .cost-divider {
+        height: 2rpx;
+        background: $border;
+        margin: 16rpx 0;
+    }
+
+    .cost-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12rpx 0;
+
+        &.total {
+            .cost-value {
+                color: $primary;
+                font-size: 34rpx;
+            }
+        }
+
+        &.suggest {
+            background: #F6FFED;
+            margin: 12rpx -12rpx 0;
+            padding: 16rpx 12rpx;
+            border-radius: 16rpx;
+
+            .suggest-price {
+                color: $green;
+                font-size: 36rpx;
+            }
+        }
+
+        .cost-label {
+            font-size: 28rpx;
+            color: $dark;
+            font-weight: 500;
+        }
+
+        .cost-value {
+            font-size: 30rpx;
+            color: $dark;
+            font-weight: bold;
+        }
+    }
+
+    .cost-action {
+        margin-top: 16rpx;
+        padding: 16rpx;
+        background: #FFF8E1;
+        border-radius: 16rpx;
+        text-align: center;
+
+        .cost-action-text {
+            font-size: 26rpx;
+            color: #B88800;
+        }
+    }
 }
 
 // 规则卡片
