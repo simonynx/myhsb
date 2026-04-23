@@ -27,14 +27,44 @@
                     <text class="info-label">预约时段</text>
                     <text class="info-value">{{ group.begin_time }} ~ {{ group.end_time }}</text>
                 </view>
+
+                <!-- 全员共享费用 -->
+                <view class="info-row" v-if="group.original_cost && group.original_cost !== group.base_cost">
+                    <text class="info-label">房间原价</text>
+                    <text class="info-value">¥{{ (group.original_cost / 100).toFixed(2) }}</text>
+                </view>
+                <view class="info-row" v-if="group.group_discount_amount">
+                    <text class="info-label">拼团折扣（{{ group.group_discount }}折）</text>
+                    <text class="info-value" style="color: #6BCB77;">-¥{{ (group.group_discount_amount / 100).toFixed(2) }}</text>
+                </view>
+                <view class="info-row" v-if="group.base_cost">
+                    <text class="info-label">基础总价（拼团折扣后）</text>
+                    <text class="info-value price">¥{{ (group.base_cost / 100).toFixed(2) }}</text>
+                </view>
+                <view class="info-row" v-if="group.base_per_person">
+                    <text class="info-label">基础人均</text>
+                    <text class="info-value">¥{{ (group.base_per_person / 100).toFixed(2) }}</text>
+                </view>
                 <view class="info-row">
                     <text class="info-label">成员人均</text>
-                    <text class="info-value price">¥{{ group.price_per_person / 100 }}</text>
+                    <text class="info-value price">¥{{ (group.price_per_person / 100).toFixed(2) }}</text>
                 </view>
-                <view class="info-row" v-if="group.initiator_paid">
-                    <text class="info-label">发起人支付</text>
-                    <text class="info-value price">¥{{ group.initiator_paid / 100 }}</text>
+
+                <!-- 发起人专属费用 -->
+                <view class="info-divider"></view>
+                <view class="info-row" v-if="group.initiator_base">
+                    <text class="info-label">发起人承担份额</text>
+                    <text class="info-value">¥{{ (group.initiator_base / 100).toFixed(2) }}</text>
                 </view>
+                <view class="info-row" v-if="group.member_discount_amount">
+                    <text class="info-label">会员折扣（发起人专属）</text>
+                    <text class="info-value" style="color: #6BCB77;">-¥{{ (group.member_discount_amount / 100).toFixed(2) }}</text>
+                </view>
+                <view class="info-row" v-if="group.initiator_paid !== undefined">
+                    <text class="info-label">发起人最终支付</text>
+                    <text class="info-value price">¥{{ (group.initiator_paid / 100).toFixed(2) }}</text>
+                </view>
+
                 <view class="info-row">
                     <text class="info-label">目标人数</text>
                     <text class="info-value">{{ group.max_members }} 人</text>
@@ -277,7 +307,7 @@ export default {
                                 if (msg.indexOf('余额不足') !== -1) {
                                     uni.showModal({
                                         title: '余额不足',
-                                        content: '是否去充值？',
+                                        content: '加入拼团需支付 ¥' + (this.group.price_per_person / 100) + '，是否去充值？',
                                         success: (r) => {
                                             if (r.confirm) uni.navigateTo({ url: '/pages/user/deposit/deposit' });
                                         }
@@ -447,6 +477,12 @@ $border: #EEEEEE;
                 color: $primary;
                 font-size: 32rpx;
             }
+        }
+
+        .info-divider {
+            height: 2rpx;
+            background: $border;
+            margin: 12rpx 0;
         }
     }
 
