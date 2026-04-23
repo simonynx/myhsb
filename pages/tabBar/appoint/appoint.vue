@@ -429,11 +429,7 @@ export default {
         getTime(times) {
             // times: [{ date: '2026-04-15', item: ['2026-04-15 09:00:00', '2026-04-15 10:00:00'] }, ...]
             const selects = times.map(t => [t.item[0], t.item[1]]);
-            if (selects.length <= 0) return;
             this.specSelected = selects;
-            this.currentSelectItem.selects = this.specSelected;
-            this.$store.commit('setCurrentSelectItem', this.currentSelectItem);
-            uni.navigateTo({ url: '/pages/order/createOrder' });
         },
 
         handleDirectBook() {
