@@ -244,6 +244,7 @@
 					this.timeActive = index;
 					this.orderDateTime = this.selectDate + ' ' + item.time;
 				}
+				this.emitChange();
 			},
 
 			handleSelect(index, item) {
@@ -262,6 +263,26 @@
 				} else {
 					this.timeActive = index;
 					this.orderDateTime = { begin: this.selectDate + ' ' + item.begin + ':00', end: this.selectDate + ' ' + item.end + ':00' };
+				}
+				this.emitChange();
+			},
+
+			emitChange() {
+				if (this.isSection) {
+					this.handleChange();
+					this.$emit('change', { beginTime: this.selectDate + ' ' + this.timeQuanBegin, endTime: this.selectDate + ' ' + this.timeQuanEnd });
+					return;
+				}
+				if (this.isMultiple) {
+					let time = [];
+					for (const date in this.orderTimeArr) {
+						this.orderTimeArr[date].forEach(item => {
+							this.isQuantum ? time.push({ date, item }) : time.push({ date, item: date + ' ' + item });
+						});
+					}
+					this.$emit('change', time);
+				} else {
+					this.$emit('change', this.orderDateTime);
 				}
 			},
 
@@ -332,22 +353,7 @@
 
 			handleSubmit() {
 				if (!this.canSubmit) return;
-				if (this.isSection) {
-					this.handleChange();
-					this.$emit('change', { beginTime: this.selectDate + ' ' + this.timeQuanBegin, endTime: this.selectDate + ' ' + this.timeQuanEnd });
-					return;
-				}
-				if (this.isMultiple) {
-					let time = [];
-					for (const date in this.orderTimeArr) {
-						this.orderTimeArr[date].forEach(item => {
-							this.isQuantum ? time.push({ date, item }) : time.push({ date, item: date + ' ' + item });
-						});
-					}
-					this.$emit('change', time);
-				} else {
-					this.$emit('change', this.orderDateTime);
-				}
+				this.emitChange();
 			}
 		}
 	};
