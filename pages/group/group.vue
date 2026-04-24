@@ -70,10 +70,10 @@
                         <text class="price-num">¥{{ group.price_per_person / 100 }}</text>
                     </view>
                     <view class="card-actions">
-                        <view class="share-mini-btn" @click.stop="shareGroup(group)">
+                        <button class="share-mini-btn" open-type="share" @click.stop="setShareGroup(group)">
                             <text class="yticon icon-fenxiang2"></text>
                             <text>分享</text>
-                        </view>
+                        </button>
                         <view class="progress-info">
                             <view class="progress-bar">
                                 <view class="progress-fill" :style="{ width: progressWidth(group) }"></view>
@@ -118,7 +118,21 @@ export default {
             selectedDayIndex: 0,
             groupList: [],
             loading: false,
+            pendingShareGroup: null,
         };
+    },
+
+    onShareAppMessage() {
+        const group = this.pendingShareGroup;
+        this.pendingShareGroup = null;
+        if (!group) {
+            return {
+                title: '🎮 拼团广场 · 和小伙伴一起约，更划算！',
+                path: '/pages/group/group',
+                imageUrl: '/static/logo_small.jpg',
+            };
+        }
+        return this.buildShareData(group);
     },
 
     computed: {
@@ -196,18 +210,41 @@ export default {
             uni.navigateTo({ url: '/pages/group/detail?id=' + id });
         },
 
-        shareGroup(group) {
+        setShareGroup(group) {
+            this.pendingShareGroup = group;
+        },
+
+        buildShareData(group) {
             const room = group.room || {};
             const remain = (group.max_members || 4) - (group.current_members || 1);
             const price = group.price_per_person || 0;
-            const title = room.name
-                ? `「${room.name}」${group.date} ${group.begin_time}~${group.end_time} · 人均¥${(price/100).toFixed(0)} · 还差${remain}人`
-                : '快来加入这个拼团！';
-            uni.share({
+            const priceStr = (price / 100).toFixed(0);
+            const hour = parseInt((group.begin_time || '00:00').split(':')[0], 10);
+
+            // 根据时间段选择 emoji，增加亲和力
+            let timeEmoji = '🌅';
+            if (hour >= 11 && hour < 14) timeEmoji = '☀️';
+            else if (hour >= 14 && hour < 18) timeEmoji = '🌤️';
+            else if (hour >= 18 && hour < 22) timeEmoji = '🌙';
+            else if (hour >= 22) timeEmoji = '⭐';
+
+            // 根据剩余人数选择不同的社交裂变文案
+            let title = '';
+            if (remain <= 0) {
+                title = `${timeEmoji}「${room.name || '拼团'}」已满员！来看看还有啥好玩的~`;
+            } else if (remain === 1) {
+                title = `🔥 最后1个名额！「${room.name || '拼团'}」${group.date} ${group.begin_time}~${group.end_time} · 人均¥${priceStr}`;
+            } else if (remain === 2) {
+                title = `🎮 就差2人了！「${room.name || '拼团'}」${group.date} ${group.begin_time}~${group.end_time} · 人均¥${priceStr}`;
+            } else {
+                title = `🎮 一起开黑！「${room.name || '拼团'}」${group.date} ${group.begin_time}~${group.end_time} · 人均¥${priceStr} · 还差${remain}人`;
+            }
+
+            return {
                 title,
                 path: '/pages/group/detail?id=' + group.object_id,
                 imageUrl: room.image1 || '/static/logo_small.jpg',
-            });
+            };
         },
 
         goAppoint() {
@@ -218,36 +255,60 @@ export default {
 </script>
 
 <style lang="scss">
-$primary: #FF6432;
-$pink: #FF9ECD;
-$gray: #999;
-$dark: #333;
-$light: #F5F6F7;
-$border: #EEEEEE;
+$primary: #FF8C42;
+$pink: #FFB5A7;
+$green: #8BC34A;
+$blue: #81D4FA;
+$gray: #9E9E9E;
+$dark: #5C4B3A;
+$light: #FFF3E8;
+$border: #F0E6D8;
+$cream: #FFF8F0;
 
 .container {
     min-height: 100vh;
-    background: #F8F8F8;
+    background: $cream;
     padding-bottom: 40rpx;
 }
 
 // 顶部导航
 .header {
-    background: linear-gradient(135deg, $pink, $primary);
-    padding: 60rpx 30rpx 80rpx;
+    background: linear-gradient(135deg, #A5D6A7 0%, #FFF59D 40%, #FFCC80 100%);
+    padding: 60rpx 30rpx 90rpx;
     text-align: center;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+        content: '🌿';
+        position: absolute;
+        top: 20rpx;
+        left: 30rpx;
+        font-size: 40rpx;
+        opacity: 0.4;
+    }
+
+    &::after {
+        content: '☁️';
+        position: absolute;
+        top: 30rpx;
+        right: 40rpx;
+        font-size: 36rpx;
+        opacity: 0.35;
+    }
 
     .header-title {
-        font-size: 40rpx;
+        font-size: 42rpx;
         font-weight: bold;
-        color: #fff;
+        color: $dark;
         display: block;
+        text-shadow: 0 2rpx 4rpx rgba(255,255,255,0.6);
     }
 
     .header-sub {
         font-size: 26rpx;
-        color: rgba(255,255,255,0.85);
-        margin-top: 10rpx;
+        color: rgba(92,75,58,0.75);
+        margin-top: 12rpx;
         display: block;
     }
 }
@@ -256,9 +317,9 @@ $border: #EEEEEE;
 .date-bar {
     background: #fff;
     padding: 20rpx 0;
-    margin: -40rpx 30rpx 20rpx;
-    border-radius: 20rpx;
-    box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06);
+    margin: -50rpx 30rpx 24rpx;
+    border-radius: 24rpx;
+    box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.08);
 }
 
 .date-scroll {
@@ -276,16 +337,24 @@ $border: #EEEEEE;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 88rpx;
-    height: 120rpx;
-    border-radius: 20rpx;
+    width: 92rpx;
+    height: 128rpx;
+    border-radius: 24rpx;
     margin: 0 8rpx;
     background: $light;
-    transition: all 0.2s;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 2rpx solid transparent;
 
     &.active {
-        background: $primary;
-        .pill-week, .pill-date { color: #fff; }
+        background: linear-gradient(135deg, #FFCC80, #FF8C42);
+        transform: scale(1.08);
+        box-shadow: 0 6rpx 16rpx rgba(255, 140, 66, 0.25);
+        border-color: rgba(255,255,255,0.4);
+        .pill-week, .pill-date { color: #fff; text-shadow: 0 1rpx 2rpx rgba(0,0,0,0.1); }
+    }
+
+    &:active {
+        transform: scale(0.95);
     }
 
     .pill-week {
@@ -303,15 +372,21 @@ $border: #EEEEEE;
 
 // 拼团列表
 .group-list {
-    padding: 0 30rpx;
+    padding: 0 30rpx 30rpx;
 }
 
 .group-card {
     background: #fff;
-    border-radius: 20rpx;
-    padding: 24rpx;
-    margin-bottom: 20rpx;
-    box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+    border-radius: 28rpx;
+    padding: 28rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s;
+    border: 1rpx solid rgba(240, 230, 216, 0.6);
+
+    &:active {
+        transform: scale(0.97);
+    }
 }
 
 .card-header {
@@ -320,11 +395,12 @@ $border: #EEEEEE;
     margin-bottom: 20rpx;
 
     .room-img {
-        width: 100rpx;
-        height: 100rpx;
-        border-radius: 16rpx;
+        width: 108rpx;
+        height: 108rpx;
+        border-radius: 20rpx;
         margin-right: 20rpx;
         background: $light;
+        box-shadow: 0 4rpx 12rpx rgba(140, 100, 60, 0.08);
     }
 
     .room-info {
@@ -345,10 +421,11 @@ $border: #EEEEEE;
 
             .time-tag {
                 font-size: 22rpx;
-                color: $primary;
-                background: #FFF0EB;
-                padding: 4rpx 12rpx;
-                border-radius: 8rpx;
+                color: #8D6E63;
+                background: linear-gradient(135deg, #FFF8E1, #FFF3E8);
+                padding: 6rpx 16rpx;
+                border-radius: 12rpx;
+                border: 1rpx solid rgba(240, 230, 216, 0.5);
             }
         }
     }
@@ -360,23 +437,23 @@ $border: #EEEEEE;
         margin-left: 16rpx;
 
         &.open {
-            background: #E6F7FF;
-            color: #1890FF;
+            background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+            color: #2E7D32;
         }
 
         &.full {
-            background: #F6FFED;
-            color: #52C41A;
+            background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
+            color: #E65100;
         }
 
         &.success {
-            background: #FFF7E6;
-            color: #FA8C16;
+            background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
+            color: #1565C0;
         }
 
         &.cancelled {
             background: #F5F5F5;
-            color: $gray;
+            color: #9E9E9E;
         }
     }
 }
@@ -481,13 +558,27 @@ $border: #EEEEEE;
     .share-mini-btn {
         display: flex;
         align-items: center;
-        gap: 4rpx;
-        background: #FFF0EB;
-        padding: 6rpx 16rpx;
-        border-radius: 20rpx;
+        gap: 6rpx;
+        background: linear-gradient(135deg, #FFF3E8, #FFE8D6);
+        padding: 8rpx 20rpx;
+        border-radius: 24rpx;
+        margin: 0;
+        line-height: 1;
+        border: none;
+        outline: none;
+        box-shadow: 0 2rpx 8rpx rgba(255, 140, 66, 0.12);
+        transition: transform 0.15s;
+
+        &::after {
+            display: none;
+        }
+
+        &:active {
+            transform: scale(0.92);
+        }
 
         text {
-            font-size: 22rpx;
+            font-size: 24rpx;
             color: $primary;
         }
     }
@@ -499,22 +590,23 @@ $border: #EEEEEE;
 
         .progress-bar {
             width: 120rpx;
-            height: 12rpx;
-            background: #EEEEEE;
-            border-radius: 6rpx;
+            height: 14rpx;
+            background: #F0E6D8;
+            border-radius: 8rpx;
             overflow: hidden;
         }
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, $pink, $primary);
-            border-radius: 6rpx;
-            transition: width 0.3s;
+            background: linear-gradient(90deg, #A5D6A7, #FFCC80);
+            border-radius: 8rpx;
+            transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         .progress-text {
             font-size: 24rpx;
             color: $gray;
+            font-weight: 500;
         }
     }
 }
@@ -522,47 +614,60 @@ $border: #EEEEEE;
 // 空状态
 .empty-section {
     text-align: center;
-    padding: 80rpx 40rpx;
+    padding: 100rpx 40rpx;
 
     .empty-icon {
-        font-size: 80rpx;
+        font-size: 100rpx;
         display: block;
-        margin-bottom: 20rpx;
+        margin-bottom: 24rpx;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-12rpx); }
     }
 
     .empty-title {
-        font-size: 32rpx;
+        font-size: 34rpx;
         font-weight: bold;
         color: $dark;
         display: block;
-        margin-bottom: 10rpx;
+        margin-bottom: 12rpx;
     }
 
     .empty-sub {
         font-size: 26rpx;
         color: $gray;
         display: block;
-        margin-bottom: 30rpx;
+        margin-bottom: 36rpx;
     }
 
     .empty-btn {
         display: inline-block;
-        background: $primary;
+        background: linear-gradient(135deg, #FFCC80, #FF8C42);
         color: #fff;
         font-size: 28rpx;
         font-weight: bold;
-        padding: 20rpx 48rpx;
-        border-radius: 40rpx;
+        padding: 22rpx 52rpx;
+        border-radius: 44rpx;
+        box-shadow: 0 6rpx 20rpx rgba(255, 140, 66, 0.3);
+        transition: transform 0.2s;
+
+        &:active {
+            transform: scale(0.95);
+        }
     }
 }
 
 .load-more {
     text-align: center;
-    padding: 30rpx;
+    padding: 40rpx;
 
     .load-text {
         font-size: 24rpx;
         color: $gray;
+        letter-spacing: 2rpx;
     }
 }
 </style>
