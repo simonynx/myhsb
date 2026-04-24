@@ -114,29 +114,23 @@
 	import { mapState, mapActions } from 'vuex';
 	import AUTH from '../../../utils/auth.js';
 
-	const MEMBER_COLORS = {
-		0: { color: '#AAAAAA', icon: '🌱', name: '普通会员' },
-		1: { color: '#C0C0C0', icon: '🥈', name: '银卡会员' },
-		2: { color: '#FFD700', icon: '🥇', name: '金卡会员' },
-		3: { color: '#81D4FA', icon: '💎', name: '钻石会员' },
-	};
-
 	const TIER_ICONS = ['🎯', '🔥', '⭐', '💎', '👑'];
 
 	export default {
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token', 'rechargeTiers']),
-			memberLevelName() {
+			memberLevelData() {
 				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				return MEMBER_COLORS[level] && MEMBER_COLORS[level].name || '普通会员';
+				return this.memberConfig.find(l => l.level === level) || null;
+			},
+			memberLevelName() {
+				return (this.memberLevelData && this.memberLevelData.name) || '普通会员';
 			},
 			memberIcon() {
-				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				return MEMBER_COLORS[level] && MEMBER_COLORS[level].icon || '🌱';
+				return (this.memberLevelData && this.memberLevelData.icon) || '🌱';
 			},
 			memberColor() {
-				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				return MEMBER_COLORS[level] && MEMBER_COLORS[level].color || '#AAAAAA';
+				return (this.memberLevelData && this.memberLevelData.color) || '#AAAAAA';
 			},
 			dynamicAmountList() {
 				if (this.rechargeTiers && this.rechargeTiers.length > 0) {
@@ -157,6 +151,7 @@
 				selectedAmount: 0,
 				selectedTierBonus: 0,
 				selectedTierPresent: 0,
+				memberConfig: [],
 				defaultAmountList: [
 					{ amount: 100, bonus: 50, present: 0, popular: false, icon: '🎯' },
 					{ amount: 200, bonus: 120, present: 0, popular: true, icon: '🔥' },
@@ -169,12 +164,20 @@
 		onShow() {
 			if (!this.userInfo) this.getUserInfo();
 			this.loadRechargeTiers();
+			this.loadMemberConfig();
 		},
 		methods: {
 			...mapActions(['getRechargeTiers', 'loginAndRegister', 'getUserInfo']),
 			loadRechargeTiers() {
 				if (!this.rechargeTiers || this.rechargeTiers.length === 0) {
 					this.getRechargeTiers();
+				}
+			},
+			async loadMemberConfig() {
+				if (!this.hasLogin) return;
+				const res = await AUTH.memberConfig(this.token);
+				if (res._status === 0 && res.data && res.data.levels) {
+					this.memberConfig = res.data.levels;
 				}
 			},
 			selectAmount(item) {
