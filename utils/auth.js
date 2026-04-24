@@ -27,7 +27,13 @@ function request(url, method, data, token) {
       data: data,
       header: header,
       timeout: 10000,
-      success: (res) => resolve(res.data),
+      success: (res) => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(res.data);
+        } else {
+          reject({ statusCode: res.statusCode, data: res.data });
+        }
+      },
       fail: (error) => reject(error)
     });
   });
@@ -146,7 +152,7 @@ function getRoomAppointments(token, roomId, date) {
 }
 
 function getRoomDetail(token, roomId) {
-  return request('/rooms/' + roomId + '/', 'GET', null, token);
+  return request('/rooms/' + roomId, 'GET', null, token);
 }
 
 function setUserProflie(token, phone, nickName, avatarUrl, gender, birthday, tags) {

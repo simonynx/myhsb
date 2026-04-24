@@ -469,11 +469,32 @@ export default {
                     }
                     this.rebuildRoom(room);
                 } else {
-                    uni.showToast({ title: (res && res._reason) || '加载失败', icon: 'none' });
+                    const reason = (res && res._reason) || '加载失败';
+                    // 404 或接口不存在时引导用户返回
+                    if (String(res && res._status) === '404' || reason.indexOf('Not Found') !== -1) {
+                        uni.showModal({
+                            title: '房间信息暂不可用',
+                            content: '该房间详情无法直接加载，建议从房间列表重新进入。',
+                            showCancel: false,
+                            confirmText: '知道了',
+                        });
+                    } else {
+                        uni.showToast({ title: reason, icon: 'none' });
+                    }
                 }
-            }).catch(() => {
+            }).catch((err) => {
                 uni.hideLoading();
-                uni.showToast({ title: '加载失败', icon: 'none' });
+                const status = err && err.statusCode;
+                if (status === 404) {
+                    uni.showModal({
+                        title: '房间信息暂不可用',
+                        content: '该房间详情无法直接加载，建议从房间列表重新进入。',
+                        showCancel: false,
+                        confirmText: '知道了',
+                    });
+                } else {
+                    uni.showToast({ title: '加载失败', icon: 'none' });
+                }
             });
         },
 
