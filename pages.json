@@ -91,7 +91,7 @@
 			"path": "pages/user/deposit/deposit",
 			"style": {
 				"navigationBarTitleText": "充值中心",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
 		},
