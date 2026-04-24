@@ -1,10 +1,5 @@
 <template>
     <view class="container">
-        <!-- 顶部标题 -->
-        <view class="header">
-            <text class="header-title">我的拼团</text>
-        </view>
-
         <!-- 标签切换 -->
         <view class="tab-bar">
             <view
@@ -86,6 +81,7 @@
 </template>
 
 <script>
+import { mapState } from 'vuex';
 import AUTH from '@/utils/auth';
 
 export default {
@@ -93,17 +89,16 @@ export default {
         return {
             activeTab: 'initiated',
             initiatedList: [],
-            joinedList: [],
-            token: ''
+            joinedList: []
         };
     },
     computed: {
+        ...mapState(['token']),
         currentList() {
             return this.activeTab === 'initiated' ? this.initiatedList : this.joinedList;
         }
     },
     onShow() {
-        this.token = uni.getStorageSync('token');
         this.loadData();
     },
     methods: {
@@ -142,15 +137,6 @@ export default {
 .container {
     min-height: 100vh;
     background: #f5f6fa;
-}
-.header {
-    padding: 30rpx;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-.header-title {
-    font-size: 36rpx;
-    font-weight: bold;
-    color: #fff;
 }
 .tab-bar {
     display: flex;

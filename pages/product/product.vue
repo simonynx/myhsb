@@ -317,10 +317,13 @@ export default {
         const todayStr = today.getFullYear() + '-' + (today.getMonth() + 1).toString().padStart(2, '0') + '-' + today.getDate().toString().padStart(2, '0');
         this.roomDate = option.date || todayStr;
         this.currentSelectDate = option.date || todayStr;
-        // 直接从 Vuex 取 room 数据（appoint.vue 已经存了整个 room 对象）
+        // 优先从 Vuex 取 room 数据（appoint.vue 已经存了整个 room 对象）
         const roomData = this.$store.state.currentRoom;
         if (roomData && roomData.object_id) {
             this.rebuildRoom(roomData);
+        } else if (option.id) {
+            // 若从拼团详情等页面直接跳转，通过 ID 拉取房间数据
+            this._loadRoomById(option.id);
         }
     },
 
@@ -343,6 +346,10 @@ export default {
             // 用响应式方式赋值，确保 Vue 能追踪动态属性
             const r = {};
             for (const key in roomData) { r[key] = roomData[key]; }
+            // 若 tags 是字符串但未转 tagsArr，则自动转换（兼容直接从接口加载的数据）
+            if (r.tags && typeof r.tags === 'string' && !r.tagsArr) {
+                r.tagsArr = r.tags.split('$').map(t => t.trim()).filter(Boolean);
+            }
             this.room = r;
             this.buildImages();
             this.buildDesc();
@@ -446,6 +453,27 @@ export default {
             uni.previewImage({
                 urls: this.imgList.map(i => i.src),
                 current: this.currentImgIndex,
+            });
+        },
+
+        // 通过 ID 加载房间数据（用于拼团详情等直接跳转场景）
+        _loadRoomById(roomId) {
+            uni.showLoading({ title: '加载中...' });
+            AUTH.getRoomDetail(this.token, roomId).then(res => {
+                uni.hideLoading();
+                if (res && res._status === 0 && res.data) {
+                    // 后端返回的 tags 是 $ 分隔字符串，转为 tagsArr 供模板使用
+                    const room = res.data;
+                    if (room.tags && typeof room.tags === 'string') {
+                        room.tagsArr = room.tags.split('$').map(t => t.trim()).filter(Boolean);
+                    }
+                    this.rebuildRoom(room);
+                } else {
+                    uni.showToast({ title: (res && res._reason) || '加载失败', icon: 'none' });
+                }
+            }).catch(() => {
+                uni.hideLoading();
+                uni.showToast({ title: '加载失败', icon: 'none' });
             });
         },
 

@@ -189,9 +189,9 @@ export default {
                 const parsed = JSON.parse(tags);
                 if (Array.isArray(parsed)) return parsed.filter(Boolean);
             } catch (e) {
-                // 不是 JSON，按逗号分隔
+                // 不是 JSON，按 $ 分隔（与 product.vue 一致）
             }
-            return tags.split(',').map(t => t.trim()).filter(Boolean);
+            return tags.split('$').map(t => t.trim()).filter(Boolean);
         },
         isInitiator() {
             if (!this.userInfo || !this.group.initiator) return false;

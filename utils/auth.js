@@ -145,6 +145,10 @@ function getRoomAppointments(token, roomId, date) {
   return request('/rooms/appointments/?room_id=' + roomId + '&date=' + date, 'GET', null, token);
 }
 
+function getRoomDetail(token, roomId) {
+  return request('/rooms/' + roomId + '/', 'GET', null, token);
+}
+
 function setUserProflie(token, phone, nickName, avatarUrl, gender, birthday, tags) {
   var data = {
     phone: phone,
@@ -381,6 +385,7 @@ var httpRequest = {
   refundOrder: refundOrder,
   getRoomDataList: getRoomDataList,
   getRoomAppointments: getRoomAppointments,
+  getRoomDetail: getRoomDetail,
   getGoodsList: getGoodsList,
   purchaseGoods: purchaseGoods,
   getConstance: getConstance,
