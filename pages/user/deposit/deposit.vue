@@ -213,13 +213,38 @@
 						return;
 					}
 					var wxpayData = res.data;
-					uni.requestPayment({
-						provider: 'wxpay',
-						timeStamp: wxpayData.timeStamp,
-						nonceStr: wxpayData.nonceStr,
-						package: wxpayData.package,
-						signType: wxpayData.signType,
-						paySign: wxpayData.paySign,
+					console.log('后端返回的支付参数:', JSON.stringify(wxpayData));
+
+					// 参数校验：后端可能返回嵌套结构或缺少字段
+					if (!wxpayData) {
+						uni.hideLoading();
+						uni.showModal({ title: '支付参数错误', content: '后端未返回支付数据', showCancel: false });
+						return;
+					}
+					// 兼容后端可能返回 { payment: {...} } 或 { wxpay: {...} } 的嵌套结构
+					var payment = wxpayData.payment || wxpayData.wxpay || wxpayData;
+					// 兼容后端签名字段可能是 sign 或 paySign
+					var paySign = payment.paySign || payment.sign;
+					var requiredFields = ['timeStamp', 'nonceStr', 'package'];
+					var missing = requiredFields.filter(k => !payment[k]);
+					if (!paySign) missing.push('sign/paySign');
+					if (missing.length > 0) {
+						uni.hideLoading();
+						uni.showModal({
+							title: '支付参数缺失',
+							content: '缺少字段: ' + missing.join(', ') + '\n请检查后端 /users/recharge/ 接口返回',
+							showCancel: false,
+						});
+						return;
+					}
+
+					// #ifdef MP-WEIXIN
+					wx.requestPayment({
+						timeStamp: String(payment.timeStamp),
+						nonceStr: payment.nonceStr,
+						package: payment.package,
+						signType: payment.signType || 'MD5',
+						paySign: paySign,
 						success: (resp) => {
 							uni.hideLoading();
 							var bonusText = this.selectedTierBonus > 0 ? `，赠送 ${this.selectedTierBonus} 积分` : '';
@@ -235,9 +260,20 @@
 						},
 						fail: (err) => {
 							uni.hideLoading();
-							uni.showToast({ title: '支付取消', icon: 'none' });
+							console.error('支付失败详情:', err);
+							// 开发者工具模拟器不支持微信支付，会直接进入 fail
+							if (err && err.errMsg && err.errMsg.indexOf('cancel') !== -1) {
+								uni.showToast({ title: '支付已取消', icon: 'none' });
+							} else {
+								uni.showModal({
+									title: '支付失败',
+									content: (err && err.errMsg) || '微信支付调起失败，请在真机上测试',
+									showCancel: false,
+								});
+							}
 						},
 					});
+					// #endif
 				}).catch((err) => {
 					uni.hideLoading();
 					uni.showToast({ title: '充值失败', icon: 'none' });
