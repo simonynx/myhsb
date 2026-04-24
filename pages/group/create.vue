@@ -54,7 +54,7 @@
             </view>
 
             <!-- 过期时间选择 -->
-            <view class="setting-item">
+            <view class="setting-item expire-setting">
                 <view class="setting-left">
                     <text class="setting-icon">⏳</text>
                     <text class="setting-label">有效期</text>
@@ -63,26 +63,28 @@
                     <view
                         class="expire-pill"
                         :class="{ active: expireHours === 12, disabled: maxExpireHours < 12 }"
-                        @click="maxExpireHours >= 12 && (expireHours = 12)"
+                        @click="maxExpireHours >= 12 && (expireHours = 12, expireHoursManuallyChanged = true)"
                     >
                         <text>12小时</text>
                     </view>
                     <view
                         class="expire-pill"
                         :class="{ active: expireHours === 24, disabled: maxExpireHours < 24 }"
-                        @click="maxExpireHours >= 24 && (expireHours = 24)"
+                        @click="maxExpireHours >= 24 && (expireHours = 24, expireHoursManuallyChanged = true)"
                     >
                         <text>24小时</text>
                     </view>
                     <view
                         class="expire-pill"
                         :class="{ active: expireHours === 48, disabled: maxExpireHours < 48 }"
-                        @click="maxExpireHours >= 48 && (expireHours = 48)"
+                        @click="maxExpireHours >= 48 && (expireHours = 48, expireHoursManuallyChanged = true)"
                     >
                         <text>48小时</text>
                     </view>
                 </view>
-                <text v-if="maxExpireHours < 12" class="expire-warning">预约时间太近了，请直接预约或选择更晚时段</text>
+                <text v-if="maxExpireHours < 12" class="expire-warning error">⏰ 预约时间太近了（距开始不足12小时），请直接预约或选择更晚时段</text>
+                <text v-else-if="maxExpireHours < 24" class="expire-warning warn">⏰ 距离预约开始还有约 {{ maxExpireHours }} 小时，24/48小时选项暂不可用</text>
+                <text v-else-if="maxExpireHours < 48" class="expire-warning info">ℹ️ 距离预约开始还有约 {{ maxExpireHours }} 小时，48小时选项暂不可用</text>
             </view>
         </view>
 
@@ -200,14 +202,18 @@
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">3</text>
-                    <text class="rule-text">发起人可随时<text class="rule-bold">解散拼团</text>，全员费用原路退回余额</text>
+                    <text class="rule-text">拼团有效期最晚需在预约开始前 <text class="rule-bold">2 小时</text>结束，以保证成团后有充足时间锁定房间</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">4</text>
-                    <text class="rule-text">成员可随时退出，退出后费用退回余额</text>
+                    <text class="rule-text">发起人可随时<text class="rule-bold">解散拼团</text>，全员费用原路退回余额</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">5</text>
+                    <text class="rule-text">成员可随时退出，退出后费用退回余额</text>
+                </view>
+                <view class="rule-item">
+                    <text class="rule-dot">6</text>
                     <text class="rule-text">成团后会给所有人发送微信预约提醒消息</text>
                 </view>
             </view>
@@ -303,6 +309,8 @@ export default {
             initiatorManuallyChanged: false,
             timeSlots: [],
             expireHours: 24,
+            // 有效期是否已被用户手动修改过（防止 watch 覆盖用户选择）
+            expireHoursManuallyChanged: false,
             groupDiscountPercent: 100,
             memberDiscountPercent: 100,
             showConfirmModal: false,
@@ -405,6 +413,16 @@ export default {
                 this.initiatorInputYuan = this.basePerPersonYuan;
             }
         },
+        maxExpireHours: {
+            immediate: true,
+            handler(val) {
+                if (this.expireHoursManuallyChanged) return;
+                // 自动调整为不超过 maxExpireHours 的最大可用选项
+                const options = [48, 24, 12];
+                const best = options.find(o => val >= o);
+                this.expireHours = best || 12;
+            }
+        }
     },
 
     onLoad(options) {
@@ -852,10 +870,18 @@ $border: #EEEEEE;
     }
 }
 
-.expire-warning {
-    font-size: 24rpx;
-    color: #ff4757;
-    margin-top: 12rpx;
+.expire-setting {
+    flex-wrap: wrap;
+
+    .expire-warning {
+        flex-basis: 100%;
+        font-size: 24rpx;
+        margin-top: 12rpx;
+
+        &.error { color: #ff4757; }
+        &.warn { color: #ff9500; }
+        &.info { color: #999; }
+    }
 }
 
 // 成员人均只读展示
