@@ -6,11 +6,14 @@
         </view>
 
         <block v-else-if="group.object_id">
-            <!-- 房间信息 -->
-            <view class="room-card">
+            <!-- 房间信息（可跳转） -->
+            <view class="room-card" @click="goRoomDetail">
                 <image class="room-img" :src="group.room && group.room.image1" mode="aspectFill" />
                 <view class="room-info">
-                    <text class="room-name">{{ group.room && group.room.name }}</text>
+                    <view class="room-name-wrap">
+                        <text class="room-name">{{ group.room && group.room.name }}</text>
+                        <text class="room-arrow">→</text>
+                    </view>
                     <view class="room-tags" v-if="group.room && group.room.tags">
                         <text class="tag" v-for="t in roomTags" :key="t">{{ t }}</text>
                     </view>
@@ -28,42 +31,45 @@
                     <text class="info-value">{{ group.begin_time }} ~ {{ group.end_time }}</text>
                 </view>
 
-                <!-- 全员共享费用 -->
-                <view class="info-row" v-if="group.original_cost && group.original_cost !== group.base_cost">
-                    <text class="info-label">房间原价</text>
-                    <text class="info-value">¥{{ (group.original_cost / 100).toFixed(2) }}</text>
+                <!-- 费用明细 -->
+                <view class="cost-detail-title">💰 费用明细</view>
+                <view class="info-row">
+                    <text class="info-label">房间小时费</text>
+                    <text class="info-value">¥{{ (group.room_hour_price / 100).toFixed(2) }} × {{ group.duration }}小时</text>
+                </view>
+                <view class="info-row">
+                    <text class="info-label">人头费</text>
+                    <text class="info-value">¥{{ (group.room_person_price / 100).toFixed(2) }} × {{ group.max_members }}人</text>
                 </view>
                 <view class="info-row" v-if="group.group_discount_amount">
-                    <text class="info-label">拼团折扣（{{ group.group_discount }}折）</text>
+                    <text class="info-label">拼团折扣</text>
                     <text class="info-value" style="color: #6BCB77;">-¥{{ (group.group_discount_amount / 100).toFixed(2) }}</text>
                 </view>
-                <view class="info-row" v-if="group.base_cost">
-                    <text class="info-label">基础总价（拼团折扣后）</text>
+                <view class="info-row info-row-total">
+                    <text class="info-label">基础总价</text>
                     <text class="info-value price">¥{{ (group.base_cost / 100).toFixed(2) }}</text>
-                </view>
-                <view class="info-row" v-if="group.base_per_person">
-                    <text class="info-label">基础人均</text>
-                    <text class="info-value">¥{{ (group.base_per_person / 100).toFixed(2) }}</text>
                 </view>
                 <view class="info-row">
                     <text class="info-label">成员人均</text>
                     <text class="info-value price">¥{{ (group.price_per_person / 100).toFixed(2) }}</text>
                 </view>
 
-                <!-- 发起人专属费用 -->
+                <!-- 发起人费用 -->
                 <view class="info-divider"></view>
+                <view class="cost-detail-title">👤 发起人费用</view>
                 <view class="info-row" v-if="group.initiator_base">
-                    <text class="info-label">发起人承担份额</text>
+                    <text class="info-label">发起人份额</text>
                     <text class="info-value">¥{{ (group.initiator_base / 100).toFixed(2) }}</text>
                 </view>
                 <view class="info-row" v-if="group.member_discount_amount">
-                    <text class="info-label">会员折扣（发起人专属）</text>
+                    <text class="info-label">会员折扣</text>
                     <text class="info-value" style="color: #6BCB77;">-¥{{ (group.member_discount_amount / 100).toFixed(2) }}</text>
                 </view>
-                <view class="info-row" v-if="group.initiator_paid !== undefined">
-                    <text class="info-label">发起人最终支付</text>
+                <view class="info-row info-row-total">
+                    <text class="info-label">发起人实付</text>
                     <text class="info-value price">¥{{ (group.initiator_paid / 100).toFixed(2) }}</text>
                 </view>
+
 
                 <view class="info-row">
                     <text class="info-label">目标人数</text>
@@ -178,6 +184,13 @@ export default {
         roomTags() {
             const tags = this.group.room && this.group.room.tags;
             if (!tags) return [];
+            // 兼容 JSON 数组字符串格式
+            try {
+                const parsed = JSON.parse(tags);
+                if (Array.isArray(parsed)) return parsed.filter(Boolean);
+            } catch (e) {
+                // 不是 JSON，按逗号分隔
+            }
             return tags.split(',').map(t => t.trim()).filter(Boolean);
         },
         isInitiator() {
@@ -232,11 +245,16 @@ export default {
     },
 
     onShareAppMessage() {
-        const roomName = this.group.room && this.group.room.name;
+        const room = this.group.room || {};
+        const remain = (this.group.max_members || 4) - (this.group.current_members || 1);
+        const price = this.group.price_per_person || 0;
+        const title = room.name
+            ? `「${room.name}」${this.group.date} ${this.group.begin_time}~${this.group.end_time} · 人均¥${(price/100).toFixed(0)} · 还差${remain}人`
+            : '快来加入我的拼团！';
         return {
-            title: roomName ? '快来加入我的「' + roomName + '」拼团！' : '快来加入我的拼团！',
+            title,
             path: '/pages/group/detail?id=' + this.groupId,
-            imageUrl: '/static/logo_small.jpg',
+            imageUrl: room.image1 || '/static/logo_small.jpg',
         };
     },
 
@@ -257,6 +275,12 @@ export default {
             });
         },
 
+        goRoomDetail() {
+            const roomId = this.group.room && this.group.room.object_id;
+            if (roomId) {
+                uni.navigateTo({ url: `/pages/product/product?id=${roomId}` });
+            }
+        },
         statusText(status) {
             const map = { open: '拼团中', full: '已满员', success: '已完成', cancelled: '已取消' };
             return map[status] || status;
@@ -422,25 +446,36 @@ $border: #EEEEEE;
     .room-info {
         padding: 20rpx 24rpx;
 
+        .room-name-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10rpx;
+        }
+
         .room-name {
             font-size: 32rpx;
             font-weight: bold;
             color: $dark;
-            display: block;
-            margin-bottom: 10rpx;
+        }
+
+        .room-arrow {
+            font-size: 28rpx;
+            color: $gray;
         }
 
         .room-tags {
             display: flex;
             flex-wrap: wrap;
-            gap: 8rpx;
+            gap: 10rpx;
 
             .tag {
                 font-size: 22rpx;
-                color: $primary;
-                background: #FFF0EB;
-                padding: 4rpx 12rpx;
-                border-radius: 8rpx;
+                color: #667eea;
+                background: linear-gradient(135deg, #eef1ff, #f0e6ff);
+                padding: 6rpx 16rpx;
+                border-radius: 20rpx;
+                font-weight: 500;
             }
         }
     }
@@ -479,10 +514,29 @@ $border: #EEEEEE;
             }
         }
 
+        .cost-detail-title {
+            font-size: 26rpx;
+            font-weight: bold;
+            color: $dark;
+            padding: 16rpx 0 8rpx;
+        }
+
         .info-divider {
             height: 2rpx;
             background: $border;
             margin: 12rpx 0;
+        }
+
+        .info-row-total {
+            background: #fafafa;
+            border-radius: 12rpx;
+            padding: 16rpx;
+            margin: 4rpx 0;
+
+            .info-label {
+                font-weight: bold;
+                color: $dark;
+            }
         }
     }
 

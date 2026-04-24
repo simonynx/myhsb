@@ -180,7 +180,7 @@
 				<text class="menu-text">优惠券</text>
 				<text class="menu-arrow">→</text>
 			</view>
-			<view class="menu-item" @tap="uni.switchTab({ url: '/pages/group/group' })">
+			<view class="menu-item" @tap="goGroup">
 				<text class="menu-icon">👥</text>
 				<text class="menu-text">我的拼团</text>
 				<text class="menu-arrow">→</text>
@@ -298,6 +298,9 @@
 		methods: {
 			...mapActions(['loginAndRegister', 'getUserInfo', 'requestUpdateUserInfo']),
 			...mapMutations(['updateUserInfo']),
+			goGroup() {
+				uni.navigateTo({ url: '/pages/group/my' });
+			},
 			async loadCheckInInfo() {
 				if (!this.hasLogin) return;
 				const res = await AUTH.checkInInfo(this.token);

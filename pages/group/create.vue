@@ -62,26 +62,27 @@
                 <view class="expire-pills">
                     <view
                         class="expire-pill"
-                        :class="{ active: expireHours === 12 }"
-                        @click="expireHours = 12"
+                        :class="{ active: expireHours === 12, disabled: maxExpireHours < 12 }"
+                        @click="maxExpireHours >= 12 && (expireHours = 12)"
                     >
                         <text>12小时</text>
                     </view>
                     <view
                         class="expire-pill"
-                        :class="{ active: expireHours === 24 }"
-                        @click="expireHours = 24"
+                        :class="{ active: expireHours === 24, disabled: maxExpireHours < 24 }"
+                        @click="maxExpireHours >= 24 && (expireHours = 24)"
                     >
                         <text>24小时</text>
                     </view>
                     <view
                         class="expire-pill"
-                        :class="{ active: expireHours === 48 }"
-                        @click="expireHours = 48"
+                        :class="{ active: expireHours === 48, disabled: maxExpireHours < 48 }"
+                        @click="maxExpireHours >= 48 && (expireHours = 48)"
                     >
                         <text>48小时</text>
                     </view>
                 </view>
+                <text v-if="maxExpireHours < 12" class="expire-warning">预约时间太近了，请直接预约或选择更晚时段</text>
             </view>
         </view>
 
@@ -221,8 +222,10 @@
                 <text class="bottom-label">发起人最终支付</text>
                 <text class="bottom-price">¥{{ actualInitiatorPaidYuan }}</text>
             </view>
-            <view class="submit-btn" :class="{ disabled: !isBalanceEnough }" @click="handleSubmit">
-                <text>{{ isBalanceEnough ? '🚀 发起拼团' : '💰 去充值' }}</text>
+            <view class="submit-btn" :class="{ disabled: !isBalanceEnough || maxExpireHours < 12 }" @click="handleSubmit">
+                <text v-if="maxExpireHours < 12">⏰ 时间太近了</text>
+                <text v-else-if="!isBalanceEnough">💰 去充值</text>
+                <text v-else>🚀 发起拼团</text>
             </view>
         </view>
 
@@ -384,6 +387,16 @@ export default {
             const balance = this.userInfo && this.userInfo.account_balance;
             return (balance || 0) >= this.actualInitiatorPaidFen;
         },
+        // 过期时间不能超过预约前 2 小时
+        maxExpireHours() {
+            if (!this.date || !this.beginTime) return 48;
+            const now = Date.now();
+            const apt = new Date(this.date + ' ' + this.beginTime).getTime();
+            const buffer = 2 * 3600 * 1000; // 2小时缓冲
+            const maxMs = apt - buffer - now;
+            if (maxMs <= 0) return 0; // 已超时
+            return Math.floor(maxMs / (3600 * 1000));
+        },
     },
 
     watch: {
@@ -482,6 +495,10 @@ export default {
         },
 
         handleSubmit() {
+            if (this.maxExpireHours < 12) {
+                uni.showToast({ title: '预约时间太近了，请直接预约或选择更晚时段', icon: 'none' });
+                return;
+            }
             if (!this.isBalanceEnough) {
                 uni.showModal({
                     title: '余额不足',
@@ -825,7 +842,20 @@ $border: #EEEEEE;
                 font-weight: bold;
             }
         }
+
+        &.disabled {
+            opacity: 0.4;
+            background: #f0f0f0;
+            border-color: #ddd;
+            pointer-events: none;
+        }
     }
+}
+
+.expire-warning {
+    font-size: 24rpx;
+    color: #ff4757;
+    margin-top: 12rpx;
 }
 
 // 成员人均只读展示

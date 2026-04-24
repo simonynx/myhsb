@@ -69,11 +69,17 @@
                         <text class="price-label">人均</text>
                         <text class="price-num">¥{{ group.price_per_person / 100 }}</text>
                     </view>
-                    <view class="progress-info">
-                        <view class="progress-bar">
-                            <view class="progress-fill" :style="{ width: progressWidth(group) }"></view>
+                    <view class="card-actions">
+                        <view class="share-mini-btn" @click.stop="shareGroup(group)">
+                            <text class="yticon icon-fenxiang2"></text>
+                            <text>分享</text>
                         </view>
-                        <text class="progress-text">{{ group.current_members || 1 }}/{{ group.max_members }} 人</text>
+                        <view class="progress-info">
+                            <view class="progress-bar">
+                                <view class="progress-fill" :style="{ width: progressWidth(group) }"></view>
+                            </view>
+                            <text class="progress-text">{{ group.current_members || 1 }}/{{ group.max_members }} 人</text>
+                        </view>
                     </view>
                 </view>
             </view>
@@ -188,6 +194,20 @@ export default {
 
         goDetail(id) {
             uni.navigateTo({ url: '/pages/group/detail?id=' + id });
+        },
+
+        shareGroup(group) {
+            const room = group.room || {};
+            const remain = (group.max_members || 4) - (group.current_members || 1);
+            const price = group.price_per_person || 0;
+            const title = room.name
+                ? `「${room.name}」${group.date} ${group.begin_time}~${group.end_time} · 人均¥${(price/100).toFixed(0)} · 还差${remain}人`
+                : '快来加入这个拼团！';
+            uni.share({
+                title,
+                path: '/pages/group/detail?id=' + group.object_id,
+                imageUrl: room.image1 || '/static/logo_small.jpg',
+            });
         },
 
         goAppoint() {
@@ -448,6 +468,26 @@ $border: #EEEEEE;
         .price-num {
             font-size: 36rpx;
             font-weight: bold;
+            color: $primary;
+        }
+    }
+
+    .card-actions {
+        display: flex;
+        align-items: center;
+        gap: 16rpx;
+    }
+
+    .share-mini-btn {
+        display: flex;
+        align-items: center;
+        gap: 4rpx;
+        background: #FFF0EB;
+        padding: 6rpx 16rpx;
+        border-radius: 20rpx;
+
+        text {
+            font-size: 22rpx;
             color: $primary;
         }
     }

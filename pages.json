@@ -185,6 +185,12 @@
 			}
 		},
 		{
+			"path": "pages/group/my",
+			"style": {
+				"navigationBarTitleText": "我的拼团"
+			}
+		},
+		{
 			"path": "pages/group/create",
 			"style": {
 				"navigationBarTitleText": "",
