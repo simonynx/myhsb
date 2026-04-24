@@ -1,5 +1,19 @@
 <template>
 	<view class="page-wrapper">
+		<!-- 自定义导航栏 -->
+		<view class="custom-nav">
+			<view class="nav-content">
+				<text class="nav-title">个人中心</text>
+			</view>
+		</view>
+
+		<!-- 顶部装饰 -->
+		<view class="header-deco">
+			<text class="deco-leaf">🍃</text>
+			<text class="deco-cloud">☁️</text>
+			<text class="deco-flower">🌿</text>
+		</view>
+
 		<!-- 用户信息卡 -->
 		<view class="profile-card">
 			<view class="profile-top">
@@ -54,7 +68,7 @@
 				<text class="growth-rate">{{ progressPercent }}%</text>
 			</view>
 			<view class="progress-bar">
-				<view class="progress-fill" :style="{ width: progressPercent + '%', background: 'linear-gradient(90deg, ' + memberColor + ', #FF9ECD)' }"></view>
+				<view class="progress-fill" :style="{ width: progressPercent + '%', background: 'linear-gradient(90deg, ' + memberColor + ', #FFCC80)' }"></view>
 			</view>
 			<view class="level-dots">
 				<view class="level-dot" v-for="l in levelDots" :key="l.level" :class="{ active: userInfo.member_level >= l.level }">
@@ -373,21 +387,84 @@
 
 <style lang="scss">
 page {
-	background: #FFF9F5;
+	background: #FFF8F0;
 }
+
 .page-wrapper {
 	padding-top: 0;
 	min-height: 100vh;
 	padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
+
+/* ===== 自定义导航栏 ===== */
+.custom-nav {
+	background: linear-gradient(135deg, #FFB74D, #FF8C42);
+	padding-top: var(--status-bar-height);
+	position: sticky;
+	top: 0;
+	z-index: 100;
+}
+.nav-content {
+	height: 88rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+}
+.nav-title {
+	font-size: 34rpx;
+	font-weight: bold;
+	color: #fff;
+}
+
+/* ===== 顶部装饰 ===== */
+.header-deco {
+	position: relative;
+	height: 50rpx;
+	overflow: hidden;
+}
+.deco-leaf {
+	position: absolute;
+	top: 8rpx;
+	left: 50rpx;
+	font-size: 36rpx;
+	opacity: 0.35;
+	animation: sway 4s ease-in-out infinite;
+}
+.deco-cloud {
+	position: absolute;
+	top: 6rpx;
+	right: 70rpx;
+	font-size: 32rpx;
+	opacity: 0.3;
+	animation: drift 6s ease-in-out infinite;
+}
+.deco-flower {
+	position: absolute;
+	top: 12rpx;
+	left: 50%;
+	font-size: 28rpx;
+	opacity: 0.25;
+	animation: sway 5s ease-in-out infinite reverse;
+}
+
+@keyframes sway {
+	0%, 100% { transform: rotate(-6deg); }
+	50% { transform: rotate(6deg); }
+}
+@keyframes drift {
+	0%, 100% { transform: translateX(0); }
+	50% { transform: translateX(16rpx); }
+}
+
 /* ===== 用户卡片 ===== */
 .profile-card {
-	margin: 20rpx 24rpx;
+	margin: 0 24rpx 24rpx;
 	background: #FFF;
 	border-radius: 28rpx;
 	padding: 28rpx;
-	box-shadow: 0 8rpx 32rpx rgba(255, 107, 157, 0.15);
-	border: 1rpx solid rgba(255, 107, 157, 0.1);
+	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
+	border: 1rpx solid rgba(240, 230, 216, 0.6);
 	position: relative;
 	overflow: hidden;
 	&::before {
@@ -395,7 +472,7 @@ page {
 		position: absolute;
 		top: 0; left: 0; right: 0;
 		height: 6rpx;
-		background: linear-gradient(90deg, #FF6B9D, #FF9ECD, #FF6B9D);
+		background: linear-gradient(90deg, #FF8C42, #FFB5A7, #A5D6A7);
 	}
 }
 .profile-top {
@@ -411,7 +488,7 @@ page {
 	width: 100rpx;
 	height: 100rpx;
 	border-radius: 50%;
-	border: 4rpx solid #FFE0EE;
+	border: 4rpx solid #FFD8B8;
 }
 .avatar-wrap .avatar-badge {
 	position: absolute;
@@ -433,7 +510,7 @@ page {
 	display: block;
 	font-size: 36rpx;
 	font-weight: bold;
-	color: #333;
+	color: #5C4B3A;
 	margin-bottom: 8rpx;
 }
 .profile-info .member-tag {
@@ -450,16 +527,16 @@ page {
 }
 .edit-btn {
 	padding: 10rpx 24rpx;
-	background: #FFF0F5;
+	background: #FFF5EE;
 	border-radius: 20rpx;
 }
-.edit-btn text { font-size: 24rpx; color: #FF6B9D; font-weight: bold; }
+.edit-btn text { font-size: 24rpx; color: #FF8C42; font-weight: bold; }
 .quick-stats {
 	display: flex;
 	align-items: center;
 	justify-content: space-around;
 	padding-top: 20rpx;
-	border-top: 1rpx solid #F0F0F0;
+	border-top: 1rpx solid #F0E6D8;
 }
 .qstat-item {
 	display: flex;
@@ -469,32 +546,35 @@ page {
 .qstat-item .qstat-num {
 	font-size: 38rpx;
 	font-weight: 800;
-	color: #333;
-	background: linear-gradient(135deg, #FF6B9D, #FF9ECD);
+	color: #5C4B3A;
+	background: linear-gradient(135deg, #FF8C42, #FFCC80);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
 }
-.qstat-item .qstat-label { font-size: 22rpx; color: #999; margin-top: 4rpx; }
+.qstat-item .qstat-label { font-size: 22rpx; color: #A09080; margin-top: 4rpx; }
 .qstat-divider {
 	width: 2rpx;
 	height: 50rpx;
-	background: #F0F0F0;
+	background: linear-gradient(to bottom, transparent, #F0E6D8, transparent);
 }
+
+/* ===== 成长卡片 ===== */
 .growth-card {
 	margin: 0 24rpx 24rpx;
-	background: linear-gradient(135deg, #FFF5F8 0%, #FFF 60%, #FFF5F8 100%);
+	background: linear-gradient(135deg, #FFF8F0 0%, #FFF 60%, #FFF8F0 100%);
 	border-radius: 24rpx;
 	padding: 28rpx;
-	border: 1rpx solid #FFE0EE;
-	box-shadow: 0 4rpx 16rpx rgba(255, 107, 157, 0.1);
+	border: 1rpx solid #F0E6D8;
+	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
 	position: relative;
+	overflow: hidden;
 	&::after {
 		content: '';
 		position: absolute;
 		right: -40rpx; top: -40rpx;
 		width: 160rpx; height: 160rpx;
-		background: radial-gradient(circle, rgba(255,107,157,0.08) 0%, transparent 70%);
+		background: radial-gradient(circle, rgba(255,140,66,0.08) 0%, transparent 70%);
 		border-radius: 50%;
 	}
 }
@@ -518,20 +598,20 @@ page {
 .growth-level {
 	font-size: 28rpx;
 	font-weight: bold;
-	color: #333;
+	color: #5C4B3A;
 }
 .growth-tip {
 	font-size: 20rpx;
-	color: #999;
+	color: #A09080;
 }
 .growth-rate {
 	font-size: 28rpx;
 	font-weight: bold;
-	color: #FF6B9D;
+	color: #FF8C42;
 }
 .growth-card .progress-bar {
 	height: 14rpx;
-	background: #F0F0F0;
+	background: #F0E6D8;
 	border-radius: 7rpx;
 	margin-bottom: 20rpx;
 	overflow: hidden;
@@ -553,7 +633,7 @@ page {
 .level-dot .dot-icon { font-size: 32rpx; opacity: 0.25; }
 .level-dot .dot-name { font-size: 20rpx; color: #CCC; margin-top: 4rpx; }
 .level-dot.active .dot-icon { opacity: 1; }
-.level-dot.active .dot-name { color: #FF6B9D; font-weight: bold; }
+.level-dot.active .dot-name { color: #FF8C42; font-weight: bold; }
 
 /* ===== 通用区块容器 ===== */
 .section {
@@ -561,7 +641,8 @@ page {
 	border-radius: 24rpx;
 	overflow: hidden;
 	background: #FFF;
-	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
+	border: 1rpx solid rgba(240, 230, 216, 0.6);
 }
 .section-header {
 	display: flex;
@@ -572,19 +653,21 @@ page {
 .section-title {
 	font-size: 30rpx;
 	font-weight: bold;
-	color: #333;
+	color: #5C4B3A;
 }
 .section-more {
 	font-size: 24rpx;
-	color: #999;
+	color: #A09080;
 }
 
+/* ===== 会员权益 ===== */
 .vip-card {
-	margin: 24rpx 24rpx 0;
+	margin: 0 24rpx 24rpx;
 	background: #FFF;
 	border-radius: 24rpx;
 	padding: 32rpx 24rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
+	border: 1rpx solid rgba(240, 230, 216, 0.6);
 
 	.vip-header {
 		display: flex;
@@ -596,7 +679,7 @@ page {
 	.vip-title {
 		font-size: 30rpx;
 		font-weight: bold;
-		color: #333;
+		color: #5C4B3A;
 	}
 
 	.vip-badge {
@@ -632,19 +715,19 @@ page {
 
 		&.active {
 			opacity: 1;
-			background: #FFF5F8;
-			box-shadow: 0 4rpx 12rpx rgba(255,107,157,0.15);
+			background: #FFF8F0;
+			box-shadow: 0 4rpx 12rpx rgba(255,140,66,0.15);
 			transform: translateY(-4rpx);
 		}
 	}
 
 	.vl-icon { font-size: 40rpx; }
-	.vl-name { font-size: 22rpx; color: #666; margin-top: 6rpx; }
-	.vl-discount { font-size: 24rpx; color: #333; font-weight: bold; margin-top: 4rpx; }
+	.vl-name { font-size: 22rpx; color: #8C7B6B; margin-top: 6rpx; }
+	.vl-discount { font-size: 24rpx; color: #5C4B3A; font-weight: bold; margin-top: 4rpx; }
 
 	.vip-arrow {
 		font-size: 24rpx;
-		color: #CCC;
+		color: #D0C8C0;
 		flex-shrink: 0;
 	}
 
@@ -652,24 +735,25 @@ page {
 		margin-top: 24rpx;
 		text-align: center;
 		font-size: 24rpx;
-		color: #999;
+		color: #A09080;
 	}
 	.tip-highlight {
-		color: #FF6B9D;
+		color: #FF8C42;
 		font-weight: bold;
 	}
 }
 
-/* 每日签到卡片 */
+/* ===== 每日签到卡片 ===== */
 .checkin-card {
-	margin-top: 24rpx;
-	background: linear-gradient(135deg, #FF9ECD, #ff6b9d);
+	margin: 0 24rpx;
+	background: linear-gradient(135deg, #FFCC80, #FF8C42);
 	border-radius: 24rpx;
 	padding: 32rpx;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	color: #fff;
+	box-shadow: 0 8rpx 24rpx rgba(255, 140, 66, 0.25);
 
 	.checkin-left {
 		display: flex;
@@ -687,7 +771,7 @@ page {
 	}
 	.checkin-streak {
 		font-size: 24rpx;
-		opacity: 0.85;
+		opacity: 0.9;
 		margin-top: 4rpx;
 	}
 	.checkin-btn {
@@ -698,7 +782,8 @@ page {
 		background: rgba(255,255,255,0.25);
 		&.can {
 			background: #fff;
-			color: #FF6B9D;
+			color: #FF8C42;
+			box-shadow: 0 4rpx 12rpx rgba(140,100,60,0.15);
 		}
 		&.done {
 			background: rgba(255,255,255,0.15);
@@ -707,7 +792,7 @@ page {
 	}
 }
 
-/* 签到奖励说明 */
+/* ===== 签到奖励说明 ===== */
 .checkin-rewards {
 	margin-top: 16rpx;
 	padding: 0 32rpx 24rpx;
@@ -717,24 +802,25 @@ page {
 	gap: 12rpx;
 	.rewards-label {
 		font-size: 22rpx;
-		color: #999;
+		color: #A09080;
 	}
 	.reward-item {
 		font-size: 22rpx;
-		color: #FF6B9D;
-		background: #fff0f5;
+		color: #FF8C42;
+		background: #FFF5EE;
 		padding: 4rpx 12rpx;
 		border-radius: 20rpx;
 	}
 }
 
-/* 邀请有礼卡片 */
+/* ===== 邀请有礼卡片 ===== */
 .invite-card {
-	margin-top: 24rpx;
+	margin: 24rpx;
 	background: #FFF;
 	border-radius: 24rpx;
 	padding: 32rpx 24rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
+	border: 1rpx solid rgba(240, 230, 216, 0.6);
 
 	.invite-header {
 		margin-bottom: 24rpx;
@@ -749,52 +835,53 @@ page {
 	.invite-title {
 		font-size: 30rpx;
 		font-weight: bold;
-		color: #333;
+		color: #5C4B3A;
 	}
 	.invite-desc {
 		font-size: 24rpx;
-		color: #999;
+		color: #A09080;
 	}
 	.invite-code-row {
 		display: flex;
 		align-items: center;
 		gap: 12rpx;
-		background: #FFF5F9;
+		background: #FFF8F0;
 		border-radius: 16rpx;
 		padding: 20rpx 24rpx;
 		margin-bottom: 16rpx;
 	}
 	.invite-code-label {
 		font-size: 26rpx;
-		color: #999;
+		color: #A09080;
 	}
 	.invite-code-value {
 		font-size: 36rpx;
 		font-weight: bold;
-		color: #FF6B9D;
+		color: #FF8C42;
 		letter-spacing: 4rpx;
 		flex: 1;
 	}
 	.invite-copy-btn {
-		background: #FF6B9D;
+		background: #FF8C42;
 		color: #fff;
 		font-size: 24rpx;
 		padding: 8rpx 20rpx;
 		border-radius: 30rpx;
+		box-shadow: 0 4rpx 12rpx rgba(255,140,66,0.25);
 	}
 	.invite-share-btn {
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		width: 100%;
-		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		background: linear-gradient(135deg, #FFCC80, #FF8C42);
 		color: #FFF;
 		font-size: 30rpx;
 		font-weight: bold;
 		padding: 24rpx 0;
 		border-radius: 50rpx;
 		margin: 0 0 16rpx 0;
-		box-shadow: 0 8rpx 24rpx rgba(255,107,157,0.35);
+		box-shadow: 0 8rpx 24rpx rgba(255,140,66,0.35);
 		transition: transform 0.1s;
 		&:active {
 			transform: scale(0.98);
@@ -808,15 +895,17 @@ page {
 	}
 	.invite-count {
 		font-size: 24rpx;
-		color: #999;
+		color: #A09080;
 	}
 }
 
+/* ===== 订单入口 ===== */
 .order-section {
 	background: #FFF;
 	border-radius: 24rpx;
 	padding: 24rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
+	border: 1rpx solid rgba(240, 230, 216, 0.6);
 	.order-grid {
 		display: flex;
 		justify-content: space-around;
@@ -829,12 +918,12 @@ page {
 		position: relative;
 		.order-icon { font-size: 48rpx; transition: transform 0.2s; }
 		&:active .order-icon { transform: scale(0.9); }
-		.order-name { font-size: 24rpx; color: #666; margin-top: 4rpx; }
+		.order-name { font-size: 24rpx; color: #8C7B6B; margin-top: 4rpx; }
 		.order-badge {
 			position: absolute;
 			top: -8rpx;
 			right: 8rpx;
-			background: #FF4757;
+			background: #FF8C42;
 			border-radius: 20rpx;
 			min-width: 32rpx;
 			height: 32rpx;
@@ -853,30 +942,31 @@ page {
 	border-radius: 24rpx;
 	overflow: hidden;
 	background: #FFF;
-	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
+	border: 1rpx solid rgba(240, 230, 216, 0.6);
 	.menu-item {
 		display: flex;
 		align-items: center;
 		padding: 32rpx 24rpx;
-		border-bottom: 1rpx solid #F5F5F5;
+		border-bottom: 1rpx solid #F0E6D8;
 		transition: background 0.15s;
 		&:last-child { border-bottom: none; }
-		&:active { background: #FAFAFA; }
+		&:active { background: #FFF8F0; }
 		.menu-icon { font-size: 36rpx; margin-right: 16rpx; }
 		.menu-text {
 			flex: 1;
 			font-size: 28rpx;
-			color: #333;
+			color: #5C4B3A;
 		}
 		.menu-tip {
 			margin-right: 12rpx;
 			.tip-text {
 				font-size: 22rpx;
-				color: #FF6B9D;
+				color: #FF8C42;
 				font-weight: bold;
 			}
 		}
-		.menu-arrow { font-size: 28rpx; color: #CCC; transition: transform 0.2s; }
+		.menu-arrow { font-size: 28rpx; color: #D0C8C0; transition: transform 0.2s; }
 		&:active .menu-arrow { transform: translateX(4rpx); }
 	}
 }

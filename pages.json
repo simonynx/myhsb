@@ -82,8 +82,9 @@
 			"path": "pages/user/user",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#FF9ECD",
-				"navigationBarTextStyle": "white"
+				"navigationBarBackgroundColor": "#FF8C42",
+				"navigationBarTextStyle": "white",
+				"navigationStyle": "custom"
 			}
 		},
 		{
