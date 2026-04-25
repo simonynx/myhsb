@@ -4,13 +4,13 @@
 		<view class="avatar-section">
 			<view class="avatar-wrapper">
 				<button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="chooseAvatarEvent">
-					<image class="avatar-img" :src="userInfo.avatar || '/static/missing-face.png'" mode="aspectFill"></image>
+					<image class="avatar-img" :src="form.avatar || '/static/missing-face.png'" mode="aspectFill"></image>
 					<view class="avatar-edit-badge">
 						<text class="edit-icon">📷</text>
 					</view>
 				</button>
 			</view>
-			<text class="user-nickname">{{ userInfo.nickname || '游客' }}</text>
+			<text class="user-nickname">{{ form.nickname || '游客' }}</text>
 			<text class="avatar-tip">点击更换头像</text>
 		</view>
 
@@ -40,8 +40,9 @@
 					<input
 						class="form-input"
 						type="nickname"
-						v-model="userInfo.nickname"
-						@blur="bindnickName"
+						:value="form.nickname"
+						@input="onNicknameInput"
+						@blur="onNicknameBlur"
 						placeholder="给自己取个名字吧"
 						placeholder-style="color: #CCC;"
 					/>
@@ -59,9 +60,9 @@
 
 				<view class="form-item">
 					<text class="form-label">生日</text>
-					<picker class="form-picker" mode="date" :value="date" @change="bindDateChange">
+					<picker class="form-picker" mode="date" :value="form.birthday" @change="bindDateChange">
 						<view class="picker-value">
-							{{ date || '填写生日有惊喜哦' }}
+							{{ form.birthday || '填写生日有惊喜哦' }}
 							<text class="picker-arrow">›</text>
 						</view>
 					</picker>
@@ -91,9 +92,9 @@
 				<view class="form-item">
 					<text class="form-label">手机号</text>
 					<view class="phone-row">
-						<text class="phone-value">{{ userInfo.phone || '未绑定' }}</text>
+						<text class="phone-value">{{ form.phone || '未绑定' }}</text>
 						<button class="phone-btn" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
-							{{ userInfo.phone ? '更换' : '授权' }}
+							{{ form.phone ? '更换' : '授权' }}
 						</button>
 					</view>
 				</view>
@@ -119,7 +120,7 @@
 					</view>
 				</view>
 
-				<view class="form-item" v-if="!userInfo.invite_code" @click="showInviteCode">
+				<view class="form-item" v-if="!form.invite_code" @click="showInviteCode">
 					<view class="item-left">
 						<text class="item-icon">🎁</text>
 						<view class="item-info">
@@ -187,9 +188,8 @@
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token', 'subscribeAuthorized']),
 			genderIndex() {
-				// gender=1(男) → picker索引0, gender=0(女) → picker索引1
-				if (!this.userInfo) return 0;
-				return this.userInfo.gender === 0 ? 1 : 0;
+				if (!this.form) return 0;
+				return this.form.gender === 0 ? 1 : 0;
 			},
 			subscribeEnabled() {
 				return this.subscribeAuthorized || false;
@@ -201,24 +201,59 @@
 					{ name: '男', value: 1 },
 					{ name: '女', value: 0 },
 				],
-				date: '',
+				form: {
+					nickname: '',
+					avatar: '',
+					gender: 1,
+					birthday: '',
+					phone: '',
+					invite_code: '',
+				},
 				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, config: {} },
 				tagList: ['PS5', 'Switch', '桌游', '剧本杀', '漫画', '亲子阅读'],
 				selectedTags: [],
 			};
 		},
-		async onLoad() {
-			if (this.userInfo && this.userInfo.birthday) {
-				this.date = this.userInfo.birthday;
+		watch: {
+			userInfo: {
+				immediate: true,
+				handler(val) {
+					if (val) {
+						this.syncFromUserInfo(val);
+					}
+				},
+			},
+		},
+		onLoad() {
+			if (this.hasLogin) {
+				this.loadCheckInInfo();
+			}
+		},
+		onShow() {
+			if (this.userInfo) {
+				this.syncFromUserInfo(this.userInfo);
 			}
 			if (this.hasLogin) {
 				this.loadCheckInInfo();
-				this.initTags();
 			}
 		},
 		methods: {
 			...mapActions(['getUserInfo', 'requestUpdateUserInfo']),
 			...mapMutations(['updateUserInfo', 'setSubscribeAuthorized']),
+
+			syncFromUserInfo(val) {
+				this.form.nickname = val.nickname || '';
+				this.form.avatar = val.avatar || '';
+				this.form.gender = val.gender !== undefined ? val.gender : 1;
+				this.form.birthday = val.birthday || '';
+				this.form.phone = val.phone || '';
+				this.form.invite_code = val.invite_code || '';
+				if (val.tags) {
+					this.selectedTags = val.tags.split(',').map(t => t.trim()).filter(Boolean);
+				} else {
+					this.selectedTags = [];
+				}
+			},
 
 			chooseAvatarEvent(e) {
 				var avatarUrl = e.detail.avatarUrl;
@@ -232,7 +267,7 @@
 						uni.hideLoading();
 						var data = JSON.parse(res.data);
 						if (data._status === 0) {
-							this.userInfo.avatar = data.data;
+							this.form.avatar = data.data;
 							this.updateUserInfo({ avatar: data.data });
 							this.saveProfile();
 						} else {
@@ -246,16 +281,19 @@
 				});
 			},
 
-			bindnickName(e) {
-				this.userInfo.nickname = e.detail.value;
-				this.updateUserInfo({ nickname: e.detail.value });
+			onNicknameInput(e) {
+				this.form.nickname = e.detail.value;
+			},
+
+			onNicknameBlur(e) {
+				this.form.nickname = e.detail.value;
 			},
 
 			onGetPhoneNumber(e) {
 				if (e.detail.errMsg !== 'getPhoneNumber:ok') return;
 				AUTH.getPhoneNumber(e, this.token).then((res) => {
 					if (res.data && res.data.phoneNumber) {
-						this.userInfo.phone = res.data.phoneNumber;
+						this.form.phone = res.data.phoneNumber;
 						this.updateUserInfo({ phone: res.data.phoneNumber });
 						this.saveProfile();
 					}
@@ -265,16 +303,12 @@
 			},
 
 			bindPickerChange(e) {
-				// picker索引0=男 → gender=1, 索引1=女 → gender=0
 				const idx = parseInt(e.detail.value);
-				this.userInfo.gender = idx === 0 ? 1 : 0;
-				this.updateUserInfo({ gender: this.userInfo.gender });
+				this.form.gender = idx === 0 ? 1 : 0;
 			},
 
 			bindDateChange(e) {
-				this.date = e.detail.value;
-				this.userInfo.birthday = e.detail.value;
-				this.updateUserInfo({ birthday: e.detail.value });
+				this.form.birthday = e.detail.value;
 			},
 
 			async toggleSubscribe() {
@@ -329,13 +363,6 @@
 				}
 			},
 
-			initTags() {
-				const raw = this.userInfo && this.userInfo.tags;
-				if (raw) {
-					this.selectedTags = raw.split(',').map(t => t.trim()).filter(Boolean);
-				}
-			},
-
 			toggleTag(tag) {
 				const idx = this.selectedTags.indexOf(tag);
 				if (idx > -1) {
@@ -343,7 +370,6 @@
 				} else {
 					this.selectedTags.push(tag);
 				}
-				this.updateUserInfo({ tags: this.selectedTags.join(',') });
 			},
 
 			async doCheckIn() {
@@ -387,9 +413,20 @@
 
 			saveProfile() {
 				uni.showLoading({ title: '保存中...' });
+				// 先同步到 Vuex，再调接口
+				this.updateUserInfo({
+					nickname: this.form.nickname,
+					avatar: this.form.avatar,
+					gender: this.form.gender,
+					birthday: this.form.birthday,
+					phone: this.form.phone,
+					tags: this.selectedTags.join(','),
+				});
 				this.requestUpdateUserInfo().then((res) => {
 					uni.hideLoading();
 					uni.showToast({ title: '保存成功', icon: 'success' });
+					// 重新拉取用户信息确保同步
+					this.getUserInfo();
 				}).catch((err) => {
 					uni.hideLoading();
 					uni.showToast({ title: '保存失败', icon: 'none' });
@@ -442,8 +479,8 @@
 					width: 160rpx;
 					height: 160rpx;
 					border-radius: 50%;
-					border: 6rpx solid #FFE5EE;
-					box-shadow: 0 8rpx 24rpx rgba(255,107,157,0.2);
+					border: 6rpx solid #FFF3E8;
+					box-shadow: 0 8rpx 24rpx rgba(255,140,66,0.2);
 				}
 				.avatar-edit-badge {
 					position: absolute;
@@ -451,7 +488,7 @@
 					right: 0;
 					width: 50rpx;
 					height: 50rpx;
-					background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+					background: linear-gradient(135deg, #FFCC80, #FF8C42);
 					border-radius: 50%;
 					display: flex;
 					align-items: center;
@@ -476,14 +513,14 @@
 	/* ===== 签到卡片 ===== */
 	.checkin-card {
 		margin: 0 24rpx 24rpx;
-		background: linear-gradient(135deg, #FFF5F7, #FFE8F0);
+		background: linear-gradient(135deg, #FFF8F0, #FFF3E8);
 		border-radius: 20rpx;
 		padding: 28rpx 24rpx;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		box-shadow: 0 4rpx 16rpx rgba(255,107,157,0.12);
-		border: 1rpx solid #FFE0EB;
+		box-shadow: 0 4rpx 16rpx rgba(255,140,66,0.12);
+		border: 1rpx solid #FFE8D6;
 		.checkin-left {
 			display: flex;
 			align-items: center;
@@ -492,7 +529,7 @@
 				display: flex;
 				flex-direction: column;
 				.checkin-title { font-size: 30rpx; font-weight: bold; color: #333; }
-				.checkin-streak { font-size: 24rpx; color: #FF6B9D; margin-top: 4rpx; }
+				.checkin-streak { font-size: 24rpx; color: #FF8C42; margin-top: 4rpx; }
 			}
 		}
 		.checkin-btn {
@@ -503,9 +540,9 @@
 			transition: transform 0.1s;
 			&:active { transform: scale(0.95); }
 			&.can {
-				background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+				background: linear-gradient(135deg, #FFCC80, #FF8C42);
 				color: #FFF;
-				box-shadow: 0 4rpx 16rpx rgba(255,107,157,0.35);
+				box-shadow: 0 4rpx 16rpx rgba(255,140,66,0.35);
 			}
 			&.done {
 				background: #F0F0F0;
@@ -567,7 +604,7 @@
 		}
 		.phone-btn {
 			font-size: 24rpx;
-			background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+			background: linear-gradient(135deg, #FFCC80, #FF8C42);
 			color: #FFF;
 			border-radius: 30rpx;
 			padding: 0 20rpx;
@@ -615,9 +652,9 @@
 			padding: 10rpx 24rpx;
 			transition: all 0.2s;
 			&.active {
-				background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+				background: linear-gradient(135deg, #FFCC80, #FF8C42);
 				color: #FFF;
-				box-shadow: 0 4rpx 12rpx rgba(255,107,157,0.3);
+				box-shadow: 0 4rpx 12rpx rgba(255,140,66,0.3);
 			}
 			&:active {
 				transform: scale(0.95);
@@ -666,7 +703,7 @@
 		background: #E8E8E8;
 		position: relative;
 		transition: background 0.3s;
-		&.on { background: linear-gradient(135deg, #FF9ECD, #FF6B9D); }
+		&.on { background: linear-gradient(135deg, #FFCC80, #FF8C42); }
 		.toggle-dot {
 			position: absolute;
 			top: 4rpx;
@@ -684,7 +721,7 @@
 	/* ===== 联系客服按钮 ===== */
 	.contact-btn {
 		font-size: 26rpx;
-		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		background: linear-gradient(135deg, #FFCC80, #FF8C42);
 		color: #FFF;
 		border-radius: 30rpx;
 		padding: 0 24rpx;
@@ -700,11 +737,11 @@
 	/* ===== 保存按钮 ===== */
 	.save-btn {
 		margin: 40rpx 24rpx 24rpx;
-		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		background: linear-gradient(135deg, #FFCC80, #FF8C42);
 		border-radius: 50rpx;
 		padding: 28rpx;
 		text-align: center;
-		box-shadow: 0 8rpx 32rpx rgba(255,107,157,0.4);
+		box-shadow: 0 8rpx 32rpx rgba(255,140,66,0.4);
 		transition: transform 0.1s, opacity 0.1s;
 		&:active {
 			transform: scale(0.98);

@@ -46,6 +46,35 @@
             </view>
         </view>
 
+        <!-- 增值服务 -->
+        <view class="addons-section" v-if="roomAddons.length > 0">
+            <view class="section-title" @click="toggleAddons">
+                <text>🎁 增值服务（可选）</text>
+                <view class="title-right">
+                    <text class="addon-summary" v-if="selectedAddons.length > 0">已选{{ selectedAddons.length }}项 +¥{{ addonsPrice }}</text>
+                    <text class="addon-arrow">{{ addonsOpen ? '▼' : '▶' }}</text>
+                </view>
+            </view>
+            <view class="addon-list" v-if="addonsOpen">
+                <view
+                    class="addon-item"
+                    v-for="a in roomAddons"
+                    :key="a.object_id"
+                    @click="toggleAddon(a)"
+                >
+                    <text class="addon-icon">{{ a.icon || '🎁' }}</text>
+                    <view class="addon-info">
+                        <text class="addon-name">{{ a.name }}</text>
+                        <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
+                    </view>
+                    <text class="addon-price">¥{{ (a.price / 100).toFixed(0) }}</text>
+                    <view class="addon-check" :class="{ checked: isAddonSelected(a) }">
+                        <text v-if="isAddonSelected(a)">✓</text>
+                    </view>
+                </view>
+            </view>
+        </view>
+
         <!-- 价格明细 -->
         <view class="price-section">
             <view class="section-title">费用明细</view>
@@ -266,6 +295,11 @@ export default {
             usePoints: false,
             pointsToUse: 0,
 
+            // 增值服务
+            roomAddons: [],
+            selectedAddons: [],
+            addonsOpen: false,
+
             // 提交状态
             submitting: false,
         };
@@ -293,7 +327,20 @@ export default {
             return this.singlePersonPrice * this.numOfPeople;
         },
 
+        addonsPriceFen() {
+            return this.selectedAddons.reduce((sum, a) => sum + (a.price || 0), 0);
+        },
+
+        addonsPrice() {
+            return (this.addonsPriceFen / 100).toFixed(2);
+        },
+
         originalPriceFen() {
+            return this.roomPriceFen + this.peoplePriceFen + this.addonsPriceFen;
+        },
+
+        // 房间+人数小计（会员折扣基数，不含增值服务）
+        roomSubtotalFen() {
             return this.roomPriceFen + this.peoplePriceFen;
         },
 
@@ -331,10 +378,11 @@ export default {
 
         // 会员折扣金额(分)
         // 和后端一致: int(price * (1 - rate)) 截断取整
+        // 注意：会员折扣只应用于房间+人数部分，不含增值服务
         memberDiscountAmountFen() {
             if (!this.memberDiscountRate) return 0;
             const discountRatio = this.memberDiscountRate / 1000;
-            return Math.floor(this.originalPriceFen * (1 - discountRatio));
+            return Math.floor(this.roomSubtotalFen * (1 - discountRatio));
         },
 
         memberDiscountAmount() {
@@ -492,6 +540,7 @@ export default {
 
         this.singlePersonPrice = this.currentProduct.price_per_person || 0;
         this.loadMyCoupons();
+        this.loadRoomAddons();
     },
 
     methods: {
@@ -611,6 +660,7 @@ export default {
                     remark: this.desc,
                     use_points: this.usePoints ? this.pointsToUse : 0,
                     coupon_id: this.selectedCoupon ? this.selectedCoupon.object_id : null,
+                    addons: this.selectedAddons.map(a => a.object_id),
                     expected_amount: this.finalPriceFen,
                 };
 
@@ -644,6 +694,36 @@ export default {
         // 去充值
         goRecharge() {
             uni.navigateTo({ url: '/pages/user/deposit/deposit' });
+        },
+
+        // 加载房间增值服务
+        async loadRoomAddons() {
+            if (!this.currentProduct || !this.currentProduct.object_id) return;
+            try {
+                const res = await AUTH.getRoomAddons(this.token, this.currentProduct.object_id);
+                if (res && res._status === 0) {
+                    this.roomAddons = res.data || [];
+                }
+            } catch (e) {
+                console.log('load room addons error:', e);
+            }
+        },
+
+        toggleAddons() {
+            this.addonsOpen = !this.addonsOpen;
+        },
+
+        toggleAddon(addon) {
+            const idx = this.selectedAddons.findIndex(a => a.object_id === addon.object_id);
+            if (idx >= 0) {
+                this.selectedAddons.splice(idx, 1);
+            } else {
+                this.selectedAddons.push(addon);
+            }
+        },
+
+        isAddonSelected(addon) {
+            return this.selectedAddons.some(a => a.object_id === addon.object_id);
         },
     }
 };
@@ -968,6 +1048,74 @@ page {
                 font-size: 40rpx;
                 font-weight: bold;
                 color: $primary;
+            }
+        }
+    }
+}
+
+// 增值服务
+.addons-section {
+    margin: 0 20rpx;
+    background: #fff;
+    border-radius: 20rpx;
+    padding: 30rpx;
+    margin-bottom: 20rpx;
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 28rpx;
+        font-weight: bold;
+        color: $dark;
+        margin-bottom: 0;
+        .title-right {
+            display: flex;
+            align-items: center;
+            gap: 12rpx;
+        }
+        .addon-summary {
+            font-size: 24rpx;
+            color: $primary;
+            font-weight: 500;
+        }
+        .addon-arrow {
+            font-size: 24rpx;
+            color: $gray;
+        }
+    }
+
+    .addon-list {
+        margin-top: 20rpx;
+        .addon-item {
+            display: flex;
+            align-items: center;
+            padding: 16rpx 0;
+            border-bottom: 1rpx solid $light-gray;
+            &:last-child { border-bottom: none; }
+            &:active { background: #FAFAFA; }
+
+            .addon-icon { font-size: 40rpx; margin-right: 16rpx; }
+            .addon-info {
+                flex: 1;
+                .addon-name { font-size: 28rpx; color: $dark; font-weight: 500; }
+                .addon-desc { font-size: 22rpx; color: $gray; margin-top: 4rpx; }
+            }
+            .addon-price { font-size: 28rpx; color: $primary; font-weight: bold; margin-right: 16rpx; }
+            .addon-check {
+                width: 40rpx;
+                height: 40rpx;
+                border-radius: 50%;
+                border: 2rpx solid #DDD;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s;
+                &.checked {
+                    background: $primary;
+                    border-color: $primary;
+                    color: #fff;
+                }
             }
         }
     }

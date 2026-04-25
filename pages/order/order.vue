@@ -52,7 +52,7 @@
 				</view>
 
 				<!-- 预约详情 -->
-				<view class="detail-section" v-if="item.goodsInfo && item.goodsInfo.goods_type === 1">
+				<view class="detail-section" v-if="item.order_type === 1">
 					<view class="detail-row">
 						<text class="detail-icon">📅</text>
 						<text class="detail-label">预约日期</text>
@@ -78,10 +78,18 @@
 						<text class="detail-label">备注</text>
 						<text class="detail-value">{{ item.goodsInfo.remark }}</text>
 					</view>
+					<!-- 增值服务 -->
+					<view class="detail-row" v-if="item.goodsInfo.addons && item.goodsInfo.addons.length > 0">
+						<text class="detail-icon">🎁</text>
+						<text class="detail-label">增值服务</text>
+						<view class="detail-value addon-tags">
+							<text class="addon-tag" v-for="(a, ai) in item.goodsInfo.addons" :key="ai">{{ a.name }}</text>
+						</view>
+					</view>
 				</view>
 
 				<!-- 充值详情 -->
-				<view class="detail-section recharge-detail" v-if="item.goodsInfo && item.goodsInfo.goods_type === 2">
+				<view class="detail-section recharge-detail" v-if="item.goodsInfo && (item.goodsInfo.amount !== undefined || item.goodsInfo.bonus_points !== undefined || item.goodsInfo.present_money !== undefined)">
 					<view class="recharge-amount">
 						<text class="recharge-num">¥{{ (item.goodsInfo.amount / 100).toFixed(2) }}</text>
 						<text class="recharge-label">充值金额</text>
@@ -125,6 +133,10 @@
 					<view class="price-row" v-if="item.room && item.goodsInfo">
 						<text class="price-label">房间费用</text>
 						<text class="price-value">¥{{ item.roomPrice }}</text>
+					</view>
+					<view class="price-row" v-if="item.addonsPrice > 0">
+						<text class="price-label">增值服务</text>
+						<text class="price-value">+¥{{ item.addonsPrice }}</text>
 					</view>
 					<view class="price-row" v-if="item.order_type === 4 && item.originalPrice > 0">
 						<text class="price-label">消费金额</text>
@@ -196,6 +208,7 @@
 		2: { icon: '💰', name: '余额充值' },
 		3: { icon: '🎟️', name: '购买卡券' },
 		4: { icon: '🛒', name: '线下消费' },
+		5: { icon: '💎', name: '积分兑换' },
 	};
 
 	const PAY_METHOD_MAP = {
@@ -544,7 +557,7 @@
 			},
 			orderStateExp(state) {
 				var stateTip = '';
-				var stateTipColor = '#FF6B9D';
+				var stateTipColor = '#E8784A';
 				switch (state) {
 					case 0: stateTip = '待付款'; stateTipColor = '#FF6B6B'; break;
 					case 1: stateTip = '已预约'; stateTipColor = '#52C41A'; break;
@@ -564,7 +577,7 @@
 
 <style lang="scss">
 page {
-	background: #F5F5F5;
+	background: #FDF8F0;
 }
 .page-wrapper {
 	min-height: 100vh;
@@ -597,7 +610,7 @@ page {
 		transition: color 0.2s;
 	}
 	.tab-dot {
-		background: #FF6B9D;
+		background: #E8784A;
 		color: #FFF;
 		font-size: 18rpx;
 		min-width: 36rpx;
@@ -609,7 +622,7 @@ page {
 		padding: 0 8rpx;
 	}
 }
-.tab-item.active .tab-text { color: #FF6B9D; font-weight: bold; }
+.tab-item.active .tab-text { color: #E8784A; font-weight: bold; }
 .tab-item.active::after {
 	content: '';
 	position: absolute;
@@ -618,7 +631,7 @@ page {
 	transform: translateX(-50%);
 	width: 48rpx;
 	height: 4rpx;
-	background: #FF6B9D;
+	background: #E8784A;
 	border-radius: 4rpx;
 }
 
@@ -692,8 +705,8 @@ page {
 		.room-name { font-size: 30rpx; font-weight: bold; color: #333; }
 		.room-meta { display: flex; gap: 12rpx; flex-wrap: wrap; }
 		.meta-tag {
-			background: #FFF0F8;
-			color: #FF6B9D;
+			background: #FFF5EE;
+			color: #E8784A;
 			font-size: 20rpx;
 			padding: 4rpx 16rpx;
 			border-radius: 10rpx;
@@ -730,7 +743,7 @@ page {
 		.recharge-num, .bonus-num, .present-num {
 			font-size: 40rpx;
 			font-weight: bold;
-			color: #FF6B9D;
+			color: #E8784A;
 		}
 		.recharge-label, .bonus-label, .present-label {
 			font-size: 22rpx;
@@ -761,7 +774,7 @@ page {
 	padding-top: 12rpx;
 	border-top: 1rpx dashed #EEE;
 	.price-label { font-size: 28rpx; color: #333; font-weight: bold; }
-	.price-num { font-size: 40rpx; font-weight: bold; color: #FF6B9D; }
+	.price-num { font-size: 40rpx; font-weight: bold; color: #E8784A; }
 }
 
 /* ===== 时间信息 ===== */
@@ -797,7 +810,7 @@ page {
 		&::after { border-radius: 80rpx; }
 	}
 	.btn-pay {
-		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		background: linear-gradient(135deg, #FFB88C, #E8784A);
 		color: #FFF;
 		border: none;
 	}
@@ -819,7 +832,7 @@ page {
 	.empty-icon { font-size: 120rpx; display: block; margin-bottom: 24rpx; }
 	.empty-text { font-size: 28rpx; color: #999; display: block; margin-bottom: 40rpx; }
 	.empty-btn {
-		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		background: linear-gradient(135deg, #FFB88C, #E8784A);
 		color: #FFF;
 		font-size: 28rpx;
 		border-radius: 50rpx;

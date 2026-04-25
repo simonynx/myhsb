@@ -16,7 +16,7 @@ function request(url, method, data, token) {
   }
 
   var header = { 'Content-Type': 'application/json' };
-  if (token !== undefined) {
+  if (token) {
     header['Authorization'] = 'Token ' + token;
   }
 
@@ -177,8 +177,26 @@ function getOrderList(status, token) {
   return request(url, 'GET', data, token);
 }
 
-function getGoodsList(token) {
-  return request('/goods/', 'GET', null, token);
+function getGoodsList(token, exchangeType) {
+  var url = '/goods/';
+  if (exchangeType !== undefined && exchangeType !== null) {
+    url += '?exchange_type=' + exchangeType;
+  }
+  return request(url, 'GET', null, token);
+}
+
+function getRoomAddons(token, roomId) {
+  return request('/rooms/addons/?room_id=' + roomId, 'GET', null, token);
+}
+
+function exchangeGoods(token, goodsId, usePoints, quantity) {
+  var data = {
+    goods_id: goodsId,
+    use_points: usePoints || 0,
+    quantity: quantity || 1,
+    order_type: 5
+  };
+  return request('/users/checkout/', 'POST', data, token);
 }
 
 // ==================== 每日签到 ====================
@@ -393,6 +411,8 @@ var httpRequest = {
   getRoomAppointments: getRoomAppointments,
   getRoomDetail: getRoomDetail,
   getGoodsList: getGoodsList,
+  getRoomAddons: getRoomAddons,
+  exchangeGoods: exchangeGoods,
   purchaseGoods: purchaseGoods,
   getConstance: getConstance,
   getReviewList: getReviewList,

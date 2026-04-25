@@ -27,6 +27,7 @@ const store = new Vuex.Store({
     rechargeTiers: [],
     currentRoom: null,
     currentSelectItem: null,
+    currentRoomAddons: [],
 
     univerifyErrorMsg: '',
     pending_invite_code: null,
@@ -97,6 +98,8 @@ const store = new Vuex.Store({
     },
     setCurrentRoom(state, room) { state.currentRoom = room || null; },
     setCurrentSelectItem(state, item) { state.currentSelectItem = item || null; },
+    setCurrentRoomAddons(state, list) { state.currentRoomAddons = list || []; },
+    clearCurrentRoomAddons(state) { state.currentRoomAddons = []; },
 
     setRechargeTiers(state, list) { state.rechargeTiers = list; },
     setUniverifyLogin(state, payload) {

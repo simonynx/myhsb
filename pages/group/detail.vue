@@ -376,6 +376,18 @@ export default {
 
         handleJoin() {
             if (!this.canJoin) return;
+            if (!this.token) {
+                uni.showModal({
+                    title: '需要登录',
+                    content: '加入拼团需要先登录，是否前往登录？',
+                    success: (res) => {
+                        if (res.confirm) {
+                            uni.switchTab({ url: '/pages/user/user' });
+                        }
+                    }
+                });
+                return;
+            }
             uni.showModal({
                 title: '加入拼团',
                 content: '加入拼团将支付 ¥' + (this.group.price_per_person / 100) + '（成员人均），是否确认？',

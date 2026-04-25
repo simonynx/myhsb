@@ -16,7 +16,7 @@
 			"path": "pages/index/index",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white",
 				"navigationStyle": "custom"
 			}
@@ -66,7 +66,7 @@
 			"path": "pages/voucher/voucher",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#FFFAFB",
+				"navigationBarBackgroundColor": "#FDF8F0",
 				"navigationBarTextStyle": "black"
 			}
 		},
@@ -74,7 +74,7 @@
 			"path": "pages/user/welcome/welcome",
 			"style": {
 				"navigationBarTitleText": "欢迎加入",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
 		},
@@ -99,7 +99,7 @@
 			"path": "pages/user/setting/setting",
 			"style": {
 				"navigationBarTitleText": "编辑资料",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
 		},
@@ -115,7 +115,7 @@
 			"path": "pages/about/about",
 			"style": {
 				"navigationBarTitleText": "关于",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
 		},
@@ -123,7 +123,7 @@
 			"path": "platforms/app-plus/feedback/feedback",
 			"style": {
 				"navigationBarTitleText": "反馈",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
 		},
@@ -131,7 +131,7 @@
 			"path": "pages/error/404",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
 		},
@@ -139,7 +139,7 @@
 			"path": "pages/voucher/detail",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#FFFAFB",
+				"navigationBarBackgroundColor": "#FDF8F0",
 				"navigationBarTextStyle": "black"
 			}
 		},
@@ -147,7 +147,7 @@
 			"path": "pages/my/reviews",
 			"style": {
 				"navigationBarTitleText": "我的评价",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
 		},
@@ -155,7 +155,7 @@
 			"path": "pages/my/coupons/coupons",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
 		},
@@ -163,7 +163,7 @@
 			"path": "pages/user/balance/balance",
 			"style": {
 				"navigationBarTitleText": "余额明细",
-				"navigationBarBackgroundColor": "#FF9ECD",
+				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
 		},

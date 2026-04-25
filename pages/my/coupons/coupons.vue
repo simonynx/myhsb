@@ -96,7 +96,7 @@
 
 		<!-- 空状态 -->
 		<view class="empty-state" v-if="myCoupons.length === 0 && tabIndex !== 0">
-			<text class="empty-icon">{{ emptyIcon }}</text>
+			<text class="empty-icon">🎫</text>
 			<text class="empty-text">{{ emptyText }}</text>
 		</view>
 	</view>
@@ -252,7 +252,7 @@ page {
 
 /* ===== 顶部 ===== */
 .top-bar {
-	background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
+	background: linear-gradient(135deg, #FF8C42 0%, #FF7043 100%);
 	padding: 36rpx 32rpx 20rpx;
 	text-align: center;
 	.top-title { font-size: 36rpx; font-weight: bold; color: #FFF; letter-spacing: 2rpx; }
@@ -278,7 +278,7 @@ page {
 	position: relative;
 	font-size: 28rpx;
 	color: #999;
-	&.active { color: #FF6B9D; font-weight: bold; }
+	&.active { color: #FF8C42; font-weight: bold; }
 	&.active::after {
 		content: '';
 		position: absolute;
@@ -287,11 +287,11 @@ page {
 		transform: translateX(-50%);
 		width: 48rpx;
 		height: 4rpx;
-		background: #FF6B9D;
+		background: #FF8C42;
 		border-radius: 4rpx;
 	}
 	.tab-dot {
-		background: #FF6B9D;
+		background: #FF8C42;
 		color: #FFF;
 		font-size: 18rpx;
 		min-width: 36rpx;
@@ -317,9 +317,9 @@ page {
 	.section-text { font-size: 32rpx; font-weight: bold; color: #333; }
 }
 
-/* ===== 我的优惠券列表 ===== */
-.my-coupon-list {
-	padding: 24rpx;
+/* ===== 可领优惠券列表 ===== */
+.coupon-list {
+	padding: 0 24rpx;
 	display: flex;
 	flex-direction: column;
 	gap: 20rpx;
@@ -337,7 +337,7 @@ page {
 }
 .item-left {
 	width: 200rpx;
-	background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+	background: linear-gradient(135deg, #FFCC80, #FF8C42);
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -346,7 +346,7 @@ page {
 	.item-value { display: flex; align-items: baseline; gap: 4rpx; }
 	.item-rmb { font-size: 24rpx; color: #FFF; }
 	.item-num { font-size: 44rpx; font-weight: bold; color: #FFF; }
-	.item-condition { font-size: 20rpx; color: rgba(255,255,255,0.8); margin-top: 8rpx; }
+	.item-condition { font-size: 20rpx; color: rgba(255,255,255,0.9); margin-top: 8rpx; }
 }
 .item-right {
 	flex: 1;
@@ -357,7 +357,7 @@ page {
 	.item-name { font-size: 28rpx; font-weight: bold; color: #333; }
 	.item-desc { font-size: 22rpx; color: #999; }
 	.item-desc-mkt {
-		background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
+		background: linear-gradient(135deg, #FFCC80 0%, #FF8C42 100%);
 		color: #FFF;
 		font-size: 22rpx;
 		padding: 6rpx 16rpx;
@@ -370,21 +370,53 @@ page {
 	}
 	.item-expire { font-size: 22rpx; color: #999; margin-top: auto; }
 	.item-status-text { font-size: 24rpx; color: #52C41A; font-weight: bold; margin-top: auto; }
-	.item-status-text.expired { color: #FF6B6B; }
+	.item-status-text.expired { color: #FF8C42; }
 }
 .item-stamp {
 	position: absolute;
 	top: 50%;
 	right: 32rpx;
 	transform: translateY(-50%) rotate(-15deg);
-	border: 6rpx solid #52C41A;
+	border: 6rpx solid #A5D6A7;
 	border-radius: 12rpx;
 	padding: 8rpx 16rpx;
 	text { font-size: 28rpx; font-weight: bold; color: #52C41A; }
 	&.expired {
-		border-color: #FF6B6B;
-		text { color: #FF6B6B; }
+		border-color: #FF8C42;
+		text { color: #FF8C42; }
 	}
+}
+
+/* ===== 领取按钮 ===== */
+.coupon-btn {
+	margin-top: 10rpx;
+	padding: 0;
+	width: 140rpx;
+	line-height: 2.4;
+	background: linear-gradient(135deg, #FFCC80, #FF8C42);
+	color: #FFF;
+	font-size: 24rpx;
+	font-weight: bold;
+	border-radius: 30rpx;
+	text-align: center;
+	align-self: flex-start;
+	&[disabled] { background: #CCC; color: #FFF; }
+	&::after { border: none; }
+}
+.coupon-received {
+	margin-top: 10rpx;
+	font-size: 24rpx;
+	color: #A5D6A7;
+	font-weight: bold;
+	align-self: flex-start;
+}
+
+/* ===== 我的优惠券列表 ===== */
+.my-coupon-list {
+	padding: 24rpx;
+	display: flex;
+	flex-direction: column;
+	gap: 20rpx;
 }
 
 /* ===== 空状态 ===== */
