@@ -109,7 +109,7 @@
 					<view class="detail-row">
 						<text class="detail-icon">🎁</text>
 						<text class="detail-label">商品</text>
-						<text class="detail-value">{{ item.goodsInfo.goods_name || '商品订单' }}</text>
+						<text class="detail-value">{{ item.goods_name || '商品订单' }}</text>
 					</view>
 					<view class="detail-row" v-if="item.goodsInfo.points_price">
 						<text class="detail-icon">💎</text>

@@ -402,7 +402,14 @@ $bark-light: #6D5A48;
 
 page, .page {
 	height: 100vh;
-	background: $cream;
+	background-color: #FDF6E9;
+	background-image: repeating-linear-gradient(
+		0deg,
+		transparent,
+		transparent 3rpx,
+		rgba(139, 90, 43, 0.025) 3rpx,
+		rgba(139, 90, 43, 0.025) 6rpx
+	);
 	display: flex;
 	flex-direction: column;
 }
@@ -524,9 +531,9 @@ page, .page {
 	margin: 20rpx 24rpx;
 	padding: 28rpx 24rpx;
 	background: linear-gradient(135deg, #E8F5E9, #FFF8E1);
-	border-radius: 24rpx;
-	border: 2rpx solid rgba(124,179,66,0.15);
-	box-shadow: 0 4rpx 16rpx rgba(74,55,40,0.04);
+	border-radius: 22rpx 26rpx 24rpx 20rpx / 24rpx 20rpx 26rpx 22rpx;
+	border: 2rpx solid rgba(124,179,66,0.18);
+	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.08), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
 	position: relative;
 	overflow: hidden;
 	&:active { opacity: 0.9; transform: scale(0.99); }
@@ -574,10 +581,10 @@ page, .page {
 .coupon-card {
 	display: flex;
 	background: #FFF;
-	border-radius: 24rpx;
+	border-radius: 22rpx 26rpx 24rpx 20rpx / 24rpx 22rpx 26rpx 20rpx;
 	overflow: hidden;
-	box-shadow: 0 4rpx 16rpx rgba(74,55,40,0.06);
-	border: 2rpx solid rgba(245,237,224,0.8);
+	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.08), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
+	border: 2rpx solid rgba(160, 120, 80, 0.12);
 	position: relative;
 
 	.c-left {
@@ -624,6 +631,9 @@ page, .page {
 			text-align: center;
 			align-self: flex-start;
 			box-shadow: 0 4rpx 12rpx rgba(232,120,74,0.25);
+			&:active {
+				animation: btnPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+			}
 			&[disabled] { background: #D0C8C0; box-shadow: none; }
 			&::after { border: none; }
 		}
@@ -667,13 +677,24 @@ page, .page {
 }
 .goods-card {
 	background: #FFF;
-	border-radius: 24rpx;
+	border-radius: 22rpx 26rpx 20rpx 28rpx / 26rpx 22rpx 28rpx 24rpx;
 	overflow: hidden;
-	box-shadow: 0 6rpx 20rpx rgba(74,55,40,0.06);
-	border: 2rpx solid rgba(245,237,224,0.8);
+	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.08), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
+	border: 2rpx solid rgba(160, 120, 80, 0.12);
 	transition: transform 0.25s, box-shadow 0.25s;
+	position: relative;
 	&:active { transform: scale(0.97); }
 	&.locked { opacity: 0.55; }
+	&::before {
+		content: '🌿';
+		position: absolute;
+		top: -10rpx;
+		left: -6rpx;
+		font-size: 28rpx;
+		transform: rotate(-18deg);
+		opacity: 0.45;
+		z-index: 2;
+	}
 
 	.goods-img-wrap {
 		height: 180rpx;
@@ -743,6 +764,9 @@ page, .page {
 				padding: 8rpx 20rpx;
 				box-shadow: 0 2rpx 8rpx rgba(232,120,74,0.2);
 				text { font-size: 22rpx; color: #FFF; font-weight: bold; }
+				&:active {
+					animation: btnPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+				}
 				&.disabled {
 					background: #D0C8C0;
 					box-shadow: none;
@@ -756,12 +780,12 @@ page, .page {
 .points-card {
 	margin: 20rpx 24rpx;
 	background: linear-gradient(135deg, #FFF8E1, #FFECB3);
-	border-radius: 24rpx;
+	border-radius: 24rpx 20rpx 26rpx 22rpx / 20rpx 26rpx 22rpx 24rpx;
 	padding: 28rpx 32rpx;
 	position: relative;
 	overflow: hidden;
-	box-shadow: 0 6rpx 20rpx rgba(255,193,7,0.15);
-	border: 2rpx solid rgba(255,183,77,0.2);
+	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.1), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
+	border: 2rpx solid rgba(255,183,77,0.25);
 	.points-bg {
 		position: absolute;
 		inset: 0;
@@ -825,5 +849,11 @@ page, .page {
 	gap: 12rpx;
 	.empty-icon { font-size: 80rpx; filter: drop-shadow(0 2rpx 4rpx rgba(0,0,0,0.06)); }
 	.empty-text { font-size: 28rpx; color: $bark-light; }
+}
+@keyframes btnPop {
+	0%   { transform: scale(1); }
+	30%  { transform: scale(0.9); }
+	60%  { transform: scale(1.08); }
+	100% { transform: scale(1); }
 }
 </style>
