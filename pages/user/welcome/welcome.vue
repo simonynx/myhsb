@@ -100,13 +100,11 @@
 			</view>
 		</view>
 
-		<!-- 底部说明 -->
-		<view class="bottom-tip">
-			<text>以上均可跳过，之后随时补充</text>
-		</view>
-
-		<!-- 进入按钮 -->
+		<!-- 底部固定按钮区 -->
 		<view class="bottom-btn">
+			<view class="bottom-tip">
+				<text>以上均可跳过，之后随时补充</text>
+			</view>
 			<button class="enter-btn" @click="complete">
 				<text>开启摸鱼之旅 🚀</text>
 			</button>
@@ -199,18 +197,18 @@ export default {
 
 <style lang="scss">
 page {
-	background: #FFF9F5;
+	background: #FFF8F0;
 }
 .welcome-page {
 	min-height: 100vh;
-	padding-bottom: 180rpx;
+	padding-bottom: calc(260rpx + env(safe-area-inset-bottom));
 	position: relative;
 }
 
 /* ===== 顶部英雄区 ===== */
 .welcome-hero {
 	position: relative;
-	background: linear-gradient(160deg, #FFECD9 0%, #FFF0E8 40%, #FFE5EE 100%);
+	background: linear-gradient(160deg, #FFF0E0 0%, #FFF5EC 40%, #FFE8D6 100%);
 	padding: 80rpx 48rpx 64rpx;
 	overflow: hidden;
 	.hero-particles {
@@ -219,7 +217,7 @@ page {
 		.particle {
 			position: absolute;
 			border-radius: 50%;
-			background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+			background: linear-gradient(135deg, #FFB5A7, #FF8C42);
 			opacity: 0.15;
 		}
 		.p1 { width: 240rpx; height: 240rpx; top: -80rpx; right: -60rpx; }
@@ -236,14 +234,14 @@ page {
 		display: block;
 		font-size: 44rpx;
 		font-weight: 800;
-		color: #FF6B9D;
+		color: #FF8C42;
 		margin-bottom: 16rpx;
 		letter-spacing: 2rpx;
 	}
 	.hero-sub {
 		display: block;
 		font-size: 26rpx;
-		color: #BB9988;
+		color: #A08B7A;
 		line-height: 1.6;
 	}
 }
@@ -253,7 +251,7 @@ page {
 	margin: -32rpx 28rpx 0;
 	background: #FFF;
 	border-radius: 32rpx;
-	box-shadow: 0 8rpx 40rpx rgba(255, 107, 157, 0.12);
+	box-shadow: 0 8rpx 40rpx rgba(255, 140, 66, 0.10);
 	overflow: hidden;
 	position: relative;
 	z-index: 2;
@@ -261,7 +259,7 @@ page {
 
 .divider {
 	height: 1rpx;
-	background: #FDF0FA;
+	background: #F5E6D8;
 	margin: 0 32rpx;
 }
 
@@ -281,8 +279,8 @@ page {
 		width: 140rpx;
 		height: 140rpx;
 		border-radius: 50%;
-		border: 6rpx solid #FFE5EE;
-		box-shadow: 0 8rpx 24rpx rgba(255, 107, 157, 0.18);
+		border: 6rpx solid #FFE8D6;
+		box-shadow: 0 8rpx 24rpx rgba(255, 140, 66, 0.18);
 		overflow: hidden;
 		.avatar-img {
 			width: 100%;
@@ -345,7 +343,7 @@ page {
 	}
 	.phone-btn {
 		font-size: 24rpx;
-		background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
+		background: linear-gradient(135deg, #FFB5A7, #FF8C42);
 		color: #FFF;
 		border-radius: 30rpx;
 		padding: 0 20rpx;
@@ -367,7 +365,7 @@ page {
 	background: #E8E8E8;
 	position: relative;
 	transition: background 0.3s;
-	&.on { background: linear-gradient(135deg, #FF9ECD, #FF6B9D); }
+	&.on { background: linear-gradient(135deg, #FFB5A7, #FF8C42); }
 	.toggle-dot {
 		position: absolute;
 		top: 4rpx;
@@ -386,34 +384,34 @@ page {
 .invite-input {
 	letter-spacing: 2rpx;
 	font-weight: bold;
-	color: #FF6B9D;
+	color: #FF8C42;
 }
 
 /* ===== 底部 ===== */
-.bottom-tip {
-	text-align: center;
-	padding: 28rpx 0 16rpx;
-	font-size: 22rpx;
-	color: #CCC;
-}
 .bottom-btn {
 	position: fixed;
 	bottom: 0;
 	left: 0;
 	right: 0;
-	padding: 16rpx 40rpx 60rpx;
-	background: linear-gradient(to top, #FFF9F5 70%, transparent);
+	padding: 16rpx 40rpx calc(40rpx + env(safe-area-inset-bottom));
+	background: linear-gradient(to top, #FFF8F0 80%, transparent);
+}
+.bottom-tip {
+	text-align: center;
+	padding-bottom: 16rpx;
+	font-size: 22rpx;
+	color: #CCC;
 }
 .enter-btn {
 	width: 100%;
-	background: linear-gradient(135deg, #FF9ECD 0%, #FF6B9D 100%);
+	background: linear-gradient(135deg, #FFB5A7 0%, #FF8C42 100%);
 	color: #FFF;
 	font-size: 34rpx;
 	font-weight: bold;
 	border-radius: 50rpx;
 	line-height: 2.8;
 	text-align: center;
-	box-shadow: 0 8rpx 32rpx rgba(255, 107, 157, 0.35);
+	box-shadow: 0 8rpx 32rpx rgba(255, 140, 66, 0.30);
 	&::after { border: none; }
 }
 </style>
