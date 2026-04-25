@@ -396,8 +396,9 @@
 		},
 		onShow() {
 			uni.$emit('tabBarChange', { key: 'index' });
-			if (!this.hasLogin) this.loginAndRegister();
-			this.checkBanner();
+			// 首页无需登录即可浏览
+			this.loadData();
+			if (this.hasLogin) this.checkBanner();
 		},
 		onLoad() {
 			this.loadData();

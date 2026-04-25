@@ -277,11 +277,8 @@ export default {
 	},
 	onShow() {
 		uni.$emit('tabBarChange', { key: 'voucher' });
-		if (!this.hasLogin) {
-			this.loginAndRegister().then(() => this.loadAll());
-		} else {
-			this.loadAll();
-		}
+		// 商品和优惠券列表公开，无需登录即可浏览
+		this.loadAll();
 	},
 	methods: {
 		...mapActions(['loginAndRegister']),

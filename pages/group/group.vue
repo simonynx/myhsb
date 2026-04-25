@@ -179,9 +179,9 @@ export default {
         },
 
         fetchGroupList() {
-            if (!this.token) return Promise.resolve();
+            // 拼团大厅公开，无需登录即可浏览
             this.loading = true;
-            return AUTH.getGroupList(this.token, { date: this.currentDate }).then(res => {
+            return AUTH.getGroupList(this.token || null, { date: this.currentDate }).then(res => {
                 this.loading = false;
                 if (res && res._status === 0) {
                     const data = res.data || {};

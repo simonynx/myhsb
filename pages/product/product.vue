@@ -561,6 +561,12 @@ export default {
 
         goToAppoint() {
             if (this.isFullyBooked) return;
+            if (!this.hasLogin) {
+                uni.showModal({ title: '提示', content: '请先登录再预约', success: (res) => {
+                    if (res.confirm) this.loginAndRegister();
+                }});
+                return;
+            }
             if (this.specClass === 'show') {
                 this.specClass = 'hide';
                 setTimeout(() => { this.specClass = 'none'; }, 250);

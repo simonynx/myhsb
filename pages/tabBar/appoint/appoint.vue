@@ -225,23 +225,17 @@ export default {
     },
     onLoad() {
         this.buildWeekDays();
-        // weekDays ready, fetch room list
-        if (this.hasLogin) {
-            if (!this.userInfo) this.getUserInfo();
-            this.fetchRoomList();
-        }
+        this.fetchRoomList();
     },
 
     onShow() {
         uni.$emit('tabBarChange', { key: 'appoint' });
-        if (!this.hasLogin) {
-            this.loginAndRegister().then(() => this.fetchRoomList());
-        } else {
-            if (!this.userInfo) this.getUserInfo();
-            // Only refetch if weekDays is already built (page coming from background)
-            if (this.weekDays && this.weekDays.length > 0) {
-                this.fetchRoomList();
-            }
+        // 房间列表无需登录即可浏览
+        if (this.weekDays && this.weekDays.length > 0) {
+            this.fetchRoomList();
+        }
+        if (this.hasLogin && !this.userInfo) {
+            this.getUserInfo();
         }
     },
 
@@ -433,6 +427,12 @@ export default {
         },
 
         handleDirectBook() {
+            if (!this.hasLogin) {
+                uni.showModal({ title: '提示', content: '请先登录再预约', success: (res) => {
+                    if (res.confirm) this.loginAndRegister();
+                }});
+                return;
+            }
             const times = this.$refs.timesComponent && this.$refs.timesComponent.getSelection();
             if (!times || !times.length) {
                 uni.showToast({ title: '请先选择预约时段', icon: 'none' });
@@ -446,6 +446,12 @@ export default {
         },
 
         handleCreateGroup() {
+            if (!this.hasLogin) {
+                uni.showModal({ title: '提示', content: '请先登录再发起拼团', success: (res) => {
+                    if (res.confirm) this.loginAndRegister();
+                }});
+                return;
+            }
             const times = this.$refs.timesComponent && this.$refs.timesComponent.getSelection();
             if (!times || !times.length) {
                 uni.showToast({ title: '请先选择预约时段', icon: 'none' });

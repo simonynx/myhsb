@@ -544,7 +544,7 @@ export default {
     },
 
     methods: {
-        ...mapActions(['getUserInfo']),
+        ...mapActions(['loginAndRegister', 'getUserInfo']),
 
         // 加载我的优惠券
         async loadMyCoupons() {
@@ -633,6 +633,12 @@ export default {
 
         // 提交订单
         async submitOrder() {
+            if (!this.hasLogin) {
+                uni.showModal({ title: '提示', content: '请先登录再提交订单', success: (res) => {
+                    if (res.confirm) this.loginAndRegister();
+                }});
+                return;
+            }
             if (this.submitDisabled) return;
             this.submitting = true;
 

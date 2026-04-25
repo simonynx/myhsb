@@ -284,8 +284,8 @@ const store = new Vuex.Store({
      * 获取评价列表
      */
     getReviewList: function({ state, commit }) {
-      if (!state.token) return Promise.reject('token is null');
-      return AUTH.getReviewList(state.token).then((res) => {
+      // 评价列表公开，无需登录
+      return AUTH.getReviewList(state.token || null).then((res) => {
         if (!res || res._status !== 0) return [];
         return res.data || [];
       }).catch(() => []);
