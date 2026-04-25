@@ -84,7 +84,7 @@
 				<text class="empty-text">森林里暂时没有优惠券</text>
 			</view>
 
-			<view style="height: 40rpx;"></view>
+			<view style="height: 180rpx;"></view>
 		</scroll-view>
 
 		<!-- ========== Tab 1: 商城 ========== -->
@@ -141,7 +141,7 @@
 				<text class="empty-text">小铺里还没有这类商品呢</text>
 			</view>
 
-			<view style="height: 40rpx;"></view>
+			<view style="height: 180rpx;"></view>
 		</scroll-view>
 
 		<!-- ========== Tab 2: 积分兑换 ========== -->
@@ -214,7 +214,7 @@
 				<text class="empty-text">月光下还没有可兑换的商品</text>
 			</view>
 
-			<view style="height: 40rpx;"></view>
+			<view style="height: 180rpx;"></view>
 		</scroll-view>
 
 		<!-- 自定义底部导航 -->

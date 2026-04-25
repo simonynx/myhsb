@@ -199,12 +199,6 @@
         <!-- 底部占位 -->
         <view class="bottom-placeholder"></view>
 
-        <!-- 增值服务提示 -->
-        <view class="addon-hint" v-if="roomAddons.length > 0" @click="goToAppoint">
-            <text class="hint-icon">🎁</text>
-            <text class="hint-text">可选增值服务（生日布置、鲜花等）</text>
-            <text class="hint-arrow">→</text>
-        </view>
 
         <!-- 底部操作栏 -->
         <view class="bottom-bar">
@@ -1091,24 +1085,6 @@ page { background: $bg; padding-bottom: 120rpx; }
 // 底部占位
 .bottom-placeholder { height: 120rpx; }
 
-// 增值服务提示
-.addon-hint {
-    position: fixed;
-    left: 24rpx;
-    right: 24rpx;
-    bottom: 116rpx;
-    background: linear-gradient(135deg, #FFF8F0, #FFF);
-    border-radius: 16rpx;
-    padding: 16rpx 24rpx;
-    display: flex;
-    align-items: center;
-    box-shadow: 0 4rpx 16rpx rgba(140, 100, 60, 0.08);
-    border: 1rpx solid rgba(240, 230, 216, 0.6);
-    z-index: 99;
-    .hint-icon { font-size: 32rpx; margin-right: 12rpx; }
-    .hint-text { flex: 1; font-size: 26rpx; color: #5C4B3A; }
-    .hint-arrow { font-size: 28rpx; color: #A09080; }
-}
 
 // 底部操作栏
 .bottom-bar {

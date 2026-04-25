@@ -194,6 +194,7 @@ export default {
 			return this.currentGoods.exchange_type === 1 && this.currentGoods.can_use_balance;
 		},
 		goodsEmoji() {
+			if (!this.currentGoods) return '🎁';
 			const typeEmojis = {
 				1: '💎',
 				2: '🍿',
@@ -204,10 +205,12 @@ export default {
 			return typeEmojis[this.currentGoods.goods_type] || '🎁';
 		},
 		exchangeLabel() {
+			if (!this.currentGoods) return '';
 			const map = { 1: '💰 现金购买', 2: '🌟 纯积分兑换', 3: '🌟 积分+现金' };
 			return map[this.currentGoods.exchange_type] || '购买';
 		},
 		exchangeClass() {
+			if (!this.currentGoods) return '';
 			const map = { 1: 'cash', 2: 'points', 3: 'mixed' };
 			return map[this.currentGoods.exchange_type] || 'cash';
 		},
