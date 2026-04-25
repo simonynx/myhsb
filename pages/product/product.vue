@@ -314,7 +314,7 @@ export default {
     },
 
     computed: {
-        ...mapState(['token']),
+        ...mapState(['hasLogin', 'token']),
         displaySlots() {
             if (!this.room.appoints) return [];
             return this.room.appoints;

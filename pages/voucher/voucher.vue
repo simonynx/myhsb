@@ -333,7 +333,7 @@ export default {
 		},
 
 		handleGoodsClick(g) {
-			uni.navigateTo({ url: '/pages/voucher/detail?data=' + JSON.stringify(g) });
+			uni.navigateTo({ url: '/pages/voucher/detail?data=' + encodeURIComponent(JSON.stringify(g)) });
 		},
 
 		handlePointsGoodsClick(g) {
@@ -341,7 +341,7 @@ export default {
 				uni.showToast({ title: '会员等级不足，无法兑换', icon: 'none' });
 				return;
 			}
-			uni.navigateTo({ url: '/pages/voucher/detail?data=' + JSON.stringify(g) });
+			uni.navigateTo({ url: '/pages/voucher/detail?data=' + encodeURIComponent(JSON.stringify(g)) });
 		},
 
 		getGoodsEmoji(g) {

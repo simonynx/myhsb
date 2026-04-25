@@ -1,5 +1,5 @@
 <template>
-	<view class="page-wrapper">
+	<view class="page-wrapper" v-if="currentGoods">
 		<!-- 顶部天空 -->
 		<view class="sky-header">
 			<view class="cloud cloud-1">
@@ -230,7 +230,14 @@ export default {
 		};
 	},
 	onLoad(option) {
-		this.currentGoods = JSON.parse(option.data);
+		try {
+			if (option.data) {
+				this.currentGoods = JSON.parse(decodeURIComponent(option.data));
+			}
+		} catch (e) {
+			console.error('商品数据解析失败', e);
+			uni.showToast({ title: '商品数据异常', icon: 'none' });
+		}
 	},
 	methods: {
 		...mapActions(['loginAndRegister', 'getUserInfo']),
@@ -607,7 +614,8 @@ page {
 		transition: opacity 0.2s;
 		&:active { opacity: 0.85; }
 		&.disabled {
-			background: #DDD;
+			background: #CCC;
+			color: #666;
 		}
 	}
 }
