@@ -111,6 +111,25 @@
             </view>
         </view>
 
+        <!-- 增值服务 -->
+        <view class="addon-card" v-if="roomAddons.length > 0">
+            <view class="card-title">
+                <text>🎁 可选增值服务</text>
+                <view class="title-line"></view>
+            </view>
+            <view class="addon-list">
+                <view class="addon-item" v-for="a in roomAddons" :key="a.object_id">
+                    <text class="addon-icon">{{ a.icon || '🎁' }}</text>
+                    <view class="addon-info">
+                        <text class="addon-name">{{ a.name }}</text>
+                        <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
+                    </view>
+                    <text class="addon-price">¥{{ (a.price / 100).toFixed(0) }}</text>
+                </view>
+            </view>
+            <text class="addon-tip">预约时可在下单页勾选添加</text>
+        </view>
+
         <!-- 门店信息 -->
         <view class="store-card">
             <view class="store-header">
@@ -1026,6 +1045,39 @@ page { background: $bg; padding-bottom: 120rpx; }
                 line-height: 1.6;
             }
         }
+    }
+}
+
+// 增值服务卡片
+.addon-card {
+    margin: 20rpx 24rpx;
+    padding: 24rpx;
+    background: #FFF;
+    border-radius: 24rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+    .addon-list {
+        margin-top: 16rpx;
+        .addon-item {
+            display: flex;
+            align-items: center;
+            padding: 16rpx 0;
+            border-bottom: 1rpx solid #F5F5F5;
+            &:last-child { border-bottom: none; }
+            .addon-icon { font-size: 40rpx; margin-right: 16rpx; }
+            .addon-info {
+                flex: 1;
+                .addon-name { font-size: 28rpx; color: $dark; font-weight: 500; }
+                .addon-desc { font-size: 22rpx; color: $gray; margin-top: 4rpx; display: block; }
+            }
+            .addon-price { font-size: 28rpx; color: $primary; font-weight: bold; }
+        }
+    }
+    .addon-tip {
+        font-size: 22rpx;
+        color: $gray;
+        margin-top: 12rpx;
+        display: block;
+        text-align: center;
     }
 }
 

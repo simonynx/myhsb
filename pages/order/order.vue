@@ -337,28 +337,44 @@
 				var payAmount = item.pay_amount || 0;
 				item.actualPrice = (payAmount / 100).toFixed(2);
 
+				// 增值服务
+				var addons = goodsInfo.addons || [];
+				var addonsPrice = 0;
+				for (var i = 0; i < addons.length; i++) {
+					addonsPrice += addons[i].price || 0;
+				}
+				item.addonsPrice = (addonsPrice / 100).toFixed(2);
+
 				if (item.room && goodsInfo.time_list && goodsInfo.user_count) {
 					// 房间费用
 					var hours = goodsInfo.time_list.length;
 					var roomPrice = item.room.price_per_hour * hours + item.room.price_per_person * goodsInfo.user_count;
 					item.roomPrice = (roomPrice / 100).toFixed(2);
-					item.originalPrice = item.roomPrice;
+					item.originalPrice = ((roomPrice + addonsPrice) / 100).toFixed(2);
 
 					// 会员折扣（如果有）
 					var memberLevel = this.userInfo && this.userInfo.member_level || 0;
 					var discounts = { 0: 0, 1: 0, 2: 0.05, 3: 0.1, 4: 0.15 };
 					var discountRate = discounts[memberLevel] || 0;
-					item.memberDiscount = discountRate > 0 ? (roomPrice * discountRate / 100).toFixed(2) : 0;
+					if (goodsInfo._member_discount !== undefined) {
+						item.memberDiscount = (goodsInfo._member_discount / 100).toFixed(2);
+					} else {
+						item.memberDiscount = discountRate > 0 ? (roomPrice * discountRate / 100).toFixed(2) : 0;
+					}
 
 					// 积分抵扣（如果有）
-					if (goodsInfo.points_used) {
+					if (goodsInfo._points_deducted) {
+							item.pointsDeduction = (goodsInfo._points_deducted / 100).toFixed(2);
+						} else if (goodsInfo.points_used) {
 						item.pointsDeduction = (goodsInfo.points_used / 100).toFixed(2);
 					} else {
 						item.pointsDeduction = 0;
 					}
 
 					// 优惠券抵扣（如果有）
-					if (goodsInfo.coupon_discount) {
+					if (goodsInfo._coupon_discount) {
+							item.couponDiscount = (goodsInfo._coupon_discount / 100).toFixed(2);
+						} else if (goodsInfo.coupon_discount) {
 						item.couponDiscount = (goodsInfo.coupon_discount / 100).toFixed(2);
 					} else {
 						item.couponDiscount = 0;
