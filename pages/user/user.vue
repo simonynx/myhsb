@@ -18,7 +18,7 @@
 		<view class="profile-card">
 			<view class="profile-top">
 				<view class="avatar-wrap" @tap="openAuthorizationModal">
-					<image class="avatar" :src="userInfo.avatar || '/static/missing-face.png'"></image>
+					<image class="avatar" :src="avatarUrl || '/static/missing-face.png'"></image>
 					<view class="avatar-badge" :style="{ background: memberColor }">
 						<text class="badge-icon">{{ memberIcon }}</text>
 					</view>
@@ -240,6 +240,9 @@
 		components: { customTabBar },
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token']),
+			avatarUrl() {
+				return AUTH.parseAvatarUrl(this.userInfo && this.userInfo.avatar);
+			},
 			memberLevelData() {
 				var level = (this.userInfo && this.userInfo.member_level) || 0;
 				return this.memberConfig.find(l => l.level === level) || null;

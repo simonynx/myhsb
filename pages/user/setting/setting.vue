@@ -4,7 +4,7 @@
 		<view class="avatar-section">
 			<view class="avatar-wrapper">
 				<button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="chooseAvatarEvent">
-					<image class="avatar-img" :src="form.avatar || '/static/missing-face.png'" mode="aspectFill"></image>
+					<image class="avatar-img" :src="avatarUrl || '/static/missing-face.png'" mode="aspectFill"></image>
 					<view class="avatar-edit-badge">
 						<text class="edit-icon">📷</text>
 					</view>
@@ -191,6 +191,9 @@
 				if (!this.form) return 0;
 				return this.form.gender === 0 ? 1 : 0;
 			},
+			avatarUrl() {
+				return AUTH.parseAvatarUrl(this.form.avatar);
+			},
 			subscribeEnabled() {
 				return this.subscribeAuthorized || false;
 			},
@@ -243,7 +246,7 @@
 
 			syncFromUserInfo(val) {
 				this.form.nickname = val.nickname || '';
-				this.form.avatar = val.avatar || '';
+				this.form.avatar = AUTH.parseAvatarUrl(val.avatar) || '';
 				this.form.gender = val.gender !== undefined ? val.gender : 1;
 				this.form.birthday = val.birthday || '';
 				this.form.phone = val.phone || '';
@@ -267,8 +270,9 @@
 						uni.hideLoading();
 						var data = JSON.parse(res.data);
 						if (data._status === 0) {
-							this.form.avatar = data.data;
-							this.updateUserInfo({ avatar: data.data });
+							var url = (data.data && data.data.url) ? data.data.url : data.data;
+							this.form.avatar = url;
+							this.updateUserInfo({ avatar: url });
 							this.saveProfile();
 						} else {
 							uni.showToast({ title: '上传失败', icon: 'none' });

@@ -375,7 +375,8 @@ function uploadFile(token, filePath, fileName) {
           reject(resData._reason);
           return;
         }
-        resolve(resData.data);
+        var url = (resData.data && resData.data.url) ? resData.data.url : resData.data;
+        resolve(url);
       },
       fail: (error) => {
         uni.showModal({ title: '上传文件失败', content: error, showCancel: false });
@@ -386,6 +387,25 @@ function uploadFile(token, filePath, fileName) {
 }
 
 // ==================== 导出 ====================
+
+// 解析头像URL（兼容对象/JSON字符串/URL字符串等多种格式）
+function parseAvatarUrl(avatar) {
+  if (!avatar) return '';
+  if (typeof avatar === 'string') {
+    if (avatar.startsWith('http')) return avatar;
+    try {
+      var obj = JSON.parse(avatar.replace(/'/g, '"'));
+      if (obj && obj.url) return obj.url;
+    } catch (e) {}
+    var match = avatar.match(/["']url["']\s*:\s*["']([^"']+)["']/);
+    if (match) return match[1];
+    return avatar;
+  }
+  if (typeof avatar === 'object' && avatar !== null) {
+    return avatar.url || '';
+  }
+  return '';
+}
 
 var httpRequest = {
   weixinLogin: weixinLogin,
@@ -425,6 +445,7 @@ var httpRequest = {
   grantCoupon: grantCoupon,
   getCouponCampaigns: getCouponCampaigns,
   uploadFile: uploadFile,
+  parseAvatarUrl: parseAvatarUrl,
   // 每日签到
   checkInInfo: checkInInfo,
   checkIn: checkIn,
