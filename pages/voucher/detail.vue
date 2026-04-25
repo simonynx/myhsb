@@ -1,56 +1,59 @@
 <template>
-	<view class="container">
-		<!-- 顶部返回 + 装饰 -->
-		<view class="header-bar">
-			<view class="back-btn" @click="goBack">
-				<text class="back-arrow">←</text>
-				<text class="back-text">返回森林</text>
+	<view class="page-wrapper">
+		<!-- 顶部天空 -->
+		<view class="sky-header">
+			<view class="cloud cloud-1">
+				<view class="puff p1"></view>
+				<view class="puff p2"></view>
+				<view class="puff p3"></view>
 			</view>
-			<text class="header-leaf">🍃</text>
-		</view>
+			<view class="cloud cloud-2">
+				<view class="puff p1"></view>
+				<view class="puff p2"></view>
+			</view>
 
-		<!-- 商品信息卡片 -->
-		<view class="goods-card">
-			<view class="goods-header">
+			<view class="header-content">
+				<view class="back-btn" @click="goBack">
+					<text class="back-arrow">←</text>
+					<text class="back-text">返回</text>
+				</view>
 				<view class="emoji-ring">
 					<text class="goods-emoji">{{ goodsEmoji }}</text>
 				</view>
-				<view class="goods-info">
-					<text class="goods-name">{{ currentGoods.name }}</text>
-					<view class="goods-tags">
-						<text class="tag" v-if="currentGoods.exchange_type === 2">🌟 纯积分兑换</text>
-						<text class="tag mixed" v-else-if="currentGoods.exchange_type === 3">🌟 积分+现金</text>
-						<text class="tag cash" v-else>💰 现金购买</text>
-						<text class="tag hot" v-if="currentGoods.is_hot">🔥 热门</text>
-						<text class="tag new" v-if="currentGoods.is_new">🌱 新品</text>
-					</view>
-				</view>
-			</view>
-			<view class="goods-detail">
-				<view class="detail-row">
-					<text class="detail-label">可用范围</text>
-					<text class="detail-value">到店出示订单即可使用</text>
-				</view>
-				<view class="detail-row">
-					<text class="detail-label">有效期</text>
-					<text class="detail-value">{{ formatDate(currentGoods.validity_period_start) }} ~ {{ formatDate(currentGoods.validity_period_end) }}</text>
-				</view>
-				<view class="detail-row" v-if="currentGoods.description">
-					<text class="detail-label">详情</text>
-					<text class="detail-value">{{ currentGoods.description }}</text>
-				</view>
-				<view class="detail-row" v-if="currentGoods.stock >= 0">
-					<text class="detail-label">剩余库存</text>
-					<text class="detail-value" :class="{ short: currentGoods.stock < 5 }">{{ currentGoods.stock }} 件</text>
-				</view>
-				<view class="detail-row" v-if="(currentGoods.member_level_required || 0) > 0">
-					<text class="detail-label">兑换门槛</text>
-					<text class="detail-value">{{ getMemberLevelName(currentGoods.member_level_required) }} 及以上</text>
-				</view>
+				<text class="header-title">{{ currentGoods.name }}</text>
 			</view>
 		</view>
 
-		<!-- 金额明细 -->
+		<!-- 商品信息卡片 -->
+		<view class="info-card">
+			<view class="tag-row">
+				<view class="tag" :class="exchangeClass">{{ exchangeLabel }}</view>
+				<view class="tag hot" v-if="currentGoods.is_hot">🔥 热门</view>
+				<view class="tag new" v-if="currentGoods.is_new">🌱 新品</view>
+			</view>
+			<view class="info-row">
+				<text class="info-label">可用范围</text>
+				<text class="info-value">到店出示订单即可使用</text>
+			</view>
+			<view class="info-row">
+				<text class="info-label">有效期</text>
+				<text class="info-value">{{ formatDate(currentGoods.validity_period_start) }} ~ {{ formatDate(currentGoods.validity_period_end) }}</text>
+			</view>
+			<view class="info-row" v-if="currentGoods.description">
+				<text class="info-label">详情</text>
+				<text class="info-value">{{ currentGoods.description }}</text>
+			</view>
+			<view class="info-row" v-if="currentGoods.stock >= 0">
+				<text class="info-label">库存</text>
+				<text class="info-value" :class="{ short: currentGoods.stock < 5 }">{{ currentGoods.stock }} 件</text>
+			</view>
+			<view class="info-row" v-if="(currentGoods.member_level_required || 0) > 0">
+				<text class="info-label">兑换门槛</text>
+				<text class="info-value">{{ getMemberLevelName(currentGoods.member_level_required) }} 及以上</text>
+			</view>
+		</view>
+
+		<!-- 费用明细 -->
 		<view class="price-card">
 			<view class="price-title">🍄 费用明细</view>
 
@@ -94,6 +97,26 @@
 					<text class="row-label">商品金额</text>
 					<text class="row-value">¥{{ (currentGoods.price / 100).toFixed(2) }}</text>
 				</view>
+
+				<!-- 余额支付开关（仅现金商品且支持余额支付时显示） -->
+				<view class="balance-row" v-if="canUseBalance">
+					<view class="balance-left">
+						<text class="balance-icon">💰</text>
+						<view class="balance-info">
+							<text class="balance-label">使用余额支付</text>
+							<text class="balance-hint">当前余额 ¥{{ (userInfo.account_balance / 100).toFixed(2) }}</text>
+						</view>
+					</view>
+					<view class="toggle-wrap" @click="toggleBalance">
+						<view class="toggle" :class="{ on: useBalance }">
+							<view class="toggle-dot"></view>
+						</view>
+					</view>
+				</view>
+				<view class="hint-row" v-if="canUseBalance && !balanceEnough">
+					<text class="hint-text">余额不足，仍需微信支付 ¥{{ actualPrice }}</text>
+				</view>
+
 				<view class="price-row final">
 					<text class="row-label">实付金额</text>
 					<text class="row-value final-price">¥{{ actualPrice }}</text>
@@ -101,7 +124,7 @@
 			</block>
 		</view>
 
-		<!-- 底部 -->
+		<!-- 底部按钮 -->
 		<view class="footer">
 			<view class="price-content">
 				<block v-if="currentGoods.exchange_type === 2">
@@ -121,6 +144,7 @@
 				@click="handleSubmit"
 			>
 				<text v-if="currentGoods.exchange_type === 2">✨ 立即兑换</text>
+				<text v-else-if="useBalance && balanceEnough">💰 余额支付</text>
 				<text v-else>🍄 确认订单</text>
 			</view>
 		</view>
@@ -146,6 +170,10 @@ export default {
 				var discount = Math.min(price, pointsPrice * pointsToFen);
 				return ((price - discount) / 100).toFixed(2);
 			}
+			// 现金商品 + 余额全额支付
+			if (this.useBalance && this.balanceEnough) {
+				return '0.00';
+			}
 			return ((this.currentGoods.price || 0) / 100).toFixed(2);
 		},
 		pointsDiscountMoney() {
@@ -159,20 +187,40 @@ export default {
 			if (!this.currentGoods || this.currentGoods.exchange_type !== 2) return true;
 			return (this.userInfo.points || 0) >= (this.currentGoods.points_price || 0);
 		},
+		balanceEnough() {
+			if (!this.currentGoods || this.currentGoods.exchange_type !== 1) return false;
+			return (this.userInfo.account_balance || 0) >= (this.currentGoods.price || 0);
+		},
+		canUseBalance() {
+			if (!this.currentGoods) return false;
+			return this.currentGoods.exchange_type === 1 && this.currentGoods.can_use_balance;
+		},
 		goodsEmoji() {
 			const typeEmojis = {
-				1: '💎',   // 储值（历史兼容）
-				2: '🍿',   // 美味小食
-				3: '🎈',   // 主题布置
-				4: '🎲',   // 游戏周边
-				5: '🎁',   // 惊喜盲盒
+				1: '💎',
+				2: '🍿',
+				3: '🎈',
+				4: '🎲',
+				5: '🎁',
 			};
 			return typeEmojis[this.currentGoods.goods_type] || '🎁';
+		},
+		exchangeLabel() {
+			const map = { 1: '💰 现金购买', 2: '🌟 纯积分兑换', 3: '🌟 积分+现金' };
+			return map[this.currentGoods.exchange_type] || '购买';
+		},
+		exchangeClass() {
+			const map = { 1: 'cash', 2: 'points', 3: 'mixed' };
+			return map[this.currentGoods.exchange_type] || 'cash';
 		},
 		submitDisabled() {
 			if (!this.currentGoods) return true;
 			if (this.currentGoods.exchange_type === 2) {
 				return !this.pointsEnough;
+			}
+			// 现金商品：如果选择余额支付但余额不足，则禁用
+			if (this.currentGoods.exchange_type === 1 && this.useBalance && !this.balanceEnough) {
+				return true;
 			}
 			return false;
 		},
@@ -180,6 +228,7 @@ export default {
 	data() {
 		return {
 			currentGoods: null,
+			useBalance: false,
 		};
 	},
 	onLoad(option) {
@@ -190,6 +239,11 @@ export default {
 
 		goBack() {
 			uni.navigateBack();
+		},
+
+		toggleBalance() {
+			if (!this.canUseBalance) return;
+			this.useBalance = !this.useBalance;
 		},
 
 		formatDate(d) {
@@ -259,11 +313,32 @@ export default {
 			if (goods.exchange_type === 3 && goods.points_price) {
 				param.use_points = goods.points_price;
 			}
+			// 余额支付
+			if (goods.exchange_type === 1 && this.useBalance) {
+				param.use_balance = true;
+			}
 			AUTH.checkout(this.token, param).then(res => {
 				uni.hideLoading();
 				if (!res) return;
+				// 余额全额支付直接返回成功
+				if (res._status === 0 && res.data && res.data.order_status === 1) {
+					uni.showModal({
+						title: '✨ 支付成功',
+						content: `已成功购买「${goods.name}」，可在订单列表查看`,
+						showCancel: false,
+						success: () => {
+							this.getUserInfo();
+							uni.switchTab({ url: '/pages/order/order' });
+						},
+					});
+					return;
+				}
+				// 需要微信支付
 				var url = '/pages/order/payment?parent_sn=' + res.data.order_number + '&entry=3' + '&data=' + JSON.stringify(res.data);
 				uni.redirectTo({ url: url });
+			}).catch(err => {
+				uni.hideLoading();
+				uni.showToast({ title: err || '创建订单失败', icon: 'none' });
 			});
 		},
 	},
@@ -271,148 +346,235 @@ export default {
 </script>
 
 <style lang="scss">
-$wood: #E8784A;
-$wood-light: #FFB88C;
-$forest: #7CB342;
-$forest-light: #AED581;
-$sky: #64B5F6;
-$cream: #FDF8F0;
-$cream-dark: #F5EDE0;
-$bark: #4A3728;
-$bark-light: #6D5A48;
+$primary: #FF8C42;
+$primary-light: #FFB5A7;
+$sky: #81D4FA;
+$sky-light: #B3E5FC;
+$grass: #A5D6A7;
+$grass-dark: #81C784;
+$bg: #FFF8F0;
+$text: #5C4B3A;
+$text-light: #A08B7A;
+$text-muted: #C4B5A5;
+$card-bg: #FFF;
 
-page, .container {
-	height: 100%;
-	background: $cream;
+page {
+	background: $bg;
+}
+.page-wrapper {
+	min-height: 100vh;
+	padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 
-/* 顶部栏 */
-.header-bar {
+/* ===== 天空顶部 ===== */
+.sky-header {
+	position: relative;
+	background: linear-gradient(180deg, $sky-light 0%, $sky 40%, $bg 100%);
+	padding: 24rpx 24rpx 64rpx;
+	text-align: center;
+	overflow: hidden;
+}
+
+.cloud {
+	position: absolute;
+	background: #FFF;
+	border-radius: 60rpx;
+	opacity: 0.6;
+	.puff {
+		position: absolute;
+		background: #FFF;
+		border-radius: 50%;
+	}
+}
+.cloud-1 {
+	width: 120rpx;
+	height: 40rpx;
+	top: 20rpx;
+	right: 48rpx;
+	.p1 { width: 48rpx; height: 48rpx; top: -22rpx; left: 14rpx; }
+	.p2 { width: 40rpx; height: 40rpx; top: -16rpx; right: 18rpx; }
+	.p3 { width: 32rpx; height: 32rpx; top: -8rpx; left: 45rpx; }
+}
+.cloud-2 {
+	width: 80rpx;
+	height: 28rpx;
+	top: 48rpx;
+	left: 40rpx;
+	opacity: 0.4;
+	.p1 { width: 36rpx; height: 36rpx; top: -16rpx; left: 10rpx; }
+	.p2 { width: 28rpx; height: 28rpx; top: -10rpx; right: 12rpx; }
+}
+
+.back-btn {
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+	position: absolute;
+	top: 24rpx;
+	left: 24rpx;
+	z-index: 2;
+	.back-arrow { font-size: 32rpx; color: $text; }
+	.back-text { font-size: 26rpx; color: $text-light; }
+}
+
+.header-content {
+	position: relative;
+	z-index: 1;
+	padding-top: 40rpx;
+}
+.emoji-ring {
+	width: 140rpx;
+	height: 140rpx;
+	border-radius: 50%;
+	background: linear-gradient(135deg, #FFF0E0, #FFE8D6);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin: 0 auto 16rpx;
+	box-shadow: 0 8rpx 24rpx rgba(255,140,66,0.15);
+	border: 4rpx solid rgba(255,255,255,0.5);
+}
+.goods-emoji { font-size: 72rpx; }
+.header-title {
+	font-size: 36rpx;
+	font-weight: bold;
+	color: $text;
+	letter-spacing: 2rpx;
+}
+
+/* ===== 信息卡片 ===== */
+.info-card {
+	margin: -32rpx 24rpx 20rpx;
+	background: $card-bg;
+	border-radius: 28rpx;
+	padding: 28rpx;
+	box-shadow: 0 8rpx 28rpx rgba(92,75,58,0.06);
+	position: relative;
+	z-index: 2;
+}
+.tag-row {
+	display: flex;
+	gap: 12rpx;
+	margin-bottom: 20rpx;
+	flex-wrap: wrap;
+}
+.tag {
+	font-size: 22rpx;
+	color: $primary;
+	background: rgba(255,140,66,0.08);
+	padding: 6rpx 16rpx;
+	border-radius: 12rpx;
+	border: 1rpx solid rgba(255,140,66,0.15);
+	&.mixed { color: $grass-dark; background: rgba(165,214,167,0.15); border-color: rgba(165,214,167,0.3); }
+	&.cash { color: $sky; background: rgba(129,212,250,0.15); border-color: rgba(129,212,250,0.3); }
+	&.hot { color: #E53935; background: rgba(229,57,53,0.08); border-color: rgba(229,57,53,0.15); }
+	&.new { color: $grass-dark; background: rgba(165,214,167,0.15); border-color: rgba(165,214,167,0.3); }
+}
+.info-row {
+	display: flex;
+	align-items: flex-start;
+	padding: 14rpx 0;
+	border-bottom: 1rpx solid #F5E6D8;
+	&:last-child { border-bottom: none; }
+}
+.info-label {
+	font-size: 26rpx;
+	color: $text-light;
+	width: 160rpx;
+	flex-shrink: 0;
+}
+.info-value {
+	font-size: 26rpx;
+	color: $text;
+	flex: 1;
+	&.short { color: #E53935; font-weight: bold; }
+}
+
+/* ===== 价格卡片 ===== */
+.price-card {
+	margin: 0 24rpx 20rpx;
+	background: $card-bg;
+	border-radius: 28rpx;
+	padding: 28rpx;
+	box-shadow: 0 8rpx 28rpx rgba(92,75,58,0.06);
+}
+.price-title {
+	font-size: 30rpx;
+	font-weight: bold;
+	color: $text;
+	margin-bottom: 20rpx;
+}
+.price-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	padding: 20rpx 24rpx;
-	.back-btn {
-		display: flex;
-		align-items: center;
-		gap: 8rpx;
-		.back-arrow { font-size: 32rpx; color: $bark; }
-		.back-text { font-size: 26rpx; color: $bark-light; }
-	}
-	.header-leaf { font-size: 32rpx; opacity: 0.4; }
+	padding: 14rpx 0;
+	border-bottom: 1rpx solid #F5E6D8;
+	&:last-child { border-bottom: none; }
+	&.final { margin-top: 8rpx; padding-top: 20rpx; border-top: 3rpx solid #F5E6D8; border-bottom: none; }
+}
+.row-label { font-size: 26rpx; color: $text-light; }
+.row-value {
+	font-size: 26rpx;
+	color: $text;
+	font-weight: 500;
+	&.points { color: $primary; font-weight: bold; font-size: 30rpx; }
+	&.short { color: #E53935; }
+	.points-deduct { color: $grass-dark; font-weight: bold; margin-right: 8rpx; }
+	.deduct-amount { color: $text-light; font-size: 22rpx; }
+	&.final-price { color: $primary; font-size: 36rpx; font-weight: bold; }
 }
 
-/* 商品卡片 */
-.goods-card {
-	margin: 0 24rpx 20rpx;
-	background: #FFF;
-	border-radius: 28rpx;
-	padding: 28rpx;
-	box-shadow: 0 8rpx 32rpx rgba(74,55,40,0.06);
-	border: 2rpx solid rgba(245,237,224,0.8);
-}
-.goods-header {
+/* 余额支付开关 */
+.balance-row {
 	display: flex;
 	align-items: center;
-	gap: 20rpx;
-	margin-bottom: 24rpx;
-	.emoji-ring {
-		width: 120rpx;
-		height: 120rpx;
-		border-radius: 50%;
-		background: linear-gradient(135deg, $cream-dark, $cream);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0 4rpx 12rpx rgba(74,55,40,0.08);
-		border: 2rpx solid $cream-dark;
-	}
-	.goods-emoji { font-size: 64rpx; }
-	.goods-info {
-		flex: 1;
-		.goods-name { font-size: 34rpx; font-weight: bold; color: $bark; }
-		.goods-tags {
-			display: flex;
-			gap: 8rpx;
-			margin-top: 10rpx;
-			flex-wrap: wrap;
-			.tag {
-				font-size: 20rpx;
-				color: $wood;
-				background: #FFF5EE;
-				padding: 4rpx 12rpx;
-				border-radius: 12rpx;
-				&.mixed { color: $forest; background: rgba(124,179,66,0.1); }
-				&.cash { color: $sky; background: rgba(100,181,246,0.1); }
-				&.hot { color: #E53935; background: rgba(229,57,53,0.08); }
-				&.new { color: $forest; background: rgba(124,179,66,0.1); }
-			}
-		}
-	}
+	justify-content: space-between;
+	padding: 20rpx 0;
+	border-bottom: 1rpx solid #F5E6D8;
 }
-.goods-detail {
-	border-top: 2rpx solid $cream-dark;
-	padding-top: 20rpx;
-	.detail-row {
-		display: flex;
-		align-items: flex-start;
-		padding: 12rpx 0;
-		.detail-label {
-			font-size: 26rpx;
-			color: $bark-light;
-			width: 160rpx;
-			flex-shrink: 0;
-		}
-		.detail-value {
-			font-size: 26rpx;
-			color: $bark;
-			flex: 1;
-			&.short { color: #E53935; }
-		}
+.balance-left {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+}
+.balance-icon { font-size: 40rpx; }
+.balance-info {
+	display: flex;
+	flex-direction: column;
+}
+.balance-label { font-size: 28rpx; color: $text; font-weight: 500; }
+.balance-hint { font-size: 22rpx; color: $text-muted; margin-top: 4rpx; }
+
+.toggle-wrap { display: flex; justify-content: flex-end; }
+.toggle {
+	width: 96rpx;
+	height: 52rpx;
+	border-radius: 26rpx;
+	background: #E8E8E8;
+	position: relative;
+	transition: background 0.3s;
+	&.on { background: linear-gradient(135deg, $primary-light, $primary); }
+	.toggle-dot {
+		position: absolute;
+		top: 4rpx;
+		left: 4rpx;
+		width: 44rpx;
+		height: 44rpx;
+		border-radius: 22rpx;
+		background: #FFF;
+		transition: left 0.3s;
+		box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.15);
 	}
+	&.on .toggle-dot { left: 48rpx; }
 }
 
-/* 价格卡片 */
-.price-card {
-	margin: 0 24rpx 20rpx;
-	background: #FFF;
-	border-radius: 28rpx;
-	padding: 28rpx;
-	box-shadow: 0 8rpx 32rpx rgba(74,55,40,0.06);
-	border: 2rpx solid rgba(245,237,224,0.8);
-	.price-title {
-		font-size: 30rpx;
-		font-weight: bold;
-		color: $bark;
-		margin-bottom: 20rpx;
-	}
-	.price-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 14rpx 0;
-		border-bottom: 2rpx solid $cream-dark;
-		&:last-child { border-bottom: none; }
-		&.final { margin-top: 8rpx; padding-top: 20rpx; border-top: 3rpx solid $cream-dark; border-bottom: none; }
-		.row-label { font-size: 26rpx; color: $bark-light; }
-		.row-value {
-			font-size: 26rpx;
-			color: $bark;
-			font-weight: 500;
-			&.points { color: $wood; font-weight: bold; font-size: 30rpx; }
-			&.short { color: #E53935; }
-			.points-deduct { color: $forest; font-weight: bold; margin-right: 8rpx; }
-			.deduct-amount { color: $bark-light; font-size: 22rpx; }
-			&.final-price { color: $wood; font-size: 36rpx; font-weight: bold; }
-		}
-	}
-	.hint-row {
-		padding: 12rpx 0;
-		.hint-text { font-size: 22rpx; color: $wood; }
-	}
+.hint-row {
+	padding: 12rpx 0;
+	.hint-text { font-size: 22rpx; color: $primary; }
 }
 
-/* 底部 */
+/* ===== 底部 ===== */
 .footer {
 	position: fixed;
 	left: 0;
@@ -425,15 +587,16 @@ page, .container {
 	justify-content: space-between;
 	font-size: 30rpx;
 	background: #FFF;
-	box-shadow: 0 -4rpx 16rpx rgba(74,55,40,0.06);
-	border-top: 2rpx solid $cream-dark;
+	box-shadow: 0 -4rpx 16rpx rgba(92,75,58,0.06);
+	border-top: 1rpx solid #F5E6D8;
+	padding-bottom: env(safe-area-inset-bottom);
 	.price-content {
 		padding-left: 30rpx;
 		font-size: 26rpx;
-		color: $bark-light;
-		.price-tip { color: $wood; margin-left: 8rpx; font-size: 24rpx; }
-		.price { font-size: 40rpx; color: $wood; font-weight: bold; }
-		.price-unit { font-size: 24rpx; color: $wood; margin-left: 4rpx; }
+		color: $text-light;
+		.price-tip { color: $primary; margin-left: 8rpx; font-size: 24rpx; }
+		.price { font-size: 40rpx; color: $primary; font-weight: bold; }
+		.price-unit { font-size: 24rpx; color: $primary; margin-left: 4rpx; }
 	}
 	.submit-btn {
 		display: flex;
@@ -442,12 +605,12 @@ page, .container {
 		width: 280rpx;
 		height: 100%;
 		color: #FFF;
-		font-size: 32rpx;
-		background: linear-gradient(135deg, $wood-light, $wood);
+		font-size: 30rpx;
+		background: linear-gradient(135deg, $primary-light, $primary);
 		transition: opacity 0.2s;
 		&:active { opacity: 0.85; }
 		&.disabled {
-			background: #D0C8C0;
+			background: #DDD;
 		}
 	}
 }

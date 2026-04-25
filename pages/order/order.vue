@@ -104,6 +104,30 @@
 					</view>
 				</view>
 
+				<!-- 商品订单详情 -->
+				<view class="detail-section" v-if="(item.order_type === 3 || item.order_type === 5) && item.goodsInfo">
+					<view class="detail-row">
+						<text class="detail-icon">🎁</text>
+						<text class="detail-label">商品</text>
+						<text class="detail-value">{{ item.goodsInfo.goods_name || '商品订单' }}</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo.points_price">
+						<text class="detail-icon">💎</text>
+						<text class="detail-label">积分</text>
+						<text class="detail-value">{{ item.goodsInfo.points_price }} 积分</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo.use_points">
+						<text class="detail-icon">🌟</text>
+						<text class="detail-label">积分抵扣</text>
+						<text class="detail-value">{{ item.goodsInfo.use_points }} 积分</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo.use_balance">
+						<text class="detail-icon">💰</text>
+						<text class="detail-label">余额抵扣</text>
+						<text class="detail-value">¥{{ (item.goodsInfo.use_balance / 100).toFixed(2) }}</text>
+					</view>
+				</view>
+
 				<!-- 线下消费详情 -->
 				<view class="detail-section" v-if="item.order_type === 4">
 					<view class="detail-row">
@@ -140,6 +164,10 @@
 					</view>
 					<view class="price-row" v-if="item.order_type === 4 && item.originalPrice > 0">
 						<text class="price-label">消费金额</text>
+						<text class="price-value">¥{{ item.originalPrice }}</text>
+					</view>
+					<view class="price-row" v-if="(item.order_type === 3 || item.order_type === 5) && item.originalPrice > 0">
+						<text class="price-label">商品金额</text>
 						<text class="price-value">¥{{ item.originalPrice }}</text>
 					</view>
 					<view class="price-row" v-if="item.memberDiscount > 0">
@@ -212,10 +240,9 @@
 	};
 
 	const PAY_METHOD_MAP = {
-		'wxpay': '微信支付',
-		'balance': '余额支付',
-		'mixed': '混合支付',
-		'points': '积分兑换',
+		0: '未支付',
+		1: '余额支付',
+		2: '微信支付',
 	};
 
 	export default {
@@ -387,6 +414,14 @@
 					item.memberDiscount = 0;
 					item.pointsDeduction = goodsInfo._points_deducted ? (goodsInfo._points_deducted / 100).toFixed(2) : 0;
 					item.couponDiscount = goodsInfo._coupon_discount ? (goodsInfo._coupon_discount / 100).toFixed(2) : 0;
+				} else if (item.order_type === 3 || item.order_type === 5) {
+					// 商品订单 / 积分兑换订单
+					var skuPrice = item.sku_price_real || item.pay_amount || 0;
+					item.roomPrice = (skuPrice / 100).toFixed(2);
+					item.originalPrice = item.roomPrice;
+					item.memberDiscount = 0;
+					item.pointsDeduction = goodsInfo._points_deducted ? (goodsInfo._points_deducted / 100).toFixed(2) : 0;
+					item.couponDiscount = 0;
 				} else {
 					item.roomPrice = '0.00';
 					item.memberDiscount = 0;

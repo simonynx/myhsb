@@ -162,7 +162,13 @@ export default {
     computed: {
         ...mapState(['hasLogin', 'userInfo', 'token']),
         canUseBalance() {
-            return this.userInfo && this.userInfo.account_balance >= (this.order ? this.order.pay_amount : 0);
+            if (!this.userInfo || !this.order) return false;
+            // 商品订单：检查商品是否支持余额支付
+            if (this.order.order_type === 3) {
+                var goodsInfo = this.order.goodsInfo || {};
+                if (!goodsInfo.can_use_balance) return false;
+            }
+            return this.userInfo.account_balance >= this.order.pay_amount;
         },
 
         balanceShortfall() {

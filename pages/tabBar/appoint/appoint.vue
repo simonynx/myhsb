@@ -377,6 +377,7 @@ export default {
         },
 
         handleTimesSelectDateChange(date) {
+            this.currentSelectDate = date;
             if (this.checkDateHasAdded(date)) return;
             AUTH.getRoomAppointments(this.token, this.currentSelectItem.object_id, date).then(res => {
                 if (!res) return;

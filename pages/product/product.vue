@@ -633,7 +633,8 @@ export default {
         },
 
         handleTimesSelectDateChange(date) {
-            // 切换日期时，先清空旧数据，再拉取新日期的 appointments
+            // 切换日期时，先同步 currentSelectDate，再清空旧数据，拉取新日期的 appointments
+            this.currentSelectDate = date;
             this.disableTimeSlot = [];
             this._fetchDisableTimeSlot(date);
         },
