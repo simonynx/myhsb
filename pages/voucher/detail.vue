@@ -601,6 +601,9 @@ page {
 		padding-left: 30rpx;
 		font-size: 26rpx;
 		color: $text-light;
+		display: flex;
+		align-items: baseline;
+		white-space: nowrap;
 		.price-tip { color: $primary; margin-left: 8rpx; font-size: 24rpx; }
 		.price { font-size: 40rpx; color: $primary; font-weight: bold; }
 		.price-unit { font-size: 24rpx; color: $primary; margin-left: 4rpx; }
@@ -609,10 +612,13 @@ page {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 280rpx;
+		width: auto;
+		min-width: 260rpx;
+		padding: 0 48rpx;
 		height: 100%;
 		color: #FFF;
 		font-size: 30rpx;
+		white-space: nowrap;
 		background: linear-gradient(135deg, $primary-light, $primary);
 		transition: opacity 0.2s;
 		&:active { opacity: 0.85; }
