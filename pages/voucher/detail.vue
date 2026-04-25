@@ -619,6 +619,7 @@ page {
 		color: #FFF;
 		font-size: 30rpx;
 		white-space: nowrap;
+		flex-shrink: 0;
 		background: linear-gradient(135deg, $primary-light, $primary);
 		transition: opacity 0.2s;
 		&:active { opacity: 0.85; }
