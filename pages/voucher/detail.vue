@@ -28,8 +28,6 @@
 		<view class="info-card">
 			<view class="tag-row">
 				<view class="tag" :class="exchangeClass">{{ exchangeLabel }}</view>
-				<view class="tag hot" v-if="currentGoods.is_hot">🔥 热门</view>
-				<view class="tag new" v-if="currentGoods.is_new">🌱 新品</view>
 			</view>
 			<view class="info-row">
 				<text class="info-label">可用范围</text>
@@ -467,8 +465,7 @@ page {
 	border: 1rpx solid rgba(255,140,66,0.15);
 	&.mixed { color: $grass-dark; background: rgba(165,214,167,0.15); border-color: rgba(165,214,167,0.3); }
 	&.cash { color: $sky; background: rgba(129,212,250,0.15); border-color: rgba(129,212,250,0.3); }
-	&.hot { color: #E53935; background: rgba(229,57,53,0.08); border-color: rgba(229,57,53,0.15); }
-	&.new { color: $grass-dark; background: rgba(165,214,167,0.15); border-color: rgba(165,214,167,0.3); }
+
 }
 .info-row {
 	display: flex;

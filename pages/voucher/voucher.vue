@@ -116,12 +116,6 @@
 						<view class="goods-tag" v-if="g.exchange_type === 3">
 							<text>🌟 积分+现金</text>
 						</view>
-						<view class="goods-tag hot" v-else-if="g.is_hot">
-							<text>🔥 热门</text>
-						</view>
-						<view class="goods-tag new" v-else-if="g.is_new">
-							<text>🌱 新品</text>
-						</view>
 						<view class="corner-leaf leaf-tl">🌿</view>
 						<view class="corner-leaf leaf-br">🍃</view>
 					</view>
@@ -697,8 +691,7 @@ page, .page {
 			border-radius: 12rpx;
 			padding: 4rpx 12rpx;
 			text { font-size: 18rpx; color: #FFF; font-weight: bold; }
-			&.hot { background: linear-gradient(135deg, #FF7043, #E53935); }
-			&.new { background: linear-gradient(135deg, $forest, #558B2F); }
+
 			&.points { background: linear-gradient(135deg, $forest, #7CB342); }
 			&.mixed { background: linear-gradient(135deg, $sky, #1E88E5); }
 		}
