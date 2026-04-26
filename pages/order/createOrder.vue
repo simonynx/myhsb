@@ -642,6 +642,9 @@ export default {
             if (this.submitDisabled) return;
             this.submitting = true;
 
+            // 非强制请求订阅消息（失败不影响下单）
+            this.$store.dispatch('requestSubscribeMessage').catch(() => {});
+
             try {
                 // 构建时间列表
                 const timeList = [];

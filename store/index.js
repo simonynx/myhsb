@@ -307,7 +307,7 @@ const store = new Vuex.Store({
     /**
      * 完成欢迎页初始化（新用户填写资料）
      */
-    completeOnboarding: async function({ state, commit }, { nickname, avatar, phone, gender, birthday, invite_code }) {
+    completeOnboarding: async function({ state, commit, dispatch }, { nickname, avatar, phone, gender, birthday, invite_code }) {
       try {
         // 更新用户资料
         if (nickname || avatar || phone || gender !== undefined || birthday !== undefined) {
