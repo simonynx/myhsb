@@ -62,6 +62,7 @@ const store = new Vuex.Store({
       if (userInfo.account_balance !== undefined) state.userInfo.account_balance = userInfo.account_balance;
       if (userInfo.total_consume !== undefined) state.userInfo.total_consume = userInfo.total_consume;
       if (userInfo.tags !== undefined) state.userInfo.tags = userInfo.tags;
+      if (userInfo.subscribe_authorized !== undefined) state.userInfo.subscribe_authorized = userInfo.subscribe_authorized;
     },
     setOpenid(state, openid) {
       state.openid = openid;
@@ -239,7 +240,8 @@ const store = new Vuex.Store({
         state.userInfo.avatar,
         state.userInfo.gender,
         state.userInfo.birthday,
-        state.userInfo.tags
+        state.userInfo.tags,
+        state.userInfo.subscribe_authorized
       ).then((res) => {
         if (res._status !== 0) {
           uni.showModal({
@@ -315,7 +317,9 @@ const store = new Vuex.Store({
             nickname || state.userInfo.nickname || '',
             avatar || state.userInfo.avatar || '',
             gender !== undefined ? gender : state.userInfo.gender,
-            birthday || state.userInfo.birthday || ''
+            birthday || state.userInfo.birthday || '',
+            (state.userInfo.tags || ''),
+            state.userInfo.subscribe_authorized
           );
           // 同步更新本地 userInfo
           commit('updateUserInfo', { nickname, avatar, phone, gender, birthday });

@@ -59,14 +59,14 @@ function weixinLogin() {
   });
 }
 
-function getPhoneNumber(e) {
+function getPhoneNumber(e, token) {
   return new Promise((resolve, reject) => {
     if (e.detail.errMsg !== 'getPhoneNumber:ok') {
       reject(e.detail.errMsg || '获取手机号失败');
       return;
     }
     var data = { encryptedData: e.detail.encryptedData, iv: e.detail.iv };
-    request('/auth/decrypt_phone/', 'POST', data).then(resolve).catch(function(err) {
+    request('/auth/decrypt_phone/', 'POST', data, token).then(resolve).catch(function(err) {
       // 如果是 session_key 过期，先刷新再重试
       if (err && err._reason && err._reason.indexOf('SESSION_KEY_EXPIRED') >= 0) {
         uni.login({
@@ -76,10 +76,10 @@ function getPhoneNumber(e) {
               reject('登录失败，请重试');
               return;
             }
-            // 刷新 session_key
-            request('/auth/refresh_session_key/', 'POST', { code: loginRes.code }).then(function() {
+            // 刷新 session_key（需携带 token 认证）
+            request('/auth/refresh_session_key/', 'POST', { code: loginRes.code }, token).then(function() {
               // 重试解密
-              request('/auth/decrypt_phone/', 'POST', data).then(resolve).catch(reject);
+              request('/auth/decrypt_phone/', 'POST', data, token).then(resolve).catch(reject);
             }).catch(reject);
           },
           fail: function(err) {
@@ -155,7 +155,7 @@ function getRoomDetail(token, roomId) {
   return request('/rooms/' + roomId, 'GET', null, token);
 }
 
-function setUserProflie(token, phone, nickName, avatarUrl, gender, birthday, tags) {
+function setUserProflie(token, phone, nickName, avatarUrl, gender, birthday, tags, subscribeAuthorized) {
   var data = {
     phone: phone,
     nickname: nickName,
@@ -164,6 +164,9 @@ function setUserProflie(token, phone, nickName, avatarUrl, gender, birthday, tag
     birthday: birthday,
     tags: tags
   };
+  if (subscribeAuthorized !== undefined) {
+    data.subscribe_authorized = !!subscribeAuthorized;
+  }
   return request('/users/me/', 'POST', data, token);
 }
 

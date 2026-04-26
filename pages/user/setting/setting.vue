@@ -256,6 +256,10 @@
 				} else {
 					this.selectedTags = [];
 				}
+				// 同步后端保存的订阅消息授权状态
+				if (val.subscribe_authorized !== undefined) {
+					this.setSubscribeAuthorized(!!val.subscribe_authorized);
+				}
 			},
 
 			chooseAvatarEvent(e) {
@@ -318,14 +322,18 @@
 			async toggleSubscribe() {
 				if (this.subscribeEnabled) {
 					this.setSubscribeAuthorized(false);
+					this.updateUserInfo({ subscribe_authorized: false });
+					this.saveProfile();
 					return;
 				}
 				try {
 					const granted = await AUTH.requestSubscribeMessage();
 					this.setSubscribeAuthorized(granted);
+					this.updateUserInfo({ subscribe_authorized: granted });
 					if (granted) {
 						uni.showToast({ title: '订阅成功', icon: 'success' });
 					}
+					this.saveProfile();
 				} catch (e) {
 					this.setSubscribeAuthorized(false);
 				}
@@ -425,6 +433,7 @@
 					birthday: this.form.birthday,
 					phone: this.form.phone,
 					tags: this.selectedTags.join(','),
+					subscribe_authorized: this.subscribeEnabled,
 				});
 				this.requestUpdateUserInfo().then((res) => {
 					uni.hideLoading();
