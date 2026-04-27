@@ -1,9 +1,5 @@
 <template>
 	<view class="page-wrapper">
-		<view class="page-header">
-			<text class="header-title">我的评价</text>
-		</view>
-
 		<!-- 我的评价状态 -->
 		<view class="my-review-card" v-if="myReview">
 			<view class="my-review-header">
@@ -152,119 +148,158 @@
 </script>
 
 <style lang="scss">
-page {
-	background: #FFF9F5;
-}
-.page-wrapper {
-	padding: 24rpx;
-}
-.page-header {
-	text-align: center;
-	padding: 24rpx 0 32rpx;
-	.header-title { font-size: 36rpx; font-weight: bold; color: #333; }
-}
+	page {
+		background: #FDF6E9;
+	}
+	.page-wrapper {
+		padding: 24rpx;
+		background: #FDF6E9;
+		background-image: repeating-linear-gradient(
+			0deg,
+			transparent,
+			transparent 3rpx,
+			rgba(139, 90, 43, 0.025) 3rpx,
+			rgba(139, 90, 43, 0.025) 6rpx
+		);
+		min-height: 100vh;
+	}
 
-/* 我的评价 */
-.my-review-card {
-	background: linear-gradient(135deg, #FFF5F8, #FFF);
-	border: 2rpx solid #FFE5EE;
-	border-radius: 28rpx;
-	padding: 28rpx;
-	margin-bottom: 32rpx;
-	.my-review-header {
+	/* 我的评价 */
+	.my-review-card {
+		background: linear-gradient(135deg, #FFF8F0, #FFF);
+		border: 2rpx solid rgba(232,120,74,0.15);
+		border-radius: 28rpx;
+		padding: 28rpx;
+		margin-bottom: 32rpx;
+		position: relative;
+		box-shadow: 0 10rpx 28rpx rgba(160,120,80,0.08), 0 2rpx 6rpx rgba(160,120,80,0.04);
+		&::before {
+			content: '🌿';
+			position: absolute;
+			top: -10rpx;
+			left: -6rpx;
+			font-size: 28rpx;
+			transform: rotate(-18deg);
+			opacity: 0.45;
+		}
+		.my-review-header {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-bottom: 12rpx;
+		}
+		.my-review-label { font-size: 26rpx; color: #E8784A; font-weight: bold; }
+		.review-stars .star { font-size: 28rpx; }
+		.review-stars .star.filled { filter: drop-shadow(0 1rpx 2rpx rgba(255,193,7,0.4)); }
+		.my-review-content {
+			display: block;
+			font-size: 28rpx;
+			color: #4A3728;
+			line-height: 1.6;
+			margin-bottom: 8rpx;
+		}
+		.my-review-time { font-size: 20rpx; color: #A08B7A; }
+	}
+
+	/* 提交表单 */
+	.submit-form {
+		background: #FFF;
+		border-radius: 28rpx;
+		padding: 28rpx;
+		margin-bottom: 32rpx;
+		box-shadow: 0 10rpx 28rpx rgba(160,120,80,0.08), 0 2rpx 6rpx rgba(160,120,80,0.04);
+		border: 2rpx solid rgba(160,120,80,0.12);
+		position: relative;
+		&::after {
+			content: '🍄';
+			position: absolute;
+			bottom: -12rpx;
+			right: -8rpx;
+			font-size: 32rpx;
+			transform: rotate(15deg);
+			opacity: 0.45;
+		}
+		.form-title { font-size: 30rpx; font-weight: bold; color: #4A3728; margin-bottom: 20rpx; }
+	}
+	.rating-row {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 12rpx;
-	}
-	.my-review-label { font-size: 26rpx; color: #FF6B9D; font-weight: bold; }
-	.review-stars .star { font-size: 28rpx; }
-	.my-review-content {
-		display: block;
-		font-size: 28rpx;
-		color: #333;
-		line-height: 1.6;
-		margin-bottom: 8rpx;
-	}
-	.my-review-time { font-size: 20rpx; color: #AAA; }
-}
-
-/* 提交表单 */
-.submit-form {
-	background: #FFF;
-	border-radius: 28rpx;
-	padding: 28rpx;
-	margin-bottom: 32rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
-	.form-title { font-size: 30rpx; font-weight: bold; color: #333; margin-bottom: 20rpx; }
-}
-.rating-row {
-	display: flex;
-	align-items: center;
-	margin-bottom: 20rpx;
-	.rating-label { font-size: 26rpx; color: #666; margin-right: 16rpx; }
-	.stars-row {
-		display: flex;
-		gap: 8rpx;
-		.star-btn { font-size: 44rpx; opacity: 0.3; transition: all 0.2s; }
-		.star-btn.active { opacity: 1; transform: scale(1.2); }
-	}
-	.rating-text { font-size: 24rpx; color: #FF6B9D; margin-left: 16rpx; }
-}
-.review-textarea {
-	width: 100%;
-	height: 200rpx;
-	background: #FFF9F5;
-	border-radius: 16rpx;
-	padding: 20rpx;
-	font-size: 28rpx;
-	color: #333;
-	box-sizing: border-box;
-	border: 2rpx solid #FFE5EE;
-}
-.char-count {
-	display: block;
-	text-align: right;
-	font-size: 20rpx;
-	color: #AAA;
-	margin-top: 8rpx;
-}
-.submit-btn {
-	margin-top: 24rpx;
-	background: linear-gradient(135deg, #FF9ECD, #FF6B9D);
-	border-radius: 50rpx;
-	padding: 24rpx;
-	text-align: center;
-	box-shadow: 0 6rpx 20rpx rgba(255,107,157,0.3);
-	.btn-text { color: #FFF; font-size: 30rpx; font-weight: bold; }
-}
-
-/* 其他评价 */
-.other-reviews {
-	.section-title {
-		font-size: 30rpx;
-		font-weight: bold;
-		color: #333;
 		margin-bottom: 20rpx;
+		.rating-label { font-size: 26rpx; color: #6D5A48; margin-right: 16rpx; }
+		.stars-row {
+			display: flex;
+			gap: 8rpx;
+			.star-btn { font-size: 44rpx; opacity: 0.3; transition: all 0.2s; filter: grayscale(1); }
+			.star-btn.active { opacity: 1; transform: scale(1.2); filter: grayscale(0); }
+		}
+		.rating-text { font-size: 24rpx; color: #E8784A; margin-left: 16rpx; font-weight: bold; }
 	}
-}
-.review-card {
-	background: #FFF;
-	border-radius: 24rpx;
-	padding: 24rpx;
-	margin-bottom: 16rpx;
-	box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
-	.review-header {
-		display: flex;
-		align-items: center;
-		gap: 16rpx;
-		margin-bottom: 12rpx;
+	.review-textarea {
+		width: 100%;
+		height: 200rpx;
+		background: #FDF8F0;
+		border-radius: 16rpx;
+		padding: 20rpx;
+		font-size: 28rpx;
+		color: #4A3728;
+		box-sizing: border-box;
+		border: 2rpx solid rgba(232,120,74,0.15);
 	}
-	.review-avatar { font-size: 48rpx; }
-	.review-meta { flex: 1; }
-	.review-name { display: block; font-size: 26rpx; font-weight: bold; color: #333; margin-bottom: 4rpx; }
-	.review-stars .star { font-size: 20rpx; }
-	.review-text { display: block; font-size: 26rpx; color: #666; line-height: 1.6; }
-	.review-time { display: block; font-size: 20rpx; color: #AAA; margin-top: 8rpx; }
-}
+	.char-count {
+		display: block;
+		text-align: right;
+		font-size: 20rpx;
+		color: #A08B7A;
+		margin-top: 8rpx;
+	}
+	.submit-btn {
+		margin-top: 24rpx;
+		background: linear-gradient(135deg, #FFB88C, #E8784A);
+		border-radius: 50rpx;
+		padding: 24rpx;
+		text-align: center;
+		box-shadow: 0 6rpx 20rpx rgba(232,120,74,0.3);
+		.btn-text { color: #FFF; font-size: 30rpx; font-weight: bold; }
+	}
+
+	/* 其他评价 */
+	.other-reviews {
+		.section-title {
+			font-size: 30rpx;
+			font-weight: bold;
+			color: #4A3728;
+			margin-bottom: 20rpx;
+		}
+	}
+	.review-card {
+		background: #FFF;
+		border-radius: 24rpx;
+		padding: 24rpx;
+		margin-bottom: 16rpx;
+		box-shadow: 0 10rpx 28rpx rgba(160,120,80,0.08), 0 2rpx 6rpx rgba(160,120,80,0.04);
+		border: 2rpx solid rgba(160,120,80,0.08);
+		position: relative;
+		&::before {
+			content: '🌿';
+			position: absolute;
+			top: -8rpx;
+			left: -4rpx;
+			font-size: 24rpx;
+			transform: rotate(-15deg);
+			opacity: 0.35;
+		}
+		.review-header {
+			display: flex;
+			align-items: center;
+			gap: 16rpx;
+			margin-bottom: 12rpx;
+		}
+		.review-avatar { font-size: 48rpx; }
+		.review-meta { flex: 1; }
+		.review-name { display: block; font-size: 26rpx; font-weight: bold; color: #4A3728; margin-bottom: 4rpx; }
+		.review-stars .star { font-size: 20rpx; }
+		.review-stars .star.filled { filter: drop-shadow(0 1rpx 2rpx rgba(255,193,7,0.4)); }
+		.review-text { display: block; font-size: 26rpx; color: #6D5A48; line-height: 1.6; }
+		.review-time { display: block; font-size: 20rpx; color: #A08B7A; margin-top: 8rpx; }
+	}
 </style>
