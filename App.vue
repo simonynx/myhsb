@@ -14,9 +14,8 @@
 			...mapState(['hasLogin'])
 		},
 		onLaunch: function() {
-			if(!this.hasLogin){
-				this.loginAndRegister();
-			}
+			// 微信审核要求：用户先浏览功能，再自行选择授权登录
+			// 不再在启动时强制登录，各页面在需要时自行引导
 		},
 		onShow: function() {
 			console.log('App Show')

@@ -16,7 +16,7 @@
 
 		<!-- 用户信息卡 -->
 		<view class="profile-card">
-			<view class="profile-top">
+			<view class="profile-top" v-if="hasLogin">
 				<view class="avatar-wrap" @tap="openAuthorizationModal">
 					<image class="avatar" :src="avatarUrl || '/static/missing-face.png'"></image>
 					<view class="avatar-badge" :style="{ background: memberColor }">
@@ -34,21 +34,33 @@
 					<text>编辑</text>
 				</view>
 			</view>
+			<view class="profile-top guest" v-else>
+				<view class="avatar-wrap guest-avatar">
+					<image class="avatar" src="/static/missing-face.png"></image>
+				</view>
+				<view class="profile-info">
+					<text class="nickname">Hi，游客</text>
+					<text class="guest-tip">登录解锁更多功能</text>
+				</view>
+				<view class="login-btn" @tap="loginAndRegister">
+					<text>点击登录</text>
+				</view>
+			</view>
 
 			<!-- 快捷数据 -->
 			<view class="quick-stats">
-				<view class="qstat-item" @tap="navTo('/pages/my/reviews')">
-					<text class="qstat-num">{{ userInfo.points || 0 }}</text>
+				<view class="qstat-item" @tap="hasLogin ? navTo('/pages/my/reviews') : loginAndRegister()">
+					<text class="qstat-num">{{ hasLogin ? (userInfo.points || 0) : '-' }}</text>
 					<text class="qstat-label">积分</text>
 				</view>
 				<view class="qstat-divider"></view>
 				<view class="qstat-item">
-					<text class="qstat-num">¥{{ (userInfo.account_balance / 100).toFixed(0) }}</text>
+					<text class="qstat-num">{{ hasLogin ? '¥' + (userInfo.account_balance / 100).toFixed(0) : '-' }}</text>
 					<text class="qstat-label">余额</text>
 				</view>
 				<view class="qstat-divider"></view>
 				<view class="qstat-item">
-					<text class="qstat-num">{{ userInfo.total_consume / 100 }}</text>
+					<text class="qstat-num">{{ hasLogin ? userInfo.total_consume / 100 : '-' }}</text>
 					<text class="qstat-label">累计消费</text>
 				</view>
 			</view>
@@ -184,7 +196,7 @@
 
 		<!-- 评价入口 -->
 		<view class="section menu-section">
-			<view class="menu-item" @tap="navTo('/pages/my/reviews')">
+			<view class="menu-item" @tap="hasLogin ? navTo('/pages/my/reviews') : loginAndRegister()">
 				<text class="menu-icon">💬</text>
 				<text class="menu-text">我的评价</text>
 				<text class="menu-arrow">→</text>
@@ -300,17 +312,17 @@
 		},
 		onShow() {
 			uni.$emit('tabBarChange', { key: 'user' });
-			if (!this.hasLogin) {
-				this.loginAndRegister();
-			} else if (!this.userInfo) {
+			if (this.hasLogin) {
+				if (!this.userInfo) {
+					this.getUserInfo();
+				}
+				// 每次进来刷新用户信息
 				this.getUserInfo();
+				// 加载签到信息和邀请信息
+				this.loadCheckInInfo();
+				this.loadInviteInfo();
+				this.loadMemberConfig();
 			}
-			// 每次进来刷新用户信息
-			this.getUserInfo();
-			// 加载签到信息和邀请信息
-			this.loadCheckInInfo();
-			this.loadInviteInfo();
-			this.loadMemberConfig();
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getUserInfo', 'requestUpdateUserInfo']),
@@ -972,5 +984,28 @@ page {
 		.menu-arrow { font-size: 28rpx; color: #D0C8C0; transition: transform 0.2s; }
 		&:active .menu-arrow { transform: translateX(4rpx); }
 	}
+}
+
+.guest {
+	justify-content: center;
+	gap: 20rpx;
+}
+.guest-avatar {
+	margin-right: 0 !important;
+}
+.guest-tip {
+	font-size: 24rpx;
+	color: #A08B7A;
+	margin-top: 6rpx;
+	display: block;
+}
+.login-btn {
+	background: linear-gradient(135deg, #FFB5A7, #FF8C42);
+	color: #fff;
+	padding: 14rpx 36rpx;
+	border-radius: 32rpx;
+	font-size: 26rpx;
+	font-weight: bold;
+	box-shadow: 0 4rpx 16rpx rgba(255, 140, 66, 0.25);
 }
 </style>
