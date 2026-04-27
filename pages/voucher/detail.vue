@@ -89,6 +89,13 @@
 					<text class="row-label">所需积分</text>
 					<text class="row-value points">{{ currentGoods.points_price || 0 }} 积分</text>
 				</view>
+				<view class="price-row">
+					<text class="row-label">我的积分</text>
+					<text class="row-value" :class="{ short: !pointsEnough }">{{ userInfo.points || 0 }} 积分</text>
+				</view>
+				<view class="hint-row" v-if="!pointsEnough">
+					<text class="hint-text">积分不够啦～多来店里玩，签到也能攒积分哦 🌱</text>
+				</view>
 				<view class="price-row final">
 					<text class="row-label">实付金额</text>
 					<text class="row-value final-price">¥{{ actualPrice }} + {{ currentGoods.points_price || 0 }} 积分</text>
@@ -192,8 +199,12 @@ export default {
 			return (discount / 100).toFixed(2);
 		},
 		pointsEnough() {
-			if (!this.currentGoods || this.currentGoods.exchange_type !== 2) return true;
-			return (this.userInfo.points || 0) >= (this.currentGoods.points_price || 0);
+			if (!this.currentGoods) return true;
+			// 纯积分或混合商品都需要判断积分
+			if (this.currentGoods.exchange_type === 2 || this.currentGoods.exchange_type === 3) {
+				return (this.userInfo.points || 0) >= (this.currentGoods.points_price || 0);
+			}
+			return true;
 		},
 		balanceEnough() {
 			if (!this.currentGoods || this.currentGoods.exchange_type !== 1) return false;
@@ -230,8 +241,9 @@ export default {
 			if ((this.currentGoods.max_buy_per_user || 0) > 0 && this.userBoughtCount >= this.currentGoods.max_buy_per_user) {
 				return true;
 			}
-			if (this.currentGoods.exchange_type === 2) {
-				return !this.pointsEnough;
+			// 纯积分或混合商品：积分不足则禁用
+			if ((this.currentGoods.exchange_type === 2 || this.currentGoods.exchange_type === 3) && !this.pointsEnough) {
+				return true;
 			}
 			// 现金商品：如果选择余额支付但余额不足，则禁用
 			if (this.currentGoods.exchange_type === 1 && this.useBalance && !this.balanceEnough) {
