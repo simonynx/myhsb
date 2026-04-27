@@ -2,7 +2,7 @@
 	<view class="content">
 		<view class="container">
 			<!-- 日期列表 -->
-			<scroll-view class="date-scroll" scroll-x>
+			<scroll-view class="date-scroll" scroll-x="true">
 				<view class="date-inner">
 					<view
 						v-for="(item,index) in dateArr"
@@ -369,7 +369,7 @@ $dark: #333;
 $light: #F5F6F7;
 $border: #EEEEEE;
 
-page { height: 100%; }
+/* page selector removed - not allowed in component wxss */
 
 .content {
 	height: 100%;
@@ -381,21 +381,21 @@ page { height: 100%; }
 // 日期横向滚动
 .date-scroll {
 	width: 100%;
-	white-space: nowrap;
 	background: #fff;
-	padding: 20rpx 0 0;
+	white-space: nowrap;
 
 	.date-inner {
-		display: inline-flex;
-		padding: 0 16rpx;
+		display: block;
+		white-space: nowrap;
+		padding: 20rpx 16rpx 16rpx;
+		font-size: 0; /* 消除 inline-block 间隙 */
 	}
 }
 
 .date-pill {
-	display: inline-flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
+	display: inline-block;
+	vertical-align: top;
+	text-align: center;
 	width: 88rpx;
 	height: 120rpx;
 	border-radius: 20rpx;
@@ -403,6 +403,8 @@ page { height: 100%; }
 	background: #F5F6F7;
 	position: relative;
 	transition: all 0.2s;
+	padding-top: 22rpx;
+	box-sizing: border-box;
 
 	&.active {
 		background: $primary;
@@ -415,15 +417,19 @@ page { height: 100%; }
 	}
 
 	.pill-week {
+		display: block;
 		font-size: 20rpx;
 		color: $gray;
 		margin-bottom: 6rpx;
+		line-height: 1.2;
 	}
 
 	.pill-date {
+		display: block;
 		font-size: 36rpx;
 		font-weight: bold;
 		color: $dark;
+		line-height: 1.2;
 	}
 
 	.pill-dot {
