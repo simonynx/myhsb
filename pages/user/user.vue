@@ -24,7 +24,7 @@
 					</view>
 				</view>
 				<view class="profile-info">
-					<text class="nickname">{{ userInfo.nickname || '游客' }}</text>
+					<text class="nickname">{{ (userInfo || {}).nickname || '游客' }}</text>
 					<view class="member-tag" :style="{ background: memberColor }">
 						<text class="tag-icon">{{ memberIcon }}</text>
 						<text class="tag-name">{{ memberLevelName }}</text>
@@ -50,17 +50,17 @@
 			<!-- 快捷数据 -->
 			<view class="quick-stats">
 				<view class="qstat-item" @tap="hasLogin ? navTo('/pages/my/reviews') : handleLogin()">
-					<text class="qstat-num">{{ hasLogin ? (userInfo.points || 0) : '-' }}</text>
+					<text class="qstat-num">{{ hasLogin ? ((userInfo || {}).points || 0) : '-' }}</text>
 					<text class="qstat-label">积分</text>
 				</view>
 				<view class="qstat-divider"></view>
 				<view class="qstat-item">
-					<text class="qstat-num">{{ hasLogin ? '¥' + (userInfo.account_balance / 100).toFixed(0) : '-' }}</text>
+					<text class="qstat-num">{{ hasLogin ? '¥' + (userInfo ? (userInfo.account_balance / 100).toFixed(0) : '0') : '-' }}</text>
 					<text class="qstat-label">余额</text>
 				</view>
 				<view class="qstat-divider"></view>
 				<view class="qstat-item">
-					<text class="qstat-num">{{ hasLogin ? userInfo.total_consume / 100 : '-' }}</text>
+					<text class="qstat-num">{{ hasLogin ? (userInfo ? userInfo.total_consume / 100 : 0) : '-' }}</text>
 					<text class="qstat-label">累计消费</text>
 				</view>
 			</view>
@@ -83,7 +83,7 @@
 				<view class="progress-fill" :style="{ width: progressPercent + '%', background: 'linear-gradient(90deg, ' + memberColor + ', #FFCC80)' }"></view>
 			</view>
 			<view class="level-dots">
-				<view class="level-dot" v-for="l in levelDots" :key="l.level" :class="{ active: userInfo.member_level >= l.level }">
+				<view class="level-dot" v-for="l in levelDots" :key="l.level" :class="{ active: ((userInfo || {}).member_level || 0) >= l.level }">
 					<text class="dot-icon">{{ l.icon }}</text>
 					<text class="dot-name">{{ l.name }}</text>
 				</view>
@@ -95,12 +95,12 @@
 			<view class="vip-header">
 				<text class="vip-title">会员权益</text>
 				<view class="vip-badge" :style="{ background: memberColor }">
-					<text class="vip-badge-text">{{ userInfo.discount ? (userInfo.discount >= 100 ? '原价' : userInfo.discount + '折') : '原价' }}</text>
+					<text class="vip-badge-text">{{ (userInfo || {}).discount ? ((userInfo || {}).discount >= 100 ? '原价' : (userInfo || {}).discount + '折') : '原价' }}</text>
 				</view>
 			</view>
 			<view class="vip-levels">
 				<block v-for="(lv, idx) in memberConfig" :key="lv.level">
-					<view class="vip-level" :class="{ active: userInfo.member_level >= lv.level }">
+					<view class="vip-level" :class="{ active: ((userInfo || {}).member_level || 0) >= lv.level }">
 						<text class="vl-icon">{{ lv.icon }}</text>
 						<text class="vl-name">{{ lv.name }}</text>
 						<text class="vl-discount">{{ lv.discount >= 100 ? '原价' : lv.discount + '折' }}</text>
@@ -219,7 +219,7 @@
 				<text class="menu-icon">💎</text>
 				<text class="menu-text">充值余额</text>
 				<view class="menu-tip">
-					<text class="tip-text">余额 {{ (userInfo.account_balance / 100).toFixed(2) }} 元</text>
+					<text class="tip-text">余额 {{ (userInfo ? (userInfo.account_balance / 100).toFixed(2) : '0.00') }} 元</text>
 				</view>
 				<text class="menu-arrow">→</text>
 			</view>
