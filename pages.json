@@ -25,7 +25,7 @@
 			"path": "pages/tabBar/appoint/appoint",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#FF8C42",
+				"navigationBarBackgroundColor": "#E8784A",
 				"navigationBarTextStyle": "white",
 				"navigationStyle": "custom"
 			}
