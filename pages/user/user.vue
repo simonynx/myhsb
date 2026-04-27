@@ -24,7 +24,7 @@
 					</view>
 				</view>
 				<view class="profile-info">
-					<text class="nickname">{{ (userInfo || {}).nickname || '游客' }}</text>
+					<text class="nickname">{{ userInfo && userInfo.nickname || '游客' }}</text>
 					<view class="member-tag" :style="{ background: memberColor }">
 						<text class="tag-icon">{{ memberIcon }}</text>
 						<text class="tag-name">{{ memberLevelName }}</text>
@@ -50,7 +50,7 @@
 			<!-- 快捷数据 -->
 			<view class="quick-stats">
 				<view class="qstat-item" @tap="hasLogin ? navTo('/pages/my/reviews') : handleLogin()">
-					<text class="qstat-num">{{ hasLogin ? ((userInfo || {}).points || 0) : '-' }}</text>
+					<text class="qstat-num">{{ hasLogin ? (userInfo && userInfo.points || 0) : '-' }}</text>
 					<text class="qstat-label">积分</text>
 				</view>
 				<view class="qstat-divider"></view>
@@ -83,7 +83,7 @@
 				<view class="progress-fill" :style="{ width: progressPercent + '%', background: 'linear-gradient(90deg, ' + memberColor + ', #FFCC80)' }"></view>
 			</view>
 			<view class="level-dots">
-				<view class="level-dot" v-for="l in levelDots" :key="l.level" :class="{ active: ((userInfo || {}).member_level || 0) >= l.level }">
+				<view class="level-dot" v-for="l in levelDots" :key="l.level" :class="{ active: (userInfo && userInfo.member_level || 0) >= l.level }">
 					<text class="dot-icon">{{ l.icon }}</text>
 					<text class="dot-name">{{ l.name }}</text>
 				</view>
@@ -95,12 +95,12 @@
 			<view class="vip-header">
 				<text class="vip-title">会员权益</text>
 				<view class="vip-badge" :style="{ background: memberColor }">
-					<text class="vip-badge-text">{{ (userInfo || {}).discount ? ((userInfo || {}).discount >= 100 ? '原价' : (userInfo || {}).discount + '折') : '原价' }}</text>
+					<text class="vip-badge-text">{{ userInfo && userInfo.discount ? (userInfo.discount >= 100 ? '原价' : userInfo.discount + '折') : '原价' }}</text>
 				</view>
 			</view>
 			<view class="vip-levels">
 				<block v-for="(lv, idx) in memberConfig" :key="lv.level">
-					<view class="vip-level" :class="{ active: ((userInfo || {}).member_level || 0) >= lv.level }">
+					<view class="vip-level" :class="{ active: (userInfo && userInfo.member_level || 0) >= lv.level }">
 						<text class="vl-icon">{{ lv.icon }}</text>
 						<text class="vl-name">{{ lv.name }}</text>
 						<text class="vl-discount">{{ lv.discount >= 100 ? '原价' : lv.discount + '折' }}</text>
