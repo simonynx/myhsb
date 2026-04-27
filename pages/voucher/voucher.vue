@@ -122,6 +122,16 @@
 					<view class="goods-body">
 						<text class="goods-name">{{ g.name }}</text>
 						<text class="goods-desc" v-if="g.description">{{ g.description }}</text>
+						<view class="limit-badge" v-if="g.max_buy_per_user > 0">
+							<text v-if="g.max_buy_period === 'month' && (g.user_bought_count || 0) > 0">🔔 本月已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'month'">🔔 每月限购{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'week' && (g.user_bought_count || 0) > 0">🔔 本周已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'week'">🔔 每周限购{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'day' && (g.user_bought_count || 0) > 0">🔔 今日已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'day'">🔔 每日限购{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="(g.user_bought_count || 0) > 0">🔔 已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
+							<text v-else>🔔 限购{{ g.max_buy_per_user }}张</text>
+						</view>
 						<view class="goods-footer">
 							<view class="goods-price">
 								<text class="price-sym">¥</text>
@@ -194,6 +204,16 @@
 					<view class="goods-body">
 						<text class="goods-name">{{ g.name }}</text>
 						<text class="goods-desc" v-if="g.description">{{ g.description }}</text>
+						<view class="limit-badge" v-if="g.max_buy_per_user > 0">
+							<text v-if="g.max_buy_period === 'month' && (g.user_bought_count || 0) > 0">🔔 本月已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'month'">🔔 每月限购{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'week' && (g.user_bought_count || 0) > 0">🔔 本周已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'week'">🔔 每周限购{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'day' && (g.user_bought_count || 0) > 0">🔔 今日已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="g.max_buy_period === 'day'">🔔 每日限购{{ g.max_buy_per_user }}张</text>
+							<text v-else-if="(g.user_bought_count || 0) > 0">🔔 已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
+							<text v-else>🔔 限购{{ g.max_buy_per_user }}张</text>
+						</view>
 						<view class="goods-footer">
 							<view class="goods-price points-price">
 								<text class="p-icon">🌟</text>
@@ -855,5 +875,18 @@ page, .page {
 	30%  { transform: scale(0.9); }
 	60%  { transform: scale(1.08); }
 	100% { transform: scale(1); }
+}
+
+/* 限购标签 */
+.limit-badge {
+	margin-top: 8rpx;
+	text {
+		font-size: 20rpx;
+		color: #E8784A;
+		background: rgba(232,120,74,0.08);
+		padding: 4rpx 12rpx;
+		border-radius: 10rpx;
+		border: 1rpx solid rgba(232,120,74,0.15);
+	}
 }
 </style>

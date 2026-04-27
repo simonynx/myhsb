@@ -49,6 +49,15 @@
 				<text class="info-label">兑换门槛</text>
 				<text class="info-value">{{ getMemberLevelName(currentGoods.member_level_required) }} 及以上</text>
 			</view>
+			<view class="info-row" v-if="(currentGoods.max_buy_per_user || 0) > 0">
+				<text class="info-label">限购</text>
+				<text class="info-value short">
+					<text v-if="currentGoods.max_buy_period === 'month'">每人每月限购{{ currentGoods.max_buy_per_user }}张（本月已购{{ userBoughtCount }}张）</text>
+					<text v-else-if="currentGoods.max_buy_period === 'week'">每人每周限购{{ currentGoods.max_buy_per_user }}张（本周已购{{ userBoughtCount }}张）</text>
+					<text v-else-if="currentGoods.max_buy_period === 'day'">每人每日限购{{ currentGoods.max_buy_per_user }}张（今日已购{{ userBoughtCount }}张）</text>
+					<text v-else>每人限购{{ currentGoods.max_buy_per_user }}张（已购{{ userBoughtCount }}张）</text>
+				</text>
+			</view>
 		</view>
 
 		<!-- 费用明细 -->
@@ -141,7 +150,8 @@
 				:class="{ disabled: submitDisabled }"
 				@click="handleSubmit"
 			>
-				<text v-if="currentGoods.exchange_type === 2">✨ 立即兑换</text>
+				<text v-if="(currentGoods.max_buy_per_user || 0) > 0 && userBoughtCount >= currentGoods.max_buy_per_user">🔒 已达上限</text>
+				<text v-else-if="currentGoods.exchange_type === 2">✨ 立即兑换</text>
 				<text v-else-if="useBalance && balanceEnough">💰 余额支付</text>
 				<text v-else>🍄 确认订单</text>
 			</view>
@@ -216,6 +226,10 @@ export default {
 		},
 		submitDisabled() {
 			if (!this.currentGoods) return true;
+			// 限购预拦截
+			if ((this.currentGoods.max_buy_per_user || 0) > 0 && this.userBoughtCount >= this.currentGoods.max_buy_per_user) {
+				return true;
+			}
 			if (this.currentGoods.exchange_type === 2) {
 				return !this.pointsEnough;
 			}
@@ -230,12 +244,14 @@ export default {
 		return {
 			currentGoods: null,
 			useBalance: false,
+			userBoughtCount: 0,
 		};
 	},
 	onLoad(option) {
 		try {
 			if (option.data) {
 				this.currentGoods = JSON.parse(decodeURIComponent(option.data));
+				this.userBoughtCount = this.currentGoods.user_bought_count || 0;
 			}
 		} catch (e) {
 			console.error('商品数据解析失败', e);
