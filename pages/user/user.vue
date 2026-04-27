@@ -42,14 +42,14 @@
 					<text class="nickname">Hi，游客</text>
 					<text class="guest-tip">登录解锁更多功能</text>
 				</view>
-				<view class="login-btn" @tap="loginAndRegister">
+				<view class="login-btn" @tap="handleLogin">
 					<text>点击登录</text>
 				</view>
 			</view>
 
 			<!-- 快捷数据 -->
 			<view class="quick-stats">
-				<view class="qstat-item" @tap="hasLogin ? navTo('/pages/my/reviews') : loginAndRegister()">
+				<view class="qstat-item" @tap="hasLogin ? navTo('/pages/my/reviews') : handleLogin()">
 					<text class="qstat-num">{{ hasLogin ? (userInfo.points || 0) : '-' }}</text>
 					<text class="qstat-label">积分</text>
 				</view>
@@ -196,7 +196,7 @@
 
 		<!-- 评价入口 -->
 		<view class="section menu-section">
-			<view class="menu-item" @tap="hasLogin ? navTo('/pages/my/reviews') : loginAndRegister()">
+			<view class="menu-item" @tap="hasLogin ? navTo('/pages/my/reviews') : handleLogin()">
 				<text class="menu-icon">💬</text>
 				<text class="menu-text">我的评价</text>
 				<text class="menu-arrow">→</text>
@@ -327,6 +327,14 @@
 		methods: {
 			...mapActions(['loginAndRegister', 'getUserInfo', 'requestUpdateUserInfo']),
 			...mapMutations(['updateUserInfo']),
+			handleLogin() {
+				this.loginAndRegister().then(() => {
+					this.getUserInfo();
+					this.loadCheckInInfo();
+					this.loadInviteInfo();
+					this.loadMemberConfig();
+				});
+			},
 			goGroup() {
 				uni.navigateTo({ url: '/pages/group/my' });
 			},

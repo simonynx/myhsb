@@ -266,11 +266,7 @@ const store = new Vuex.Store({
      * 获取配置信息
      */
     getConstanceInfo: function({ state, commit }) {
-      if (!state.token) {
-        console.warn('token 不存在，无法获取 constance');
-        return Promise.reject('token is null');
-      }
-      return AUTH.getConstance(state.token).then((res) => {
+      return AUTH.getConstance(state.token || null).then((res) => {
         if (!res || res._status !== 0) return;
         commit('setConstanceInfo', res.data);
         if (res.data.wechat_subscribe_template_id) {

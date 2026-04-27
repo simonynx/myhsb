@@ -333,10 +333,18 @@
 		onShow() {
 			uni.$emit('tabBarChange', { key: 'index' });
 			this.loadData();
+			this.loadReviews();
 			if (this.hasLogin) this.checkBanner();
 		},
 		onLoad() {
-			this.loadData();
+			if (!this.constance) {
+				this.getConstanceInfo().then(() => {
+					this.loadData();
+				}).catch(() => {});
+			} else {
+				this.loadData();
+			}
+			this.loadReviews();
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getReviewList']),
@@ -376,8 +384,6 @@
 				if (this.constance.home_page_image3) this.carouselList.push(addPrefix(this.constance.home_page_image3));
 				this.swiperLength = this.carouselList.length;
 				console.log('轮播图加载完成:', this.carouselList);
-
-				this.loadReviews();
 			},
 			async loadReviews() {
 				try {
