@@ -82,19 +82,16 @@
 			<!-- 积分+现金混合 -->
 			<block v-else-if="currentGoods.exchange_type === 3">
 				<view class="price-row">
-					<text class="row-label">商品原价</text>
+					<text class="row-label">现金支付</text>
 					<text class="row-value">¥{{ (currentGoods.price / 100).toFixed(2) }}</text>
 				</view>
 				<view class="price-row">
-					<text class="row-label">积分抵扣</text>
-					<view class="row-value">
-						<text class="points-deduct">{{ currentGoods.points_price || 0 }} 积分</text>
-						<text class="deduct-amount">-¥{{ pointsDiscountMoney }}</text>
-					</view>
+					<text class="row-label">所需积分</text>
+					<text class="row-value points">{{ currentGoods.points_price || 0 }} 积分</text>
 				</view>
 				<view class="price-row final">
 					<text class="row-label">实付金额</text>
-					<text class="row-value final-price">¥{{ actualPrice }}</text>
+					<text class="row-value final-price">¥{{ actualPrice }} + {{ currentGoods.points_price || 0 }} 积分</text>
 				</view>
 			</block>
 
@@ -139,6 +136,12 @@
 					<text class="price">{{ currentGoods.points_price || 0 }}</text>
 					<text class="price-unit">积分</text>
 				</block>
+				<block v-else-if="currentGoods.exchange_type === 3">
+					<text>实付款</text>
+					<text class="price-tip">¥</text>
+					<text class="price">{{ actualPrice }}</text>
+					<text class="price-tip">+{{ currentGoods.points_price || 0 }}积分</text>
+				</block>
 				<block v-else>
 					<text>实付款</text>
 					<text class="price-tip">¥</text>
@@ -171,12 +174,9 @@ export default {
 			if (this.currentGoods.exchange_type === 2) {
 				return '0.00';
 			}
+			// 混合商品：现金部分就是 price，积分是额外支付，不参与抵扣
 			if (this.currentGoods.exchange_type === 3) {
-				var price = this.currentGoods.price || 0;
-				var pointsPrice = this.currentGoods.points_price || 0;
-				var pointsToFen = (this.userInfo.points_config && this.userInfo.points_config.points_to_fen) || 1;
-				var discount = Math.min(price, pointsPrice * pointsToFen);
-				return ((price - discount) / 100).toFixed(2);
+				return ((this.currentGoods.price || 0) / 100).toFixed(2);
 			}
 			// 现金商品 + 余额全额支付
 			if (this.useBalance && this.balanceEnough) {
