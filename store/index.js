@@ -42,6 +42,7 @@ const store = new Vuex.Store({
       state.hasLogin = false;
       state.openid = null;
       state.token = null;
+      try { uni.removeStorageSync('token'); } catch(e) {}
     },
     setUserInfo(state, payload) {
       state.userInfo = payload;
@@ -69,6 +70,7 @@ const store = new Vuex.Store({
     },
     setToken(state, token) {
       state.token = token;
+      try { uni.setStorageSync('token', token); } catch(e) {}
     },
     setSubscribeAuthorized(state, authorized) {
       state.subscribeAuthorized = authorized;
@@ -223,12 +225,27 @@ const store = new Vuex.Store({
       }
     },
 
-    getUserInfo: function({ commit, state }) {
+    getUserInfo: function({ commit, state }, silent = false) {
+      if (!state.token) {
+        return Promise.reject('token is null');
+      }
       return AUTH.getUserProfile(state.token).then((res) => {
-        if (!res) return;
+        if (!res || res._status !== 0) {
+          if (silent) return Promise.reject('invalid token');
+          return;
+        }
         commit('setUserInfo', res.data);
+        return res;
       }).catch((err) => {
         console.error('获取用户信息失败:', err);
+        if (!silent) {
+          uni.showModal({
+            title: '更新远程用户信息失败',
+            content: err,
+            showCancel: false
+          });
+        }
+        return Promise.reject(err);
       });
     },
 

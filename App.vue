@@ -14,8 +14,23 @@
 			...mapState(['hasLogin'])
 		},
 		onLaunch: function() {
-			// 微信审核要求：用户先浏览功能，再自行选择授权登录
-			// 不再在启动时强制登录，各页面在需要时自行引导
+			// 微信审核要求：打开小程序不强制登录，让用户先浏览
+			// 但如果有本地缓存的 token，先验证是否有效，有效再恢复登录态
+			try {
+				var token = uni.getStorageSync('token');
+				if (token) {
+					this.$store.commit('setToken', token);
+					this.$store.commit('login', 'weixin');
+					this.$store.dispatch('getUserInfo', true).then(() => {
+						this.$store.dispatch('getConstanceInfo');
+					}).catch(() => {
+						// token 已过期，静默清除登录态
+						this.$store.commit('logout');
+					});
+				}
+			} catch (e) {
+				console.log('恢复登录态失败', e);
+			}
 		},
 		onShow: function() {
 			console.log('App Show')
