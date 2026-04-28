@@ -72,6 +72,52 @@
           </view>
         </view>
 
+        <!-- 积分抵扣 -->
+        <view class="price-row points-row" v-if="canUsePoints">
+          <view class="points-header">
+            <view class="points-info">
+              <text class="tag">积分</text>
+              <text class="points-balance">当前 {{ userInfo.points }} 积分</text>
+            </view>
+            <switch
+              color="#FFCC33"
+              :checked="usePoints"
+              @change="togglePoints"
+              :disabled="!canUsePoints"
+            />
+          </view>
+          <view class="points-slider" v-if="usePoints && canUsePoints">
+            <view class="slider-wrap">
+              <view class="slider-labels">
+                <text class="slider-label">{{ pointsMinUse }}</text>
+                <text class="slider-label">{{ maxUsablePoints }}</text>
+              </view>
+              <slider
+                :value="pointsToUse"
+                :min="pointsMinUse"
+                :max="maxUsablePoints"
+                :step="pointsStep"
+                activeColor="#FFCC33"
+                backgroundColor="#E0E0E0"
+                block-size="18"
+                @change="onPointsChange"
+              />
+            </view>
+            <view class="points-result">
+              <text class="result-points">已选 {{ pointsToUse }} 积分</text>
+              <text class="result-money">-¥{{ pointsConvertMoney }}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 无积分时提示 -->
+        <view class="price-row points-zero-row" v-else-if="userInfo.points === 0">
+          <text class="row-label">
+            <text class="tag">积分</text>
+            当前0积分，消费预约可获取积分
+          </text>
+        </view>
+
         <!-- 余额 -->
         <view class="price-row balance-row">
           <text class="row-label">
@@ -148,6 +194,7 @@
       <view class="bottom-info">
         <text class="bottom-label">实付款</text>
         <text class="bottom-price">¥{{ actualPrice }}</text>
+        <text class="bottom-points" v-if="usePoints && pointsToUse > 0">(含{{ pointsToUse }}积分)</text>
       </view>
       <view class="submit-btn" :class="submitting ? 'btn-disabled' : ''" @click="submitOrder">
         <text v-if="!submitting">提交订单</text>
@@ -224,6 +271,9 @@ export default {
       myCoupons: [],
       selectedCoupon: null,
       submitting: false,
+      // 积分
+      usePoints: false,
+      pointsToUse: 0,
     };
   },
 
@@ -272,6 +322,36 @@ export default {
       return this.basePriceFen - this.memberDiscountAmountFen;
     },
 
+    // 积分相关
+    pointsStep() {
+      return this.userInfo && this.userInfo.points_config && this.userInfo.points_config.points_step || 100;
+    },
+    pointsMaxUse() {
+      return this.userInfo && this.userInfo.points_config && this.userInfo.points_config.points_max_use || 10000;
+    },
+    pointsMinUse() {
+      return this.userInfo && this.userInfo.points_config && this.userInfo.points_config.points_min_use || 100;
+    },
+    pointsToFen() {
+      return this.userInfo && this.userInfo.points_config && this.userInfo.points_config.points_to_fen || 1;
+    },
+    maxUsablePoints() {
+      const raw = Math.min(this.userInfo && this.userInfo.points || 0, this.pointsMaxUse);
+      return Math.floor(raw / this.pointsStep) * this.pointsStep;
+    },
+    canUsePoints() {
+      return this.userInfo && this.userInfo.points >= this.pointsMinUse
+        && this.maxUsablePoints > 0
+        && this.afterMemberPriceFen > 0;
+    },
+    pointsConvertMoney() {
+      return (this.pointsToUse * this.pointsToFen / 100).toFixed(2);
+    },
+    afterPointsPriceFen() {
+      if (!this.usePoints) return this.afterMemberPriceFen;
+      return Math.max(0, this.afterMemberPriceFen - this.pointsToUse * this.pointsToFen);
+    },
+
     couponDiscountFen() {
       if (!this.selectedCoupon) return 0;
       if (this.selectedCoupon.coupon_type === 'rebate') {
@@ -294,7 +374,7 @@ export default {
     },
 
     afterCouponPriceFen() {
-      return Math.max(0, this.afterMemberPriceFen - this.couponDiscountFen);
+      return Math.max(0, this.afterPointsPriceFen - this.couponDiscountFen);
     },
 
     availableCoupons() {
@@ -420,6 +500,21 @@ export default {
       uni.navigateTo({ url: '/pages/user/deposit/deposit' });
     },
 
+    togglePoints(e) {
+      this.usePoints = e.detail.value;
+      if (!this.usePoints) {
+        this.pointsToUse = 0;
+      } else {
+        this.pointsToUse = this.maxUsablePoints;
+      }
+    },
+
+    onPointsChange(e) {
+      let val = Math.floor(e.detail.value / this.pointsStep) * this.pointsStep;
+      val = Math.max(this.pointsMinUse, Math.min(val, this.maxUsablePoints));
+      this.pointsToUse = val;
+    },
+
     async loadTicketPrice() {
       try {
         const res = await AUTH.getConstanceInfo();
@@ -448,6 +543,7 @@ export default {
           ticket_price: this.ticketPriceFen,
           contact_name: this.userInfo.nickname || this.userInfo.username,
           coupon_id: this.selectedCoupon ? this.selectedCoupon.object_id : null,
+          use_points: this.usePoints ? this.pointsToUse : 0,
           expected_amount: this.finalPriceFen,
         };
 
@@ -694,6 +790,71 @@ page {
         &.short { color: $primary; }
       }
     }
+    // 积分抵扣
+    .points-row {
+      background: #FFFBF0;
+      border-radius: 10rpx;
+      padding: 16rpx;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .points-zero-row {
+      background: #F8F8F8;
+      border-radius: 10rpx;
+      padding: 12rpx 16rpx;
+    }
+    .points-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      box-sizing: border-box;
+      .points-info {
+        display: flex;
+        align-items: center;
+        .points-balance {
+          font-size: 26rpx;
+          color: $gray;
+          margin-left: 8rpx;
+        }
+      }
+      switch {
+        transform: scale(0.8);
+        transform-origin: right center;
+      }
+    }
+    .points-slider {
+      padding: 12rpx 0 0;
+      border-top: 1rpx dashed #E8E0C0;
+      margin-top: 12rpx;
+      .slider-wrap {
+        .slider-labels {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 8rpx;
+          .slider-label {
+            font-size: 22rpx;
+            color: $gray;
+          }
+        }
+        slider { width: 100%; }
+      }
+      .points-result {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 10rpx;
+        .result-points {
+          font-size: 26rpx;
+          color: $gray;
+        }
+        .result-money {
+          font-size: 28rpx;
+          color: $primary;
+          font-weight: bold;
+        }
+      }
+    }
     .divider {
       height: 1rpx;
       background: $light-gray;
@@ -804,6 +965,11 @@ page {
     gap: 10rpx;
     .bottom-label { font-size: 24rpx; color: $gray; }
     .bottom-price { font-size: 40rpx; font-weight: bold; color: $primary; }
+    .bottom-points {
+      font-size: 22rpx;
+      color: $gray;
+      margin-left: 8rpx;
+    }
   }
   .submit-btn {
     background: linear-gradient(135deg, #FF8C42, #FFB5A7);
