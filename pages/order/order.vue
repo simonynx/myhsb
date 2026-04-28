@@ -51,6 +51,25 @@
 					</view>
 				</view>
 
+				<!-- 门票详情 -->
+				<view class="detail-section" v-if="item.order_type === 6">
+					<view class="detail-row">
+						<text class="detail-icon">🎫</text>
+						<text class="detail-label">门票</text>
+						<text class="detail-value">大厅入场券 × {{ item.goodsInfo.ticket_count || 1 }}人</text>
+					</view>
+					<view class="detail-row" v-if="item.verify_code">
+						<text class="detail-icon">🔢</text>
+						<text class="detail-label">核销码</text>
+						<text class="detail-value code-text">{{ item.verify_code }}</text>
+					</view>
+					<view class="detail-row" v-if="item.expire_at">
+						<text class="detail-icon">⏳</text>
+						<text class="detail-label">有效期至</text>
+						<text class="detail-value">{{ item.expire_at }}</text>
+					</view>
+				</view>
+
 				<!-- 预约详情 -->
 				<view class="detail-section" v-if="item.order_type === 1">
 					<view class="detail-row">
@@ -237,6 +256,7 @@
 		3: { icon: '🎟️', name: '购买卡券' },
 		4: { icon: '🛒', name: '线下消费' },
 		5: { icon: '💎', name: '积分兑换' },
+		6: { icon: '🎫', name: '大厅门票' },
 	};
 
 	const PAY_METHOD_MAP = {
@@ -321,7 +341,7 @@
 						}
 
 						// 状态文字
-						var { stateTip, stateTipColor } = this.orderStateExp(item.order_status);
+						var { stateTip, stateTipColor } = this.orderStateExp(item);
 						item.stateTip = stateTip;
 						item.stateTipColor = stateTipColor;
 
@@ -411,6 +431,15 @@
 					var totalOrig = (goodsInfo._total_original || item.pay_amount) / 100;
 					item.originalPrice = totalOrig.toFixed(2);
 					item.roomPrice = totalOrig.toFixed(2);
+					item.memberDiscount = 0;
+					item.pointsDeduction = goodsInfo._points_deducted ? (goodsInfo._points_deducted / 100).toFixed(2) : 0;
+					item.couponDiscount = goodsInfo._coupon_discount ? (goodsInfo._coupon_discount / 100).toFixed(2) : 0;
+				} else if (item.order_type === 6) {
+					// 门票订单
+					var ticketCount = item.goodsInfo.ticket_count || 1;
+					var ticketPrice = item.goodsInfo.ticket_price || item.pay_amount / ticketCount;
+					item.roomPrice = ((ticketPrice * ticketCount) / 100).toFixed(2);
+					item.originalPrice = item.roomPrice;
 					item.memberDiscount = 0;
 					item.pointsDeduction = goodsInfo._points_deducted ? (goodsInfo._points_deducted / 100).toFixed(2) : 0;
 					item.couponDiscount = goodsInfo._coupon_discount ? (goodsInfo._coupon_discount / 100).toFixed(2) : 0;
@@ -565,17 +594,29 @@
 				});
 			},
 			canRefund(item) {
-				// 只有预约订单(order_type===1)可退款，且距预约开始需超过1小时
-				if (item.order_type !== 1) return false;
-				var dateStr = item.date;
-				var timeList = item.time_list || [];
-				if (!dateStr || !timeList.length) return false;
-				var firstSlot = timeList[0];
-				if (!firstSlot || !firstSlot[0]) return false;
-				var apptStr = dateStr + ' ' + firstSlot[0] + ':00';
-				var apptTime = new Date(apptStr.replace(/-/g, '/'));
-				var now = new Date();
-				return apptTime.getTime() - now.getTime() > 3600000;
+				// 预约订单(order_type===1)可退款，且距预约开始需超过1小时
+				if (item.order_type === 1) {
+					var dateStr = item.date;
+					var timeList = item.time_list || [];
+					if (!dateStr || !timeList.length) return false;
+					var firstSlot = timeList[0];
+					if (!firstSlot || !firstSlot[0]) return false;
+					var apptStr = dateStr + ' ' + firstSlot[0] + ':00';
+					var apptTime = new Date(apptStr.replace(/-/g, '/'));
+					var now = new Date();
+					return apptTime.getTime() - now.getTime() > 3600000;
+				}
+				// 门票订单(order_type===6)可退款，需未核销且未过期
+				if (item.order_type === 6) {
+					if (item.verified_at) return false;
+					if (item.expire_at) {
+						var expireTime = new Date(item.expire_at.replace(/-/g, '/'));
+						var now = new Date();
+						return expireTime.getTime() > now.getTime();
+					}
+					return true;
+				}
+				return false;
 			},
 			refundOrder(item) {
 				var self = this;
@@ -606,9 +647,32 @@
 					}
 				});
 			},
-			orderStateExp(state) {
+			orderStateExp(itemOrState) {
+				var state = typeof itemOrState === 'object' ? itemOrState.order_status : itemOrState;
+				var item = typeof itemOrState === 'object' ? itemOrState : null;
 				var stateTip = '';
 				var stateTipColor = '#E8784A';
+				// 门票订单特殊状态
+				if (item && item.order_type === 6 && state === 1) {
+					if (item.verified_at) {
+						stateTip = '已核销';
+						stateTipColor = '#999';
+					} else if (item.expire_at) {
+						var expireTime = new Date(item.expire_at.replace(/-/g, '/'));
+						var now = new Date();
+						if (expireTime.getTime() < now.getTime()) {
+							stateTip = '已过期';
+							stateTipColor = '#999';
+						} else {
+							stateTip = '待使用';
+							stateTipColor = '#52C41A';
+						}
+					} else {
+						stateTip = '待使用';
+						stateTipColor = '#52C41A';
+					}
+					return { stateTip: stateTip, stateTipColor: stateTipColor };
+				}
 				switch (state) {
 					case 0: stateTip = '待付款'; stateTipColor = '#FF6B6B'; break;
 					case 1: stateTip = '已预约'; stateTipColor = '#52C41A'; break;

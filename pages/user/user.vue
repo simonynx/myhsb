@@ -211,6 +211,11 @@
 				<text class="menu-text">我的拼团</text>
 				<text class="menu-arrow">→</text>
 			</view>
+			<view class="menu-item" @tap="navTo('/pages/ticket/list')">
+				<text class="menu-icon">🎫</text>
+				<text class="menu-text">我的门票</text>
+				<text class="menu-arrow">→</text>
+			</view>
 		</view>
 
 		<!-- 充值入口 -->

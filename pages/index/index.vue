@@ -66,7 +66,7 @@
 					<text class="menu-desc">喊上搭子</text>
 				</view>
 			</view>
-			<view class="menu-card" @tap="goToReserve">
+			<view class="menu-card" @tap="goToBuyTicket">
 				<view class="menu-icon" style="background: #FFF8E0;">🎫</view>
 				<view class="menu-text">
 					<text class="menu-title">大厅入场券</text>
@@ -362,6 +362,9 @@
 			},
 			goToGroup() {
 				uni.switchTab({ url: '/pages/group/group' });
+			},
+			goToBuyTicket() {
+				uni.navigateTo({ url: '/pages/ticket/buy' });
 			},
 			goToMyReviews() {
 				uni.navigateTo({ url: '/pages/my/reviews' });

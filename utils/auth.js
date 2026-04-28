@@ -144,7 +144,7 @@ function loginOut() {
 }
 
 function getRoomDataList(token, date) {
-  return request('/rooms/?date=' + date, 'GET', { date: date }, token);
+  return request('/rooms/?date=' + encodeURIComponent(date), 'GET', null, token);
 }
 
 function getRoomAppointments(token, roomId, date) {
@@ -358,6 +358,14 @@ function refundOrder(token, params) {
   return request('/orders/refund/', 'POST', params, token);
 }
 
+function getTicketOrders(token) {
+  return request('/orders/ticket_orders/', 'GET', null, token);
+}
+
+function verifyTicket(token, params) {
+  return request('/orders/verify_ticket/', 'POST', params, token);
+}
+
 function uploadFile(token, filePath, fileName) {
   var _url = API_BASE_URL + '/upload/' + fileName;
   var header = { 'content-type': 'multipart/form-data' };
@@ -430,6 +438,8 @@ var httpRequest = {
   cancelOrder: cancelOrder,
   updateOrderCoupon: updateOrderCoupon,
   refundOrder: refundOrder,
+  getTicketOrders: getTicketOrders,
+  verifyTicket: verifyTicket,
   getRoomDataList: getRoomDataList,
   getRoomAppointments: getRoomAppointments,
   getRoomDetail: getRoomDetail,

@@ -54,7 +54,10 @@
             </view>
 
             <view class="room-name-row">
-                <text class="room-name">{{ room.name }}</text>
+                <view class="name-line">
+                    <text class="room-name">{{ room.name }}</text>
+                    <text class="seats-badge" v-if="room.seats_count">👥 {{ room.seats_count }}人</text>
+                </view>
                 <view class="tags-row" v-if="room.tagsArr && room.tagsArr.length">
                     <text class="tag" v-for="t in room.tagsArr" :key="t">{{ t }}</text>
                 </view>
@@ -764,9 +767,14 @@ page { background: $bg; padding-bottom: 120rpx; }
 
     .room-name-row {
         display: flex;
-        align-items: flex-start;
+        flex-direction: column;
+        gap: 8rpx;
+    }
+
+    .name-line {
+        display: flex;
+        align-items: center;
         gap: 16rpx;
-        flex-wrap: wrap;
     }
 
     .room-name {
@@ -777,11 +785,19 @@ page { background: $bg; padding-bottom: 120rpx; }
         flex-shrink: 0;
     }
 
+    .seats-badge {
+        font-size: 24rpx;
+        color: #8B7355;
+        background: #F5F0E8;
+        padding: 4rpx 14rpx;
+        border-radius: 16rpx;
+        font-weight: 500;
+    }
+
     .tags-row {
         display: flex;
         flex-wrap: wrap;
         gap: 8rpx;
-        margin-top: 8rpx;
     }
 
     .tag {

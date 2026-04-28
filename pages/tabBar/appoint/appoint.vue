@@ -97,6 +97,7 @@
                 <view class="card-info">
                     <view class="card-header">
                         <text class="card-name">{{ room.name }}</text>
+                        <text class="seats-badge" v-if="room.seats_count">👥 {{ room.seats_count }}人</text>
                     </view>
 
                     <!-- 时段可用情况 - 升级版色块 -->
@@ -842,11 +843,24 @@ page {
     }
 
     .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
         .card-name {
             font-size: 32rpx;
             font-weight: bold;
             color: $dark;
             line-height: 1.3;
+        }
+
+        .seats-badge {
+            font-size: 22rpx;
+            color: #8B7355;
+            background: #F5F0E8;
+            padding: 4rpx 12rpx;
+            border-radius: 16rpx;
+            font-weight: 500;
         }
     }
 

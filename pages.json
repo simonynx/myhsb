@@ -201,6 +201,23 @@
 				"navigationBarTextStyle": "white",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/ticket/buy",
+			"style": {
+				"navigationBarTitleText": "购买门票",
+				"navigationBarBackgroundColor": "#FF8C42",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/ticket/list",
+			"style": {
+				"navigationBarTitleText": "我的门票",
+				"navigationBarBackgroundColor": "#FF8C42",
+				"navigationBarTextStyle": "white",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {

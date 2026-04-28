@@ -606,7 +606,8 @@ export default {
 
         // 人数增减
         incPeople() {
-            if (this.numOfPeople < 10) this.numOfPeople++;
+            const max = this.currentProduct && this.currentProduct.seats_count || 10;
+            if (this.numOfPeople < max) this.numOfPeople++;
         },
         decPeople() {
             if (this.numOfPeople > 1) this.numOfPeople--;
@@ -640,6 +641,12 @@ export default {
                 return;
             }
             if (this.submitDisabled) return;
+            const maxPeople = this.currentProduct && this.currentProduct.seats_count || 0;
+            if (maxPeople > 0 && this.numOfPeople > maxPeople) {
+                uni.showToast({ title: '预约人数不能超过房间容纳人数(' + maxPeople + '人)', icon: 'none' });
+                this.submitting = false;
+                return;
+            }
             this.submitting = true;
 
             // 非强制请求订阅消息（失败不影响下单）
