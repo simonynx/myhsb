@@ -371,7 +371,6 @@ $cream: #FFF8F0;
     background: linear-gradient(180deg, #FFF0E0 0%, #FFF8F0 30%, #FFF8F0 70%, #E8F5E9 100%);
     padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
     position: relative;
-    overflow: hidden;
 }
 .container::before {
     content: '';
@@ -500,6 +499,9 @@ $cream: #FFF8F0;
     border-radius: 24rpx;
     box-shadow: 0 4rpx 20rpx rgba(92, 75, 58, 0.06);
     border: 2rpx solid rgba(255, 181, 167, 0.15);
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .date-scroll {
