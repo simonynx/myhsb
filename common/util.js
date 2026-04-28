@@ -67,8 +67,29 @@ var dateUtils = {
 	}
 };
 
+function _pad(n) {
+	return n < 10 ? '0' + n : '' + n;
+}
+
+// 格式化后端时间戳（支持秒/毫秒）为 YYYY-MM-DD
+function formatDate(ts) {
+	if (!ts) return '-';
+	var d = new Date(ts < 1e12 ? ts * 1000 : ts);
+	return d.getFullYear() + '-' + _pad(d.getMonth() + 1) + '-' + _pad(d.getDate());
+}
+
+// 格式化后端时间戳（支持秒/毫秒）为 YYYY-MM-DD HH:MM
+function formatDateTime(ts) {
+	if (!ts) return '-';
+	var d = new Date(ts < 1e12 ? ts * 1000 : ts);
+	return d.getFullYear() + '-' + _pad(d.getMonth() + 1) + '-' + _pad(d.getDate()) + ' ' +
+		_pad(d.getHours()) + ':' + _pad(d.getMinutes());
+}
+
 export {
 	formatTime,
 	formatLocation,
-	dateUtils
+	dateUtils,
+	formatDate,
+	formatDateTime
 }

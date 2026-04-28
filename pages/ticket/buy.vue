@@ -96,19 +96,47 @@
       </view>
     </view>
 
-    <!-- 说明 -->
+    <!-- 使用须知 -->
     <view class="notice-section">
-      <view class="notice-item">
-        <text class="notice-icon">⏰</text>
-        <text class="notice-text">购买后{{ expireDays }}天内有效，过期不可退</text>
+      <view class="notice-header">
+        <text class="notice-title-icon">📋</text>
+        <text class="notice-title">使用须知</text>
       </view>
+
+      <!-- 有效期高亮 -->
+      <view class="notice-highlight">
+        <view class="highlight-left">
+          <text class="hl-icon">⏳</text>
+          <view class="hl-text">
+            <text class="hl-label">有效期</text>
+            <text class="hl-value">购买后 {{ expireDays }} 天内有效</text>
+          </view>
+        </view>
+        <view class="hl-tag warning">过期不可退</view>
+      </view>
+
+      <view class="notice-divider"></view>
+
       <view class="notice-item">
         <text class="notice-icon">📍</text>
-        <text class="notice-text">到店后出示核销码或报数字码即可入场</text>
+        <view class="notice-body">
+          <text class="notice-label">入场方式</text>
+          <text class="notice-desc">到店后出示核销码或报数字码即可入场</text>
+        </view>
       </view>
       <view class="notice-item">
         <text class="notice-icon">↩️</text>
-        <text class="notice-text">未核销且未过期可随时申请退款</text>
+        <view class="notice-body">
+          <text class="notice-label">退款规则</text>
+          <text class="notice-desc">未核销且未过期前可随时退款；过期后不予退款</text>
+        </view>
+      </view>
+      <view class="notice-item">
+        <text class="notice-icon">👥</text>
+        <view class="notice-body">
+          <text class="notice-label">使用人数</text>
+          <text class="notice-desc">门票按人数购买，{{ ticketCount }} 人需购买 {{ ticketCount }} 张</text>
+        </view>
       </view>
     </view>
 
@@ -678,22 +706,74 @@ page {
   }
 }
 
-// 说明
+// 使用须知
 .notice-section {
   margin: 0 24rpx 20rpx;
   background: #fff;
   border-radius: 24rpx;
-  padding: 24rpx;
+  padding: 28rpx;
   box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06);
   border: 2rpx solid rgba(255,181,167,0.15);
+
+  .notice-header {
+    display: flex;
+    align-items: center;
+    gap: 10rpx;
+    margin-bottom: 20rpx;
+    .notice-title-icon { font-size: 32rpx; }
+    .notice-title { font-size: 30rpx; font-weight: bold; color: $dark; }
+  }
+
+  // 有效期高亮卡片
+  .notice-highlight {
+    background: linear-gradient(135deg, #FFF5EB, #FFF0E0);
+    border-radius: 16rpx;
+    padding: 24rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20rpx;
+    border: 2rpx solid rgba(255,140,66,0.15);
+    .highlight-left {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+      .hl-icon { font-size: 40rpx; }
+      .hl-text {
+        display: flex;
+        flex-direction: column;
+        .hl-label { font-size: 24rpx; color: $gray; margin-bottom: 6rpx; }
+        .hl-value { font-size: 30rpx; font-weight: bold; color: $primary; }
+      }
+    }
+    .hl-tag {
+      font-size: 22rpx;
+      font-weight: bold;
+      padding: 6rpx 16rpx;
+      border-radius: 20rpx;
+      &.warning { background: #FFEBEE; color: #FF3B30; }
+    }
+  }
+
+  .notice-divider {
+    height: 2rpx;
+    background: $light-gray;
+    margin-bottom: 20rpx;
+  }
+
   .notice-item {
     display: flex;
     align-items: flex-start;
-    gap: 12rpx;
-    margin-bottom: 12rpx;
+    gap: 16rpx;
+    margin-bottom: 20rpx;
     &:last-child { margin-bottom: 0; }
-    .notice-icon { font-size: 28rpx; flex-shrink: 0; }
-    .notice-text { font-size: 24rpx; color: $gray; line-height: 1.5; }
+    .notice-icon { font-size: 32rpx; flex-shrink: 0; margin-top: 2rpx; }
+    .notice-body {
+      display: flex;
+      flex-direction: column;
+      .notice-label { font-size: 26rpx; font-weight: bold; color: $dark; margin-bottom: 6rpx; }
+      .notice-desc { font-size: 24rpx; color: $gray; line-height: 1.5; }
+    }
   }
 }
 

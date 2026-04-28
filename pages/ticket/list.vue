@@ -1,9 +1,9 @@
 <template>
   <view class="page">
     <!-- 渐变导航栏 -->
-    <view class="nav-bar">
+    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-back-wrap" @click="goBack">
-        <text class="nav-back yticon icon-fanhui"></text>
+        <text class="nav-back">&lt;</text>
       </view>
       <text class="nav-title">我的门票</text>
       <view class="nav-right"></view>
@@ -83,7 +83,10 @@
             <template v-if="item._statusClass === 'unused'">
               <view class="code-preview" @click="toggleExpand(idx)">
                 <view class="code-digits-mini">
-                  <text class="digit-mini" v-for="(d, di) in item._codeArr" :key="di">{{ d }}</text>
+                  <template v-for="(d, di) in item._codeArr">
+                    <text class="digit-mini" v-if="d !== ' '" :key="'m'+di">{{ d }}</text>
+                    <text class="digit-gap" v-else :key="'g'+di"></text>
+                  </template>
                 </view>
                 <text class="code-toggle-text">{{ item._expanded ? '收起 ▲' : '查看核销码 ▼' }}</text>
               </view>
@@ -91,7 +94,10 @@
               <!-- 展开的大核销码 -->
               <view class="code-expand" v-if="item._expanded">
                 <view class="code-digits-large">
-                  <text class="digit-large" v-for="(d, di) in item._codeArr" :key="di">{{ d }}</text>
+                  <template v-for="(d, di) in item._codeArr">
+                    <text class="digit-large" v-if="d !== ' '" :key="'l'+di">{{ d }}</text>
+                    <text class="digit-gap-large" v-else :key="'gl'+di"></text>
+                  </template>
                 </view>
                 <text class="code-tip">到店后出示给前台核销</text>
               </view>
@@ -139,12 +145,14 @@
 <script>
 import AUTH from '../../utils/auth.js';
 import { mapState } from 'vuex';
+import { formatDate } from '../../common/util.js';
 
 export default {
   data() {
     return {
       tickets: [],
       loading: false,
+      statusBarHeight: 0,
     };
   },
 
@@ -153,6 +161,7 @@ export default {
   },
 
   onShow() {
+    this.statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0;
     this.loadTickets();
   },
 
@@ -177,11 +186,7 @@ export default {
               statusClass = 'expired';
               statusText = '已过期';
             }
-            let expireDate = '-';
-            if (expireAt) {
-              const d = new Date(expireAt * 1000);
-              expireDate = d.getFullYear() + '-' + (d.getMonth() + 1).toString().padStart(2, '0') + '-' + d.getDate().toString().padStart(2, '0');
-            }
+            let expireDate = formatDate(expireAt);
             const code = item.verify_code || '';
             const codeArr = [];
             for (let i = 0; i < code.length; i++) {
@@ -279,7 +284,7 @@ page { background: $bg; }
     align-items: center;
     justify-content: center;
   }
-  .nav-back { font-size: 36rpx; color: #fff; }
+  .nav-back { font-size: 40rpx; color: #fff; font-weight: bold; line-height: 1; }
   .nav-title { font-size: 34rpx; font-weight: bold; color: #fff; flex: 1; text-align: center; }
   .nav-right { width: 60rpx; }
 }
@@ -460,6 +465,7 @@ page { background: $bg; }
         color: $dark;
         letter-spacing: 4rpx;
       }
+      .digit-gap { width: 12rpx; }
     }
     .code-toggle-text {
       font-size: 24rpx;
@@ -492,6 +498,7 @@ page { background: $bg; }
         box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.06);
         border: 2rpx solid #FFD0C0;
       }
+      .digit-gap-large { width: 20rpx; }
     }
     .code-tip { font-size: 24rpx; color: $gray; }
   }

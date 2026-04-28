@@ -66,7 +66,7 @@
 					<view class="detail-row" v-if="item.expire_at">
 						<text class="detail-icon">⏳</text>
 						<text class="detail-label">有效期至</text>
-						<text class="detail-value">{{ item.expire_at }}</text>
+						<text class="detail-value">{{ formatExpireAt(item.expire_at) }}</text>
 					</view>
 				</view>
 
@@ -490,15 +490,9 @@
 				}).join('、');
 			},
 			formatTime(timeStr) {
-				if (!timeStr) return '-';
-				var d = new Date(timeStr < 1e12 ? timeStr * 1000 : timeStr);
-				var y = d.getFullYear();
-				var m = String(d.getMonth() + 1).padStart(2, '0');
-				var day = String(d.getDate()).padStart(2, '0');
-				var h = String(d.getHours()).padStart(2, '0');
-				var min = String(d.getMinutes()).padStart(2, '0');
-				return y + '-' + m + '-' + day + ' ' + h + ':' + min;
+				return formatDateTime(timeStr);
 			},
+
 			startCountdown() {
 				var self = this;
 				if (this.countdownTimer) clearInterval(this.countdownTimer);
