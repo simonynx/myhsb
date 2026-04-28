@@ -82,22 +82,28 @@
             <!-- 未使用：展示核销码 -->
             <template v-if="item._statusClass === 'unused'">
               <view class="code-preview" @click="toggleExpand(idx)">
-                <view class="code-digits-mini">
-                  <template v-for="(d, di) in item._codeArr">
-                    <text class="digit-mini" v-if="d !== ' '" :key="'m'+di">{{ d }}</text>
-                    <text class="digit-gap" v-else :key="'g'+di"></text>
-                  </template>
+                <view class="code-digits-mini" v-if="item.verify_code">
+                  <text class="digit-mini">{{ item.verify_code[0] }}</text>
+                  <text class="digit-mini">{{ item.verify_code[1] }}</text>
+                  <text class="digit-mini">{{ item.verify_code[2] }}</text>
+                  <text class="digit-gap"></text>
+                  <text class="digit-mini">{{ item.verify_code[3] }}</text>
+                  <text class="digit-mini">{{ item.verify_code[4] }}</text>
+                  <text class="digit-mini">{{ item.verify_code[5] }}</text>
                 </view>
                 <text class="code-toggle-text">{{ item._expanded ? '收起 ▲' : '查看核销码 ▼' }}</text>
               </view>
 
               <!-- 展开的大核销码 -->
               <view class="code-expand" v-if="item._expanded">
-                <view class="code-digits-large">
-                  <template v-for="(d, di) in item._codeArr">
-                    <text class="digit-large" v-if="d !== ' '" :key="'l'+di">{{ d }}</text>
-                    <text class="digit-gap-large" v-else :key="'gl'+di"></text>
-                  </template>
+                <view class="code-digits-large" v-if="item.verify_code">
+                  <text class="digit-large">{{ item.verify_code[0] }}</text>
+                  <text class="digit-large">{{ item.verify_code[1] }}</text>
+                  <text class="digit-large">{{ item.verify_code[2] }}</text>
+                  <text class="digit-gap-large"></text>
+                  <text class="digit-large">{{ item.verify_code[3] }}</text>
+                  <text class="digit-large">{{ item.verify_code[4] }}</text>
+                  <text class="digit-large">{{ item.verify_code[5] }}</text>
                 </view>
                 <text class="code-tip">到店后出示给前台核销</text>
               </view>
@@ -187,18 +193,11 @@ export default {
               statusText = '已过期';
             }
             let expireDate = formatDate(expireAt);
-            const code = item.verify_code || '';
-            const codeArr = [];
-            for (let i = 0; i < code.length; i++) {
-              codeArr.push(code[i]);
-              if (i === 2) codeArr.push(' ');
-            }
             return {
               ...item,
               _statusClass: statusClass,
               _statusText: statusText,
               _expireDate: expireDate,
-              _codeArr: codeArr,
               _expanded: false,
             };
           });
