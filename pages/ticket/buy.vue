@@ -9,7 +9,7 @@
       </view>
       <view class="shop-info">
         <text class="shop-name">摸鱼划水吧</text>
-        <text class="shop-tag">桌游 · 棋牌 · 休闲</text>
+        <text class="shop-tag">桌游 · 棋牌 · 社交</text>
       </view>
     </view>
 
@@ -22,7 +22,7 @@
       <view class="ticket-desc">全天不限时畅玩 · 零食茶水自助 · 漫画小说桌游</view>
       <view class="ticket-price-row">
         <text class="ticket-price-label">单价</text>
-        <text class="ticket-price-value">¥38/人</text>
+        <text class="ticket-price-value">¥{{ (ticketPriceFen / 100).toFixed(0) }}/人</text>
       </view>
       <view class="people-modifier">
         <text class="modifier-label">👥 人数</text>
@@ -51,7 +51,7 @@
         <view class="price-row discount-row" v-if="memberDiscountAmount > 0">
           <text class="row-label">
             <text class="tag">会员</text>
-            {{ memberLevelName }}{{ memberDiscount > 0 ? '专享' + memberDiscount + '折' : '暂无折扣' }}
+            {{ memberLevelName }}{{ memberDiscountText ? '专享' + memberDiscountText : '暂无折扣' }}
           </text>
           <text class="row-value discount">-¥{{ memberDiscountAmount }}</text>
         </view>
@@ -78,8 +78,8 @@
             <text class="tag" :class="balanceEnough ? 'tag-active' : 'tag-gray'">余额</text>
             账户余额 ¥{{ (userInfo.account_balance / 100).toFixed(2) }}
           </text>
-          <text v-if="balanceEnough" class="balance-status enough">可抵扣 ¥{{ (afterCouponPriceFen / 100).toFixed(2) }}</text>
-          <text v-else class="balance-status short">还差 ¥{{ (balanceShortfall / 100).toFixed(2) }}</text>
+          <text v-if="balanceEnough" class="balance-status enough">余额充足</text>
+          <text v-else class="balance-status short">余额还差 ¥{{ (balanceShortfall / 100).toFixed(2) }}</text>
         </view>
         <view class="balance-hint" v-if="!balanceEnough" @click="goRecharge">
           <text class="hint-text">余额不足？去</text>
@@ -187,12 +187,11 @@
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 
-const TICKET_PRICE_PER_PERSON = 3800; // 38元/人（分）
-
 export default {
   data() {
     return {
       ticketCount: 1,
+      ticketPriceFen: 3800,
       couponPickerOpen: false,
       myCoupons: [],
       selectedCoupon: null,
@@ -204,35 +203,32 @@ export default {
     ...mapState(['hasLogin', 'token', 'userInfo']),
 
     basePriceFen() {
-      return TICKET_PRICE_PER_PERSON * this.ticketCount;
+      return this.ticketPriceFen * this.ticketCount;
     },
 
     basePrice() {
       return (this.basePriceFen / 100).toFixed(2);
     },
 
-    memberLevel() {
-      return this.userInfo.member_level || 0;
-    },
-
     memberLevelName() {
-      const names = ['普通会员', '🌱 青铜', '🥈 白银', '🥇 黄金', '💎 钻石'];
-      return names[this.memberLevel] || '';
+      return (this.userInfo && this.userInfo.member_level_name) || '';
     },
 
-    memberDiscountRate() {
-      const rates = [0, 900, 850, 800, 750];
-      return rates[this.memberLevel] || 0;
+    userDiscount() {
+      return (this.userInfo && this.userInfo.discount) || 100;
     },
 
-    memberDiscount() {
-      return (this.memberDiscountRate / 100).toFixed(1);
+    memberDiscountText() {
+      const d = this.userDiscount;
+      if (!d || d >= 100) return '';
+      const val = d / 10;
+      return (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + '折';
     },
 
     memberDiscountAmountFen() {
-      if (!this.memberDiscountRate) return 0;
-      const discountRatio = this.memberDiscountRate / 1000;
-      return Math.floor(this.basePriceFen * (1 - discountRatio));
+      const d = this.userDiscount;
+      if (!d || d >= 100) return 0;
+      return Math.floor(this.basePriceFen * (1 - d / 100));
     },
 
     memberDiscountAmount() {
@@ -306,7 +302,8 @@ export default {
     },
   },
 
-  onLoad() {
+  async onLoad() {
+    this.loadTicketPrice();
     if (!this.hasLogin) {
       uni.showModal({
         title: '提示',
@@ -390,6 +387,17 @@ export default {
       uni.navigateTo({ url: '/pages/user/deposit/deposit' });
     },
 
+    async loadTicketPrice() {
+      try {
+        const res = await AUTH.getConstanceInfo();
+        if (res && res._status === 0 && res.data && res.data.ticket_price_per_person) {
+          this.ticketPriceFen = parseInt(res.data.ticket_price_per_person);
+        }
+      } catch (e) {
+        console.log('load ticket price error:', e);
+      }
+    },
+
     async submitOrder() {
       if (!this.hasLogin) {
         uni.showModal({ title: '提示', content: '请先登录再提交订单', success: (res) => {
@@ -404,6 +412,7 @@ export default {
         const param = {
           order_type: 6,
           ticket_count: this.ticketCount,
+          ticket_price: this.ticketPriceFen,
           contact_name: this.userInfo.nickname || this.userInfo.username,
           coupon_id: this.selectedCoupon ? this.selectedCoupon.object_id : null,
           expected_amount: this.finalPriceFen,

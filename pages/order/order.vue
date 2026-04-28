@@ -400,13 +400,13 @@
 					item.originalPrice = ((roomPrice + addonsPrice) / 100).toFixed(2);
 
 					// 会员折扣（如果有）
-					var memberLevel = this.userInfo && this.userInfo.member_level || 0;
-					var discounts = { 0: 0, 1: 0, 2: 0.05, 3: 0.1, 4: 0.15 };
-					var discountRate = discounts[memberLevel] || 0;
+					var discount = this.userInfo && this.userInfo.discount || 100;
 					if (goodsInfo._member_discount !== undefined) {
 						item.memberDiscount = (goodsInfo._member_discount / 100).toFixed(2);
+					} else if (discount < 100) {
+						item.memberDiscount = (roomPrice * (1 - discount / 100) / 100).toFixed(2);
 					} else {
-						item.memberDiscount = discountRate > 0 ? (roomPrice * discountRate / 100).toFixed(2) : 0;
+						item.memberDiscount = 0;
 					}
 
 					// 积分抵扣（如果有）

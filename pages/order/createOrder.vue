@@ -89,7 +89,7 @@
                 <view class="price-row discount-row">
                     <text class="row-label">
                         <text class="tag">会员</text>
-                        {{ memberLevelName }}{{ memberDiscount > 0 ? '专享' + memberDiscount + '折' : '暂无折扣' }}
+                        {{ memberLevelName }}{{ memberDiscountText ? '专享' + memberDiscountText : '暂无折扣' }}
                     </text>
                     <text class="row-value discount">-¥{{ memberDiscountAmount }}</text>
                 </view>
@@ -356,33 +356,28 @@ export default {
             return (this.peoplePriceFen / 100).toFixed(2);
         },
 
-        // 会员等级
-        memberLevel() {
-            return this.userInfo.member_level || 0;
-        },
-
         memberLevelName() {
-            const names = ['普通会员', '🌱 青铜', '🥈 白银', '🥇 黄金', '💎 钻石'];
-            return names[this.memberLevel] || '';
+            return (this.userInfo && this.userInfo.member_level_name) || '';
         },
 
-        // 会员折扣(厘,1000=10折, 810=8.1折)
-        memberDiscountRate() {
-            const rates = [0, 900, 850, 800, 750]; // 青铜9折, 白银8.5折, 黄金8折, 钻石7.5折
-            return rates[this.memberLevel] || 0;
+        userDiscount() {
+            return (this.userInfo && this.userInfo.discount) || 100;
         },
 
-        memberDiscount() {
-            return (this.memberDiscountRate / 100).toFixed(1);
+        memberDiscountText() {
+            const d = this.userDiscount;
+            if (!d || d >= 100) return '';
+            const val = d / 10;
+            return (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + '折';
         },
 
         // 会员折扣金额(分)
         // 和后端一致: int(price * (1 - rate)) 截断取整
         // 注意：会员折扣只应用于房间+人数部分，不含增值服务
         memberDiscountAmountFen() {
-            if (!this.memberDiscountRate) return 0;
-            const discountRatio = this.memberDiscountRate / 1000;
-            return Math.floor(this.roomSubtotalFen * (1 - discountRatio));
+            const d = this.userDiscount;
+            if (!d || d >= 100) return 0;
+            return Math.floor(this.roomSubtotalFen * (1 - d / 100));
         },
 
         memberDiscountAmount() {

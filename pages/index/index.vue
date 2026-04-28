@@ -70,7 +70,7 @@
 				<view class="menu-icon" style="background: #FFF8E0;">🎫</view>
 				<view class="menu-text">
 					<text class="menu-title">大厅入场券</text>
-					<text class="menu-desc">¥38/人·全天</text>
+					<text class="menu-desc">{{ ticketPriceText }}·全天</text>
 				</view>
 			</view>
 			<view class="menu-card" @tap="openLocation">
@@ -120,8 +120,8 @@
 			<view class="banner-line">
 				<text class="banner-icon">🎫</text>
 				<view class="banner-body">
-					<text class="banner-strong">大厅入场券 ¥38/人 · 全天不限时</text>
-					<text class="banner-small">儿童半价 ¥19 · 零食茶水全包</text>
+					<text class="banner-strong">大厅入场券 {{ ticketPriceText }} · 全天不限时</text>
+					<text class="banner-small">儿童半价 {{ ticketPriceHalfText }} · 零食茶水全包</text>
 				</view>
 			</view>
 			<view class="banner-divider"></view>
@@ -287,7 +287,21 @@
 	export default {
 		components: { customTabBar },
 		computed: {
-			...mapState(['hasLogin', 'constance'])
+			...mapState(['hasLogin', 'constance']),
+			ticketPriceText() {
+				const price = this.constance && this.constance.ticket_price_per_person;
+				if (price) {
+					return '¥' + (parseInt(price) / 100).toFixed(0) + '/人';
+				}
+				return '¥38/人';
+			},
+			ticketPriceHalfText() {
+				const price = this.constance && this.constance.ticket_price_per_person;
+				if (price) {
+					return '¥' + (parseInt(price) / 200).toFixed(0);
+				}
+				return '¥19';
+			},
 		},
 		watch: {
 			constance(value) { this.loadData(); },
@@ -406,9 +420,10 @@
 				this.swiperCurrent = e.detail.current;
 			},
 			onShareAppMessage() {
+				const ticketPrice = this.ticketPriceText || '¥38/人';
 				const titles = [
-					'别卷了！花38块可以躺一整天的神仙店 🎮',
-					'福州这家宝藏店，38块能玩一整天，我私藏很久了',
+					'别卷了！花' + ticketPrice + '可以躺一整天的神仙店 🎮',
+					'福州这家宝藏店，' + ticketPrice + '能玩一整天，我私藏很久了',
 					'周末不知道去哪？来这里躺平，零食还免费',
 					'带娃+打游戏两不误，这家店的老板太懂了',
 					'我的精神避难所，今天忍痛分享给你 🤫',
