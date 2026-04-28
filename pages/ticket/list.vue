@@ -1,86 +1,132 @@
 <template>
   <view class="page">
-    <!-- 导航栏 -->
+    <!-- 渐变导航栏 -->
     <view class="nav-bar">
-      <text class="nav-back yticon icon-fanhui" @click="goBack"></text>
+      <view class="nav-back-wrap" @click="goBack">
+        <text class="nav-back yticon icon-fanhui"></text>
+      </view>
       <text class="nav-title">我的门票</text>
+      <view class="nav-right"></view>
+    </view>
+
+    <!-- 顶部装饰区 -->
+    <view class="header-bg">
+      <view class="header-inner">
+        <text class="header-emoji">🎫</text>
+        <text class="header-title">大厅入场券</text>
+        <text class="header-sub">购买后有效期内到店出示即可入场</text>
+      </view>
+      <!-- 波浪底边 -->
+      <view class="wave-bottom">
+        <view class="wave-dot" v-for="i in 20" :key="i"></view>
+      </view>
     </view>
 
     <!-- 空状态 -->
     <view class="empty-state" v-if="!loading && tickets.length === 0">
-      <text class="empty-icon">🎫</text>
-      <text class="empty-text">暂无门票</text>
-      <text class="empty-sub">去首页购买大厅入场券吧</text>
-      <view class="empty-btn" @click="goToBuy">
-        <text>去购买</text>
+      <view class="empty-card">
+        <text class="empty-icon">🎫</text>
+        <text class="empty-text">暂无门票</text>
+        <text class="empty-sub">去首页买张大厅入场券吧～</text>
+        <view class="empty-btn" @click="goToBuy">
+          <text>去购买</text>
+        </view>
       </view>
     </view>
 
     <!-- 门票列表 -->
     <view class="ticket-list" v-else>
       <view
-        class="ticket-item"
+        class="ticket-card"
         v-for="(item, idx) in tickets"
         :key="item.object_id"
         :class="item._statusClass"
       >
-        <!-- 头部：状态和有效期 -->
-        <view class="item-header">
-          <view class="status-tag" :class="item._statusClass">
-            <text>{{ item._statusText }}</text>
-          </view>
-          <text class="expire-text">有效期至 {{ item._expireDate }}</text>
-        </view>
+        <!-- 左侧状态条 -->
+        <view class="card-left-bar"></view>
 
-        <!-- 主体信息 -->
-        <view class="item-body">
-          <view class="info-row">
-            <text class="info-label">🎫 大厅入场券</text>
-            <text class="info-value">× {{ item.ticket_count || 1 }}人</text>
-          </view>
-          <view class="info-row">
-            <text class="info-label">实付金额</text>
-            <text class="info-price">¥{{ (item.pay_amount / 100).toFixed(2) }}</text>
-          </view>
-        </view>
-
-        <!-- 核销码区域（可展开） -->
-        <view class="code-section" v-if="item._statusClass === 'unused'">
-          <view class="code-toggle" @click="toggleExpand(idx)">
-            <text>{{ item._expanded ? '收起核销码' : '查看核销码' }}</text>
-            <text class="toggle-arrow" :class="item._expanded ? 'up' : ''">▼</text>
-          </view>
-          <view class="code-panel" v-if="item._expanded">
-            <view class="code-qr">
-              <!-- 这里用文本占位，真实环境可用 qr-code 组件 -->
-              <view class="qr-placeholder">
-                <text class="qr-code-text">{{ item.verify_code }}</text>
-              </view>
+        <view class="card-body">
+          <!-- 顶部：状态 + 有效期 -->
+          <view class="card-top">
+            <view class="status-tag" :class="item._statusClass">
+              <text>{{ item._statusText }}</text>
             </view>
-            <view class="code-number">
-              <text class="code-label">数字核销码</text>
-              <view class="code-digits">
-                <text class="digit" v-for="(d, di) in item._codeArr" :key="di">{{ d }}</text>
-              </view>
+            <view class="expire-wrap">
+              <text class="expire-icon">⏳</text>
+              <text class="expire-text">有效期至 {{ item._expireDate }}</text>
             </view>
-            <text class="code-tip">到店后出示给前台核销</text>
           </view>
-        </view>
 
-        <!-- 操作按钮 -->
-        <view class="item-actions">
-          <view class="action-btn secondary" @click="goToOrderDetail(item)">
-            <text>订单详情</text>
+          <!-- 中部：票券信息 -->
+          <view class="card-info">
+            <view class="ticket-name-row">
+              <text class="ticket-icon">🎫</text>
+              <text class="ticket-name">大厅入场券</text>
+              <text class="ticket-count">× {{ item.ticket_count || 1 }}人</text>
+            </view>
+            <view class="ticket-price-row">
+              <text class="price-label">实付金额</text>
+              <text class="price-value">¥{{ (item.pay_amount / 100).toFixed(2) }}</text>
+            </view>
           </view>
-          <view
-            class="action-btn primary"
-            v-if="item._statusClass === 'unused'"
-            @click="refundTicket(item)"
-          >
-            <text>申请退款</text>
+
+          <!-- 分割线（穿孔效果） -->
+          <view class="ticket-divider">
+            <view class="hole hole-left"></view>
+            <view class="dashed-line"></view>
+            <view class="hole hole-right"></view>
+          </view>
+
+          <!-- 底部：核销码 + 操作 -->
+          <view class="card-bottom">
+            <!-- 未使用：展示核销码 -->
+            <template v-if="item._statusClass === 'unused'">
+              <view class="code-preview" @click="toggleExpand(idx)">
+                <view class="code-digits-mini">
+                  <text class="digit-mini" v-for="(d, di) in item._codeArr" :key="di">{{ d }}</text>
+                </view>
+                <text class="code-toggle-text">{{ item._expanded ? '收起 ▲' : '查看核销码 ▼' }}</text>
+              </view>
+
+              <!-- 展开的大核销码 -->
+              <view class="code-expand" v-if="item._expanded">
+                <view class="code-digits-large">
+                  <text class="digit-large" v-for="(d, di) in item._codeArr" :key="di">{{ d }}</text>
+                </view>
+                <text class="code-tip">到店后出示给前台核销</text>
+              </view>
+
+              <view class="action-btns">
+                <view class="action-btn secondary" @click="goToOrderDetail(item)">
+                  <text>订单详情</text>
+                </view>
+                <view class="action-btn primary" @click="refundTicket(item)">
+                  <text>申请退款</text>
+                </view>
+              </view>
+            </template>
+
+            <!-- 已核销 / 已过期 -->
+            <template v-else>
+              <view class="status-hint">
+                <text class="hint-icon">{{ item._statusClass === 'used' ? '✅' : '⏰' }}</text>
+                <text class="hint-text">{{ item._statusClass === 'used' ? '已核销，欢迎下次光临' : '已过期，请重新购买' }}</text>
+              </view>
+              <view class="action-btns single">
+                <view class="action-btn secondary" @click="goToOrderDetail(item)">
+                  <text>订单详情</text>
+                </view>
+              </view>
+            </template>
           </view>
         </view>
       </view>
+    </view>
+
+    <!-- 底部购买提示 -->
+    <view class="bottom-hint" v-if="tickets.length > 0">
+      <text>需要更多门票？</text>
+      <text class="bottom-link" @click="goToBuy">去购买 →</text>
     </view>
 
     <!-- 加载中 -->
@@ -131,18 +177,16 @@ export default {
               statusClass = 'expired';
               statusText = '已过期';
             }
-            // 格式化有效期
             let expireDate = '-';
             if (expireAt) {
               const d = new Date(expireAt * 1000);
               expireDate = d.getFullYear() + '-' + (d.getMonth() + 1).toString().padStart(2, '0') + '-' + d.getDate().toString().padStart(2, '0');
             }
-            // 格式化核销码
             const code = item.verify_code || '';
             const codeArr = [];
             for (let i = 0; i < code.length; i++) {
               codeArr.push(code[i]);
-              if (i === 2) codeArr.push(' '); // 123 456 格式
+              if (i === 2) codeArr.push(' ');
             }
             return {
               ...item,
@@ -208,68 +252,130 @@ export default {
 
 <style lang="scss">
 $primary: #FF8C42;
+$primary-light: #FFB5A7;
 $dark: #5C4B3A;
 $gray: #A08B7A;
+$bg: #FFF8F0;
 
-page { background: #FFF8F0; }
+page { background: $bg; }
 
-.page { min-height: 100vh; background: #FFF8F0; }
+.page { min-height: 100vh; background: $bg; }
 
-// 导航栏
+// ========== 导航栏 ==========
 .nav-bar {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 100;
+  height: 88rpx;
+  background: linear-gradient(135deg, #FF8C42, #FFB5A7);
   display: flex;
   align-items: center;
-  justify-content: center;
-  height: 88rpx;
-  background: #fff;
-  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
-  .nav-back { position: absolute; left: 30rpx; font-size: 36rpx; color: $dark; }
-  .nav-title { font-size: 32rpx; font-weight: bold; color: $dark; }
+  justify-content: space-between;
+  padding: 0 20rpx;
+  .nav-back-wrap {
+    width: 60rpx;
+    height: 60rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .nav-back { font-size: 36rpx; color: #fff; }
+  .nav-title { font-size: 34rpx; font-weight: bold; color: #fff; flex: 1; text-align: center; }
+  .nav-right { width: 60rpx; }
 }
 
-// 空状态
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-top: 200rpx;
-  .empty-icon { font-size: 100rpx; margin-bottom: 20rpx; }
-  .empty-text { font-size: 32rpx; font-weight: bold; color: $dark; margin-bottom: 12rpx; }
-  .empty-sub { font-size: 26rpx; color: $gray; margin-bottom: 40rpx; }
-  .empty-btn {
-    background: linear-gradient(135deg, #FF8C42, #FFB5A7);
-    color: #fff;
-    font-size: 28rpx;
-    font-weight: bold;
-    padding: 20rpx 80rpx;
-    border-radius: 50rpx;
-    box-shadow: 0 8rpx 24rpx rgba(255,100,66,0.3);
+// ========== 顶部装饰区 ==========
+.header-bg {
+  background: linear-gradient(135deg, #FF8C42, #FFB5A7);
+  padding-top: 108rpx;
+  padding-bottom: 60rpx;
+  position: relative;
+  .header-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    .header-emoji { font-size: 72rpx; margin-bottom: 12rpx; }
+    .header-title { font-size: 40rpx; font-weight: bold; color: #fff; margin-bottom: 10rpx; }
+    .header-sub { font-size: 26rpx; color: rgba(255,255,255,0.9); }
+  }
+  // 波浪底边
+  .wave-bottom {
+    position: absolute;
+    bottom: -16rpx;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10rpx;
+    .wave-dot {
+      width: 32rpx;
+      height: 32rpx;
+      border-radius: 50%;
+      background: $bg;
+    }
   }
 }
 
-// 列表
-.ticket-list {
-  padding: 108rpx 24rpx 40rpx;
+// ========== 空状态 ==========
+.empty-state {
+  display: flex;
+  justify-content: center;
+  padding-top: 80rpx;
+  .empty-card {
+    background: #fff;
+    border-radius: 32rpx;
+    padding: 60rpx 80rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: 0 8rpx 32rpx rgba(92,75,58,0.08);
+    border: 2rpx solid rgba(255,181,167,0.2);
+    .empty-icon { font-size: 100rpx; margin-bottom: 20rpx; }
+    .empty-text { font-size: 34rpx; font-weight: bold; color: $dark; margin-bottom: 12rpx; }
+    .empty-sub { font-size: 26rpx; color: $gray; margin-bottom: 40rpx; }
+    .empty-btn {
+      background: linear-gradient(135deg, #FF8C42, #FFB5A7);
+      color: #fff;
+      font-size: 28rpx;
+      font-weight: bold;
+      padding: 22rpx 80rpx;
+      border-radius: 50rpx;
+      box-shadow: 0 8rpx 24rpx rgba(255,100,66,0.3);
+    }
+  }
 }
 
-.ticket-item {
+// ========== 门票列表 ==========
+.ticket-list {
+  padding: 30rpx 24rpx 40rpx;
+}
+
+// 票券卡片
+.ticket-card {
   background: #fff;
   border-radius: 24rpx;
-  padding: 28rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06);
-  border: 2rpx solid rgba(255,181,167,0.15);
-  border-left: 8rpx solid #ccc;
-  &.unused { border-left-color: #4CAF50; }
-  &.used { border-left-color: $gray; opacity: 0.85; }
-  &.expired { border-left-color: #FF3B30; opacity: 0.7; }
+  margin-bottom: 30rpx;
+  box-shadow: 0 8rpx 24rpx rgba(92,75,58,0.08);
+  display: flex;
+  overflow: hidden;
+  position: relative;
+
+  // 左侧状态彩条
+  .card-left-bar {
+    width: 10rpx;
+    flex-shrink: 0;
+  }
+  &.unused .card-left-bar { background: linear-gradient(to bottom, #4CAF50, #81C784); }
+  &.used .card-left-bar { background: linear-gradient(to bottom, $gray, #C8B8A8); }
+  &.expired .card-left-bar { background: linear-gradient(to bottom, #FF3B30, #FF8A80); }
+
+  .card-body {
+    flex: 1;
+    padding: 28rpx;
+  }
 }
 
-.item-header {
+// 顶部：状态 + 有效期
+.card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -277,118 +383,166 @@ page { background: #FFF8F0; }
   .status-tag {
     font-size: 22rpx;
     font-weight: bold;
-    padding: 4rpx 14rpx;
-    border-radius: 20rpx;
+    padding: 6rpx 18rpx;
+    border-radius: 24rpx;
     &.unused { background: #E8F5E9; color: #4CAF50; }
     &.used { background: #F5F5F5; color: $gray; }
     &.expired { background: #FFEBEE; color: #FF3B30; }
   }
-  .expire-text { font-size: 24rpx; color: $gray; }
-}
-
-.item-body {
-  padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #F0F0F0;
-  .info-row {
+  .expire-wrap {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 10rpx;
-    &:last-child { margin-bottom: 0; }
-    .info-label { font-size: 28rpx; color: $dark; }
-    .info-value { font-size: 28rpx; color: $dark; font-weight: bold; }
-    .info-price { font-size: 30rpx; color: $primary; font-weight: bold; }
+    gap: 6rpx;
+    .expire-icon { font-size: 22rpx; }
+    .expire-text { font-size: 24rpx; color: $gray; }
   }
 }
 
-.code-section {
-  margin-top: 20rpx;
-  .code-toggle {
+// 中部：票券信息
+.card-info {
+  padding-bottom: 20rpx;
+  .ticket-name-row {
+    display: flex;
+    align-items: center;
+    gap: 12rpx;
+    margin-bottom: 16rpx;
+    .ticket-icon { font-size: 36rpx; }
+    .ticket-name { font-size: 32rpx; font-weight: bold; color: $dark; }
+    .ticket-count { font-size: 28rpx; color: $gray; margin-left: auto; }
+  }
+  .ticket-price-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    .price-label { font-size: 26rpx; color: $gray; }
+    .price-value { font-size: 40rpx; font-weight: bold; color: $primary; }
+  }
+}
+
+// 分割线（穿孔效果）
+.ticket-divider {
+  position: relative;
+  height: 2rpx;
+  margin: 4rpx 0;
+  .dashed-line {
+    position: absolute;
+    top: 0; left: 16rpx; right: 16rpx;
+    height: 100%;
+    border-top: 2rpx dashed #E8E0D8;
+  }
+  .hole {
+    position: absolute;
+    top: -14rpx;
+    width: 28rpx;
+    height: 28rpx;
+    border-radius: 50%;
+    background: $bg;
+    &.hole-left { left: -14rpx; }
+    &.hole-right { right: -14rpx; }
+  }
+}
+
+// 底部：核销码 + 操作
+.card-bottom {
+  padding-top: 20rpx;
+
+  .code-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16rpx;
+    .code-digits-mini {
+      display: flex;
+      gap: 8rpx;
+      .digit-mini {
+        font-size: 32rpx;
+        font-weight: bold;
+        color: $dark;
+        letter-spacing: 4rpx;
+      }
+    }
+    .code-toggle-text {
+      font-size: 24rpx;
+      color: $primary;
+      font-weight: 500;
+    }
+  }
+
+  .code-expand {
+    background: #FFF8F0;
+    border-radius: 20rpx;
+    padding: 32rpx;
+    margin-bottom: 20rpx;
+    text-align: center;
+    border: 2rpx solid rgba(255,140,66,0.15);
+    .code-digits-large {
+      display: flex;
+      justify-content: center;
+      gap: 16rpx;
+      margin-bottom: 16rpx;
+      .digit-large {
+        width: 80rpx;
+        height: 100rpx;
+        line-height: 100rpx;
+        background: #fff;
+        border-radius: 16rpx;
+        font-size: 44rpx;
+        font-weight: bold;
+        color: $primary;
+        box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.06);
+        border: 2rpx solid #FFD0C0;
+      }
+    }
+    .code-tip { font-size: 24rpx; color: $gray; }
+  }
+
+  .status-hint {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8rpx;
-    font-size: 26rpx;
+    gap: 10rpx;
+    padding: 20rpx 0;
+    .hint-icon { font-size: 32rpx; }
+    .hint-text { font-size: 28rpx; color: $gray; }
+  }
+
+  .action-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16rpx;
+    &.single { justify-content: center; }
+    .action-btn {
+      font-size: 26rpx;
+      padding: 14rpx 40rpx;
+      border-radius: 32rpx;
+      text-align: center;
+      &.secondary {
+        background: #F5F0E8;
+        color: $dark;
+      }
+      &.primary {
+        background: linear-gradient(135deg, #FF8C42, #FFB5A7);
+        color: #fff;
+        box-shadow: 0 4rpx 16rpx rgba(255,100,66,0.3);
+      }
+    }
+  }
+}
+
+// ========== 底部提示 ==========
+.bottom-hint {
+  text-align: center;
+  padding-bottom: 60rpx;
+  font-size: 26rpx;
+  color: $gray;
+  .bottom-link {
     color: $primary;
     font-weight: bold;
-    padding: 12rpx 0;
-    .toggle-arrow {
-      font-size: 20rpx;
-      transition: transform 0.2s;
-      &.up { transform: rotate(180deg); }
-    }
-  }
-  .code-panel {
-    background: #FFF8F0;
-    border-radius: 16rpx;
-    padding: 28rpx;
-    margin-top: 12rpx;
-    text-align: center;
-    .code-qr {
-      margin-bottom: 20rpx;
-      .qr-placeholder {
-        width: 280rpx;
-        height: 280rpx;
-        background: #fff;
-        border-radius: 16rpx;
-        margin: 0 auto;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 2rpx solid #FFD0C0;
-        .qr-code-text {
-          font-size: 48rpx;
-          font-weight: bold;
-          color: $primary;
-          letter-spacing: 8rpx;
-        }
-      }
-    }
-    .code-number {
-      margin-bottom: 12rpx;
-      .code-label { font-size: 24rpx; color: $gray; display: block; margin-bottom: 10rpx; }
-      .code-digits {
-        display: flex;
-        justify-content: center;
-        gap: 12rpx;
-        .digit {
-          width: 64rpx;
-          height: 80rpx;
-          line-height: 80rpx;
-          background: #fff;
-          border-radius: 12rpx;
-          font-size: 36rpx;
-          font-weight: bold;
-          color: $primary;
-          box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.06);
-        }
-      }
-    }
-    .code-tip { font-size: 22rpx; color: $gray; }
+    margin-left: 10rpx;
   }
 }
 
-.item-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 16rpx;
-  margin-top: 20rpx;
-  .action-btn {
-    font-size: 26rpx;
-    padding: 12rpx 32rpx;
-    border-radius: 30rpx;
-    &.secondary {
-      background: #F5F5F5;
-      color: $dark;
-    }
-    &.primary {
-      background: linear-gradient(135deg, #FF8C42, #FFB5A7);
-      color: #fff;
-      box-shadow: 0 4rpx 12rpx rgba(255,100,66,0.25);
-    }
-  }
-}
-
+// ========== 加载中 ==========
 .loading-wrap {
   text-align: center;
   padding-top: 200rpx;

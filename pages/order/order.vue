@@ -610,7 +610,7 @@
 				if (item.order_type === 6) {
 					if (item.verified_at) return false;
 					if (item.expire_at) {
-						var expireTime = new Date(item.expire_at.replace(/-/g, '/'));
+						var expireTime = new Date(item.expire_at < 1e12 ? item.expire_at * 1000 : item.expire_at);
 						var now = new Date();
 						return expireTime.getTime() > now.getTime();
 					}
@@ -658,7 +658,7 @@
 						stateTip = '已核销';
 						stateTipColor = '#999';
 					} else if (item.expire_at) {
-						var expireTime = new Date(item.expire_at.replace(/-/g, '/'));
+						var expireTime = new Date(item.expire_at < 1e12 ? item.expire_at * 1000 : item.expire_at);
 						var now = new Date();
 						if (expireTime.getTime() < now.getTime()) {
 							stateTip = '已过期';
