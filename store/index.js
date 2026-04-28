@@ -355,10 +355,7 @@ const store = new Vuex.Store({
      */
     getBalanceRecords: function({ state }) {
       if (!state.token) return Promise.reject('未登录');
-      return AUTH.getBalanceRecords(state.token).then((res) => {
-        if (!res || res._status !== 0) return [];
-        return res.data || [];
-      }).catch(() => []);
+      return AUTH.getBalanceRecords(state.token);
     }
   }
 });
