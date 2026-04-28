@@ -32,7 +32,7 @@
 							<text class="type-tag" :style="{ color: _typeStyle(record.reason).color }">
 								{{ _typeStyle(record.reason).label }}
 							</text>
-							<text class="record-reason" v-if="record.reason">{{ record.reason }}</text>
+							<text class="record-reason" v-if="record.reason">{{ _beautifyReason(record.reason) }}</text>
 						</view>
 						<view class="record-bottom">
 							<text class="record-time">{{ formatTime(record.created_at) }}</text>
@@ -154,6 +154,17 @@
 					}
 				}
 				return DEFAULT_TYPE;
+			},
+			_beautifyReason(reason) {
+				if (!reason) return '';
+				if (reason.indexOf('余额支付订单 #') === 0) return '预约消费';
+				if (reason.indexOf('余额购买商品 #') === 0) return '购买商品';
+				if (reason.indexOf('更新订单重新抵扣余额 #') === 0) return '修改订单补扣余额';
+				if (reason === '拼团发起扣款') return '发起拼团';
+				if (reason === '拼团加入扣款') return '加入拼团';
+				if (reason.indexOf('退款（成员）') !== -1) return reason.replace('（成员）', '');
+				if (reason.indexOf('退款（发起人）') !== -1) return reason.replace('（发起人）', '');
+				return reason;
 			},
 		},
 	};
