@@ -301,6 +301,7 @@
 		},
 		methods: {
 			...mapActions(['getUserInfo']),
+			formatDate: formatDate,
 			async refreshData() {
 				if (!this.hasLogin) return;
 				// 重置所有tab数据
