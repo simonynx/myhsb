@@ -100,7 +100,7 @@
     <view class="notice-section">
       <view class="notice-item">
         <text class="notice-icon">⏰</text>
-        <text class="notice-text">购买后7天内有效，过期不可退</text>
+        <text class="notice-text">购买后{{ expireDays }}天内有效，过期不可退</text>
       </view>
       <view class="notice-item">
         <text class="notice-icon">📍</text>
@@ -200,7 +200,7 @@ export default {
   },
 
   computed: {
-    ...mapState(['hasLogin', 'token', 'userInfo']),
+    ...mapState(['hasLogin', 'token', 'userInfo', 'constance']),
 
     basePriceFen() {
       return this.ticketPriceFen * this.ticketCount;
@@ -233,6 +233,11 @@ export default {
 
     memberDiscountAmount() {
       return (this.memberDiscountAmountFen / 100).toFixed(2);
+    },
+
+    expireDays() {
+      const days = this.constance && this.constance.ticket_expire_days;
+      return days ? parseInt(days) : 7;
     },
 
     afterMemberPriceFen() {
@@ -632,11 +637,34 @@ page {
       background: #F8F8F8;
       border-radius: 10rpx;
       padding: 12rpx 16rpx;
+      .coupon-right {
+        display: flex;
+        align-items: center;
+        gap: 8rpx;
+        .coupon-value {
+          font-size: 28rpx;
+          color: $primary;
+          font-weight: bold;
+        }
+        .cell-more {
+          font-size: 26rpx;
+          color: $gray;
+          display: flex;
+          align-items: center;
+          gap: 4rpx;
+          &.cell-active { color: $primary; }
+        }
+      }
     }
     .balance-row {
       background: #F8F8F8;
       border-radius: 10rpx;
       padding: 12rpx 16rpx;
+      .balance-status {
+        font-size: 28rpx;
+        &.enough { color: #52C41A; }
+        &.short { color: $primary; }
+      }
     }
     .divider {
       height: 1rpx;
