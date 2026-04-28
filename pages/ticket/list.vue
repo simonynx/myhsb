@@ -3,7 +3,7 @@
     <!-- 渐变导航栏 -->
     <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
       <view class="nav-back-wrap" @click="goBack">
-        <text class="nav-back">&lt;</text>
+        <text class="nav-back">←</text>
       </view>
       <text class="nav-title">我的门票</text>
       <view class="nav-right"></view>
@@ -283,7 +283,7 @@ page { background: $bg; }
     align-items: center;
     justify-content: center;
   }
-  .nav-back { font-size: 40rpx; color: #fff; font-weight: bold; line-height: 1; }
+  .nav-back { font-size: 48rpx; color: #fff; font-weight: bold; line-height: 1; }
   .nav-title { font-size: 34rpx; font-weight: bold; color: #fff; flex: 1; text-align: center; }
   .nav-right { width: 60rpx; }
 }

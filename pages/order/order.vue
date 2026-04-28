@@ -66,7 +66,7 @@
 					<view class="detail-row" v-if="item.expire_at">
 						<text class="detail-icon">⏳</text>
 						<text class="detail-label">有效期至</text>
-						<text class="detail-value">{{ formatExpireAt(item.expire_at) }}</text>
+						<text class="detail-value">{{ formatDate(item.expire_at) }}</text>
 					</view>
 				</view>
 
@@ -249,6 +249,7 @@
 <script>
 	import { mapState, mapActions } from 'vuex';
 	import AUTH from '../../utils/auth.js';
+	import { formatDate, formatDateTime } from '../../common/util.js';
 
 	const ORDER_TYPE_MAP = {
 		1: { icon: '📅', name: '房间预约' },

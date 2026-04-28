@@ -369,7 +369,7 @@ $cream: #FFF8F0;
 .container {
     min-height: 100vh;
     background: linear-gradient(180deg, #FFF0E0 0%, #FFF8F0 30%, #FFF8F0 70%, #E8F5E9 100%);
-    padding-bottom: 40rpx;
+    padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
     position: relative;
     overflow: hidden;
 }
