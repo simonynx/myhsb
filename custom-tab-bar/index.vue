@@ -93,8 +93,11 @@ export default {
 		};
 	},
 	mounted() {
-		const info = uni.getSystemInfoSync();
-		this.safeAreaBottom = info.safeAreaInsets && info.safeAreaInsets.bottom || 0;
+		uni.getSystemInfo({
+			success: (info) => {
+				this.safeAreaBottom = info.safeAreaInsets && info.safeAreaInsets.bottom || 0;
+			}
+		});
 		this.syncCurrentTab();
 		uni.$on('tabBarChange', this.onTabBarChange);
 	},

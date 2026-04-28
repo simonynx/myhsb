@@ -167,7 +167,11 @@ export default {
   },
 
   onShow() {
-    this.statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0;
+    uni.getSystemInfo({
+      success: (res) => {
+        this.statusBarHeight = res.statusBarHeight || 0;
+      }
+    });
     this.loadTickets();
   },
 

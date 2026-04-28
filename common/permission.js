@@ -235,7 +235,12 @@ function gotoAppPermissionSetting() {
 
 const permission = {
     get isIOS(){
-        return typeof isIOS === 'boolean' ? isIOS : (isIOS = uni.getSystemInfoSync().platform === 'ios')
+        if (typeof isIOS === 'boolean') return isIOS;
+        // fallback，异步获取结果会在后续调用时生效
+        uni.getSystemInfo({
+            success: (res) => { isIOS = res.platform === 'ios'; }
+        });
+        return false;
     },
     requestIOS: requestIOS,
     requestAndroid: requestAndroid,
