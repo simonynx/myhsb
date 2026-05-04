@@ -204,29 +204,23 @@ export default {
     },
 
     onLoad(options) {
-        if (!options.data || options.data === 'null') {
+        if (options.data && options.data !== 'null') {
+            try {
+                this.order = JSON.parse(decodeURIComponent(options.data));
+            } catch(e) {
+                this.order = null;
+            }
+            if (!this.order || this.order.pay_amount === undefined || this.order.pay_amount === null) {
+                uni.showToast({ title: '订单创建失败', icon: 'none' });
+                uni.redirectTo({ url: '/pages/order/order' });
+                return;
+            }
+            this.initPayment(options);
+        } else if (options.parent_sn) {
+            this.loadOrderByNumber(options.parent_sn);
+        } else {
             uni.showToast({ title: '订单创建失败', icon: 'none' });
             uni.redirectTo({ url: '/pages/order/order' });
-            return;
-        }
-        try {
-            this.order = JSON.parse(decodeURIComponent(options.data));
-        } catch(e) {
-            this.order = null;
-        }
-        if (!this.order || this.order.pay_amount === undefined || this.order.pay_amount === null) {
-            uni.showToast({ title: '订单创建失败', icon: 'none' });
-            uni.redirectTo({ url: '/pages/order/order' });
-            return;
-        }
-        this.entry = options.entry || '1';
-        // 默认支付方式：余额足够优先余额，不足则微信
-        this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
-        this.startCountdown();
-
-        // 线下待付款订单：加载优惠券
-        if (this.order && this.order.order_type === 4 && this.order.order_status === 0) {
-            this.loadMyCoupons();
         }
     },
 
@@ -235,7 +229,55 @@ export default {
     },
 
     methods: {
-        ...mapActions(['getUserInfo']),
+        ...mapActions(['getUserInfo', 'loginAndRegister']),
+
+        initPayment(options) {
+            this.entry = (options && options.entry) || '1';
+            this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
+            this.startCountdown();
+            if (this.order && this.order.order_type === 4 && this.order.order_status === 0) {
+                this.loadMyCoupons();
+            }
+        },
+
+        loadOrderByNumber(orderNumber) {
+            var _this = this;
+            var token = uni.getStorageSync('token');
+            if (!token) {
+                uni.showLoading({ title: '登录中...' });
+                this.loginAndRegister().then(function() {
+                    uni.hideLoading();
+                    _this.loadOrderByNumber(orderNumber);
+                }).catch(function() {
+                    uni.hideLoading();
+                    uni.showToast({ title: '登录失败', icon: 'none' });
+                    uni.redirectTo({ url: '/pages/order/order' });
+                });
+                return;
+            }
+            uni.showLoading({ title: '加载中...' });
+            AUTH.getOrderList(-1, token).then(function(res) {
+                uni.hideLoading();
+                if (!res || !res.data) {
+                    uni.showToast({ title: '订单加载失败', icon: 'none' });
+                    uni.redirectTo({ url: '/pages/order/order' });
+                    return;
+                }
+                var orders = res.data.orders || [];
+                var order = orders.find(function(o) { return o.order_number === orderNumber; });
+                if (!order) {
+                    uni.showToast({ title: '订单不存在', icon: 'none' });
+                    uni.redirectTo({ url: '/pages/order/order' });
+                    return;
+                }
+                _this.order = order;
+                _this.initPayment({ entry: '3' });
+            }).catch(function(err) {
+                uni.hideLoading();
+                uni.showToast({ title: '加载失败', icon: 'none' });
+                uni.redirectTo({ url: '/pages/order/order' });
+            });
+        },
 
         async loadMyCoupons() {
             if (!this.token) return;

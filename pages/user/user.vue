@@ -29,6 +29,7 @@
 						<text class="tag-icon">{{ memberIcon }}</text>
 						<text class="tag-name">{{ memberLevelName }}</text>
 					</view>
+					<text class="member-no" v-if="hasLogin && memberNo">会员编号：{{ memberNo }}</text>
 				</view>
 				<view class="edit-btn" @tap="openAuthorizationModal">
 					<text>编辑</text>
@@ -272,6 +273,10 @@
 			},
 			memberColor() {
 				return (this.memberLevelData && this.memberLevelData.color) || '#AAAAAA';
+			},
+			memberNo() {
+				var oid = this.userInfo && this.userInfo.object_id ? this.userInfo.object_id : '';
+				return oid.replace(/-/g, '').toUpperCase().slice(0, 8);
 			},
 			nextLevelData() {
 				var level = (this.userInfo && this.userInfo.member_level) || 0;

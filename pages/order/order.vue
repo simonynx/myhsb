@@ -433,7 +433,7 @@
 					var totalOrig = (goodsInfo._total_original || item.pay_amount) / 100;
 					item.originalPrice = totalOrig.toFixed(2);
 					item.roomPrice = totalOrig.toFixed(2);
-					item.memberDiscount = 0;
+					item.memberDiscount = goodsInfo._member_discount ? (goodsInfo._member_discount / 100).toFixed(2) : 0;
 					item.pointsDeduction = goodsInfo._points_deducted ? (goodsInfo._points_deducted / 100).toFixed(2) : 0;
 					item.couponDiscount = goodsInfo._coupon_discount ? (goodsInfo._coupon_discount / 100).toFixed(2) : 0;
 				} else if (item.order_type === 6) {
