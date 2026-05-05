@@ -239,7 +239,7 @@
 					}
 
 					// 使用跨平台支付封装
-					var PLATFORM = require('../../common/platform.js');
+					var PLATFORM = require('../../../common/platform.js');
 					PLATFORM.requestPayment(payment).then(function() {
 						uni.hideLoading();
 						var bonusText = this.selectedTierBonus > 0 ? '，赠送 ' + this.selectedTierBonus + ' 积分' : '';
