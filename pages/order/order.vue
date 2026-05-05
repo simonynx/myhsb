@@ -157,7 +157,7 @@
 					<view class="detail-row" v-if="item.goodsInfo && item.goodsInfo.duration">
 						<text class="detail-icon">⏱</text>
 						<text class="detail-label">消费时长</text>
-						<text class="detail-value">{{ item.goodsInfo.duration }}分钟</text>
+						<text class="detail-value">{{ item.goodsInfo.duration }}小时</text>
 					</view>
 					<view class="detail-row" v-if="item.goodsInfo && item.goodsInfo.user_count">
 						<text class="detail-icon">👥</text>

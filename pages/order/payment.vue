@@ -27,7 +27,7 @@
                 <view class="order-no">订单号 {{ order.order_number }}</view>
                 <view class="order-info" v-if="order.order_type === 4">
                     <text class="info-tag">线下消费</text>
-                    <text class="info-text">{{ (order.goodsInfo && order.goodsInfo.room_name) }} · {{ (order.goodsInfo && order.goodsInfo.duration) }}分钟 · {{ order.goodsInfo && order.goodsInfo.user_count }}人</text>
+                    <text class="info-text">{{ (order.goodsInfo && order.goodsInfo.room_name) }} · {{ (order.goodsInfo && order.goodsInfo.duration) }}小时 · {{ order.goodsInfo && order.goodsInfo.user_count }}人</text>
                 </view>
             </view>
 
