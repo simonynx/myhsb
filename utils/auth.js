@@ -1,5 +1,6 @@
-// utils/auth.js - 微信小程序登录和订阅消息工具
+// utils/auth.js - 跨平台登录和订阅消息工具
 
+var PLATFORM = require('../common/platform.js');
 var API_BASE_URL = 'https://api.moyuhuashui.top/api/v1';
 
 // ==================== HTTP 请求 ====================
@@ -39,52 +40,36 @@ function request(url, method, data, token) {
   });
 }
 
-// ==================== 微信登录 ====================
+// ==================== 平台登录 ====================
 
 function weixinLogin() {
-  return new Promise((resolve, reject) => {
-    uni.login({
-      provider: 'weixin',
-      success: (loginRes) => {
-        if (!loginRes || loginRes.errMsg !== 'login:ok') {
-          reject(loginRes.errMsg || '登录失败');
-          return;
-        }
-        resolve({ code: loginRes.code });
-      },
-      fail: (err) => {
-        reject(err.errMsg || '登录请求失败');
-      }
-    });
-  });
+  // 兼容旧调用，实际使用 platformLogin
+  return platformLogin();
+}
+
+function platformLogin() {
+  return PLATFORM.platformLogin();
 }
 
 function getPhoneNumber(e, token) {
   return new Promise((resolve, reject) => {
-    if (e.detail.errMsg !== 'getPhoneNumber:ok') {
-      reject(e.detail.errMsg || '获取手机号失败');
+    var phoneEvent = PLATFORM.parsePhoneEvent(e);
+    if (!phoneEvent.ok) {
+      reject(phoneEvent.errMsg || '获取手机号失败');
       return;
     }
-    var data = { encryptedData: e.detail.encryptedData, iv: e.detail.iv };
+    var data = { encryptedData: phoneEvent.encryptedData, iv: phoneEvent.iv };
     request('/auth/decrypt_phone/', 'POST', data, token).then(resolve).catch(function(err) {
       // 如果是 session_key 过期，先刷新再重试
       if (err && err._reason && err._reason.indexOf('SESSION_KEY_EXPIRED') >= 0) {
-        uni.login({
-          provider: 'weixin',
-          success: function(loginRes) {
-            if (!loginRes || loginRes.errMsg !== 'login:ok') {
-              reject('登录失败，请重试');
-              return;
-            }
-            // 刷新 session_key（需携带 token 认证）
-            request('/auth/refresh_session_key/', 'POST', { code: loginRes.code }, token).then(function() {
-              // 重试解密
-              request('/auth/decrypt_phone/', 'POST', data, token).then(resolve).catch(reject);
-            }).catch(reject);
-          },
-          fail: function(err) {
-            reject(err.errMsg || '登录失败');
-          }
+        PLATFORM.platformLogin().then(function(loginRes) {
+          // 刷新 session_key（需携带 token 认证）
+          request('/auth/refresh_session_key/', 'POST', { code: loginRes.code, platform: PLATFORM.getPlatform() }, token).then(function() {
+            // 重试解密
+            request('/auth/decrypt_phone/', 'POST', data, token).then(resolve).catch(reject);
+          }).catch(reject);
+        }).catch(function(err) {
+          reject(err || '登录失败');
         });
       } else {
         reject(err);
@@ -102,28 +87,23 @@ function setSubscribeTemplateId(templateId) {
 }
 
 function requestSubscribeMessage() {
-  return new Promise((resolve, reject) => {
-    uni.requestSubscribeMessage({
-      tmplIds: [SUBSCRIBE_TEMPLATE_ID || 'YOUR_TEMPLATE_ID'],
-      success: (res) => {
-        var result = res[SUBSCRIBE_TEMPLATE_ID] || res['YOUR_TEMPLATE_ID'] || 'reject';
-        console.log('订阅消息授权结果:', result);
-        resolve(result === 'accept');
-      },
-      fail: (err) => {
-        console.log('订阅消息请求失败:', err);
-        reject(err);
-      }
-    });
-  });
+  return PLATFORM.requestSubscribeMessage([SUBSCRIBE_TEMPLATE_ID || 'YOUR_TEMPLATE_ID']);
 }
 
 // ==================== 业务 API ====================
 
 function univerifyLogin(loginCode, inviteCode) {
-  var data = { js_code: loginCode };
+  return univerifyLoginPlatform(loginCode, inviteCode, PLATFORM.getPlatform());
+}
+
+function univerifyLoginPlatform(loginCode, inviteCode, platform) {
+  var data = { js_code: loginCode, platform: platform || 'weixin' };
   if (inviteCode) {
     data.invite_code = inviteCode;
+  }
+  // 根据平台选择登录接口
+  if (platform === 'toutiao') {
+    return request('/auth/signin_by_toutiao/', 'POST', data);
   }
   return request('/auth/signin_by_weixin/', 'POST', data);
 }
@@ -420,7 +400,9 @@ function parseAvatarUrl(avatar) {
 
 var httpRequest = {
   weixinLogin: weixinLogin,
+  platformLogin: platformLogin,
   univerifyLogin: univerifyLogin,
+  univerifyLoginPlatform: univerifyLoginPlatform,
   getPhoneNumber: getPhoneNumber,
   checkSession: checkSession,
   loginOut: loginOut,

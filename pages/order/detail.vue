@@ -493,7 +493,7 @@
 			_confirmOrder: function(event) {
 				var that = this;
 				var id = this.getDataSet(event, "id")
-				wx.showModal({
+				uni.showModal({
 					title: '提示',
 					content: '你是否收到该订单商品？',
 					confirmText: '已收货',
@@ -507,7 +507,7 @@
 									that.setData({
 										status: 4
 									})
-									wx.showToast({
+									uni.showToast({
 										title: '确认收货成功',
 										icon: 'none',
 										duration: 2000
@@ -562,7 +562,7 @@
 				this.goto(url);
 			},
 			daohang: function() {
-				wx.openLocation({
+				uni.openLocation({
 					longitude: Number(this.orderData.shop.lng),
 					latitude: Number(this.orderData.shop.lat),
 					name: this.orderData.shop.name,
@@ -594,7 +594,7 @@
 			//评价晒单
 			toEvaluate: function(event) {
 				var id = order.getDataSet(event, 'id');
-				wx.navigateTo({
+				uni.navigateTo({
 					url: '../evaluate/list?order_id=' + id
 				});
 			},
@@ -613,12 +613,12 @@
 			},
 			intoMap: function() {
 				var that = this;
-				// wx.getLocation({
-				// 	type: 'wgs84', //返回可以用于wx.openLocation的经纬度
+				// uni.getLocation({
+				// 	type: 'wgs84', //返回可以用于uni.openLocation的经纬度
 				// 	success: function(res) { //因为这里得到的是你当前位置的经纬度
 				// 		var latitude = res.latitude
 				// 		var longitude = res.longitude
-				wx.openLocation({ //所以这里会显示你当前的位置
+				uni.openLocation({ //所以这里会显示你当前的位置
 					latitude: parseFloat(that.orderData.orderPick.latitude),
 					longitude: parseFloat(that.orderData.orderPick.longitude),
 					name: that.orderData.orderPick.name,

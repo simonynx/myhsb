@@ -140,6 +140,7 @@
 <script>
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
+import PLATFORM from '../../common/platform.js';
 
 export default {
     data() {
@@ -434,21 +435,15 @@ export default {
         },
 
         requestPayment(res) {
-            const _this = this;
-            wx.requestPayment({
-                timeStamp: res.data.timeStamp,
-                nonceStr: res.data.nonceStr,
-                package: res.data.package,
-                signType: res.data.signType,
-                paySign: res.data.sign,
-                success: function(res) {
-                    uni.redirectTo({ url: '/pages/order/order?state=0&id=' + _this.order.object_id });
-                },
-                fail: function(err) {
-                    if (err.errMsg && err.errMsg.indexOf('cancel') >= 0) return;
-                    uni.showToast({ title: '支付失败', icon: 'none' });
-                },
-                complete: () => { this.getUserInfo(); }
+            var _this = this;
+            var paymentData = res.data && res.data.payment ? res.data.payment : res.data;
+            PLATFORM.requestPayment(paymentData).then(function() {
+                uni.redirectTo({ url: '/pages/order/order?state=0&id=' + _this.order.object_id });
+            }).catch(function(err) {
+                if (err && err.errMsg && err.errMsg.indexOf('cancel') >= 0) return;
+                uni.showToast({ title: '支付失败', icon: 'none' });
+            }).finally(function() {
+                _this.getUserInfo();
             });
         },
 

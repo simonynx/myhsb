@@ -1,6 +1,7 @@
 import Vue from 'vue';
 import Vuex from 'vuex';
 import AUTH from '../utils/auth.js';
+import PLATFORM from '../common/platform.js';
 
 Vue.use(Vuex);
 
@@ -132,12 +133,15 @@ const store = new Vuex.Store({
     getRechargeTiers({ commit }) { return AUTH.getRechargeTiers().then(res => { if (res._status === 0) { commit('setRechargeTiers', res.data || []); return Promise.resolve(res.data || []); } return Promise.reject(res._reason); }); },
     loginAndRegister: async function({ commit, state, dispatch }) {
       try {
-        // Step 1: 微信登录获取 code
-        const { code } = await AUTH.weixinLogin();
-        console.log('微信登录 code:', code);
+        // Step 1: 平台登录获取 code
+        const loginRes = await AUTH.platformLogin();
+        const code = loginRes.code;
+        const anonymous_code = loginRes.anonymous_code;
+        const platform = loginRes.platform || 'weixin';
+        console.log('平台登录 code:', code, 'platform:', platform);
 
         // Step 2: 发送给后端验证，获取 token 和 openid
-        const res = await AUTH.univerifyLogin(code);
+        const res = await AUTH.univerifyLoginPlatform(code, null, platform);
         console.log('后端登录响应:', res);
 
         if (res._status === 10000) {
@@ -159,10 +163,12 @@ const store = new Vuex.Store({
         }
 
         // Step 3: 检测是否新用户，保存 token 和邀请码
-        commit('login', 'weixin');
+        commit('login', platform);
         commit('setUniverifyLogin', true);
         commit('setToken', res.data.token);
-        commit('setOpenid', res.data.user.weixin_openid);
+        // 兼容微信和抖音的 openid 字段
+        var openid = res.data.user && (res.data.user.weixin_openid || res.data.user.toutiao_openid || '');
+        commit('setOpenid', openid);
 
         // Step 4: 获取用户信息和配置
         await Promise.all([
@@ -177,12 +183,7 @@ const store = new Vuex.Store({
           return state.openid;
         }
 
-        // Step 6: 静默请求订阅消息权限（不强制）
-        dispatch('requestSubscribeMessage');
-
-        return state.openid;
-
-        // Step 5: 静默请求订阅消息权限（不强制）
+        // Step 6: 静默请求订阅消息权限（不强制，抖音自动跳过）
         dispatch('requestSubscribeMessage');
 
         return state.openid;

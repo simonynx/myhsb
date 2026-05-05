@@ -238,42 +238,33 @@
 						return;
 					}
 
-					// #ifdef MP-WEIXIN
-					wx.requestPayment({
-						timeStamp: String(payment.timeStamp),
-						nonceStr: payment.nonceStr,
-						package: payment.package,
-						signType: payment.signType || 'MD5',
-						paySign: paySign,
-						success: (resp) => {
-							uni.hideLoading();
-							var bonusText = this.selectedTierBonus > 0 ? `，赠送 ${this.selectedTierBonus} 积分` : '';
-							var presentText = this.selectedTierPresent > 0 ? `，额外到账 ¥${this.selectedTierPresent}` : '';
+					// 使用跨平台支付封装
+					var PLATFORM = require('../../common/platform.js');
+					PLATFORM.requestPayment(payment).then(function() {
+						uni.hideLoading();
+						var bonusText = this.selectedTierBonus > 0 ? '，赠送 ' + this.selectedTierBonus + ' 积分' : '';
+						var presentText = this.selectedTierPresent > 0 ? '，额外到账 ¥' + this.selectedTierPresent : '';
+						uni.showModal({
+							title: '充值成功',
+							content: '已成功充值 ¥' + this.selectedAmount + presentText + bonusText + '，请注意查收入账短信',
+							showCancel: false,
+							success: function() {
+								this.getUserInfo();
+							}.bind(this)
+						});
+					}.bind(this)).catch(function(err) {
+						uni.hideLoading();
+						console.error('支付失败详情:', err);
+						if (err && err.errMsg && err.errMsg.indexOf('cancel') !== -1) {
+							uni.showToast({ title: '支付已取消', icon: 'none' });
+						} else {
 							uni.showModal({
-								title: '充值成功',
-								content: `已成功充值 ¥${this.selectedAmount}${presentText}${bonusText}，请注意查收入账短信`,
+								title: '支付失败',
+								content: (err && err.errMsg) || '支付调起失败，请在真机上测试',
 								showCancel: false,
-								success: () => {
-									this.getUserInfo();
-								},
 							});
-						},
-						fail: (err) => {
-							uni.hideLoading();
-							console.error('支付失败详情:', err);
-							// 开发者工具模拟器不支持微信支付，会直接进入 fail
-							if (err && err.errMsg && err.errMsg.indexOf('cancel') !== -1) {
-								uni.showToast({ title: '支付已取消', icon: 'none' });
-							} else {
-								uni.showModal({
-									title: '支付失败',
-									content: (err && err.errMsg) || '微信支付调起失败，请在真机上测试',
-									showCancel: false,
-								});
-							}
-						},
+						}
 					});
-					// #endif
 				}).catch((err) => {
 					uni.hideLoading();
 					uni.showToast({ title: '充值失败', icon: 'none' });

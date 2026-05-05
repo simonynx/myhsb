@@ -13,25 +13,45 @@
 		computed:{
 			...mapState(['hasLogin'])
 		},
-		onLaunch: function() {
-			// 微信审核要求：打开小程序不强制登录，让用户先浏览
-			// 但如果有本地缓存的 token，先验证是否有效，有效再恢复登录态
-			try {
-				var token = uni.getStorageSync('token');
-				if (token) {
-					this.$store.commit('setToken', token);
-					this.$store.commit('login', 'weixin');
-					this.$store.dispatch('getUserInfo', true).then(() => {
-						this.$store.dispatch('getConstanceInfo');
-					}).catch(() => {
-						// token 已过期，静默清除登录态
-						this.$store.commit('logout');
-					});
+			onLaunch: function(options) {
+				// 微信审核要求：打开小程序不强制登录，让用户先浏览
+				// 但如果有本地缓存的 token，先验证是否有效，有效再恢复登录态
+				var platform = 'weixin';
+				// #ifdef MP-TOUTIAO
+				platform = 'toutiao';
+				// #endif
+				try {
+					var token = uni.getStorageSync('token');
+					if (token) {
+						this.$store.commit('setToken', token);
+						this.$store.commit('login', platform);
+						this.$store.dispatch('getUserInfo', true).then(() => {
+							this.$store.dispatch('getConstanceInfo');
+						}).catch(() => {
+							// token 已过期，静默清除登录态
+							this.$store.commit('logout');
+						});
+					}
+				} catch (e) {
+					console.log('恢复登录态失败', e);
 				}
-			} catch (e) {
-				console.log('恢复登录态失败', e);
-			}
-		},
+				// 解析扫码场景（兼容微信和抖音）
+				try {
+					var PLATFORM = require('./common/platform.js');
+					var scene = PLATFORM.parseScene(options || {});
+					if (scene) {
+						console.log('扫码场景:', scene);
+						var parts = scene.split('=');
+						if (parts.length === 2 && parts[0] === 'order_sn') {
+							setTimeout(function() {
+								uni.navigateTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(parts[1]) });
+							}, 1000);
+						}
+					}
+				} catch (e) {
+					console.log('解析扫码场景失败', e);
+				}
+			},
 		onShow: function() {
 			console.log('App Show')
 		},
