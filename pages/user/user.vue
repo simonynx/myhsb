@@ -558,6 +558,16 @@ page {
 	color: #fff;
 	font-weight: bold;
 }
+.profile-info .member-no {
+	display: inline-block;
+	font-size: 20rpx;
+	color: #999;
+	background: #f5f5f5;
+	padding: 2rpx 10rpx;
+	border-radius: 10rpx;
+	margin-top: 6rpx;
+	margin-left: 8rpx;
+}
 .edit-btn {
 	padding: 10rpx 24rpx;
 	background: #FFF5EE;
