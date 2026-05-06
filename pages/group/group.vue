@@ -31,7 +31,7 @@
                         @click="selectDay(index)"
                     >
                         <text class="pill-week">{{ item.week }}</text>
-                        <text class="pill-date" v-if="item.date">{{ item.date.split('-')[2] }}</text>
+                        <text class="pill-date" v-if="item.date">{{ item.dayText }}</text>
                         <text class="pill-all-text" v-else>全部</text>
                     </view>
                 </view>
@@ -48,15 +48,15 @@
                 @click="goDetail(group.object_id)"
             >
                 <view class="card-header">
-                    <image class="room-img" :src="group.room && group.room.image1" mode="aspectFill" />
+                    <image class="room-img" :src="group.roomImage" mode="aspectFill" />
                     <view class="room-info">
                         <view class="room-name-row">
-                            <text class="room-name">{{ group.room && group.room.name }}</text>
+                            <text class="room-name">{{ group.roomName }}</text>
                             <view class="new-tag" v-if="group.isNew">NEW</view>
                         </view>
                         <text class="time-label">{{ group.timeLabel }}</text>
                         <view class="room-time">
-                            <text class="time-tag date-tag">{{ formatShortDate(group.date) }}</text>
+                            <text class="time-tag date-tag">{{ group.dateShort }}</text>
                             <text class="time-tag">{{ group.begin_time }} ~ {{ group.end_time }}</text>
                         </view>
                     </view>
@@ -65,8 +65,8 @@
 
                 <view class="card-body">
                     <view class="initiator">
-                        <image class="initiator-avatar" :src="group.initiator && group.initiator.avatar" mode="aspectFill" />
-                        <text class="initiator-name">{{ group.initiator && group.initiator.nickname }}</text>
+                        <image class="initiator-avatar" :src="group.initiatorAvatar" mode="aspectFill" />
+                        <text class="initiator-name">{{ group.initiatorName }}</text>
                         <text class="initiator-label">发起</text>
                     </view>
                     <view class="members-preview">
@@ -104,11 +104,9 @@
                         </button>
                         <view class="progress-info">
                             <view class="progress-bar">
-                                <view class="progress-fill" :style="'width:' + progressWidth(group)"></view>
+                                <view class="progress-fill" :style="group.progressStyle"></view>
                             </view>
-                            <text class="progress-text" v-if="group.remain > 2">{{ group.current_members || 1 }}/{{ group.max_members }} 人</text>
-                            <text class="progress-text urgent" v-else-if="group.remain > 0">再邀 {{ group.remain }} 人成团</text>
-                            <text class="progress-text full" v-else>已满员</text>
+                            <text class="progress-text" :class="group.progressTextClass">{{ group.progressText }}</text>
                         </view>
                     </view>
                 </view>
@@ -117,8 +115,8 @@
             <!-- 空状态 -->
             <view class="empty-section" v-if="groupList.length === 0 && !loading">
                 <text class="empty-icon">🎮</text>
-                <text class="empty-title">{{ currentDate ? (weekDays[selectedDayIndex] && weekDays[selectedDayIndex].week) + '暂无拼团' : '暂无拼团' }}</text>
-                <text class="empty-sub">{{ currentDate ? '这一天还没有人发起拼团，你来当第一个！' : '暂时没人缺队友，发起一个邀请朋友吧' }}</text>
+                <text class="empty-title">{{ emptyTitle }}</text>
+                <text class="empty-sub">{{ emptySub }}</text>
                 <view class="empty-btn" @click="goAppoint">
                     <text>发起拼团，喊朋友 →</text>
                 </view>
@@ -170,14 +168,27 @@ export default {
         currentDate() {
             return this.weekDays[this.selectedDayIndex] ? this.weekDays[this.selectedDayIndex].date : '';
         },
+        emptyTitle() {
+            if (!this.currentDate) return '暂无拼团';
+            const day = this.weekDays[this.selectedDayIndex] || {};
+            return (day.week || '') + '暂无拼团';
+        },
+        emptySub() {
+            return this.currentDate ? '这一天还没有人发起拼团，你来当第一个！' : '暂时没人缺队友，发起一个邀请朋友吧';
+        },
+    },
+
+    created() {
+        this.ensureWeekDays();
     },
 
     onLoad() {
-        this.buildWeekDays();
+        this.ensureWeekDays();
     },
 
     onShow() {
         uni.$emit('tabBarChange', { key: 'group' });
+        this.ensureWeekDays();
         if (this.weekDays.length > 0) {
             this.fetchGroupList();
         }
@@ -188,6 +199,16 @@ export default {
     },
 
     methods: {
+        ensureWeekDays() {
+            if (this.weekDays.length === 0) {
+                this.buildWeekDays();
+            }
+        },
+
+        pad2(num) {
+            return num < 10 ? '0' + num : String(num);
+        },
+
         buildWeekDays() {
             const days = [];
             const today = new Date();
@@ -195,11 +216,14 @@ export default {
             days.push({ date: '', week: '全部', label: '全部', className: '' });
             for (let i = 0; i < 7; i++) {
                 const d = new Date(today.getTime() + i * 86400000);
-                const dateStr = d.getFullYear() + '-' + (d.getMonth() + 1).toString().padStart(2, '0') + '-' + d.getDate().toString().padStart(2, '0');
+                const monthText = this.pad2(d.getMonth() + 1);
+                const dayText = this.pad2(d.getDate());
+                const dateStr = d.getFullYear() + '-' + monthText + '-' + dayText;
                 days.push({
                     date: dateStr,
                     week: i === 0 ? '今天' : weekMap[d.getDay()],
-                    label: dateStr.split('-')[1] + '/' + dateStr.split('-')[2],
+                    label: monthText + '/' + dayText,
+                    dayText: dayText,
                     className: '',
                 });
             }
@@ -228,8 +252,15 @@ export default {
                     let list = data.list || res.data || [];
                     // 预处理日期标签，避免模板中使用方法调用
                     list = list.map(g => {
+                        const room = g.room || {};
+                        const initiator = g.initiator || {};
                         const label = this.formatDateLabel(g.date);
                         g.dateLabel = label;
+                        g.dateShort = this.formatShortDate(g.date);
+                        g.roomName = room.name || '拼团房间';
+                        g.roomImage = room.image1 || '/static/logo_small.jpg';
+                        g.initiatorName = initiator.nickname || '玩家';
+                        g.initiatorAvatar = initiator.avatar || '/static/logo_small.jpg';
                         g.cardClass = label === '今天' ? 'card-today' : (label === '明天' ? 'card-tomorrow' : (label === '后天' ? 'card-after' : ''));
 
                         // 时间紧迫感标签
@@ -262,6 +293,17 @@ export default {
                         g.originalPerPersonText = (g.originalPerPerson / 100).toFixed(0);
                         g.savePerPersonText = (g.savePerPerson / 100).toFixed(0);
                         g.sortTime = this.getGroupSortTime(g);
+                        g.progressStyle = 'width:' + this.progressWidth(g);
+                        if (g.remain > 2) {
+                            g.progressText = (g.current_members || 1) + '/' + (g.max_members || 4) + ' 人';
+                            g.progressTextClass = '';
+                        } else if (g.remain > 0) {
+                            g.progressText = '再邀 ' + g.remain + ' 人成团';
+                            g.progressTextClass = 'urgent';
+                        } else {
+                            g.progressText = '已满员';
+                            g.progressTextClass = 'full';
+                        }
                         return g;
                     });
                     list.sort(this.compareGroups);
@@ -544,11 +586,13 @@ $cream: #FFF8F0;
 
 .date-scroll {
     width: 100%;
+    height: 112rpx;
     white-space: nowrap;
 }
 
 .date-inner {
-    display: inline-flex;
+    display: inline-block;
+    white-space: nowrap;
     padding: 0 16rpx;
 }
 

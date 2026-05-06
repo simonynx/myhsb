@@ -190,7 +190,7 @@
 					class="goods-card"
 					v-for="(g, idx) in pointsGoods"
 					:key="idx"
-					:class="isLocked(g) ? 'locked' : ''"
+					:class="g.lockedClass"
 					@click="handlePointsGoodsClick(g)"
 				>
 					<view class="goods-img-wrap">
@@ -201,7 +201,7 @@
 						<view class="goods-tag mixed" v-else-if="g.exchange_type === 3">
 							<text>🌟 混合</text>
 						</view>
-						<view class="lock-mask" v-if="isLocked(g)">
+						<view class="lock-mask" v-if="g.locked">
 							<text class="lock-icon">🔮</text>
 							<text class="lock-text">等级不足</text>
 						</view>
@@ -228,8 +228,8 @@
 								<text class="p-unit">积分</text>
 								<text class="cash-plus" v-if="g.exchange_type === 3">+¥{{ formatPrice(g.price) }}</text>
 							</view>
-							<view class="goods-buy-btn" :class="isLocked(g) ? 'disabled' : ''" @tap.stop="handlePointsGoodsClick(g)">
-								<text>{{ isLocked(g) ? '🔒' : '兑换' }}</text>
+							<view class="goods-buy-btn" :class="g.buyBtnClass" @tap.stop="handlePointsGoodsClick(g)">
+								<text>{{ g.locked ? '🔒' : '兑换' }}</text>
 							</view>
 						</view>
 					</view>
@@ -275,7 +275,14 @@ export default {
 		},
 		pointsGoods() {
 			// 积分兑换：只放纯积分商品，避免和小店重复
-			return this.goodsList.filter(g => g.goods_type !== 1 && g.exchange_type === 2);
+			return this.goodsList.filter(g => g.goods_type !== 1 && g.exchange_type === 2).map(g => {
+				const locked = this.isLocked(g);
+				return Object.assign({}, g, {
+					locked: locked,
+					lockedClass: locked ? 'locked' : '',
+					buyBtnClass: locked ? 'disabled' : '',
+				});
+			});
 		},
 	},
 	data() {

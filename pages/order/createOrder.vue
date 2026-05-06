@@ -64,7 +64,7 @@
                     class="addon-package"
                     v-for="pkg in addonPackages"
                     :key="pkg.key"
-                    :class="isAddonPackageSelected(pkg) ? 'selected' : ''"
+                    :class="pkg.selectedClass"
                     @click="toggleAddonPackage(pkg)"
                 >
                     <view class="package-top">
@@ -78,7 +78,7 @@
             <view class="addon-list" v-if="addonsOpen">
                 <view
                     class="addon-item"
-                    v-for="a in roomAddons"
+                    v-for="a in displayRoomAddons"
                     :key="a.object_id"
                     @click="toggleAddon(a)"
                 >
@@ -88,8 +88,8 @@
                         <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
                     </view>
                     <text class="addon-price">¥{{ formatAddonPrice(a.price) }}</text>
-                    <view class="addon-check" :class="isAddonSelected(a) ? 'checked' : ''">
-                        <text v-if="isAddonSelected(a)">✓</text>
+                    <view class="addon-check" :class="a.selectedClass">
+                        <text v-if="a.selected">✓</text>
                     </view>
                 </view>
             </view>
@@ -411,7 +411,20 @@ export default {
                     [drinkSupply, partyFood]
                 ));
             }
+            for (let i = 0; i < packages.length; i++) {
+                packages[i].selectedClass = this.isAddonPackageSelected(packages[i]) ? 'selected' : '';
+            }
             return packages;
+        },
+
+        displayRoomAddons() {
+            return this.roomAddons.map(a => {
+                const selected = this.isAddonSelected(a);
+                return Object.assign({}, a, {
+                    selected: selected,
+                    selectedClass: selected ? 'checked' : '',
+                });
+            });
         },
 
         originalPriceFen() {
