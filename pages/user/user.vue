@@ -382,6 +382,7 @@
 					this.checkInInfo.points_earned_today = d.points_earned;
 					uni.showToast({ title: d.message, icon: 'success' });
 					this.getUserInfo();
+					this.loadCheckInInfo();
 				} else {
 					uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
 				}

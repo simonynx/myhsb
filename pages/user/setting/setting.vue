@@ -26,7 +26,7 @@
 			</view>
 			<view class="checkin-btn" :class="checkInInfo.can_check_in ? 'can' : 'done'" @click="doCheckIn">
 				<text v-if="checkInInfo.checked_in_today">已签到 ✓</text>
-				<text v-else-if="checkInInfo.can_check_in">签到 +{{ checkInInfo.config && checkInInfo.config.daily_points || '?' }}积分</text>
+				<text v-else-if="checkInInfo.can_check_in">签到 +{{ checkInInfo.next_points || (checkInInfo.config && checkInInfo.config.daily_points) || '?' }}积分</text>
 				<text v-else>明日再来</text>
 			</view>
 		</view>
@@ -397,6 +397,7 @@
 					this.checkInInfo.current_streak = (this.checkInInfo.current_streak || 0) + 1;
 					uni.showToast({ title: d.message || '签到成功', icon: 'success' });
 					this.getUserInfo();
+					this.loadCheckInInfo();
 				} else {
 					uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
 				}
