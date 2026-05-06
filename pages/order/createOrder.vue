@@ -390,59 +390,25 @@ export default {
         addonPackages() {
             const packages = [];
 
-            const birthdayBundle = this.findAddonByAllKeywords(['生日', '补给包']);
             const birthdayDecor = this.findAddonByAllKeywords(['生日', '布置']);
             const partyFood = this.findAddonByAnyKeywords(['多人小食', '小食盘'], ['生日']);
             const drinkSupply = this.findAddonByAnyKeywords(['饮品零食', '饮品', '零食补给'], ['生日']);
-            const atmosphereDecor = this.findAddonByAllKeywords(['氛围', '布置'], ['生日']);
 
-            if (birthdayBundle) {
-                packages.push(this.buildAddonPackage(
-                    'birthday_bundle',
-                    '生日聚会',
-                    '含庆生布置和多人补给，适合4人以上庆生',
-                    [birthdayBundle]
-                ));
-            } else if (birthdayDecor && partyFood) {
+            if (birthdayDecor && partyFood) {
                 packages.push(this.buildAddonPackage(
                     'birthday_combo',
                     '生日小聚',
                     '布置加小食，适合给朋友一个轻松庆生局',
                     [birthdayDecor, partyFood]
                 ));
-            } else if (birthdayDecor) {
-                packages.push(this.buildAddonPackage(
-                    'birthday_decor',
-                    '生日布置',
-                    '适合生日、纪念日等需要仪式感的包厢',
-                    [birthdayDecor]
-                ));
             }
 
-            if (partyFood) {
+            if (partyFood && drinkSupply) {
                 packages.push(this.buildAddonPackage(
-                    'party_food',
-                    '多人小食',
-                    '适合4人以上朋友局，边玩边补给',
-                    [partyFood]
-                ));
-            }
-
-            if (drinkSupply) {
-                packages.push(this.buildAddonPackage(
-                    'light_supply',
-                    '轻食补给',
-                    '适合2-3人休闲小局，饮品零食提前备好',
-                    [drinkSupply]
-                ));
-            }
-
-            if (atmosphereDecor) {
-                packages.push(this.buildAddonPackage(
-                    'atmosphere_decor',
-                    '拍照氛围',
-                    '适合约会、小型聚会和拍照打卡',
-                    [atmosphereDecor]
+                    'party_supply_combo',
+                    '多人补给',
+                    '饮品零食和小食盘一起备好，适合4人以上朋友局',
+                    [drinkSupply, partyFood]
                 ));
             }
             return packages;
