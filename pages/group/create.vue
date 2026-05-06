@@ -62,21 +62,21 @@
                 <view class="expire-pills">
                     <view
                         class="expire-pill"
-                        :class="getExpirePillClass(12)"
+                        :class="expire12Class"
                         @click="maxExpireHours >= 12 && (expireHours = 12, expireHoursManuallyChanged = true)"
                     >
                         <text>12小时</text>
                     </view>
                     <view
                         class="expire-pill"
-                        :class="getExpirePillClass(24)"
+                        :class="expire24Class"
                         @click="maxExpireHours >= 24 && (expireHours = 24, expireHoursManuallyChanged = true)"
                     >
                         <text>24小时</text>
                     </view>
                     <view
                         class="expire-pill"
-                        :class="getExpirePillClass(48)"
+                        :class="expire48Class"
                         @click="maxExpireHours >= 48 && (expireHours = 48, expireHoursManuallyChanged = true)"
                     >
                         <text>48小时</text>
@@ -419,6 +419,15 @@ export default {
             if (maxMs <= 0) return 0; // 已超时
             return Math.floor(maxMs / (3600 * 1000));
         },
+        expire12Class() {
+            return (this.expireHours === 12 ? 'active ' : '') + (this.maxExpireHours < 12 ? 'disabled' : '');
+        },
+        expire24Class() {
+            return (this.expireHours === 24 ? 'active ' : '') + (this.maxExpireHours < 24 ? 'disabled' : '');
+        },
+        expire48Class() {
+            return (this.expireHours === 48 ? 'active ' : '') + (this.maxExpireHours < 48 ? 'disabled' : '');
+        },
     },
 
     watch: {
@@ -505,10 +514,6 @@ export default {
             const next = this.maxMembers + delta;
             if (next < 2 || next > 20) return;
             this.maxMembers = next;
-        },
-
-        getExpirePillClass(hours) {
-            return (this.expireHours === hours ? 'active ' : '') + (this.maxExpireHours < hours ? 'disabled' : '');
         },
 
         onInitiatorFocus() {

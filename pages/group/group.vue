@@ -27,7 +27,7 @@
                         v-for="(item, index) in weekDays"
                         :key="index"
                         class="date-pill"
-                        :class="getDatePillClass(item, index)"
+                        :class="item.className"
                         @click="selectDay(index)"
                     >
                         <text class="pill-week">{{ item.week }}</text>
@@ -192,7 +192,7 @@ export default {
             const days = [];
             const today = new Date();
             const weekMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-            days.push({ date: '', week: '全部', label: '全部' });
+            days.push({ date: '', week: '全部', label: '全部', className: '' });
             for (let i = 0; i < 7; i++) {
                 const d = new Date(today.getTime() + i * 86400000);
                 const dateStr = d.getFullYear() + '-' + (d.getMonth() + 1).toString().padStart(2, '0') + '-' + d.getDate().toString().padStart(2, '0');
@@ -200,14 +200,17 @@ export default {
                     date: dateStr,
                     week: i === 0 ? '今天' : weekMap[d.getDay()],
                     label: dateStr.split('-')[1] + '/' + dateStr.split('-')[2],
+                    className: '',
                 });
             }
             this.weekDays = days;
             this.selectedDayIndex = 0;
+            this.updateDatePillClasses();
         },
 
         selectDay(index) {
             this.selectedDayIndex = index;
+            this.updateDatePillClasses();
             this.fetchGroupList();
         },
 
@@ -306,8 +309,11 @@ export default {
             return map[status] || status;
         },
 
-        getDatePillClass(item, index) {
-            return (this.selectedDayIndex === index ? 'active ' : '') + (item.week === '全部' ? 'pill-all' : '');
+        updateDatePillClasses() {
+            for (let i = 0; i < this.weekDays.length; i++) {
+                const item = this.weekDays[i];
+                item.className = (this.selectedDayIndex === i ? 'active ' : '') + (item.week === '全部' ? 'pill-all' : '');
+            }
         },
 
         getActionLabel(group) {
