@@ -95,11 +95,11 @@
                 </view>
 
                 <!-- 积分兑换 -->
-                <view class="price-row points-row" v-if="userInfo.points > 0">
+                <view class="price-row points-row" v-if="safeUserInfo.points > 0">
                     <view class="points-header">
                         <view class="points-info">
                             <text class="tag">积分</text>
-                            <text class="points-balance">当前 {{ userInfo.points }} 积分</text>
+                            <text class="points-balance">当前 {{ safeUserInfo.points }} 积分</text>
                         </view>
                         <switch
                             color="#FFCC33"
@@ -162,7 +162,7 @@
                 <view class="price-row balance-row">
                     <text class="row-label">
                         <text class="tag" :class="balanceEnough ? 'tag-active' : 'tag-gray'">余额</text>
-                        账户余额 ¥{{ (userInfo.account_balance / 100).toFixed(2) }}
+                        账户余额 ¥{{ (safeUserInfo.account_balance / 100).toFixed(2) }}
                     </text>
                     <text v-if="balanceEnough" class="balance-status enough">可抵扣 ¥{{ (afterCouponPriceFen / 100).toFixed(2) }}</text>
                     <text v-else class="balance-status short">还差 ¥{{ (balanceShortfall / 100).toFixed(2) }}</text>
@@ -308,6 +308,10 @@ export default {
     computed: {
         ...mapState(['hasLogin', 'token', 'userInfo']),
 
+        safeUserInfo() {
+            return this.userInfo || { points: 0, account_balance: 0, points_config: {} };
+        },
+
         selectDate() {
             return this.currentSelectDate || '';
         },
@@ -392,27 +396,27 @@ export default {
         // 积分相关
         // 积分最大可用(整数,根据配置的步长和上限生成档位)
         pointsStep() {
-            return this.userInfo.points_config && this.userInfo.points_config.points_step || 100;
+            return this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_step || 100;
         },
         pointsMaxUse() {
-            return this.userInfo.points_config && this.userInfo.points_config.points_max_use || 10000;
+            return this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_max_use || 10000;
         },
         pointsMinUse() {
-            return this.userInfo.points_config && this.userInfo.points_config.points_min_use || 100;
+            return this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_min_use || 100;
         },
 
         pointsToFen() {
-            return this.userInfo.points_config && this.userInfo.points_config.points_to_fen || 1;
+            return this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_to_fen || 1;
         },
         maxUsablePoints() {
             // 档位上限 = min(用户积分余额, 配置的最大抵扣量),并向下取整到步长的整数倍
-            const raw = Math.min(this.userInfo.points || 0, this.pointsMaxUse);
+            const raw = Math.min(this.safeUserInfo.points || 0, this.pointsMaxUse);
             return Math.floor(raw / this.pointsStep) * this.pointsStep;
         },
 
         canUsePoints() {
             // 必须满配置的最低门槛，且向下取整后有可用积分才能用
-            return this.userInfo.points >= this.pointsMinUse
+            return this.safeUserInfo.points >= this.pointsMinUse
                 && this.maxUsablePoints > 0
                 && this.afterMemberPriceFen > 0;
         },
@@ -493,11 +497,11 @@ export default {
 
         // 余额是否足够支付优惠后金额（仅提示用，不在下单时抵扣）
         balanceEnough() {
-            return (this.userInfo.account_balance || 0) >= this.afterCouponPriceFen;
+            return (this.safeUserInfo.account_balance || 0) >= this.afterCouponPriceFen;
         },
 
         balanceShortfall() {
-            return Math.max(0, this.afterCouponPriceFen - (this.userInfo.account_balance || 0));
+            return Math.max(0, this.afterCouponPriceFen - (this.safeUserInfo.account_balance || 0));
         },
 
         submitDisabled() {
@@ -664,7 +668,7 @@ export default {
                 const param = {
                     order_type: 1,
                     room_id: this.currentProduct.object_id,
-                    contact_name: this.userInfo.nickname || this.userInfo.username,
+                    contact_name: this.safeUserInfo.nickname || this.safeUserInfo.username || '',
                     user_count: this.numOfPeople,
                     date: this.currentSelectDate,
                     time_list: timeList,

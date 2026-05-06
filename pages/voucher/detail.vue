@@ -72,7 +72,7 @@
 				</view>
 				<view class="price-row">
 					<text class="row-label">我的积分</text>
-					<text class="row-value" :class="{ short: !pointsEnough }">{{ userInfo.points || 0 }} 积分</text>
+					<text class="row-value" :class="{ short: !pointsEnough }">{{ safeUserInfo.points || 0 }} 积分</text>
 				</view>
 				<view class="hint-row" v-if="!pointsEnough">
 					<text class="hint-text">积分不够啦～多来店里玩，签到也能攒积分哦 🌱</text>
@@ -91,7 +91,7 @@
 				</view>
 				<view class="price-row">
 					<text class="row-label">我的积分</text>
-					<text class="row-value" :class="{ short: !pointsEnough }">{{ userInfo.points || 0 }} 积分</text>
+					<text class="row-value" :class="{ short: !pointsEnough }">{{ safeUserInfo.points || 0 }} 积分</text>
 				</view>
 				<view class="hint-row" v-if="!pointsEnough">
 					<text class="hint-text">积分不够啦～多来店里玩，签到也能攒积分哦 🌱</text>
@@ -115,7 +115,7 @@
 						<text class="balance-icon">💰</text>
 						<view class="balance-info">
 							<text class="balance-label">使用余额支付</text>
-							<text class="balance-hint">当前余额 ¥{{ (userInfo.account_balance / 100).toFixed(2) }}</text>
+							<text class="balance-hint">当前余额 ¥{{ (safeUserInfo.account_balance / 100).toFixed(2) }}</text>
 						</view>
 					</view>
 					<view class="toggle-wrap" @click="toggleBalance">
@@ -176,6 +176,9 @@ import AUTH from '../../utils/auth.js';
 export default {
 	computed: {
 		...mapState(['hasLogin', 'userInfo', 'token', 'constance']),
+		safeUserInfo() {
+			return this.userInfo || { points: 0, account_balance: 0, points_config: {} };
+		},
 		actualPrice() {
 			if (!this.currentGoods) return '0.00';
 			if (this.currentGoods.exchange_type === 2) {
@@ -194,7 +197,7 @@ export default {
 		pointsDiscountMoney() {
 			if (!this.currentGoods || this.currentGoods.exchange_type !== 3) return '0.00';
 			var pointsPrice = this.currentGoods.points_price || 0;
-			var pointsToFen = (this.userInfo.points_config && this.userInfo.points_config.points_to_fen) || 1;
+			var pointsToFen = (this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_to_fen) || 1;
 			var discount = Math.min(this.currentGoods.price || 0, pointsPrice * pointsToFen);
 			return (discount / 100).toFixed(2);
 		},
@@ -202,13 +205,13 @@ export default {
 			if (!this.currentGoods) return true;
 			// 纯积分或混合商品都需要判断积分
 			if (this.currentGoods.exchange_type === 2 || this.currentGoods.exchange_type === 3) {
-				return (this.userInfo.points || 0) >= (this.currentGoods.points_price || 0);
+				return (this.safeUserInfo.points || 0) >= (this.currentGoods.points_price || 0);
 			}
 			return true;
 		},
 		balanceEnough() {
 			if (!this.currentGoods || this.currentGoods.exchange_type !== 1) return false;
-			return (this.userInfo.account_balance || 0) >= (this.currentGoods.price || 0);
+			return (this.safeUserInfo.account_balance || 0) >= (this.currentGoods.price || 0);
 		},
 		canUseBalance() {
 			if (!this.currentGoods) return false;
@@ -294,7 +297,22 @@ export default {
 		},
 
 		handleSubmit() {
+			if (!this.hasLogin) {
+				uni.showModal({
+					title: '提示',
+					content: '请先登录再下单',
+					success: (res) => {
+						if (res.confirm) {
+							this.loginAndRegister().then(() => {
+								this.getUserInfo();
+							});
+						}
+					}
+				});
+				return;
+			}
 			let goods = this.currentGoods;
+			if (!goods) return;
 			if (goods.validity_period_start && goods.validity_period_end) {
 				var startDate = new Date(goods.validity_period_start);
 				var endDate = new Date(goods.validity_period_end);
@@ -370,7 +388,7 @@ export default {
 					return;
 				}
 				// 需要微信支付
-				var url = '/pages/order/payment?parent_sn=' + res.data.order_number + '&entry=3' + '&data=' + JSON.stringify(res.data);
+				var url = '/pages/order/payment?parent_sn=' + encodeURIComponent(res.data.order_number) + '&entry=3' + '&data=' + encodeURIComponent(JSON.stringify(res.data));
 				uni.redirectTo({ url: url });
 			}).catch(err => {
 				uni.hideLoading();

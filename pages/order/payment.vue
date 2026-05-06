@@ -32,7 +32,7 @@
             </view>
 
             <!-- 优惠券（仅线下待付款订单） -->
-            <view class="coupon-section" v-if="isOfflinePending && myCoupons.length > 0">
+            <view class="coupon-section" v-if="isOfflinePending && availableCoupons.length > 0">
                 <view class="section-title">使用优惠券</view>
                 <view class="coupon-list">
                     <view
@@ -97,7 +97,7 @@
                                 {{ balanceDeductText }}
                             </view>
                             <view class="method-desc" v-else>
-                                可用余额 ¥{{ (userInfo.account_balance / 100).toFixed(2) }}
+                                可用余额 ¥{{ (safeUserInfo.account_balance / 100).toFixed(2) }}
                                 <text class="insufficient-tip">（还差 ¥{{ (balanceShortfall / 100).toFixed(2) }}）</text>
                             </view>
                         </view>
@@ -162,19 +162,22 @@ export default {
 
     computed: {
         ...mapState(['hasLogin', 'userInfo', 'token']),
+        safeUserInfo() {
+            return this.userInfo || { account_balance: 0 };
+        },
         canUseBalance() {
-            if (!this.userInfo || !this.order) return false;
+            if (!this.order) return false;
             // 商品订单：检查商品是否支持余额支付
             if (this.order.order_type === 3) {
                 var goodsInfo = this.order.goodsInfo || {};
                 if (!goodsInfo.can_use_balance) return false;
             }
-            return this.userInfo.account_balance >= this.order.pay_amount;
+            return (this.safeUserInfo.account_balance || 0) >= this.order.pay_amount;
         },
 
         balanceShortfall() {
-            if (!this.order || !this.userInfo) return 0;
-            return Math.max(0, (this.order.pay_amount || 0) - (this.userInfo.account_balance || 0));
+            if (!this.order) return 0;
+            return Math.max(0, (this.order.pay_amount || 0) - (this.safeUserInfo.account_balance || 0));
         },
 
         balanceDeductText() {
@@ -234,6 +237,9 @@ export default {
 
         initPayment(options) {
             this.entry = (options && options.entry) || '1';
+            if (this.token && !this.userInfo) {
+                this.getUserInfo(true).catch(function() {});
+            }
             this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
             this.startCountdown();
             if (this.order && this.order.order_type === 4 && this.order.order_status === 0) {
@@ -256,6 +262,9 @@ export default {
                 });
                 return;
             }
+            if (!this.token) {
+                this.$store.commit('setToken', token);
+            }
             uni.showLoading({ title: '加载中...' });
             AUTH.getOrderList(-1, token).then(function(res) {
                 uni.hideLoading();
@@ -271,6 +280,18 @@ export default {
                     uni.redirectTo({ url: '/pages/order/order' });
                     return;
                 }
+                var goodsInfo = order.goods_info;
+                if (!order.goodsInfo) {
+                    if (typeof goodsInfo === 'string') {
+                        try {
+                            order.goodsInfo = JSON.parse(goodsInfo || '{}');
+                        } catch (e) {
+                            order.goodsInfo = {};
+                        }
+                    } else {
+                        order.goodsInfo = goodsInfo || {};
+                    }
+                }
                 _this.order = order;
                 _this.initPayment({ entry: '3' });
             }).catch(function(err) {
@@ -283,10 +304,11 @@ export default {
         async loadMyCoupons() {
             if (!this.token) return;
             try {
-                const res = await AUTH.getMyCoupons(this.token);
-                if (res && res.length > 0) {
+                const res = await AUTH.getMyCoupons(this.token, 0);
+                const coupons = res && res._status === 0 ? (res.data || []) : (Array.isArray(res) ? res : []);
+                if (coupons.length > 0) {
                     // 适配后端 coupon_type+rules 格式
-                    this.myCoupons = res.map(c => {
+                    this.myCoupons = coupons.map(c => {
                         let discount = 0;
                         if (c.coupon_type === 'rebate') {
                             discount = (c.rules && c.rules.discount) || 0;

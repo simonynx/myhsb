@@ -1,7 +1,6 @@
 <template>
 	<view>
 		<view class="user-section">
-			<image class="bg" src="/static/user-bg.jpg"></image>
 			<text class="bg-upload-btn yticon icon-paizhao"></text>
 			<view class="portrait-box">
 				<image class="portrait" :src="userInfo.portrait || '/static/missing-face.png'"></image>
@@ -39,15 +38,7 @@
 		height: 460upx;
 		padding: 40upx 30upx 0;
 		position:relative;
-		.bg{
-			position:absolute;
-			left: 0;
-			top: 0;
-			width: 100%;
-			height: 100%;
-			filter: blur(1px);
-			opacity: .7;
-		}
+		background: linear-gradient(135deg, #FFE8D6, #FFF8F0);
 		.portrait-box{
 			width: 200upx;
 			height: 200upx;

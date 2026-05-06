@@ -77,7 +77,7 @@
           <view class="points-header">
             <view class="points-info">
               <text class="tag">积分</text>
-              <text class="points-balance">当前 {{ userInfo.points }} 积分</text>
+              <text class="points-balance">当前 {{ safeUserInfo.points }} 积分</text>
             </view>
             <switch
               color="#FFCC33"
@@ -111,7 +111,7 @@
         </view>
 
         <!-- 无积分时提示 -->
-        <view class="price-row points-zero-row" v-else-if="userInfo.points === 0">
+        <view class="price-row points-zero-row" v-else-if="safeUserInfo.points === 0">
           <text class="row-label">
             <text class="tag">积分</text>
             当前0积分，消费预约可获取积分
@@ -122,7 +122,7 @@
         <view class="price-row balance-row">
           <text class="row-label">
             <text class="tag" :class="balanceEnough ? 'tag-active' : 'tag-gray'">余额</text>
-            账户余额 ¥{{ (userInfo.account_balance / 100).toFixed(2) }}
+            账户余额 ¥{{ (safeUserInfo.account_balance / 100).toFixed(2) }}
           </text>
           <text v-if="balanceEnough" class="balance-status enough">余额充足</text>
           <text v-else class="balance-status short">余额还差 ¥{{ (balanceShortfall / 100).toFixed(2) }}</text>
@@ -284,6 +284,10 @@ export default {
       return this.ticketPriceFen * this.ticketCount;
     },
 
+    safeUserInfo() {
+      return this.userInfo || { points: 0, account_balance: 0, points_config: {} };
+    },
+
     basePrice() {
       return (this.basePriceFen / 100).toFixed(2);
     },
@@ -324,23 +328,23 @@ export default {
 
     // 积分相关
     pointsStep() {
-      return this.userInfo && this.userInfo.points_config && this.userInfo.points_config.points_step || 100;
+      return this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_step || 100;
     },
     pointsMaxUse() {
-      return this.userInfo && this.userInfo.points_config && this.userInfo.points_config.points_max_use || 10000;
+      return this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_max_use || 10000;
     },
     pointsMinUse() {
-      return this.userInfo && this.userInfo.points_config && this.userInfo.points_config.points_min_use || 100;
+      return this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_min_use || 100;
     },
     pointsToFen() {
-      return this.userInfo && this.userInfo.points_config && this.userInfo.points_config.points_to_fen || 1;
+      return this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_to_fen || 1;
     },
     maxUsablePoints() {
-      const raw = Math.min(this.userInfo && this.userInfo.points || 0, this.pointsMaxUse);
+      const raw = Math.min(this.safeUserInfo.points || 0, this.pointsMaxUse);
       return Math.floor(raw / this.pointsStep) * this.pointsStep;
     },
     canUsePoints() {
-      return this.userInfo && this.userInfo.points >= this.pointsMinUse
+      return this.safeUserInfo.points >= this.pointsMinUse
         && this.maxUsablePoints > 0
         && this.afterMemberPriceFen > 0;
     },
@@ -407,15 +411,21 @@ export default {
     },
 
     balanceEnough() {
-      return (this.userInfo.account_balance || 0) >= this.afterCouponPriceFen;
+      return (this.safeUserInfo.account_balance || 0) >= this.afterCouponPriceFen;
     },
 
     balanceShortfall() {
-      return Math.max(0, this.afterCouponPriceFen - (this.userInfo.account_balance || 0));
+      return Math.max(0, this.afterCouponPriceFen - (this.safeUserInfo.account_balance || 0));
     },
   },
 
-  async onLoad() {
+  async onLoad(options) {
+    if (options && options.count) {
+      const count = parseInt(options.count);
+      if (count >= 1 && count <= 10) {
+        this.ticketCount = count;
+      }
+    }
     this.loadTicketPrice();
     if (!this.hasLogin) {
       uni.showModal({
@@ -517,7 +527,7 @@ export default {
 
     async loadTicketPrice() {
       try {
-        const res = await AUTH.getConstanceInfo();
+        const res = await AUTH.getConstance(this.token || null);
         if (res && res._status === 0 && res.data && res.data.ticket_price_per_person) {
           this.ticketPriceFen = parseInt(res.data.ticket_price_per_person);
         }
@@ -541,7 +551,7 @@ export default {
           order_type: 6,
           ticket_count: this.ticketCount,
           ticket_price: this.ticketPriceFen,
-          contact_name: this.userInfo.nickname || this.userInfo.username,
+          contact_name: (this.safeUserInfo.nickname || this.safeUserInfo.username || ''),
           coupon_id: this.selectedCoupon ? this.selectedCoupon.object_id : null,
           use_points: this.usePoints ? this.pointsToUse : 0,
           expected_amount: this.finalPriceFen,

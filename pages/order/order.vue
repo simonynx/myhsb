@@ -536,7 +536,7 @@
 				// TODO: 分页加载
 			},
 			goPay(item) {
-				var url = '/pages/order/payment?parent_sn=' + item.order_number + '&entry=2&data=' + JSON.stringify(item);
+				var url = '/pages/order/payment?parent_sn=' + encodeURIComponent(item.order_number) + '&entry=2&data=' + encodeURIComponent(JSON.stringify(item));
 				uni.redirectTo({ url: url });
 			},
 			goAppoint() {
@@ -592,8 +592,9 @@
 			canRefund(item) {
 				// 预约订单(order_type===1)可退款，且距预约开始需超过1小时
 				if (item.order_type === 1) {
-					var dateStr = item.date;
-					var timeList = item.time_list || [];
+					var goodsInfo = item.goodsInfo || {};
+					var dateStr = goodsInfo.date || item.date;
+					var timeList = goodsInfo.time_list || item.time_list || [];
 					if (!dateStr || !timeList.length) return false;
 					var firstSlot = timeList[0];
 					if (!firstSlot || !firstSlot[0]) return false;

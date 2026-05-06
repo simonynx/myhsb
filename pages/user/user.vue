@@ -129,7 +129,7 @@
 			</view>
 			<view class="checkin-btn" :class="checkInInfo.can_check_in ? 'can' : 'done'" @click="doCheckIn">
 				<text v-if="checkInInfo.checked_in_today">已签到 ✓</text>
-				<text v-else-if="checkInInfo.can_check_in">签到得积分</text>
+				<text v-else-if="checkInInfo.can_check_in">+{{ checkInInfo.next_points || (checkInInfo.config && checkInInfo.config.daily_points) || 10 }}积分</text>
 				<text v-else>明日再来</text>
 			</view>
 		</view>
@@ -140,6 +140,10 @@
 				{{ m.days }}天+{{ m.bonus_points }}
 			</text>
 			<text class="reward-item" v-if="checkInInfo.config.daily_points">基础{{ checkInInfo.config.daily_points }}/天</text>
+		</view>
+		<!-- 断签提示 -->
+		<view class="checkin-broken" v-if="checkInInfo.is_broken_streak">
+			<text>⚠️ 连续签到已中断，今日签到重新从第1天开始</text>
 		</view>
 
 		<!-- 邀请有礼 -->
@@ -241,6 +245,9 @@
 
 		<!-- 自定义底部导航 -->
 		<custom-tab-bar></custom-tab-bar>
+
+		<!-- 隐藏 canvas 用于生成专属邀请海报 -->
+		<canvas canvas-id="invitePoster" style="width: 500px; height: 400px; position: fixed; left: -9999px; top: 0;"></canvas>
 	</view>
 </template>
 
@@ -318,6 +325,7 @@
 				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 },
 				inviteInfo: {},
 				memberConfig: [],
+				shareImagePath: '',
 			};
 		},
 		onShow() {
@@ -328,6 +336,8 @@
 				}
 				// 每次进来刷新用户信息
 				this.getUserInfo();
+				// 延迟生成专属邀请海报（等 userInfo 更新）
+				setTimeout(function() { this.generateInvitePoster(); }.bind(this), 500);
 				// 加载签到信息和邀请信息
 				this.loadCheckInInfo();
 				this.loadInviteInfo();
@@ -404,6 +414,36 @@
 			openAuthorizationModal() {
 				uni.navigateTo({ url: '/pages/user/setting/setting' });
 			},
+			generateInvitePoster() {
+				var user = this.userInfo;
+				if (!user || !user.invite_code) return;
+				var ctx = uni.createCanvasContext('invitePoster');
+				// 底图
+				ctx.drawImage('/static/share_invite.jpg', 0, 0, 500, 400);
+				// 邀请码区
+				ctx.setFillStyle('rgba(255, 140, 66, 0.92)');
+				ctx.fillRect(42, 255, 416, 76);
+				ctx.setFillStyle('#FFFFFF');
+				ctx.setFontSize(14);
+				ctx.fillText('我的专属邀请码', 60, 282);
+				ctx.setFillStyle('#FFFFFF');
+				ctx.setFontSize(30);
+				ctx.fillText(user.invite_code, 60, 318);
+				ctx.setFillStyle('rgba(255, 255, 255, 0.9)');
+				ctx.setFontSize(13);
+				ctx.fillText('好友首次加入', 315, 284);
+				ctx.fillText('双方都有奖励', 315, 313);
+				ctx.draw(false, function() {
+					uni.canvasToTempFilePath({
+						canvasId: 'invitePoster',
+						width: 500,
+						height: 400,
+						success: function(res) {
+							this.shareImagePath = res.tempFilePath;
+						}.bind(this)
+					});
+				}.bind(this));
+			},
 		},
 		onShareAppMessage() {
 			const path = this.userInfo && this.userInfo.invite_code
@@ -411,8 +451,23 @@
 				: '/pages/index/index';
 			return {
 				title: '我在摸鱼划水吧等你，一起来玩双方都有积分！',
-				imageUrl: '/static/logo_small.jpg',
+				imageUrl: this.shareImagePath || '/static/share_invite.jpg',
 				path: path,
+			};
+		},
+		onShareTimeline() {
+			return {
+				title: '还在996？快来摸鱼划水吧充电回血',
+				imageUrl: this.shareImagePath || '/static/share_invite.jpg',
+				query: this.userInfo && this.userInfo.invite_code
+					? 'invite_code=' + this.userInfo.invite_code
+					: '',
+			};
+		},
+		onAddToFavorites() {
+			return {
+				title: '摸鱼划水吧 — 福州最舒服的线下娱乐空间',
+				imageUrl: '/static/share_home.jpg',
 			};
 		},
 	}
@@ -836,6 +891,15 @@ page {
 }
 
 /* ===== 签到奖励说明 ===== */
+.checkin-broken {
+	margin: 0 32rpx 16rpx;
+	padding: 12rpx 20rpx;
+	background: #FFEBEE;
+	border-radius: 12rpx;
+	font-size: 24rpx;
+	color: #C62828;
+	text-align: center;
+}
 .checkin-rewards {
 	margin-top: 16rpx;
 	padding: 0 32rpx 24rpx;

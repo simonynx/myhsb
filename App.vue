@@ -41,10 +41,25 @@
 					var scene = PLATFORM.parseScene(options || {});
 					if (scene) {
 						console.log('扫码场景:', scene);
-						var parts = scene.split('=');
-						if (parts.length === 2 && parts[0] === 'order_sn') {
+						try {
+							scene = decodeURIComponent(scene);
+						} catch (decodeErr) {}
+						var orderSn = '';
+						var params = scene.split('&');
+						for (var i = 0; i < params.length; i++) {
+							var item = params[i];
+							var eqIndex = item.indexOf('=');
+							if (eqIndex <= 0) continue;
+							var key = item.slice(0, eqIndex);
+							var value = item.slice(eqIndex + 1);
+							if (key === 'order_sn') {
+								orderSn = value;
+								break;
+							}
+						}
+						if (orderSn) {
 							setTimeout(function() {
-								uni.navigateTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(parts[1]) });
+								uni.navigateTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(orderSn) });
 							}, 1000);
 						}
 					}

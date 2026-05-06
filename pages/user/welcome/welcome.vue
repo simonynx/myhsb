@@ -141,6 +141,12 @@ export default {
 	onLoad() {
 		if (this.pending_invite_code) {
 			this.inviteCode = this.pending_invite_code;
+			return;
+		}
+		try {
+			var storedInviteCode = uni.getStorageSync('pending_invite_code');
+			if (storedInviteCode) this.inviteCode = storedInviteCode;
+		} catch (e) {
 		}
 	},
 	methods: {

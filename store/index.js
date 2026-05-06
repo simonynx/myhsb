@@ -116,6 +116,13 @@ const store = new Vuex.Store({
     },
     setPendingInviteCode(state, code) {
       state.pending_invite_code = code;
+      try {
+        if (code) {
+          uni.setStorageSync('pending_invite_code', code);
+        } else {
+          uni.removeStorageSync('pending_invite_code');
+        }
+      } catch(e) {}
     }
   },
 
@@ -141,7 +148,13 @@ const store = new Vuex.Store({
         console.log('平台登录 code:', code, 'platform:', platform);
 
         // Step 2: 发送给后端验证，获取 token 和 openid
-        const res = await AUTH.univerifyLoginPlatform(code, null, platform);
+        if (!state.pending_invite_code) {
+          try {
+            const storedInviteCode = uni.getStorageSync('pending_invite_code');
+            if (storedInviteCode) commit('setPendingInviteCode', storedInviteCode);
+          } catch(e) {}
+        }
+        const res = await AUTH.univerifyLoginPlatform(code, state.pending_invite_code || null, platform);
         console.log('后端登录响应:', res);
 
         if (res._status === 10000) {
@@ -178,7 +191,7 @@ const store = new Vuex.Store({
 
         // Step 5: 如果是新用户，跳转到欢迎页
         if (res.data.is_new_user) {
-          commit('setPendingInviteCode', res.data.invite_code || null);
+          commit('setPendingInviteCode', state.pending_invite_code || res.data.invite_code || null);
           uni.navigateTo({ url: '/pages/user/welcome/welcome' });
           return state.openid;
         }

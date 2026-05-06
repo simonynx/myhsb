@@ -29,7 +29,7 @@
 
 			<view class="header-content">
 				<text class="header-title">{{ constance.store_name || '摸鱼划水吧' }}</text>
-				<text class="header-sub">买张票进来，想干嘛就干嘛一整天</text>
+				<text class="header-sub">大厅畅玩打底，包厢和套餐按需升级</text>
 			</view>
 
 			<view class="grass-hill">
@@ -40,44 +40,47 @@
 			</view>
 		</view>
 
-		<!-- ===== 公告 ===== -->
-		<view class="notice-bubble">
-			<text class="notice-icon">📢</text>
-			<swiper class="notice-swiper" vertical autoplay circular interval="3000">
-				<swiper-item><text class="notice-text">🎉 开业酬宾中！儿童半价，带娃来薅羊毛</text></swiper-item>
-				<swiper-item><text class="notice-text">🎲 新到一堆热门桌游，聚会再也不怕冷场</text></swiper-item>
-				<swiper-item><text class="notice-text">☕ 零食茶水免费自助，别客气当自家客厅</text></swiper-item>
-			</swiper>
+		<!-- 收藏引导 -->
+		<view class="collection-hint" v-if="!collectionHintClosed" @click="closeCollectionHint">
+			<text class="hint-text">⭐️ 收藏小程序，下次预约更方便</text>
+			<text class="hint-close">✕</text>
 		</view>
 
-		<!-- ===== 快速入口 ===== -->
-		<view class="menu-grid">
-			<view class="menu-card" @tap="goToReserve">
-				<view class="menu-icon" style="background: #FFF0E8;">🏠</view>
-				<view class="menu-text">
-					<text class="menu-title">预约包厢</text>
-					<text class="menu-desc">提前锁位</text>
+		<!-- ===== 场景套餐 ===== -->
+		<view class="scene-section">
+			<view class="scene-section-head">
+				<view>
+					<text class="scene-title">今天想怎么玩？</text>
+					<text class="scene-sub">先选场景，再决定买票、加购或约包厢</text>
+				</view>
+				<text class="scene-note">推荐</text>
+			</view>
+			<view class="scene-hero-card" v-if="primaryScenePackage" @tap="handleSceneTap(primaryScenePackage)">
+				<view class="scene-hero-main">
+					<text class="scene-hero-icon">{{ primaryScenePackage.icon }}</text>
+					<view class="scene-hero-text">
+						<text class="scene-hero-badge">{{ primaryScenePackage.badge }}</text>
+						<text class="scene-hero-name">{{ primaryScenePackage.name }}</text>
+						<text class="scene-hero-desc">{{ primaryScenePackage.desc }}</text>
+					</view>
+				</view>
+				<view class="scene-hero-price">
+					<text class="scene-price">{{ primaryScenePackage.price }}</text>
+					<text class="scene-action">{{ primaryScenePackage.actionText }}</text>
 				</view>
 			</view>
-			<view class="menu-card" @tap="goToGroup">
-				<view class="menu-icon" style="background: #FFF0F0;">👥</view>
-				<view class="menu-text">
-					<text class="menu-title">一起拼团</text>
-					<text class="menu-desc">喊上搭子</text>
-				</view>
-			</view>
-			<view class="menu-card" @tap="goToBuyTicket">
-				<view class="menu-icon" style="background: #FFF8E0;">🎫</view>
-				<view class="menu-text">
-					<text class="menu-title">大厅入场券</text>
-					<text class="menu-desc">{{ ticketPriceText }}·全天</text>
-				</view>
-			</view>
-			<view class="menu-card" @tap="openLocation">
-				<view class="menu-icon" style="background: #E8F8E8;">📍</view>
-				<view class="menu-text">
-					<text class="menu-title">店铺位置</text>
-					<text class="menu-desc">查看地图</text>
+			<view class="scene-grid">
+				<view class="scene-card" v-for="scene in secondaryScenePackages" :key="scene.key" @tap="handleSceneTap(scene)">
+					<view class="scene-card-top">
+						<text class="scene-card-icon">{{ scene.icon }}</text>
+						<text class="scene-card-badge">{{ scene.badge }}</text>
+					</view>
+					<text class="scene-card-name">{{ scene.name }}</text>
+					<text class="scene-card-desc">{{ scene.desc }}</text>
+					<view class="scene-card-foot">
+						<text class="scene-card-price">{{ scene.price }}</text>
+						<text class="scene-card-action">{{ scene.actionText }}</text>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -93,10 +96,6 @@
 				<view v-for="i in swiperLength" :key="i" class="indicator-dot" :class="{ active: swiperCurrent === i - 1 }"></view>
 			</view>
 		</view>
-		<view class="carousel-placeholder" v-else>
-			<text class="placeholder-emoji">🏠</text>
-			<text class="placeholder-text">门店环境</text>
-		</view>
 
 		<!-- ===== 店里玩什么 ===== -->
 		<view class="section">
@@ -105,88 +104,33 @@
 				<text class="section-sub">大厅免费玩，包间另计费</text>
 			</view>
 			<view class="world-grid">
-				<view class="world-card" v-for="(item, idx) in entertainmentItems" :key="idx" :style="{ borderTopColor: item.borderColor }">
+				<view class="world-card" v-for="(item, idx) in entertainmentItems" :key="idx" :style="item.cardStyle">
 					<view class="world-top">
 						<text class="world-emoji">{{ item.emoji }}</text>
-						<text class="world-tag" :style="{ background: item.tagBg, color: item.tagColor }">{{ item.tag }}</text>
+						<text class="world-tag" :style="item.tagStyle">{{ item.tag }}</text>
 					</view>
 					<text class="world-name">{{ item.name }}</text>
+					<text class="world-desc">{{ item.desc }}</text>
 				</view>
 			</view>
 		</view>
 
-		<!-- ===== 价格说明 ===== -->
-		<view class="price-banner">
-			<view class="banner-line">
-				<text class="banner-icon">🎫</text>
-				<view class="banner-body">
-					<text class="banner-strong">大厅入场券 {{ ticketPriceText }} · 全天不限时</text>
-					<text class="banner-small">儿童半价 {{ ticketPriceHalfText }} · 零食茶水全包</text>
-				</view>
-			</view>
-			<view class="banner-divider"></view>
-			<view class="banner-line">
-				<text class="banner-icon">🏠</text>
-				<view class="banner-body">
-					<text class="banner-strong">想玩主机？约个包间，按小时另计费</text>
-					<text class="banner-small">包间结束后还能回大厅继续玩，不赶人</text>
-				</view>
-			</view>
-		</view>
-
-		<!-- ===== 三步开玩 ===== -->
-		<view class="section">
+		<!-- ===== 增值服务 ===== -->
+		<view class="section upsell-section">
 			<view class="section-header">
-				<text class="section-title">🗺️ 三步开玩</text>
+				<text class="section-title">💎 到店还能升级</text>
+				<text class="section-sub">提高体验，也提高客单</text>
 			</view>
-			<view class="flow-row">
-				<view class="flow-item">
-					<view class="flow-circle" style="background: #FFD93D;">
-						<text class="flow-emoji">🎫</text>
+			<view class="upsell-list">
+				<view class="upsell-item" v-for="item in upsellItems" :key="item.key" @tap="handleUpsellTap(item)">
+					<view class="upsell-icon" :style="item.style">{{ item.icon }}</view>
+					<view class="upsell-body">
+						<text class="upsell-name">{{ item.name }}</text>
+						<text class="upsell-desc">{{ item.desc }}</text>
 					</view>
-					<text class="flow-title">买票进门</text>
-				</view>
-				<view class="flow-arrow">→</view>
-				<view class="flow-item">
-					<view class="flow-circle" style="background: #A5D6A7;">
-						<text class="flow-emoji">🎮</text>
-					</view>
-					<text class="flow-title">挑喜欢的</text>
-				</view>
-				<view class="flow-arrow">→</view>
-				<view class="flow-item">
-					<view class="flow-circle" style="background: #FFB5A7;">
-						<text class="flow-emoji">😄</text>
-					</view>
-					<text class="flow-title">躺平开玩</text>
+					<text class="upsell-price">{{ item.price }}</text>
 				</view>
 			</view>
-		</view>
-
-		<!-- ===== 热门游戏 ===== -->
-		<view class="section">
-			<view class="section-header">
-				<text class="section-title">⭐ 热门游戏</text>
-				<text class="section-more" @tap="goToReserve">去预约 →</text>
-			</view>
-			<scroll-view class="games-scroll" scroll-x>
-				<view class="game-card" v-for="(game, idx) in hotGames" :key="idx">
-					<view class="game-cover" :style="{ background: game.coverBg }">
-						<text class="game-cover-emoji">{{ game.emoji }}</text>
-						<view class="game-badge" v-if="idx < 2">HOT</view>
-						<view class="corner-flower">
-							<view class="petal"></view>
-							<view class="petal"></view>
-							<view class="petal"></view>
-							<view class="flower-center"></view>
-						</view>
-					</view>
-					<view class="game-info">
-						<text class="game-name">{{ game.name }}</text>
-						<text class="game-tag">{{ game.tag }}</text>
-					</view>
-				</view>
-			</scroll-view>
 		</view>
 
 		<!-- ===== 店铺信息 ===== -->
@@ -235,12 +179,12 @@
 		</view>
 
 		<!-- ===== 玩家评价 ===== -->
-		<view class="section">
+		<view class="section" v-if="reviews.length > 0">
 			<view class="section-header">
 				<text class="section-title">💬 玩家评价</text>
 				<text class="section-more" @tap="goToMyReviews">我的评价 →</text>
 			</view>
-			<swiper class="reviews-swiper" v-if="reviews.length > 0" vertical autoplay circular interval="4000">
+			<swiper class="reviews-swiper" vertical autoplay circular interval="4000">
 				<swiper-item v-for="(rev, idx) in reviews" :key="idx">
 					<view class="review-card">
 						<view class="review-header">
@@ -257,23 +201,6 @@
 					</view>
 				</swiper-item>
 			</swiper>
-			<view class="reviews-empty" v-else>
-				<text class="empty-icon">💭</text>
-				<text class="empty-text">暂无评价，快来发表第一条吧～</text>
-				<view class="empty-btn" @tap="goToMyReviews">写评价</view>
-			</view>
-		</view>
-
-		<!-- ===== 温馨提示 ===== -->
-		<view class="section">
-			<view class="section-header">
-				<text class="section-title">📋 来之前看一眼</text>
-			</view>
-			<view class="tips-list">
-				<view class="tip-item" v-for="(tip, idx) in tips" :key="idx" :style="{ borderLeftColor: tipColors[idx % tipColors.length] }">
-					<text class="tip-text">{{ tip }}</text>
-				</view>
-			</view>
 		</view>
 
 		<custom-tab-bar></custom-tab-bar>
@@ -282,25 +209,80 @@
 
 <script>
 	import AUTH from '../../utils/auth.js'
-	import { mapState, mapActions } from 'vuex';
+	import { mapState, mapActions, mapMutations } from 'vuex';
 	import customTabBar from '@/custom-tab-bar/index.vue';
 	export default {
 		components: { customTabBar },
 		computed: {
 			...mapState(['hasLogin', 'constance']),
-			ticketPriceText() {
+			ticketPriceFen() {
 				const price = this.constance && this.constance.ticket_price_per_person;
-				if (price) {
-					return '¥' + (parseInt(price) / 100).toFixed(0) + '/人';
-				}
-				return '¥38/人';
+				return price ? parseInt(price) : 3800;
+			},
+			ticketPriceText() {
+				return '¥' + (this.ticketPriceFen / 100).toFixed(0) + '/人';
 			},
 			ticketPriceHalfText() {
-				const price = this.constance && this.constance.ticket_price_per_person;
-				if (price) {
-					return '¥' + (parseInt(price) / 200).toFixed(0);
-				}
-				return '¥19';
+				return '¥' + (this.ticketPriceFen / 200).toFixed(0);
+			},
+			doubleTicketText() {
+				return '¥' + (this.ticketPriceFen * 2 / 100).toFixed(0) + '起';
+			},
+			fourTicketText() {
+				return '¥' + (this.ticketPriceFen * 4 / 100).toFixed(0) + '起';
+			},
+			scenePackages() {
+				return [
+					{
+						key: 'single',
+						icon: '🎫',
+						badge: '引流款',
+						name: '一个人放空',
+						desc: '漫画小说、桌游、茶水零食，买票进来慢慢待',
+						price: this.ticketPriceText,
+						actionText: '买大厅票',
+						action: 'ticket',
+						count: 1,
+					},
+					{
+						key: 'couple',
+						icon: '🥤',
+						badge: '双人',
+						name: '两个人休闲',
+						desc: '适合约会、朋友小聚，到店可加饮品零食',
+						price: this.doubleTicketText,
+						actionText: '买2张',
+						action: 'ticket',
+						count: 2,
+					},
+					{
+						key: 'group',
+						icon: '🎲',
+						badge: '多人',
+						name: '四人桌游局',
+						desc: '先买入场票，想更安静再升级包厢',
+						price: this.fourTicketText,
+						actionText: '买4张',
+						action: 'ticket',
+						count: 4,
+					},
+					{
+						key: 'room',
+						icon: '🎮',
+						badge: '升级',
+						name: '包厢主机局',
+						desc: 'Switch / PS / 私密空间，适合提前预约',
+						price: '按小时',
+						actionText: '去预约',
+						action: 'reserve',
+					},
+				];
+			},
+			primaryScenePackage() {
+				return this.scenePackages[0] || null;
+			},
+			secondaryScenePackages() {
+				return this.scenePackages.slice(1);
 			},
 		},
 		watch: {
@@ -314,43 +296,36 @@
 				carouselList: [],
 				addressData: {
 					name: '摸鱼划水吧',
-					address: '福建省福州市台江区交通路',
+					address: '福建省福州市鼓楼区',
 					area: '6号儒商楼08店面',
 				},
 
 
 				entertainmentItems: [
-					{ emoji: '🎮', name: '主机游戏', tag: '包间另计', borderColor: '#A8C8EC', tagBg: '#E3F0FC', tagColor: '#4A90D9' },
-					{ emoji: '🎲', name: '桌游天地', tag: '大厅免费', borderColor: '#F0B8B8', tagBg: '#FCE8E8', tagColor: '#D86060' },
-					{ emoji: '📚', name: '漫画小说', tag: '大厅免费', borderColor: '#E8D4A0', tagBg: '#FFF5D6', tagColor: '#B89630' },
-					{ emoji: '📖', name: '亲子阅读', tag: '大厅免费', borderColor: '#A8D8A8', tagBg: '#E0F5E0', tagColor: '#4A9A4A' },
+					{ emoji: '🎮', name: '主机游戏', desc: 'Switch / PS / 双人闯关', tag: '包间另计', cardStyle: 'border-top-color: #A8C8EC;', tagStyle: 'background: #E3F0FC; color: #4A90D9;' },
+					{ emoji: '🎲', name: '桌游天地', desc: '2-8人聚会，新手可问店员', tag: '大厅免费', cardStyle: 'border-top-color: #F0B8B8;', tagStyle: 'background: #FCE8E8; color: #D86060;' },
+					{ emoji: '📚', name: '漫画小说', desc: '一个人来也能安静待很久', tag: '大厅免费', cardStyle: 'border-top-color: #E8D4A0;', tagStyle: 'background: #FFF5D6; color: #B89630;' },
+					{ emoji: '📖', name: '亲子阅读', desc: '儿童半价，周末更好安排', tag: '大厅免费', cardStyle: 'border-top-color: #A8D8A8;', tagStyle: 'background: #E0F5E0; color: #4A9A4A;' },
 				],
-				hotGames: [
-					{ emoji: '🏰', name: '塞尔达传说', tag: 'Switch独占', coverBg: 'linear-gradient(135deg, #4A90D9, #87CEEB)' },
-					{ emoji: '⚔️', name: '黑神话悟空', tag: 'PS5/PC', coverBg: 'linear-gradient(135deg, #FF8C94, #F5C156)' },
-					{ emoji: '🐺', name: '狼人杀', tag: '社交推理', coverBg: 'linear-gradient(135deg, #667EEA, #764BA2)' },
-					{ emoji: '💰', name: '大富翁', tag: '经典休闲', coverBg: 'linear-gradient(135deg, #F093FB, #F5576C)' },
-					{ emoji: '🧩', name: '波可汪迷宫', tag: '亲子益智', coverBg: 'linear-gradient(135deg, #4FACFE, #00F2FE)' },
-					{ emoji: '🃏', name: 'UNO', tag: '聚会王牌', coverBg: 'linear-gradient(135deg, #30CFD0, #330867)' },
+				upsellItems: [
+					{ key: 'room', icon: '🎮', name: '包厢主机升级', desc: '想玩 Switch / PS，先预约更稳', price: '按小时', action: 'reserve', style: 'background: #E3F0FC;' },
+					{ key: 'snack', icon: '🍿', name: '饮品零食加购', desc: '适合从单人票升级成吃喝套餐', price: '到店选', action: 'voucher', style: 'background: #FFF5D6;' },
+					{ key: 'host', icon: '🎲', name: '新手桌游带玩', desc: '不会玩也能开局，减少冷场', price: '可预约', action: 'reserve', style: 'background: #FCE8E8;' },
+					{ key: 'party', icon: '🎂', name: '生日/团建小局', desc: '4人以上建议提前约位置', price: '可定制', action: 'reserve', style: 'background: #E0F5E0;' },
 				],
 				reviews: [],
-				tips: [
-					'店内禁止黄赌毒，我们要做文明玩家',
-					'进门请换拖鞋/鞋套，像自己家一样爱护它',
-					'零食茶水自助，吃多少拿多少，别浪费粮食哦',
-					'人多想包场？喊上老板，给你安排得明明白白',
-					'漫画小说随便看，看完请放回书架，下一位还在等',
-				],
-				tipColors: ['#FF8C94', '#4A90D9', '#F5C156', '#6BCB77', '#667EEA'],
+				collectionHintClosed: false,
 			};
 		},
 		onShow() {
 			uni.$emit('tabBarChange', { key: 'index' });
 			this.loadData();
 			this.loadReviews();
+			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
 			if (this.hasLogin) this.checkBanner();
 		},
-		onLoad() {
+		onLoad(options) {
+			this.captureInviteCode(options);
 			if (!this.constance) {
 				this.getConstanceInfo().then(() => {
 					this.loadData();
@@ -362,6 +337,31 @@
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getReviewList']),
+			...mapMutations(['setPendingInviteCode']),
+			captureInviteCode(options) {
+				var code = options && options.invite_code ? options.invite_code : '';
+				if (!code && options && options.scene) {
+					var scene = options.scene;
+					try {
+						scene = decodeURIComponent(scene);
+					} catch (e) {}
+					var parts = scene.split('&');
+					for (var i = 0; i < parts.length; i++) {
+						var item = parts[i];
+						var eqIndex = item.indexOf('=');
+						if (eqIndex <= 0) continue;
+						var key = item.slice(0, eqIndex);
+						var value = item.slice(eqIndex + 1);
+						if (key === 'invite_code') {
+							code = value;
+							break;
+						}
+					}
+				}
+				if (!code) return;
+				this.setPendingInviteCode(code);
+				try { uni.setStorageSync('pending_invite_code', code); } catch (e) {}
+			},
 			openLocation() {
 				uni.openLocation({
 					latitude: parseFloat(this.constance.store_latitude || 26.068525),
@@ -374,11 +374,34 @@
 			goToReserve() {
 				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
 			},
-			goToGroup() {
-				uni.switchTab({ url: '/pages/group/group' });
+			goToBuyTicketCount(count) {
+				var num = parseInt(count || 1);
+				if (num < 1) num = 1;
+				if (num > 10) num = 10;
+				uni.navigateTo({ url: '/pages/ticket/buy?count=' + num });
 			},
-			goToBuyTicket() {
-				uni.navigateTo({ url: '/pages/ticket/buy' });
+			goToVoucher() {
+				uni.switchTab({ url: '/pages/voucher/voucher' });
+			},
+			handleSceneTap(scene) {
+				if (!scene) return;
+				if (scene.action === 'ticket') {
+					this.goToBuyTicketCount(scene.count || 1);
+				} else if (scene.action === 'reserve') {
+					this.goToReserve();
+				} else if (scene.action === 'voucher') {
+					this.goToVoucher();
+				} else if (scene.action === 'location') {
+					this.openLocation();
+				}
+			},
+			handleUpsellTap(item) {
+				if (!item) return;
+				if (item.action === 'voucher') {
+					this.goToVoucher();
+				} else if (item.action === 'reserve') {
+					this.goToReserve();
+				}
 			},
 			goToMyReviews() {
 				uni.navigateTo({ url: '/pages/my/reviews' });
@@ -430,21 +453,25 @@
 				];
 				return {
 					title: titles[Math.floor(Math.random() * titles.length)],
-					imageUrl: '/static/logo_small.jpg',
+					imageUrl: '/static/share_home.jpg',
 					path: '/pages/index/index',
 				};
 			},
 			onShareTimeline() {
 				return {
-					title: '还在996？快来这里充电回血',
-					imageUrl: '/static/logo_small.jpg',
+					title: '福州周末不知道去哪？来摸鱼划水吧玩一天',
+					imageUrl: '/static/share_home.jpg',
 				};
 			},
 			onAddToFavorites() {
 				return {
-					title: '先收藏，下次想躺平的时候找得到',
-					imageUrl: '/static/logo_small.jpg',
+					title: '先收藏，下次想玩桌游漫画主机找得到',
+					imageUrl: '/static/share_home.jpg',
 				};
+			},
+			closeCollectionHint() {
+				this.collectionHintClosed = true;
+				uni.setStorageSync('collection_hint_closed', true);
 			},
 			checkBanner() {
 				if (!this.hasLogin) return;
@@ -569,50 +596,187 @@ page { background: #FFF8F0; }
 	50% { transform: rotate(5deg); }
 }
 
-/* ===== 公告 ===== */
-.notice-bubble {
-	display: flex;
-	align-items: center;
-	background: #FFF;
-	margin: 20rpx 24rpx 0;
-	padding: 14rpx 24rpx;
-	border-radius: 50rpx;
-	box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06);
-}
-.notice-icon { font-size: 26rpx; margin-right: 12rpx; }
-.notice-swiper { flex: 1; height: 40rpx; }
-.notice-text { font-size: 24rpx; color: #8D6E63; line-height: 40rpx; display: block; }
-
-/* ===== 快速入口 ===== */
-.menu-grid {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 16rpx;
-	margin: 20rpx 24rpx;
-}
-.menu-card {
-	background: #FFF;
-	border-radius: 24rpx;
-	padding: 24rpx;
-	box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06);
-	display: flex;
-	align-items: center;
-	gap: 16rpx;
-	border: 2rpx solid rgba(255,181,167,0.15);
-}
-.menu-icon {
-	width: 72rpx;
-	height: 72rpx;
-	border-radius: 50%;
+/* ===== 收藏引导 ===== */
+.favorite-tip {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 36rpx;
+	background: linear-gradient(90deg, #FFF8E1, #FFF3E0);
+	margin: 16rpx 24rpx 0;
+	padding: 14rpx 24rpx;
+	border-radius: 50rpx;
+	border: 2rpx solid #FFD54F;
+	gap: 12rpx;
+}
+.favorite-icon { font-size: 28rpx; }
+.favorite-text { font-size: 24rpx; color: #F57C00; flex: 1; text-align: center; }
+.favorite-close { font-size: 22rpx; color: #FFB74D; padding: 4rpx; }
+
+/* ===== 场景套餐 ===== */
+.scene-section {
+	margin: 20rpx 24rpx 24rpx;
+	background: #FFF;
+	border-radius: 28rpx;
+	padding: 24rpx;
+	box-shadow: 0 8rpx 30rpx rgba(92,75,58,0.08);
+	border: 2rpx solid rgba(255,181,167,0.18);
+}
+.scene-section-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	margin-bottom: 18rpx;
+}
+.scene-title {
+	display: block;
+	font-size: 34rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+}
+.scene-sub {
+	display: block;
+	font-size: 22rpx;
+	color: #A08B7A;
+	margin-top: 4rpx;
+}
+.scene-note {
+	font-size: 20rpx;
+	color: #FF8C42;
+	background: #FFF3E8;
+	padding: 6rpx 14rpx;
+	border-radius: 20rpx;
+	font-weight: bold;
+}
+.scene-hero-card {
+	background: linear-gradient(135deg, #FF8C42 0%, #FFB56D 100%);
+	border-radius: 24rpx;
+	padding: 24rpx;
+	color: #FFF;
+	box-shadow: 0 10rpx 28rpx rgba(255,140,66,0.22);
+}
+.scene-hero-main {
+	display: flex;
+	align-items: center;
+	gap: 18rpx;
+}
+.scene-hero-icon {
+	width: 92rpx;
+	height: 92rpx;
+	background: rgba(255,255,255,0.22);
+	border-radius: 24rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 48rpx;
 	flex-shrink: 0;
 }
-.menu-text { flex: 1; }
-.menu-title { display: block; font-size: 28rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 4rpx; }
-.menu-desc { display: block; font-size: 22rpx; color: #A08B7A; }
+.scene-hero-text {
+	flex: 1;
+	min-width: 0;
+}
+.scene-hero-badge {
+	display: inline-block;
+	font-size: 20rpx;
+	color: #FF8C42;
+	background: rgba(255,255,255,0.92);
+	padding: 4rpx 12rpx;
+	border-radius: 14rpx;
+	font-weight: bold;
+	margin-bottom: 8rpx;
+}
+.scene-hero-name {
+	display: block;
+	font-size: 34rpx;
+	font-weight: bold;
+	line-height: 1.2;
+}
+.scene-hero-desc {
+	display: block;
+	font-size: 23rpx;
+	line-height: 1.45;
+	opacity: 0.92;
+	margin-top: 6rpx;
+}
+.scene-hero-price {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 20rpx;
+	padding-top: 18rpx;
+	border-top: 1rpx solid rgba(255,255,255,0.28);
+}
+.scene-price {
+	font-size: 36rpx;
+	font-weight: 800;
+}
+.scene-action {
+	font-size: 24rpx;
+	color: #FF8C42;
+	background: #FFF;
+	padding: 10rpx 22rpx;
+	border-radius: 28rpx;
+	font-weight: bold;
+}
+.scene-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14rpx;
+	margin-top: 16rpx;
+}
+.scene-card {
+	background: #FFF8F0;
+	border-radius: 22rpx;
+	padding: 20rpx;
+	border: 1rpx solid #F4E3D0;
+}
+.scene-card-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12rpx;
+}
+.scene-card-icon { font-size: 36rpx; }
+.scene-card-badge {
+	font-size: 18rpx;
+	color: #8D6E63;
+	background: #FFF;
+	border-radius: 14rpx;
+	padding: 4rpx 10rpx;
+	font-weight: bold;
+}
+.scene-card-name {
+	display: block;
+	font-size: 28rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+	line-height: 1.25;
+}
+.scene-card-desc {
+	display: block;
+	font-size: 21rpx;
+	color: #8D6E63;
+	line-height: 1.45;
+	margin-top: 8rpx;
+	min-height: 62rpx;
+}
+.scene-card-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 14rpx;
+}
+.scene-card-price {
+	font-size: 26rpx;
+	font-weight: bold;
+	color: #FF8C42;
+}
+.scene-card-action {
+	font-size: 20rpx;
+	color: #FFF;
+	background: #FF8C42;
+	padding: 7rpx 14rpx;
+	border-radius: 20rpx;
+}
 
 /* ===== 轮播 ===== */
 .carousel-wrapper { margin: 0 24rpx; }
@@ -621,10 +785,6 @@ page { background: #FFF8F0; }
 .carousel-indicator { display: flex; justify-content: center; gap: 10rpx; padding-top: 16rpx; }
 .indicator-dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: #E0D5CC; transition: all 0.3s; }
 .indicator-dot.active { width: 40rpx; border-radius: 20rpx; background: #FF8C42; }
-.carousel-placeholder { margin: 0 24rpx; height: 300rpx; border-radius: 28rpx; background: linear-gradient(135deg, #FFF0F0, #F0F8F5); display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2rpx dashed #F0D0C0; }
-.placeholder-emoji { font-size: 72rpx; margin-bottom: 12rpx; }
-.placeholder-text { font-size: 28rpx; color: #FF8C42; }
-
 /* ===== 通用区块 ===== */
 .section { margin: 0 24rpx 28rpx; }
 .section-header { display: flex; align-items: baseline; gap: 10rpx; margin-bottom: 16rpx; }
@@ -646,98 +806,62 @@ page { background: #FFF8F0; }
 .world-emoji { font-size: 40rpx; }
 .world-tag { font-size: 20rpx; padding: 4rpx 10rpx; border-radius: 10rpx; font-weight: bold; }
 .world-name { display: block; font-size: 28rpx; font-weight: bold; color: #5C4B3A; }
+.world-desc { display: block; font-size: 21rpx; color: #A08B7A; line-height: 1.45; margin-top: 8rpx; }
 
-/* ===== 价格横幅 ===== */
-.price-banner {
-	margin: 0 24rpx 28rpx;
-	background: linear-gradient(135deg, #FF8C42, #FFB5A7);
-	border-radius: 28rpx;
-	padding: 28rpx;
-	box-shadow: 0 8rpx 24rpx rgba(255,140,66,0.2);
-	color: #FFF;
+/* ===== 增值服务 ===== */
+.upsell-section { margin-top: 0; }
+.upsell-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
 }
-.banner-line { display: flex; align-items: flex-start; gap: 14rpx; }
-.banner-icon { font-size: 36rpx; flex-shrink: 0; margin-top: 2rpx; }
-.banner-body { flex: 1; }
-.banner-strong { display: block; font-size: 28rpx; font-weight: bold; margin-bottom: 4rpx; }
-.banner-small { display: block; font-size: 24rpx; opacity: 0.9; }
-.banner-divider { height: 1rpx; background: rgba(255,255,255,0.3); margin: 16rpx 0; }
-
-/* ===== 三步开玩 ===== */
-.flow-row { display: flex; align-items: center; justify-content: space-between; background: #FFF; border-radius: 28rpx; padding: 28rpx; box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06); }
-.flow-item { flex: 1; text-align: center; }
-.flow-circle { width: 88rpx; height: 88rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12rpx; box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.08); }
-.flow-emoji { font-size: 40rpx; }
-.flow-title { display: block; font-size: 26rpx; font-weight: bold; color: #5C4B3A; }
-.flow-arrow { font-size: 28rpx; color: #E0D5CC; padding-top: 24rpx; flex-shrink: 0; }
-
-/* ===== 热门游戏 ===== */
-.games-scroll { display: flex; white-space: nowrap; gap: 20rpx; padding: 8rpx 4rpx 16rpx; }
-.game-card {
-	display: inline-block;
-	width: 220rpx;
-	flex-shrink: 0;
+.upsell-item {
+	display: flex;
+	align-items: center;
 	background: #FFF;
-	border-radius: 24rpx;
-	box-shadow: 0 6rpx 20rpx rgba(92,75,58,0.08);
-	overflow: hidden;
-	transition: transform 0.2s;
+	border-radius: 20rpx;
+	padding: 20rpx;
+	box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06);
+	border: 1rpx solid rgba(240,230,216,0.7);
 }
-.game-card:active { transform: scale(0.97); }
-.game-cover {
-	width: 220rpx;
-	height: 190rpx;
+.upsell-icon {
+	width: 72rpx;
+	height: 72rpx;
+	border-radius: 20rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	position: relative;
+	font-size: 36rpx;
+	flex-shrink: 0;
+	margin-right: 16rpx;
 }
-.game-cover-emoji {
-	font-size: 80rpx;
-	text-shadow: 0 4rpx 12rpx rgba(0,0,0,0.15);
+.upsell-body {
+	flex: 1;
+	min-width: 0;
 }
-.game-badge {
-	position: absolute;
-	top: 10rpx;
-	right: 10rpx;
-	font-size: 18rpx;
+.upsell-name {
+	display: block;
+	font-size: 27rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+	margin-bottom: 4rpx;
+}
+.upsell-desc {
+	display: block;
+	font-size: 21rpx;
+	color: #A08B7A;
+	line-height: 1.4;
+}
+.upsell-price {
+	margin-left: 14rpx;
+	font-size: 22rpx;
 	color: #FF8C42;
 	font-weight: bold;
-	background: rgba(255,255,255,0.95);
-	border-radius: 12rpx;
-	padding: 4rpx 10rpx;
-	box-shadow: 0 2rpx 6rpx rgba(0,0,0,0.1);
+	background: #FFF3E8;
+	padding: 8rpx 14rpx;
+	border-radius: 18rpx;
+	flex-shrink: 0;
 }
-.corner-flower {
-	position: absolute;
-	bottom: 10rpx;
-	left: 10rpx;
-	width: 24rpx;
-	height: 24rpx;
-	.petal {
-		position: absolute;
-		width: 8rpx;
-		height: 8rpx;
-		background: rgba(255,255,255,0.7);
-		border-radius: 50%;
-		&:nth-child(1) { top: 0; left: 8rpx; }
-		&:nth-child(2) { bottom: 4rpx; left: 2rpx; }
-		&:nth-child(3) { bottom: 4rpx; right: 2rpx; }
-	}
-	.flower-center {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 6rpx;
-		height: 6rpx;
-		background: #FFD54F;
-		border-radius: 50%;
-	}
-}
-.game-info { padding: 14rpx 16rpx; }
-.game-name { display: block; font-size: 26rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 6rpx; }
-.game-tag { display: inline-block; font-size: 20rpx; color: #FF8C42; background: rgba(255,140,66,0.08); padding: 4rpx 10rpx; border-radius: 10rpx; }
 
 /* ===== 店铺信息 ===== */
 .shop-card { background: #FFF; border-radius: 28rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06); }
@@ -767,16 +891,6 @@ page { background: #FFF8F0; }
 .star.filled { opacity: 1; }
 .review-text { display: block; font-size: 22rpx; color: #8D6E63; line-height: 1.5; margin-bottom: 8rpx; }
 .review-time { font-size: 18rpx; color: #C4B5A5; }
-.reviews-empty { background: #FFF; border-radius: 24rpx; padding: 48rpx; text-align: center; box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06); }
-.empty-icon { font-size: 60rpx; display: block; margin-bottom: 12rpx; }
-.empty-text { font-size: 24rpx; color: #A08B7A; display: block; margin-bottom: 20rpx; }
-.empty-btn { display: inline-block; background: linear-gradient(135deg, #FF8C42, #FFB5A7); color: #FFF; font-size: 26rpx; font-weight: bold; padding: 14rpx 40rpx; border-radius: 36rpx; }
-
-/* ===== 温馨提示 ===== */
-.tips-list { display: flex; flex-direction: column; gap: 10rpx; }
-.tip-item { background: #FFF; border-radius: 16rpx; padding: 16rpx 20rpx; border-left: 5rpx solid; box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03); }
-.tip-text { font-size: 22rpx; color: #8D6E63; line-height: 1.5; }
-
 /* ===== 营销弹窗 ===== */
 .banner-popup { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 40rpx; }
 .banner-panel { background: #FFF; border-radius: 28rpx; overflow: hidden; width: 100%; max-width: 600rpx; position: relative; animation: popup-in 0.3s ease; box-shadow: 0 16rpx 48rpx rgba(0,0,0,0.15); }
@@ -785,6 +899,11 @@ page { background: #FFF8F0; }
 .banner-title { display: block; font-size: 30rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 8rpx; }
 .banner-sub { display: block; font-size: 22rpx; color: #A08B7A; }
 .banner-close { position: absolute; top: 16rpx; right: 16rpx; width: 56rpx; height: 56rpx; background: rgba(0,0,0,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FFF; font-size: 28rpx; }
+
+/* ===== 收藏引导 ===== */
+.collection-hint { margin: 16rpx 24rpx 0; background: linear-gradient(90deg, #FFF8E1, #FFECB3); border-radius: 16rpx; padding: 16rpx 24rpx; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.1); }
+.hint-text { font-size: 24rpx; color: #E65100; font-weight: bold; }
+.hint-close { font-size: 24rpx; color: #E65100; opacity: 0.6; padding: 8rpx; }
 
 /* ===== 动画 ===== */
 @keyframes popup-in { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
