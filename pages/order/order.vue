@@ -7,7 +7,7 @@
 				class="tab-item"
 				v-for="(item, index) in navList"
 				:key="index"
-				:class="{ active: tabCurrentIndex === index }"
+				:class="tabCurrentIndex === index ? 'active' : ''"
 				@click="tabClick(index)"
 			>
 				<text class="tab-text">{{ item.text }}</text>
@@ -197,13 +197,17 @@
 						<text class="price-label">房间费用</text>
 						<text class="price-value">¥{{ item.roomPrice }}</text>
 					</view>
-					<view class="price-row" v-if="item.addonsPrice > 0">
+					<view class="price-row" v-if="item.addonsPrice > 0 && item.order_type !== 4">
 						<text class="price-label">增值服务</text>
 						<text class="price-value">+¥{{ item.addonsPrice }}</text>
 					</view>
 					<view class="price-row" v-if="item.order_type === 4 && item.originalPrice > 0">
-						<text class="price-label">消费金额</text>
+						<text class="price-label">基础消费</text>
 						<text class="price-value">¥{{ item.originalPrice }}</text>
+					</view>
+					<view class="price-row" v-if="item.order_type === 4 && item.addonsPrice > 0">
+						<text class="price-label">增值服务</text>
+						<text class="price-value">+¥{{ item.addonsPrice }}</text>
 					</view>
 					<view class="price-row" v-if="(item.order_type === 3 || item.order_type === 5) && item.originalPrice > 0">
 						<text class="price-label">商品金额</text>
@@ -449,10 +453,19 @@
 						item.couponDiscount = 0;
 					}
 				} else if (item.order_type === 4) {
-					// 线下消费订单
-					var totalOrig = (goodsInfo._total_original || item.pay_amount) / 100;
-					item.originalPrice = totalOrig.toFixed(2);
-					item.roomPrice = totalOrig.toFixed(2);
+					// 线下消费订单：会员折扣只作用于基础消费，增值/附加费用原价计入
+					var offlineAddons = goodsInfo.addons || [];
+					var offlineAddonsPrice = goodsInfo._addons_total || 0;
+					if (!offlineAddonsPrice) {
+						for (var oi = 0; oi < offlineAddons.length; oi++) {
+							offlineAddonsPrice += offlineAddons[oi].price || 0;
+						}
+					}
+					var offlineTotalOrig = goodsInfo._total_original || item.pay_amount || 0;
+					var offlineBase = goodsInfo._original_amount || Math.max(0, offlineTotalOrig - offlineAddonsPrice);
+					item.originalPrice = (offlineBase / 100).toFixed(2);
+					item.roomPrice = item.originalPrice;
+					item.addonsPrice = (offlineAddonsPrice / 100).toFixed(2);
 					item.memberDiscount = goodsInfo._member_discount ? (goodsInfo._member_discount / 100).toFixed(2) : 0;
 					item.pointsDeduction = goodsInfo._points_deducted ? (goodsInfo._points_deducted / 100).toFixed(2) : 0;
 					item.couponDiscount = goodsInfo._coupon_discount ? (goodsInfo._coupon_discount / 100).toFixed(2) : 0;
