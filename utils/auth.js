@@ -251,7 +251,7 @@ function purchaseGoods(goodsId, token) {
 }
 
 function recharge(amount, token) {
-  var data = { amount: amount };
+  var data = { amount: amount, platform: PLATFORM.getPlatform() };
   return request('/users/recharge/', 'POST', data, token);
 }
 
@@ -320,6 +320,17 @@ function accountPay(token, params) {
 
 function wxPay(token, params) {
   return request('/orders/wxpay/', 'POST', params, token);
+}
+
+function toutiaoPay(token, params) {
+  return request('/orders/toutiaopay/', 'POST', params, token);
+}
+
+function platformPay(token, params) {
+  if (PLATFORM.getPlatform() === 'toutiao') {
+    return toutiaoPay(token, params);
+  }
+  return wxPay(token, params);
 }
 
 function deleteOrder(token, params) {
@@ -416,6 +427,8 @@ var httpRequest = {
   checkout: checkout,
   accountPay: accountPay,
   wxPay: wxPay,
+  toutiaoPay: toutiaoPay,
+  platformPay: platformPay,
   deleteOrder: deleteOrder,
   cancelOrder: cancelOrder,
   updateOrderCoupon: updateOrderCoupon,

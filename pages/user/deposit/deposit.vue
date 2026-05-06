@@ -55,7 +55,7 @@
 				<text class="section-title">支付方式</text>
 			</view>
 			<view class="pay-list">
-				<view class="pay-item" :class="{ active: paytype === 'wxpay' }" @tap="paytype = 'wxpay'">
+				<view class="pay-item" :class="paytype === 'wxpay' ? 'active' : ''" @tap="paytype = 'wxpay'">
 					<image class="pay-icon" src="/static/wxpay.png" mode="aspectFit"></image>
 					<text class="pay-name">微信支付</text>
 					<view class="pay-check">
@@ -202,6 +202,9 @@
 				}
 				uni.showLoading({ title: '支付中...' });
 				var amountFen = this.selectedAmount * 100;
+				var selectedAmount = this.selectedAmount;
+				var selectedTierBonus = this.selectedTierBonus;
+				var selectedTierPresent = this.selectedTierPresent;
 				AUTH.recharge(amountFen, this.token).then((res) => {
 					if (!res) {
 						uni.hideLoading();
@@ -223,11 +226,20 @@
 					}
 					// 兼容后端可能返回 { payment: {...} } 或 { wxpay: {...} } 的嵌套结构
 					var payment = wxpayData.payment || wxpayData.wxpay || wxpayData;
-					// 兼容后端签名字段可能是 sign 或 paySign
-					var paySign = payment.paySign || payment.sign;
-					var requiredFields = ['timeStamp', 'nonceStr', 'package'];
-					var missing = requiredFields.filter(k => !payment[k]);
-					if (!paySign) missing.push('sign/paySign');
+					// 使用跨平台支付封装
+					var PLATFORM = require('../../../common/platform.js');
+					var platform = PLATFORM.getPlatform();
+					var missing = [];
+					if (platform === 'toutiao') {
+						var orderInfo = payment.toutiaoOrderInfo || {};
+						if (!orderInfo.order_id) missing.push('toutiaoOrderInfo.order_id');
+						if (!orderInfo.order_token) missing.push('toutiaoOrderInfo.order_token');
+					} else {
+						var paySign = payment.paySign || payment.sign;
+						var requiredFields = ['timeStamp', 'nonceStr', 'package'];
+						missing = requiredFields.filter(k => !payment[k]);
+						if (!paySign) missing.push('sign/paySign');
+					}
 					if (missing.length > 0) {
 						uni.hideLoading();
 						uni.showModal({
@@ -237,22 +249,19 @@
 						});
 						return;
 					}
-
-					// 使用跨平台支付封装
-					var PLATFORM = require('../../../common/platform.js');
-					PLATFORM.requestPayment(payment).then(function() {
+					PLATFORM.requestPayment(payment).then(() => {
 						uni.hideLoading();
-						var bonusText = this.selectedTierBonus > 0 ? '，赠送 ' + this.selectedTierBonus + ' 积分' : '';
-						var presentText = this.selectedTierPresent > 0 ? '，额外到账 ¥' + this.selectedTierPresent : '';
+						var bonusText = selectedTierBonus > 0 ? '，赠送 ' + selectedTierBonus + ' 积分' : '';
+						var presentText = selectedTierPresent > 0 ? '，额外到账 ¥' + selectedTierPresent : '';
 						uni.showModal({
 							title: '充值成功',
-							content: '已成功充值 ¥' + this.selectedAmount + presentText + bonusText + '，请注意查收入账短信',
+							content: '已成功充值 ¥' + selectedAmount + presentText + bonusText + '，请注意查收入账短信',
 							showCancel: false,
-							success: function() {
+							success: () => {
 								this.getUserInfo();
-							}.bind(this)
+							}
 						});
-					}.bind(this)).catch(function(err) {
+					}).catch(function(err) {
 						uni.hideLoading();
 						console.error('支付失败详情:', err);
 						if (err && err.errMsg && err.errMsg.indexOf('cancel') !== -1) {

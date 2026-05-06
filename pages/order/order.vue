@@ -107,6 +107,26 @@
 					</view>
 				</view>
 
+				<!-- 待使用提醒 -->
+				<view class="visit-reminder" v-if="item.order_status === 1 && (item.order_type === 1 || item.order_type === 6)">
+					<view class="visit-reminder-title">
+						<text class="visit-reminder-icon">📌</text>
+						<text>到店提醒</text>
+					</view>
+					<view class="visit-reminder-row" v-if="item.order_type === 6">
+						<text class="visit-reminder-dot"></text>
+						<text class="visit-reminder-text">到店出示核销码或报数字码，店员核销后即可入场。</text>
+					</view>
+					<view class="visit-reminder-row" v-if="item.order_type === 1">
+						<text class="visit-reminder-dot"></text>
+						<text class="visit-reminder-text">请按预约时段到店，临时改期或迟到可先联系店员确认。</text>
+					</view>
+					<view class="visit-reminder-row">
+						<text class="visit-reminder-dot"></text>
+						<text class="visit-reminder-text">大厅自助内容按需取用，桌游和漫画使用后请放回原处。</text>
+					</view>
+				</view>
+
 				<!-- 充值详情 -->
 				<view class="detail-section recharge-detail" v-if="item.goodsInfo && (item.goodsInfo.amount !== undefined || item.goodsInfo.bonus_points !== undefined || item.goodsInfo.present_money !== undefined)">
 					<view class="recharge-amount">
@@ -840,6 +860,46 @@ page {
 	.detail-icon { font-size: 28rpx; flex-shrink: 0; }
 	.detail-label { font-size: 26rpx; color: #999; width: 140rpx; flex-shrink: 0; }
 	.detail-value { font-size: 26rpx; color: #333; flex: 1; }
+}
+
+/* ===== 待使用提醒 ===== */
+.visit-reminder {
+	margin: 20rpx 24rpx;
+	padding: 20rpx;
+	background: #FFF8EF;
+	border: 1rpx solid rgba(232, 120, 74, 0.18);
+	border-radius: 18rpx;
+}
+.visit-reminder-title {
+	display: flex;
+	align-items: center;
+	gap: 8rpx;
+	margin-bottom: 12rpx;
+	font-size: 26rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+}
+.visit-reminder-icon { font-size: 28rpx; }
+.visit-reminder-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 12rpx;
+	margin-bottom: 10rpx;
+	&:last-child { margin-bottom: 0; }
+}
+.visit-reminder-dot {
+	width: 8rpx;
+	height: 8rpx;
+	border-radius: 50%;
+	background: #E8784A;
+	margin-top: 15rpx;
+	flex-shrink: 0;
+}
+.visit-reminder-text {
+	flex: 1;
+	font-size: 24rpx;
+	line-height: 1.5;
+	color: #7A6A58;
 }
 
 /* ===== 充值详情 ===== */

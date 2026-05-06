@@ -49,7 +49,10 @@
         <!-- 增值服务 -->
         <view class="addons-section" v-if="roomAddons.length > 0">
             <view class="section-title" @click="toggleAddons">
-                <text>🎁 增值服务（可选）</text>
+                <view class="addon-title-main">
+                    <text class="addon-title-text">🎁 升级体验（可选）</text>
+                    <text class="addon-title-sub">布置、补给等提前加选，到店更省心</text>
+                </view>
                 <view class="title-right">
                     <text class="addon-summary" v-if="selectedAddons.length > 0">已选{{ selectedAddons.length }}项 +¥{{ addonsPrice }}</text>
                     <text class="addon-arrow">{{ addonsOpen ? '▼' : '▶' }}</text>
@@ -68,7 +71,7 @@
                         <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
                     </view>
                     <text class="addon-price">¥{{ (a.price / 100).toFixed(0) }}</text>
-                    <view class="addon-check" :class="{ checked: isAddonSelected(a) }">
+                    <view class="addon-check" :class="isAddonSelected(a) ? 'checked' : ''">
                         <text v-if="isAddonSelected(a)">✓</text>
                     </view>
                 </view>
@@ -195,6 +198,27 @@
             />
         </view>
 
+        <!-- 预约须知 -->
+        <view class="booking-notice">
+            <view class="booking-notice-title">📋 预约须知</view>
+            <view class="booking-notice-row">
+                <text class="booking-notice-dot"></text>
+                <text class="booking-notice-text">包厢和主机按预约时段保留使用，超时需要按店内规则补时。</text>
+            </view>
+            <view class="booking-notice-row">
+                <text class="booking-notice-dot"></text>
+                <text class="booking-notice-text">大厅入场按实际人数购买；儿童、会员等优惠以店内核验为准。</text>
+            </view>
+            <view class="booking-notice-row">
+                <text class="booking-notice-dot"></text>
+                <text class="booking-notice-text">距预约开始超过1小时可申请退款，临近时段建议先联系店员调整。</text>
+            </view>
+            <view class="booking-notice-row">
+                <text class="booking-notice-dot"></text>
+                <text class="booking-notice-text">桌游、漫画和设备请爱惜使用，如有损坏或缺件请及时告知店员。</text>
+            </view>
+        </view>
+
         <!-- 底部提交栏 -->
         <view class="bottom-bar">
             <view class="bottom-info">
@@ -298,7 +322,7 @@ export default {
             // 增值服务
             roomAddons: [],
             selectedAddons: [],
-            addonsOpen: false,
+            addonsOpen: true,
 
             // 提交状态
             submitting: false,
@@ -1080,14 +1104,30 @@ page {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        font-size: 28rpx;
-        font-weight: bold;
-        color: $dark;
         margin-bottom: 0;
+        gap: 18rpx;
+
+        .addon-title-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .addon-title-text {
+            font-size: 28rpx;
+            font-weight: bold;
+            color: $dark;
+        }
+        .addon-title-sub {
+            font-size: 22rpx;
+            color: $gray;
+            margin-top: 6rpx;
+            line-height: 1.35;
+        }
         .title-right {
             display: flex;
             align-items: center;
             gap: 12rpx;
+            flex-shrink: 0;
         }
         .addon-summary {
             font-size: 24rpx;
@@ -1154,6 +1194,47 @@ page {
         flex: 1;
         font-size: 28rpx;
         color: $dark;
+    }
+}
+
+// 预约须知
+.booking-notice {
+    margin: 20rpx;
+    background: #FFFDF8;
+    border-radius: 20rpx;
+    padding: 26rpx 28rpx;
+    border: 2rpx solid rgba(255, 204, 51, 0.22);
+
+    .booking-notice-title {
+        font-size: 28rpx;
+        font-weight: bold;
+        color: $dark;
+        margin-bottom: 18rpx;
+    }
+
+    .booking-notice-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 14rpx;
+        margin-bottom: 14rpx;
+
+        &:last-child { margin-bottom: 0; }
+    }
+
+    .booking-notice-dot {
+        width: 10rpx;
+        height: 10rpx;
+        border-radius: 50%;
+        background: $primary;
+        margin-top: 14rpx;
+        flex-shrink: 0;
+    }
+
+    .booking-notice-text {
+        flex: 1;
+        font-size: 24rpx;
+        line-height: 1.55;
+        color: #7A6A58;
     }
 }
 

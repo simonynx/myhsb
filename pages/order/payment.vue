@@ -436,14 +436,14 @@ export default {
                     uni.showToast({ title: msg, icon: 'none' });
                 });
             } else {
-                this.weixinPay();
+                this.platformPay();
             }
         },
 
-        weixinPay() {
+        platformPay() {
             uni.showLoading({ title: '调起支付...' });
             this.paying = true;
-            AUTH.wxPay(this.token, { order_number: this.order.order_number })
+            AUTH.platformPay(this.token, { order_number: this.order.order_number })
                 .then(res => {
                     uni.hideLoading();
                     this.paying = false;

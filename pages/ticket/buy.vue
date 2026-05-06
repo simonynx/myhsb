@@ -171,6 +171,20 @@
         </view>
       </view>
       <view class="notice-item">
+        <text class="notice-icon">🎲</text>
+        <view class="notice-body">
+          <text class="notice-label">大厅包含</text>
+          <text class="notice-desc">大厅桌游、漫画小说、零食茶水自助均可使用，按需取用即可</text>
+        </view>
+      </view>
+      <view class="notice-item">
+        <text class="notice-icon">🎮</text>
+        <view class="notice-body">
+          <text class="notice-label">升级说明</text>
+          <text class="notice-desc">包厢、主机、生日氛围布置等增值项目按小时或套餐另计，建议提前预约</text>
+        </view>
+      </view>
+      <view class="notice-item">
         <text class="notice-icon">↩️</text>
         <view class="notice-body">
           <text class="notice-label">退款规则</text>

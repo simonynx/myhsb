@@ -14,6 +14,42 @@
 			</view>
 		</view>
 
+		<!-- 入店须知 -->
+		<view class="notice-popup" v-if="storeNoticeVisible" @tap="closeStoreNotice">
+			<view class="notice-panel" @tap.stop>
+				<view class="notice-head">
+					<view>
+						<text class="notice-kicker">到店前看一眼</text>
+						<text class="notice-title">入店须知</text>
+					</view>
+					<view class="notice-close" @tap="closeStoreNotice">✕</view>
+				</view>
+				<view class="notice-list">
+					<view class="notice-line">
+						<text class="notice-dot">🎫</text>
+						<text class="notice-copy">大厅票按人数购买，含大厅桌游、漫画小说、零食茶水自助。</text>
+					</view>
+					<view class="notice-line">
+						<text class="notice-dot">🎮</text>
+						<text class="notice-copy">包厢、主机等升级项目按小时另计，周末或多人局建议提前预约。</text>
+					</view>
+					<view class="notice-line">
+						<text class="notice-dot">↩️</text>
+						<text class="notice-copy">门票未核销且未过期可退；预约订单按预约开始时间判断退款规则。</text>
+					</view>
+					<view class="notice-line">
+						<text class="notice-dot">🍵</text>
+						<text class="notice-copy">零食茶水按需取用，桌游和漫画用完请归位，方便下一位玩家。</text>
+					</view>
+					<view class="notice-line">
+						<text class="notice-dot">📍</text>
+						<text class="notice-copy">到店出示核销码或订单信息，店员会帮你安排入场。</text>
+					</view>
+				</view>
+				<view class="notice-confirm" @tap="closeStoreNotice">知道了</view>
+			</view>
+		</view>
+
 		<!-- ===== 天空背景 ===== -->
 		<view class="sky-header">
 			<view class="cloud cloud-1">
@@ -119,7 +155,7 @@
 		<view class="section upsell-section">
 			<view class="section-header">
 				<text class="section-title">💎 到店还能升级</text>
-				<text class="section-sub">提高体验，也提高客单</text>
+				<text class="section-sub">布置、补给、包厢按需加</text>
 			</view>
 			<view class="upsell-list">
 				<view class="upsell-item" v-for="item in upsellItems" :key="item.key" @tap="handleUpsellTap(item)">
@@ -174,6 +210,14 @@
 						<text class="info-label">WiFi</text>
 						<text class="info-value">{{constance.wifi_account || 'moyu888'}} / {{constance.wifi_password || 'moyu888'}}</text>
 					</view>
+				</view>
+				<view class="info-row" @tap="openStoreNotice">
+					<text class="info-icon">📋</text>
+					<view class="info-text">
+						<text class="info-label">入店须知</text>
+						<text class="info-value">大厅票、包厢升级、退款规则</text>
+					</view>
+					<text class="info-action">查看</text>
 				</view>
 			</view>
 		</view>
@@ -303,18 +347,19 @@
 
 				entertainmentItems: [
 					{ emoji: '🎮', name: '主机游戏', desc: 'Switch / PS / 双人闯关', tag: '包间另计', cardStyle: 'border-top-color: #A8C8EC;', tagStyle: 'background: #E3F0FC; color: #4A90D9;' },
-					{ emoji: '🎲', name: '桌游天地', desc: '2-8人聚会，新手可问店员', tag: '大厅免费', cardStyle: 'border-top-color: #F0B8B8;', tagStyle: 'background: #FCE8E8; color: #D86060;' },
+					{ emoji: '🎲', name: '桌游天地', desc: '2-8人聚会，轻松开局', tag: '大厅免费', cardStyle: 'border-top-color: #F0B8B8;', tagStyle: 'background: #FCE8E8; color: #D86060;' },
 					{ emoji: '📚', name: '漫画小说', desc: '一个人来也能安静待很久', tag: '大厅免费', cardStyle: 'border-top-color: #E8D4A0;', tagStyle: 'background: #FFF5D6; color: #B89630;' },
 					{ emoji: '📖', name: '亲子阅读', desc: '儿童半价，周末更好安排', tag: '大厅免费', cardStyle: 'border-top-color: #A8D8A8;', tagStyle: 'background: #E0F5E0; color: #4A9A4A;' },
 				],
 				upsellItems: [
 					{ key: 'room', icon: '🎮', name: '包厢主机升级', desc: '想玩 Switch / PS，先预约更稳', price: '按小时', action: 'reserve', style: 'background: #E3F0FC;' },
-					{ key: 'snack', icon: '🍿', name: '饮品零食加购', desc: '适合从单人票升级成吃喝套餐', price: '到店选', action: 'voucher', style: 'background: #FFF5D6;' },
-					{ key: 'host', icon: '🎲', name: '新手桌游带玩', desc: '不会玩也能开局，减少冷场', price: '可预约', action: 'reserve', style: 'background: #FCE8E8;' },
-					{ key: 'party', icon: '🎂', name: '生日/团建小局', desc: '4人以上建议提前约位置', price: '可定制', action: 'reserve', style: 'background: #E0F5E0;' },
+					{ key: 'snack', icon: '🍿', name: '饮品零食补给', desc: '多人局、下午场适合加一份小食饮品', price: '到店选', action: 'voucher', style: 'background: #FFF5D6;' },
+					{ key: 'decor', icon: '🎈', name: '生日氛围布置', desc: '气球、花艺、小道具，适合庆生拍照', price: '58元起', action: 'reserve', style: 'background: #FCE8E8;' },
+					{ key: 'party', icon: '🎂', name: '生日/团建小局', desc: '4人以上建议提前约位置，布置补给可加选', price: '可加选', action: 'reserve', style: 'background: #E0F5E0;' },
 				],
 				reviews: [],
 				collectionHintClosed: false,
+				storeNoticeVisible: false,
 			};
 		},
 		onShow() {
@@ -370,6 +415,12 @@
 					name: this.constance.store_name || this.addressData.name,
 					address: (this.constance.store_address || this.addressData.address) + (this.constance.store_area || this.addressData.area)
 				});
+			},
+			openStoreNotice() {
+				this.storeNoticeVisible = true;
+			},
+			closeStoreNotice() {
+				this.storeNoticeVisible = false;
 			},
 			goToReserve() {
 				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
@@ -899,6 +950,19 @@ page { background: #FFF8F0; }
 .banner-title { display: block; font-size: 30rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 8rpx; }
 .banner-sub { display: block; font-size: 22rpx; color: #A08B7A; }
 .banner-close { position: absolute; top: 16rpx; right: 16rpx; width: 56rpx; height: 56rpx; background: rgba(0,0,0,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FFF; font-size: 28rpx; }
+
+/* ===== 入店须知弹层 ===== */
+.notice-popup { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.44); z-index: 10010; display: flex; align-items: center; justify-content: center; padding: 44rpx; }
+.notice-panel { width: 100%; max-width: 620rpx; background: #FFFDF9; border-radius: 28rpx; padding: 30rpx; box-shadow: 0 20rpx 56rpx rgba(92,75,58,0.18); }
+.notice-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24rpx; }
+.notice-kicker { display: block; font-size: 22rpx; color: #FF8C42; margin-bottom: 6rpx; }
+.notice-title { display: block; font-size: 34rpx; font-weight: bold; color: #5C4B3A; }
+.notice-close { width: 54rpx; height: 54rpx; border-radius: 50%; background: #FFF3E8; color: #A08B7A; display: flex; align-items: center; justify-content: center; font-size: 24rpx; }
+.notice-list { display: flex; flex-direction: column; gap: 18rpx; }
+.notice-line { display: flex; align-items: flex-start; gap: 14rpx; padding: 18rpx; background: #FFF8EF; border-radius: 16rpx; }
+.notice-dot { width: 38rpx; font-size: 28rpx; line-height: 1.35; flex-shrink: 0; }
+.notice-copy { flex: 1; font-size: 25rpx; line-height: 1.55; color: #6F5A48; }
+.notice-confirm { margin-top: 26rpx; height: 78rpx; border-radius: 39rpx; background: #FF8C42; color: #FFF; font-size: 28rpx; font-weight: bold; display: flex; align-items: center; justify-content: center; }
 
 /* ===== 收藏引导 ===== */
 .collection-hint { margin: 16rpx 24rpx 0; background: linear-gradient(90deg, #FFF8E1, #FFECB3); border-radius: 16rpx; padding: 16rpx 24rpx; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.1); }

@@ -117,7 +117,7 @@
         <!-- 增值服务 -->
         <view class="addon-card" v-if="roomAddons.length > 0">
             <view class="card-title">
-                <text>🎁 可选增值服务</text>
+                <text>🎁 可选升级体验</text>
                 <view class="title-line"></view>
             </view>
             <view class="addon-list">
@@ -130,7 +130,7 @@
                     <text class="addon-price">¥{{ (a.price / 100).toFixed(0) }}</text>
                 </view>
             </view>
-            <text class="addon-tip">预约时可在下单页勾选添加</text>
+            <text class="addon-tip">布置、补给等可在下单页提前加选</text>
         </view>
 
         <!-- 门店信息 -->
