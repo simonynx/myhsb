@@ -351,7 +351,9 @@ export default {
 						showCancel: false,
 						success: () => {
 							this.getUserInfo();
-							uni.switchTab({ url: '/pages/order/order' });
+							uni.redirectTo({
+								url: '/pages/pay/success/success?amount=0&id=' + encodeURIComponent(res.data.object_id || '') + '&type=exchange'
+							});
 						},
 					});
 				}).catch(() => {
@@ -382,7 +384,9 @@ export default {
 						showCancel: false,
 						success: () => {
 							this.getUserInfo();
-							uni.switchTab({ url: '/pages/order/order' });
+							uni.redirectTo({
+								url: '/pages/pay/success/success?amount=' + (goods.price || 0) + '&id=' + encodeURIComponent(res.data.object_id || '') + '&type=order'
+							});
 						},
 					});
 					return;

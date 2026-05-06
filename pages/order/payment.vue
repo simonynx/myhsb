@@ -516,9 +516,7 @@ export default {
                     this.getUserInfo();
                     // 后台验证发起重新获取用户信息
                     this.syncOrderStatus();
-                    setTimeout(() => {
-                        uni.redirectTo({ url: '/pages/order/order?state=0&id=' + this.order.object_id });
-                    }, 1500);
+                    this.goSuccess();
                 }).catch((err) => {
                     uni.hideLoading();
                     this.paying = false;
@@ -550,12 +548,21 @@ export default {
             var _this = this;
             var paymentData = res.data && res.data.payment ? res.data.payment : res.data;
             PLATFORM.requestPayment(paymentData).then(function() {
-                uni.redirectTo({ url: '/pages/order/order?state=0&id=' + _this.order.object_id });
+                _this.goSuccess();
             }).catch(function(err) {
                 if (err && err.errMsg && err.errMsg.indexOf('cancel') >= 0) return;
                 uni.showToast({ title: '支付失败', icon: 'none' });
             }).finally(function() {
                 _this.getUserInfo();
+            });
+        },
+
+        goSuccess() {
+            const amount = (this.order && this.order.pay_amount) || 0;
+            const id = (this.order && this.order.object_id) || '';
+            const type = this.order && this.order.order_type === 5 ? 'exchange' : 'order';
+            uni.redirectTo({
+                url: '/pages/pay/success/success?amount=' + amount + '&id=' + encodeURIComponent(id) + '&type=' + type
             });
         },
 

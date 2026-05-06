@@ -58,6 +58,23 @@
                     <text class="addon-arrow">{{ addonsOpen ? '▼' : '▶' }}</text>
                 </view>
             </view>
+            <scroll-view class="addon-packages" scroll-x v-if="addonsOpen && addonPackages.length > 0">
+                <view class="package-label">推荐搭配</view>
+                <view
+                    class="addon-package"
+                    v-for="pkg in addonPackages"
+                    :key="pkg.key"
+                    :class="isAddonPackageSelected(pkg) ? 'selected' : ''"
+                    @click="toggleAddonPackage(pkg)"
+                >
+                    <view class="package-top">
+                        <text class="package-title">{{ pkg.title }}</text>
+                        <text class="package-price">+¥{{ formatAddonPrice(pkg.total) }}</text>
+                    </view>
+                    <text class="package-desc">{{ pkg.desc }}</text>
+                    <text class="package-items">{{ pkg.itemText }}</text>
+                </view>
+            </scroll-view>
             <view class="addon-list" v-if="addonsOpen">
                 <view
                     class="addon-item"
@@ -368,6 +385,49 @@ export default {
 
         addonsPrice() {
             return (this.addonsPriceFen / 100).toFixed(2);
+        },
+
+        addonPackages() {
+            const configs = [
+                {
+                    key: 'birthday',
+                    title: '生日小聚',
+                    desc: '布置和补给一次配好，适合生日、纪念日',
+                    include: ['生日'],
+                    exclude: []
+                },
+                {
+                    key: 'party_supply',
+                    title: '多人补给',
+                    desc: '饮品零食提前备好，到店不用临时点',
+                    include: ['饮品', '零食', '小食', '补给'],
+                    exclude: ['生日']
+                },
+                {
+                    key: 'atmosphere',
+                    title: '氛围布置',
+                    desc: '适合拍照、约会、小型聚会',
+                    include: ['氛围', '布置'],
+                    exclude: ['生日']
+                }
+            ];
+
+            const packages = [];
+            for (let i = 0; i < configs.length; i++) {
+                const cfg = configs[i];
+                const items = this.findAddonsByKeywords(cfg.include, cfg.exclude);
+                if (items.length === 0) continue;
+                if ((cfg.key === 'birthday' || cfg.key === 'party_supply') && items.length < 2) continue;
+                packages.push({
+                    key: cfg.key,
+                    title: cfg.title,
+                    desc: cfg.desc,
+                    items: items,
+                    total: items.reduce((sum, a) => sum + (a.price || 0), 0),
+                    itemText: items.map(a => this.formatAddonName(a.name)).join(' + ')
+                });
+            }
+            return packages;
         },
 
         originalPriceFen() {
@@ -774,6 +834,48 @@ export default {
 
         isAddonSelected(addon) {
             return this.selectedAddons.some(a => a.object_id === addon.object_id);
+        },
+
+        isAddonPackageSelected(pkg) {
+            return pkg.items.every(a => this.isAddonSelected(a));
+        },
+
+        toggleAddonPackage(pkg) {
+            const selected = this.isAddonPackageSelected(pkg);
+            for (let i = 0; i < pkg.items.length; i++) {
+                const addon = pkg.items[i];
+                const idx = this.selectedAddons.findIndex(a => a.object_id === addon.object_id);
+                if (selected && idx >= 0) {
+                    this.selectedAddons.splice(idx, 1);
+                } else if (!selected && idx < 0) {
+                    this.selectedAddons.push(addon);
+                }
+            }
+        },
+
+        findAddonsByKeywords(include, exclude) {
+            const result = [];
+            for (let i = 0; i < this.roomAddons.length; i++) {
+                const addon = this.roomAddons[i];
+                const text = String(addon.name || '') + String(addon.description || '');
+                let hasInclude = false;
+                for (let j = 0; j < include.length; j++) {
+                    if (text.indexOf(include[j]) >= 0) {
+                        hasInclude = true;
+                        break;
+                    }
+                }
+                if (!hasInclude) continue;
+                let hasExclude = false;
+                for (let k = 0; k < exclude.length; k++) {
+                    if (text.indexOf(exclude[k]) >= 0) {
+                        hasExclude = true;
+                        break;
+                    }
+                }
+                if (!hasExclude) result.push(addon);
+            }
+            return result;
         },
 
         formatAddonName(name) {
@@ -1192,6 +1294,79 @@ page {
                     color: #fff;
                 }
             }
+        }
+    }
+
+    .addon-packages {
+        white-space: nowrap;
+        margin-top: 22rpx;
+        padding-bottom: 4rpx;
+    }
+
+    .package-label {
+        display: inline-flex;
+        align-items: center;
+        height: 42rpx;
+        padding: 0 18rpx;
+        margin-right: 12rpx;
+        border-radius: 22rpx;
+        background: #FFF1E8;
+        color: $primary;
+        font-size: 22rpx;
+        font-weight: bold;
+        vertical-align: top;
+    }
+
+    .addon-package {
+        display: inline-block;
+        width: 270rpx;
+        padding: 18rpx;
+        margin-right: 16rpx;
+        border-radius: 18rpx;
+        background: #FFF8F4;
+        border: 2rpx solid #FFE0D2;
+        white-space: normal;
+        vertical-align: top;
+
+        &.selected {
+            background: #FFF1E8;
+            border-color: $primary;
+        }
+
+        .package-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12rpx;
+            margin-bottom: 8rpx;
+        }
+
+        .package-title {
+            font-size: 26rpx;
+            color: $dark;
+            font-weight: bold;
+        }
+
+        .package-price {
+            font-size: 24rpx;
+            color: $primary;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .package-desc {
+            display: block;
+            font-size: 22rpx;
+            line-height: 1.35;
+            color: #7A6A58;
+            margin-bottom: 8rpx;
+        }
+
+        .package-items {
+            display: block;
+            font-size: 20rpx;
+            line-height: 1.35;
+            color: $gray;
         }
     }
 
