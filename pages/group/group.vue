@@ -8,8 +8,8 @@
             <text class="deco-cloud c3">☁️</text>
             <text class="deco-bird b1">🐦</text>
             <text class="deco-bird b2">🐦</text>
-            <text class="header-title">🎮 拼团广场</text>
-            <text class="header-sub">拉上小伙伴一起约，人多更便宜！</text>
+            <text class="header-title">🎮 找人一起玩</text>
+            <text class="header-sub">缺人开局、约朋友拼一桌</text>
             <view class="grass-hill">
                 <text class="blade">🌿</text>
                 <text class="blade">🌱</text>
@@ -27,7 +27,7 @@
                         v-for="(item, index) in weekDays"
                         :key="index"
                         class="date-pill"
-                        :class="[{ active: selectedDayIndex === index }, item.week === '全部' ? 'pill-all' : '']"
+                        :class="getDatePillClass(item, index)"
                         @click="selectDay(index)"
                     >
                         <text class="pill-week">{{ item.week }}</text>
@@ -60,7 +60,7 @@
                             <text class="time-tag">{{ group.begin_time }} ~ {{ group.end_time }}</text>
                         </view>
                     </view>
-                    <view class="status-tag" :class="group.status">{{ statusText(group.status) }}</view>
+                    <view class="status-tag" :class="group.statusClass">{{ group.actionLabel }}</view>
                 </view>
 
                 <view class="card-body">
@@ -91,10 +91,11 @@
                 <view class="card-footer">
                     <view class="price-info">
                         <view class="price-row">
-                            <text class="price-original" v-if="group.saveAmount > 0">¥{{ group.originalPrice / 100 }}</text>
-                            <text class="price-num">¥{{ group.groupPrice / 100 }}</text>
-                            <view class="save-tag" v-if="group.saveAmount > 0">省¥{{ group.saveAmount / 100 }}</view>
+                            <text class="price-original" v-if="group.savePerPerson > 0">¥{{ group.originalPerPersonText }}</text>
+                            <text class="price-num">¥{{ group.priceText }}</text>
+                            <view class="save-tag" v-if="group.savePerPerson > 0">人均省¥{{ group.savePerPersonText }}</view>
                         </view>
+                        <text class="price-caption">成员人均</text>
                     </view>
                     <view class="card-actions">
                         <button class="share-mini-btn" open-type="share" @click.stop="setShareGroup(group)">
@@ -103,7 +104,7 @@
                         </button>
                         <view class="progress-info">
                             <view class="progress-bar">
-                                <view class="progress-fill" :style="{ width: progressWidth(group) }"></view>
+                                <view class="progress-fill" :style="'width:' + progressWidth(group)"></view>
                             </view>
                             <text class="progress-text" v-if="group.remain > 2">{{ group.current_members || 1 }}/{{ group.max_members }} 人</text>
                             <text class="progress-text urgent" v-else-if="group.remain > 0">再邀 {{ group.remain }} 人成团</text>
@@ -117,9 +118,9 @@
             <view class="empty-section" v-if="groupList.length === 0 && !loading">
                 <text class="empty-icon">🎮</text>
                 <text class="empty-title">{{ currentDate ? (weekDays[selectedDayIndex] && weekDays[selectedDayIndex].week) + '暂无拼团' : '暂无拼团' }}</text>
-                <text class="empty-sub">{{ currentDate ? '这一天还没有人发起拼团，你来当第一个！' : '拼团广场空空如也，发起一个邀请小伙伴吧～' }}</text>
+                <text class="empty-sub">{{ currentDate ? '这一天还没有人发起拼团，你来当第一个！' : '暂时没人缺队友，发起一个邀请朋友吧' }}</text>
                 <view class="empty-btn" @click="goAppoint">
-                    <text>发起拼团，立享优惠 →</text>
+                    <text>发起拼团，喊朋友 →</text>
                 </view>
             </view>
         </view>
@@ -156,7 +157,7 @@ export default {
         this.pendingShareGroup = null;
         if (!group) {
             return {
-                title: '🎮 拼团广场 · 和小伙伴一起约，更划算！',
+                title: '🎮 摸鱼划水吧 · 找人一起开局',
                 path: '/pages/group/group',
                 imageUrl: '/static/logo_small.jpg',
             };
@@ -226,11 +227,6 @@ export default {
                     list = list.map(g => {
                         const label = this.formatDateLabel(g.date);
                         g.dateLabel = label;
-                        g.dateBadgeClass = {
-                            'badge-today': label === '今天',
-                            'badge-tomorrow': label === '明天',
-                            'badge-after': label === '后天',
-                        };
                         g.cardClass = label === '今天' ? 'card-today' : (label === '明天' ? 'card-tomorrow' : (label === '后天' ? 'card-after' : ''));
 
                         // 时间紧迫感标签
@@ -249,14 +245,23 @@ export default {
 
                         // 剩余名额
                         g.remain = Math.max(0, (g.max_members || 4) - (g.current_members || 1));
+                        g.actionLabel = this.getActionLabel(g);
+                        g.statusClass = g.status === 'open' && g.remain === 1 ? 'almost' : g.status;
                         // 计算总价差额（用于展示原价vs拼团价）
                         const originalTotal = g.original_cost || (g.price_per_person * (g.max_members || 4));
                         const groupTotal = g.base_cost || (g.price_per_person * (g.max_members || 4));
                         g.saveAmount = Math.max(0, originalTotal - groupTotal);
                         g.originalPrice = originalTotal;
                         g.groupPrice = groupTotal;
+                        g.priceText = ((g.price_per_person || 0) / 100).toFixed(0);
+                        g.originalPerPerson = Math.ceil(originalTotal / (g.max_members || 4));
+                        g.savePerPerson = Math.max(0, g.originalPerPerson - (g.price_per_person || 0));
+                        g.originalPerPersonText = (g.originalPerPerson / 100).toFixed(0);
+                        g.savePerPersonText = (g.savePerPerson / 100).toFixed(0);
+                        g.sortTime = this.getGroupSortTime(g);
                         return g;
                     });
+                    list.sort(this.compareGroups);
                     this.groupList = list;
                 } else {
                     this.groupList = [];
@@ -301,6 +306,33 @@ export default {
             return map[status] || status;
         },
 
+        getDatePillClass(item, index) {
+            return (this.selectedDayIndex === index ? 'active ' : '') + (item.week === '全部' ? 'pill-all' : '');
+        },
+
+        getActionLabel(group) {
+            if (group.status !== 'open') return this.statusText(group.status);
+            const remain = Math.max(0, (group.max_members || 4) - (group.current_members || 1));
+            if (remain <= 0) return '已满员';
+            if (remain === 1) return '差1人';
+            return '缺' + remain + '人';
+        },
+
+        getGroupSortTime(group) {
+            if (!group.date || !group.begin_time) return 9999999999999;
+            return new Date((group.date + ' ' + group.begin_time).replace(/-/g, '/')).getTime();
+        },
+
+        compareGroups(a, b) {
+            const aOpen = a.status === 'open' ? 0 : 1;
+            const bOpen = b.status === 'open' ? 0 : 1;
+            if (aOpen !== bOpen) return aOpen - bOpen;
+            const aRemain = a.remain || 99;
+            const bRemain = b.remain || 99;
+            if (aRemain !== bRemain) return aRemain - bRemain;
+            return (a.sortTime || 0) - (b.sortTime || 0);
+        },
+
         progressWidth(group) {
             const curr = group.current_members || 1;
             const max = group.max_members || 4;
@@ -332,13 +364,13 @@ export default {
             // 根据剩余人数选择不同的社交裂变文案
             let title = '';
             if (remain <= 0) {
-                title = `${timeEmoji}「${room.name || '拼团'}」已满员！来看看还有啥好玩的~`;
+                title = `${timeEmoji}「${room.name || '拼团'}」已满员，来看看还有没有新局`;
             } else if (remain === 1) {
-                title = `🔥 最后1个名额！「${room.name || '拼团'}」${group.date} ${group.begin_time}~${group.end_time} · 人均¥${priceStr}`;
+                title = `🔥 缺1人开局！${group.date} ${group.begin_time}「${room.name || '拼团'}」人均¥${priceStr}`;
             } else if (remain === 2) {
-                title = `🎮 就差2人了！「${room.name || '拼团'}」${group.date} ${group.begin_time}~${group.end_time} · 人均¥${priceStr}`;
+                title = `🎮 还差2人，${group.date} ${group.begin_time} 一起开局吗？人均¥${priceStr}`;
             } else {
-                title = `🎮 一起开黑！「${room.name || '拼团'}」${group.date} ${group.begin_time}~${group.end_time} · 人均¥${priceStr} · 还差${remain}人`;
+                title = `🎮 「${room.name || '拼团'}」缺${remain}人，${group.date} ${group.begin_time} 一起玩`;
             }
 
             return {
@@ -665,6 +697,12 @@ $cream: #FFF8F0;
             color: #E65100;
         }
 
+        &.almost {
+            background: linear-gradient(135deg, #FF8C42, #FFB5A7);
+            color: #fff;
+            font-weight: bold;
+        }
+
         &.full {
             background: linear-gradient(135deg, #F5F5F5, #E8E8E8);
             color: #888;
@@ -805,6 +843,12 @@ $cream: #FFF8F0;
             font-size: 36rpx;
             font-weight: bold;
             color: $primary;
+        }
+        .price-caption {
+            display: block;
+            font-size: 20rpx;
+            color: $gray;
+            margin-top: 2rpx;
         }
         .save-tag {
             font-size: 18rpx;

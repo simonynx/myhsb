@@ -11,7 +11,7 @@
         <view class="tab-bar">
             <view
                 class="tab-pill"
-                :class="{ active: activeTab === 'initiated' }"
+                :class="activeTab === 'initiated' ? 'active' : ''"
                 @click="activeTab = 'initiated'"
             >
                 <text class="tab-icon">🌱</text>
@@ -19,7 +19,7 @@
             </view>
             <view
                 class="tab-pill"
-                :class="{ active: activeTab === 'joined' }"
+                :class="activeTab === 'joined' ? 'active' : ''"
                 @click="activeTab = 'joined'"
             >
                 <text class="tab-icon">🌻</text>
@@ -82,7 +82,7 @@
                         </view>
                         <view class="progress-block">
                             <view class="progress-bar">
-                                <view class="progress-fill" :style="{ width: progressWidth(group) }"></view>
+                                <view class="progress-fill" :style="'width:' + progressWidth(group)"></view>
                             </view>
                             <text class="progress-text">{{ group.current_members || 1 }}/{{ group.max_members }} 人</text>
                         </view>

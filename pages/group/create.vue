@@ -43,11 +43,11 @@
                     <text class="setting-label">目标人数</text>
                 </view>
                 <view class="stepper">
-                    <view class="step-btn" :class="{ disabled: maxMembers <= 2 }" @click="changeMembers(-1)">
+                    <view class="step-btn" :class="maxMembers <= 2 ? 'disabled' : ''" @click="changeMembers(-1)">
                         <text>−</text>
                     </view>
                     <text class="step-value">{{ maxMembers }}</text>
-                    <view class="step-btn" :class="{ disabled: maxMembers >= 20 }" @click="changeMembers(1)">
+                    <view class="step-btn" :class="maxMembers >= 20 ? 'disabled' : ''" @click="changeMembers(1)">
                         <text>+</text>
                     </view>
                 </view>
@@ -62,21 +62,21 @@
                 <view class="expire-pills">
                     <view
                         class="expire-pill"
-                        :class="{ active: expireHours === 12, disabled: maxExpireHours < 12 }"
+                        :class="getExpirePillClass(12)"
                         @click="maxExpireHours >= 12 && (expireHours = 12, expireHoursManuallyChanged = true)"
                     >
                         <text>12小时</text>
                     </view>
                     <view
                         class="expire-pill"
-                        :class="{ active: expireHours === 24, disabled: maxExpireHours < 24 }"
+                        :class="getExpirePillClass(24)"
                         @click="maxExpireHours >= 24 && (expireHours = 24, expireHoursManuallyChanged = true)"
                     >
                         <text>24小时</text>
                     </view>
                     <view
                         class="expire-pill"
-                        :class="{ active: expireHours === 48, disabled: maxExpireHours < 48 }"
+                        :class="getExpirePillClass(48)"
                         @click="maxExpireHours >= 48 && (expireHours = 48, expireHoursManuallyChanged = true)"
                     >
                         <text>48小时</text>
@@ -128,6 +128,18 @@
 
         <!-- 发起人专属设置 -->
         <view class="setting-card">
+            <view class="advanced-toggle" @click="showAdvanced = !showAdvanced">
+                <view class="advanced-left">
+                    <text class="advanced-icon">👑</text>
+                    <view class="advanced-copy">
+                        <text class="advanced-title">发起人补贴</text>
+                        <text class="advanced-sub">默认均摊；想请朋友少付一点时再调整</text>
+                    </view>
+                </view>
+                <text class="advanced-state">{{ showAdvanced ? '收起' : '可选' }}</text>
+            </view>
+
+            <block v-if="showAdvanced">
             <!-- 发起人承担份额（可调） -->
             <view class="setting-item">
                 <view class="setting-left">
@@ -164,11 +176,12 @@
             <view class="cost-divider" style="margin: 12rpx 0;"></view>
             <view class="cost-row">
                 <text class="cost-label">会员折扣（{{ memberDiscountPercent < 100 ? memberDiscountPercent + '折' : '无折扣' }}，仅发起人）</text>
-                <text class="cost-value" :class="{ discount: memberDiscountAmount > 0 }">{{ memberDiscountAmount > 0 ? '-¥' + (memberDiscountAmount / 100).toFixed(2) : '-' }}</text>
+                <text class="cost-value" :class="memberDiscountAmount > 0 ? 'discount' : ''">{{ memberDiscountAmount > 0 ? '-¥' + (memberDiscountAmount / 100).toFixed(2) : '-' }}</text>
             </view>
+            </block>
 
             <!-- 余额提示 -->
-            <view class="balance-hint" :class="{ 'balance-danger': !isBalanceEnough }">
+            <view class="balance-hint" :class="!isBalanceEnough ? 'balance-danger' : ''">
                 <text class="balance-icon">{{ isBalanceEnough ? '✅' : '⚠️' }}</text>
                 <text class="balance-text">当前余额 ¥{{ accountBalanceYuan }}，{{ isBalanceEnough ? '余额充足' : '余额不足，请充值' }}</text>
             </view>
@@ -228,7 +241,7 @@
                 <text class="bottom-label">发起人最终支付</text>
                 <text class="bottom-price">¥{{ actualInitiatorPaidYuan }}</text>
             </view>
-            <view class="submit-btn" :class="{ disabled: !isBalanceEnough || maxExpireHours < 12 }" @click="handleSubmit">
+            <view class="submit-btn" :class="!isBalanceEnough || maxExpireHours < 12 ? 'disabled' : ''" @click="handleSubmit">
                 <text v-if="maxExpireHours < 12">⏰ 时间太近了</text>
                 <text v-else-if="!isBalanceEnough">💰 去充值</text>
                 <text v-else>🚀 发起拼团</text>
@@ -314,6 +327,7 @@ export default {
             groupDiscountPercent: 100,
             memberDiscountPercent: 100,
             showConfirmModal: false,
+            showAdvanced: false,
         };
     },
 
@@ -491,6 +505,10 @@ export default {
             const next = this.maxMembers + delta;
             if (next < 2 || next > 20) return;
             this.maxMembers = next;
+        },
+
+        getExpirePillClass(hours) {
+            return (this.expireHours === hours ? 'active ' : '') + (this.maxExpireHours < hours ? 'disabled' : '');
         },
 
         onInitiatorFocus() {
@@ -793,6 +811,50 @@ $border: #EEEEEE;
             }
         }
     }
+}
+
+.advanced-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24rpx 0;
+    border-bottom: 2rpx solid $border;
+}
+
+.advanced-left {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.advanced-icon {
+    font-size: 36rpx;
+    margin-right: 14rpx;
+}
+
+.advanced-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+}
+
+.advanced-title {
+    font-size: 30rpx;
+    color: $dark;
+    font-weight: 500;
+}
+
+.advanced-sub {
+    font-size: 22rpx;
+    color: $gray;
+    line-height: 1.35;
+}
+
+.advanced-state {
+    font-size: 24rpx;
+    color: $primary;
+    font-weight: bold;
+    margin-left: 18rpx;
 }
 
 // 步进器

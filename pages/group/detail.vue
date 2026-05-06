@@ -29,6 +29,30 @@
                 </view>
             </view>
 
+            <!-- 加入摘要 -->
+            <view class="join-summary-card">
+                <view class="summary-main">
+                    <view class="summary-item">
+                        <text class="summary-label">成员人均</text>
+                        <text class="summary-value price">¥{{ (group.price_per_person / 100).toFixed(2) }}</text>
+                    </view>
+                    <view class="summary-item">
+                        <text class="summary-label">还差</text>
+                        <text class="summary-value">{{ remainingCount }}人</text>
+                    </view>
+                    <view class="summary-item">
+                        <text class="summary-label">状态</text>
+                        <text class="summary-value">{{ remainingCount > 0 ? '等你加入' : '已满员' }}</text>
+                    </view>
+                </view>
+                <view class="summary-progress">
+                    <view class="progress-bar">
+                        <view class="progress-fill" :style="'width:' + progressWidth"></view>
+                    </view>
+                    <text class="summary-progress-text">{{ group.current_members || 1 }}/{{ group.max_members }} 人已在局里</text>
+                </view>
+            </view>
+
             <!-- 时间信息 -->
             <view class="time-card">
                 <view class="time-row">
@@ -163,7 +187,7 @@
                 <!-- 进度条 -->
                 <view class="progress-wrap">
                     <view class="progress-bar">
-                        <view class="progress-fill" :style="{ width: progressWidth }"></view>
+                        <view class="progress-fill" :style="'width:' + progressWidth"></view>
                     </view>
                     <text class="progress-text" v-if="remainingCount > 0">🌱 还差 {{ remainingCount }} 人成团</text>
                     <text class="progress-text" v-else>🎉 成团成功！</text>
@@ -178,7 +202,7 @@
             </view>
 
             <!-- 状态信息 -->
-            <view class="status-info" :class="group.status" v-if="group.status !== 'open'">
+            <view class="status-info" :class="groupStatusClass" v-if="group.status !== 'open'">
                 <text class="status-icon">{{ statusIcon }}</text>
                 <text class="status-text">{{ statusText(group.status) }}</text>
                 <text class="status-sub" v-if="group.status === 'success' && group.appointment">预约单号：{{ group.appointment.order_number }}</text>
@@ -268,6 +292,9 @@ export default {
         statusIcon() {
             const map = { open: '🌱', full: '🌻', success: '🎉', cancelled: '🍂' };
             return map[this.group.status] || '🔖';
+        },
+        groupStatusClass() {
+            return this.group.status || '';
         },
     },
 
@@ -615,6 +642,70 @@ $cream: #FFF8F0;
             color: rgba(255,255,255,0.85);
         }
     }
+}
+
+/* 加入摘要 */
+.join-summary-card {
+    margin: 0 30rpx 24rpx;
+    background: #fff;
+    border-radius: 24rpx;
+    padding: 24rpx 28rpx;
+    box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.08);
+    border: 2rpx solid rgba(255, 140, 66, 0.14);
+}
+
+.summary-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+}
+
+.summary-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+}
+
+.summary-label {
+    font-size: 22rpx;
+    color: $gray;
+}
+
+.summary-value {
+    font-size: 30rpx;
+    color: $dark;
+    font-weight: bold;
+
+    &.price {
+        color: $primary;
+        font-size: 36rpx;
+    }
+}
+
+.summary-progress {
+    margin-top: 22rpx;
+
+    .progress-bar {
+        height: 12rpx;
+        background: #F5F0E8;
+        border-radius: 8rpx;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #FFB5A7, #FF8C42);
+        border-radius: 8rpx;
+    }
+}
+
+.summary-progress-text {
+    display: block;
+    margin-top: 10rpx;
+    font-size: 23rpx;
+    color: $gray;
 }
 
 /* 时间卡片 */
