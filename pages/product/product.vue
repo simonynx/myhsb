@@ -127,7 +127,7 @@
                         <text class="addon-name">{{ formatAddonName(a.name) }}</text>
                         <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
                     </view>
-                    <text class="addon-price">¥{{ (a.price / 100).toFixed(0) }}</text>
+                    <text class="addon-price">¥{{ formatAddonPrice(a.price) }}</text>
                 </view>
             </view>
             <text class="addon-tip">布置、补给等可在下单页提前加选</text>
@@ -558,6 +558,11 @@ export default {
 
         formatAddonName(name) {
             return String(name || '').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+/g, '').trim();
+        },
+
+        formatAddonPrice(price) {
+            const amount = (price || 0) / 100;
+            return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
         },
 
         goToAppoint() {

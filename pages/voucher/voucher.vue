@@ -6,8 +6,8 @@
 			<view class="cloud cloud-2">☁️</view>
 			<view class="leaf leaf-1">🍃</view>
 			<view class="leaf leaf-2">🌿</view>
-			<text class="header-title">森林小铺</text>
-			<text class="header-sub">宫崎骏式的温暖好物 ✨</text>
+			<text class="header-title">卡券小店</text>
+			<text class="header-sub">先领券，再预约更划算</text>
 		</view>
 
 		<!-- 主 Tab -->
@@ -16,7 +16,7 @@
 				class="main-tab"
 				v-for="(tab, idx) in mainTabs"
 				:key="idx"
-				:class="{ active: mainTab === idx }"
+				:class="mainTab === idx ? 'active' : ''"
 				@click="switchMainTab(idx)"
 			>
 				<text class="tab-emoji">{{ tab.emoji }}</text>
@@ -28,21 +28,21 @@
 
 		<!-- ========== Tab 0: 领券 ========== -->
 		<scroll-view class="scroll-area" scroll-y v-if="mainTab === 0">
-			<!-- 森林小径 banner -->
+			<!-- 我的优惠券入口 -->
 			<view class="forest-banner" @tap="goCoupons">
 				<view class="banner-moss">
-					<text class="banner-emoji">🍄</text>
+					<text class="banner-emoji">🎟️</text>
 					<view class="banner-info">
-						<text class="banner-title">优惠券森林</text>
-						<text class="banner-sub">领取你的魔法优惠券 🌟</text>
+						<text class="banner-title">我的优惠券</text>
+						<text class="banner-sub">查看已领取、待使用和过期记录</text>
 					</view>
 				</view>
-				<text class="banner-arrow">🌲</text>
+				<text class="banner-arrow">›</text>
 			</view>
 
 			<!-- 可领优惠券列表 -->
 			<view class="section-header">
-				<text class="section-title">🌸 热门优惠券</text>
+				<text class="section-title">可领优惠券</text>
 				<text class="section-more" @tap="goCoupons">全部 ></text>
 			</view>
 
@@ -76,18 +76,25 @@
 			</view>
 
 			<view class="empty-box" v-if="claimableCoupons.length === 0 && couponList.length > 0">
-				<text class="empty-icon">🍄</text>
-				<text class="empty-text">森林里的优惠券都被领光啦～</text>
+				<text class="empty-icon">🎟️</text>
+				<text class="empty-text">暂无新的可领券，已领取的券可在我的优惠券查看</text>
+				<view class="empty-actions">
+					<view class="empty-action" @tap="goCoupons">我的优惠券</view>
+					<view class="empty-action primary" @tap="switchMainTab(1)">逛小店</view>
+				</view>
 			</view>
 			<view class="empty-box" v-else-if="couponList.length === 0">
-				<text class="empty-icon">🌲</text>
-				<text class="empty-text">森林里暂时没有优惠券</text>
+				<text class="empty-icon">🎟️</text>
+				<text class="empty-text">暂无可领取优惠券，可以先看看店内好物</text>
+				<view class="empty-actions">
+					<view class="empty-action primary" @tap="switchMainTab(1)">逛小店</view>
+				</view>
 			</view>
 
 			<view style="height: 180rpx;"></view>
 		</scroll-view>
 
-		<!-- ========== Tab 1: 商城 ========== -->
+		<!-- ========== Tab 1: 小店 ========== -->
 		<scroll-view class="scroll-area" scroll-y v-if="mainTab === 1">
 			<!-- 手绘风子分类 -->
 			<view class="category-pills">
@@ -95,7 +102,7 @@
 					class="pill"
 					v-for="(t, idx) in subTabs"
 					:key="idx"
-					:class="{ active: subTab === idx }"
+					:class="subTab === idx ? 'active' : ''"
 					@click="subTab = idx"
 				>
 					<text class="pill-emoji">{{ t.emoji }}</text>
@@ -114,7 +121,7 @@
 					<view class="goods-img-wrap">
 						<text class="goods-emoji">{{ getGoodsEmoji(g) }}</text>
 						<view class="goods-tag" v-if="g.exchange_type === 3">
-							<text>🌟 积分+现金</text>
+							<text>🌟 积分加购</text>
 						</view>
 						<view class="corner-leaf leaf-tl">🌿</view>
 						<view class="corner-leaf leaf-br">🍃</view>
@@ -135,11 +142,11 @@
 						<view class="goods-footer">
 							<view class="goods-price">
 								<text class="price-sym">¥</text>
-								<text class="price-num">{{ (g.price / 100).toFixed(0) }}</text>
+								<text class="price-num">{{ formatPrice(g.price) }}</text>
 								<text class="price-points" v-if="g.points_price">+{{ g.points_price }}积分</text>
 							</view>
 							<view class="goods-buy-btn" @tap.stop="handleGoodsClick(g)">
-								<text>看看</text>
+								<text>{{ g.exchange_type === 3 ? '加购' : '购买' }}</text>
 							</view>
 						</view>
 					</view>
@@ -148,7 +155,7 @@
 
 			<view class="empty-box" v-else>
 				<text class="empty-icon">🏠</text>
-				<text class="empty-text">小铺里还没有这类商品呢</text>
+				<text class="empty-text">暂无这类商品</text>
 			</view>
 
 			<view style="height: 180rpx;"></view>
@@ -165,14 +172,14 @@
 				</view>
 				<view class="points-content">
 					<view class="points-left">
-						<text class="points-label">我的魔法积分</text>
+						<text class="points-label">我的积分</text>
 						<view class="points-num-wrap">
 							<text class="points-icon">🌟</text>
-							<text class="points-num">{{ userInfo.points || 0 }}</text>
+							<text class="points-num">{{ safeUserInfo.points || 0 }}</text>
 						</view>
 					</view>
 					<view class="points-right">
-						<text class="points-tip">积分可以在森林里换到\n意想不到的好东西哦～</text>
+						<text class="points-tip">签到和到店消费都能攒\n可兑换卡券和小商品</text>
 					</view>
 				</view>
 			</view>
@@ -183,7 +190,7 @@
 					class="goods-card"
 					v-for="(g, idx) in pointsGoods"
 					:key="idx"
-					:class="{ locked: isLocked(g) }"
+					:class="isLocked(g) ? 'locked' : ''"
 					@click="handlePointsGoodsClick(g)"
 				>
 					<view class="goods-img-wrap">
@@ -219,9 +226,9 @@
 								<text class="p-icon">🌟</text>
 								<text class="p-num">{{ g.points_price || 0 }}</text>
 								<text class="p-unit">积分</text>
-								<text class="cash-plus" v-if="g.exchange_type === 3">+¥{{ (g.price / 100).toFixed(0) }}</text>
+								<text class="cash-plus" v-if="g.exchange_type === 3">+¥{{ formatPrice(g.price) }}</text>
 							</view>
-							<view class="goods-buy-btn" :class="{ disabled: isLocked(g) }" @tap.stop="handlePointsGoodsClick(g)">
+							<view class="goods-buy-btn" :class="isLocked(g) ? 'disabled' : ''" @tap.stop="handlePointsGoodsClick(g)">
 								<text>{{ isLocked(g) ? '🔒' : '兑换' }}</text>
 							</view>
 						</view>
@@ -231,7 +238,7 @@
 
 			<view class="empty-box" v-else>
 				<text class="empty-icon">🌙</text>
-				<text class="empty-text">月光下还没有可兑换的商品</text>
+				<text class="empty-text">暂无可兑换商品</text>
 			</view>
 
 			<view style="height: 180rpx;"></view>
@@ -251,12 +258,15 @@ export default {
 	components: { customTabBar },
 	computed: {
 		...mapState(['hasLogin', 'token', 'userInfo']),
+		safeUserInfo() {
+			return this.userInfo || { points: 0, member_level: 0 };
+		},
 		claimableCoupons() {
 			return this.couponList.filter(item => !item.user_received);
 		},
 		filteredGoods() {
-			// 排除储值类商品(goods_type=1)，充值请走独立入口
-			const nonRecharge = this.goodsList.filter(g => g.goods_type !== 1);
+			// 小店：现金购买 + 积分加购；纯积分商品放到“积分兑换”
+			const nonRecharge = this.goodsList.filter(g => g.goods_type !== 1 && (g.exchange_type === 1 || g.exchange_type === 3));
 			if (this.subTab === 0) {
 				return nonRecharge;
 			}
@@ -264,8 +274,8 @@ export default {
 			return nonRecharge.filter(g => g.goods_type === typeMap[this.subTab]);
 		},
 		pointsGoods() {
-			// 积分兑换Tab：纯积分 + 积分+现金混合，排除储值类
-			return this.goodsList.filter(g => g.goods_type !== 1 && (g.exchange_type === 2 || g.exchange_type === 3));
+			// 积分兑换：只放纯积分商品，避免和小店重复
+			return this.goodsList.filter(g => g.goods_type !== 1 && g.exchange_type === 2);
 		},
 	},
 	data() {
@@ -274,7 +284,7 @@ export default {
 			subTab: 0,
 			mainTabs: [
 				{ name: '领券', emoji: '🎟️', badge: 0 },
-				{ name: '商城', emoji: '🏠', badge: 0 },
+				{ name: '小店', emoji: '🏠', badge: 0 },
 				{ name: '积分兑换', emoji: '🌟', badge: 0 },
 			],
 			subTabs: [
@@ -286,6 +296,7 @@ export default {
 			],
 			couponList: [],
 			goodsList: [],
+			hasAutoSelectedTab: false,
 			goodsEmojis: ['🍿', '🍰', '🧋', '🍟', '🍪', '🎈', '🌸', '🕯️', '🎂', '🎊', '🎲', '🎯', '🃏', '🧩', '🎁', '🧸', '📿', '🔮'],
 		};
 	},
@@ -298,8 +309,8 @@ export default {
 		...mapActions(['loginAndRegister']),
 
 		async loadAll() {
-			this.loadCoupons();
-			this.loadGoods();
+			await Promise.all([this.loadCoupons(), this.loadGoods()]);
+			this.selectInitialTab();
 		},
 
 		async loadCoupons() {
@@ -324,17 +335,58 @@ export default {
 
 		switchMainTab(idx) {
 			this.mainTab = idx;
+			this.hasAutoSelectedTab = true;
 			if (idx === 1 || idx === 2) {
 				this.loadGoods();
 			}
 		},
 
 		goCoupons() {
+			if (!this.hasLogin) {
+				this.promptLogin('请先登录查看我的优惠券', () => {
+					uni.navigateTo({ url: '/pages/my/coupons/coupons' });
+				});
+				return;
+			}
 			uni.navigateTo({ url: '/pages/my/coupons/coupons' });
+		},
+
+		selectInitialTab() {
+			if (this.hasAutoSelectedTab || this.mainTab !== 0) return;
+			if (this.claimableCoupons.length > 0) {
+				this.hasAutoSelectedTab = true;
+				return;
+			}
+			if (this.filteredGoods.length > 0) {
+				this.mainTab = 1;
+			} else if (this.pointsGoods.length > 0) {
+				this.mainTab = 2;
+			}
+			this.hasAutoSelectedTab = true;
+		},
+
+		promptLogin(content, onSuccess) {
+			uni.showModal({
+				title: '提示',
+				content: content,
+				confirmText: '去登录',
+				success: (res) => {
+					if (!res.confirm) return;
+					this.loginAndRegister().then(() => {
+						if (onSuccess) onSuccess();
+					});
+				}
+			});
 		},
 
 		async receiveCoupon(item) {
 			if (item.remaining_count === 0) return;
+			if (!this.hasLogin) {
+				this.promptLogin('请先登录再领取优惠券', () => {
+					this.receiveCoupon(item);
+				});
+				return;
+			}
 			uni.showLoading({ title: '领取中...' });
 			try {
 				const res = await AUTH.receiveCoupon(this.token, item.campaign_id);
@@ -376,8 +428,13 @@ export default {
 		},
 
 		isLocked(g) {
-			const memberLevel = this.userInfo && this.userInfo.member_level || 0;
+			const memberLevel = this.safeUserInfo.member_level || 0;
 			return (g.member_level_required || 0) > memberLevel;
+		},
+
+		formatPrice(price) {
+			const amount = (price || 0) / 100;
+			return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
 		},
 
 		getCouponValue(item) {
@@ -868,7 +925,38 @@ page, .page {
 	padding: 100rpx 0;
 	gap: 12rpx;
 	.empty-icon { font-size: 80rpx; filter: drop-shadow(0 2rpx 4rpx rgba(0,0,0,0.06)); }
-	.empty-text { font-size: 28rpx; color: $bark-light; }
+	.empty-text {
+		width: 560rpx;
+		font-size: 28rpx;
+		line-height: 1.45;
+		color: $bark-light;
+		text-align: center;
+	}
+	.empty-actions {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 18rpx;
+		margin-top: 16rpx;
+	}
+	.empty-action {
+		min-width: 160rpx;
+		padding: 14rpx 26rpx;
+		border-radius: 34rpx;
+		background: #FFF;
+		border: 2rpx solid $cream-dark;
+		color: $bark-light;
+		font-size: 24rpx;
+		text-align: center;
+
+		&.primary {
+			background: linear-gradient(135deg, $wood-light, $wood);
+			border-color: transparent;
+			color: #FFF;
+			font-weight: bold;
+			box-shadow: 0 4rpx 16rpx rgba(232,120,74,0.22);
+		}
+	}
 }
 @keyframes btnPop {
 	0%   { transform: scale(1); }

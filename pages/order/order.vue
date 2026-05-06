@@ -102,7 +102,7 @@
 						<text class="detail-icon">🎁</text>
 						<text class="detail-label">增值服务</text>
 						<view class="detail-value addon-tags">
-							<text class="addon-tag" v-for="(a, ai) in item.goodsInfo.addons" :key="ai">{{ formatAddonName(a.name) }}</text>
+							<text class="addon-tag" v-for="(a, ai) in item.goodsInfo.addons" :key="ai">{{ formatAddonName(a.name) }}{{ a.price ? ' +¥' + formatAddonPrice(a.price) : '' }}</text>
 						</view>
 					</view>
 				</view>
@@ -577,6 +577,10 @@
 			},
 			formatAddonName(name) {
 				return String(name || '').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+/g, '').trim();
+			},
+			formatAddonPrice(price) {
+				var amount = (price || 0) / 100;
+				return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
 			},
 			cancelOrder(item) {
 				var self = this;

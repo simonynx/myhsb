@@ -43,7 +43,7 @@
 			</view>
 			<view class="info-row" v-if="currentGoods.stock >= 0">
 				<text class="info-label">库存</text>
-				<text class="info-value" :class="{ short: currentGoods.stock < 5 }">{{ currentGoods.stock }} 件</text>
+				<text class="info-value" :class="currentGoods.stock < 5 ? 'short' : ''">{{ currentGoods.stock }} 件</text>
 			</view>
 			<view class="info-row" v-if="(currentGoods.member_level_required || 0) > 0">
 				<text class="info-label">兑换门槛</text>
@@ -62,7 +62,7 @@
 
 		<!-- 费用明细 -->
 		<view class="price-card">
-			<view class="price-title">🍄 费用明细</view>
+			<view class="price-title">费用明细</view>
 
 			<!-- 纯积分兑换 -->
 			<block v-if="currentGoods.exchange_type === 2">
@@ -72,10 +72,10 @@
 				</view>
 				<view class="price-row">
 					<text class="row-label">我的积分</text>
-					<text class="row-value" :class="{ short: !pointsEnough }">{{ safeUserInfo.points || 0 }} 积分</text>
+					<text class="row-value" :class="!pointsEnough ? 'short' : ''">{{ safeUserInfo.points || 0 }} 积分</text>
 				</view>
 				<view class="hint-row" v-if="!pointsEnough">
-					<text class="hint-text">积分不够啦～多来店里玩，签到也能攒积分哦 🌱</text>
+					<text class="hint-text">积分不足，可通过签到或到店消费继续累积。</text>
 				</view>
 			</block>
 
@@ -91,10 +91,10 @@
 				</view>
 				<view class="price-row">
 					<text class="row-label">我的积分</text>
-					<text class="row-value" :class="{ short: !pointsEnough }">{{ safeUserInfo.points || 0 }} 积分</text>
+					<text class="row-value" :class="!pointsEnough ? 'short' : ''">{{ safeUserInfo.points || 0 }} 积分</text>
 				</view>
 				<view class="hint-row" v-if="!pointsEnough">
-					<text class="hint-text">积分不够啦～多来店里玩，签到也能攒积分哦 🌱</text>
+					<text class="hint-text">积分不足，可通过签到或到店消费继续累积。</text>
 				</view>
 				<view class="price-row final">
 					<text class="row-label">实付金额</text>
@@ -119,7 +119,7 @@
 						</view>
 					</view>
 					<view class="toggle-wrap" @click="toggleBalance">
-						<view class="toggle" :class="{ on: useBalance }">
+						<view class="toggle" :class="useBalance ? 'on' : ''">
 							<view class="toggle-dot"></view>
 						</view>
 					</view>
@@ -157,13 +157,13 @@
 			</view>
 			<view
 				class="submit-btn"
-				:class="{ disabled: submitDisabled }"
+				:class="submitDisabled ? 'disabled' : ''"
 				@click="handleSubmit"
 			>
 				<text v-if="(currentGoods.max_buy_per_user || 0) > 0 && userBoughtCount >= currentGoods.max_buy_per_user">🔒 已达上限</text>
-				<text v-else-if="currentGoods.exchange_type === 2">✨ 立即兑换</text>
+				<text v-else-if="currentGoods.exchange_type === 2">立即兑换</text>
 				<text v-else-if="useBalance && balanceEnough">💰 余额支付</text>
-				<text v-else>🍄 确认订单</text>
+				<text v-else>确认订单</text>
 			</view>
 		</view>
 	</view>

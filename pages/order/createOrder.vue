@@ -70,29 +70,36 @@
                         <text class="addon-name">{{ formatAddonName(a.name) }}</text>
                         <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
                     </view>
-                    <text class="addon-price">¥{{ (a.price / 100).toFixed(0) }}</text>
+                    <text class="addon-price">¥{{ formatAddonPrice(a.price) }}</text>
                     <view class="addon-check" :class="isAddonSelected(a) ? 'checked' : ''">
                         <text v-if="isAddonSelected(a)">✓</text>
                     </view>
                 </view>
             </view>
+            <view class="addon-tip" v-if="addonsOpen">布置类建议提前预约，补给类以到店库存为准。</view>
         </view>
 
         <!-- 价格明细 -->
         <view class="price-section">
             <view class="section-title">费用明细</view>
             <view class="price-list">
-                <!-- 商品金额 -->
+                <!-- 基础消费 -->
                 <view class="price-row">
-                    <text class="row-label">商品金额</text>
-                    <text class="row-value">¥{{ originalPrice }}</text>
+                    <text class="row-label">基础消费</text>
+                    <text class="row-value">¥{{ roomSubtotal }}</text>
+                </view>
+
+                <!-- 升级体验 -->
+                <view class="price-row" v-if="addonsPriceFen > 0">
+                    <text class="row-label">升级体验</text>
+                    <text class="row-value">+¥{{ addonsPrice }}</text>
                 </view>
 
                 <!-- 会员折扣 -->
-                <view class="price-row discount-row">
+                <view class="price-row discount-row" v-if="memberDiscountAmountFen > 0">
                     <text class="row-label">
                         <text class="tag">会员</text>
-                        {{ memberLevelName }}{{ memberDiscountText ? '专享' + memberDiscountText : '暂无折扣' }}
+                        {{ memberLevelName }}专享{{ memberDiscountText }}
                     </text>
                     <text class="row-value discount">-¥{{ memberDiscountAmount }}</text>
                 </view>
@@ -370,6 +377,10 @@ export default {
         // 房间+人数小计（会员折扣基数，不含增值服务）
         roomSubtotalFen() {
             return this.roomPriceFen + this.peoplePriceFen;
+        },
+
+        roomSubtotal() {
+            return (this.roomSubtotalFen / 100).toFixed(2);
         },
 
         originalPrice() {
@@ -767,6 +778,11 @@ export default {
 
         formatAddonName(name) {
             return String(name || '').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+/g, '').trim();
+        },
+
+        formatAddonPrice(price) {
+            const amount = (price || 0) / 100;
+            return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
         },
     }
 };
@@ -1177,6 +1193,13 @@ page {
                 }
             }
         }
+    }
+
+    .addon-tip {
+        margin-top: 14rpx;
+        font-size: 22rpx;
+        line-height: 1.4;
+        color: $gray;
     }
 }
 

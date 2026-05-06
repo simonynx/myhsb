@@ -31,13 +31,38 @@
                 </view>
             </view>
 
+            <!-- 订单明细 -->
+            <view class="order-detail-section" v-if="hasOrderDetails">
+                <view class="section-title">订单明细</view>
+                <view class="detail-row" v-if="orderBaseAmount > 0">
+                    <text class="detail-label">基础消费</text>
+                    <text class="detail-value">¥{{ formatMoney(orderBaseAmount) }}</text>
+                </view>
+                <view class="detail-row" v-for="(a, index) in orderAddons" :key="index">
+                    <text class="detail-label">{{ formatAddonName(a.name) }}</text>
+                    <text class="detail-value plus">+¥{{ formatMoney(a.price) }}</text>
+                </view>
+                <view class="detail-row discount" v-if="orderMemberDiscount > 0">
+                    <text class="detail-label">会员折扣</text>
+                    <text class="detail-value">-¥{{ formatMoney(orderMemberDiscount) }}</text>
+                </view>
+                <view class="detail-row discount" v-if="orderPointsDeducted > 0">
+                    <text class="detail-label">积分抵扣</text>
+                    <text class="detail-value">-¥{{ formatMoney(orderPointsDeducted) }}</text>
+                </view>
+                <view class="detail-row discount" v-if="orderCouponDiscount > 0">
+                    <text class="detail-label">优惠券</text>
+                    <text class="detail-value">-¥{{ formatMoney(orderCouponDiscount) }}</text>
+                </view>
+            </view>
+
             <!-- 优惠券（仅线下待付款订单） -->
             <view class="coupon-section" v-if="isOfflinePending && availableCoupons.length > 0">
                 <view class="section-title">使用优惠券</view>
                 <view class="coupon-list">
                     <view
                         class="coupon-item"
-                        :class="{ selected: selectedCoupon && selectedCoupon.object_id === c.object_id }"
+                        :class="selectedCoupon && selectedCoupon.object_id === c.object_id ? 'selected' : ''"
                         v-for="c in availableCoupons"
                         :key="c.object_id"
                         @click="selectCoupon(c)"
@@ -52,7 +77,7 @@
                         </view>
                         <view class="coupon-check" v-if="selectedCoupon && selectedCoupon.object_id === c.object_id">✓</view>
                     </view>
-                    <view class="coupon-item no-coupon" :class="{ selected: !selectedCoupon }" @click="selectCoupon(null)">
+                    <view class="coupon-item no-coupon" :class="!selectedCoupon ? 'selected' : ''" @click="selectCoupon(null)">
                         <text class="no-coupon-text">不使用优惠券</text>
                         <view class="coupon-check" v-if="!selectedCoupon">✓</view>
                     </view>
@@ -190,6 +215,59 @@ export default {
             return this.order && this.order.order_type === 4 && this.order.order_status === 0;
         },
 
+        orderGoodsInfo() {
+            return (this.order && (this.order.goodsInfo || this.order.goods_info)) || {};
+        },
+
+        orderPricingInfo() {
+            return this.orderGoodsInfo.pricing || {};
+        },
+
+        orderAddons() {
+            if (Array.isArray(this.orderGoodsInfo.addons)) return this.orderGoodsInfo.addons;
+            if (this.orderGoodsInfo.context && Array.isArray(this.orderGoodsInfo.context.addons)) {
+                return this.orderGoodsInfo.context.addons;
+            }
+            return [];
+        },
+
+        orderAddonsTotal() {
+            if (this.orderGoodsInfo._addons_total) return this.orderGoodsInfo._addons_total;
+            if (this.orderPricingInfo.addons_total) return this.orderPricingInfo.addons_total;
+            return this.orderAddons.reduce(function(total, item) {
+                return total + (item.price || 0);
+            }, 0);
+        },
+
+        orderBaseAmount() {
+            if (this.orderGoodsInfo._original_amount) return this.orderGoodsInfo._original_amount;
+            if (this.orderPricingInfo.base_amount) return this.orderPricingInfo.base_amount;
+            if (this.order && this.order.order_type === 4 && this.orderGoodsInfo._total_original) {
+                return Math.max(0, this.orderGoodsInfo._total_original - this.orderAddonsTotal);
+            }
+            return 0;
+        },
+
+        orderMemberDiscount() {
+            return this.orderGoodsInfo._member_discount || this.orderPricingInfo.member_discount || 0;
+        },
+
+        orderPointsDeducted() {
+            return this.orderGoodsInfo._points_deducted || this.orderPricingInfo.points_deducted || 0;
+        },
+
+        orderCouponDiscount() {
+            return this.orderGoodsInfo._coupon_discount || this.orderGoodsInfo._discount_amount || this.orderPricingInfo.coupon_discount || 0;
+        },
+
+        hasOrderDetails() {
+            return this.orderBaseAmount > 0 ||
+                this.orderAddonsTotal > 0 ||
+                this.orderMemberDiscount > 0 ||
+                this.orderPointsDeducted > 0 ||
+                this.orderCouponDiscount > 0;
+        },
+
         // 可用优惠券（订单相关）
         availableCoupons() {
             if (!this.order) return [];
@@ -235,7 +313,30 @@ export default {
     methods: {
         ...mapActions(['getUserInfo', 'loginAndRegister']),
 
+        formatMoney(amount) {
+            return (Number(amount || 0) / 100).toFixed(2);
+        },
+
+        formatAddonName(name) {
+            return String(name || '').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+/g, '').trim();
+        },
+
+        normalizeOrderGoodsInfo(order) {
+            if (!order) return;
+            if (order.goodsInfo) return;
+            if (typeof order.goods_info === 'string') {
+                try {
+                    order.goodsInfo = JSON.parse(order.goods_info || '{}');
+                } catch (e) {
+                    order.goodsInfo = {};
+                }
+            } else {
+                order.goodsInfo = order.goods_info || {};
+            }
+        },
+
         initPayment(options) {
+            this.normalizeOrderGoodsInfo(this.order);
             this.entry = (options && options.entry) || '1';
             if (this.token && !this.userInfo) {
                 this.getUserInfo(true).catch(function() {});
@@ -280,18 +381,7 @@ export default {
                     uni.redirectTo({ url: '/pages/order/order' });
                     return;
                 }
-                var goodsInfo = order.goods_info;
-                if (!order.goodsInfo) {
-                    if (typeof goodsInfo === 'string') {
-                        try {
-                            order.goodsInfo = JSON.parse(goodsInfo || '{}');
-                        } catch (e) {
-                            order.goodsInfo = {};
-                        }
-                    } else {
-                        order.goodsInfo = goodsInfo || {};
-                    }
-                }
+                _this.normalizeOrderGoodsInfo(order);
                 _this.order = order;
                 _this.initPayment({ entry: '3' });
             }).catch(function(err) {
@@ -618,6 +708,47 @@ page {
         .info-text {
             font-size: 24rpx;
             color: $gray;
+        }
+    }
+}
+
+.order-detail-section {
+    margin: 20rpx;
+    background: #fff;
+    border-radius: 20rpx;
+    padding: 30rpx;
+
+    .section-title {
+        font-size: 28rpx;
+        font-weight: bold;
+        color: $dark;
+        margin-bottom: 20rpx;
+    }
+
+    .detail-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12rpx 0;
+
+        .detail-label {
+            flex: 1;
+            font-size: 26rpx;
+            color: $gray;
+        }
+
+        .detail-value {
+            font-size: 26rpx;
+            color: $dark;
+            font-weight: 500;
+
+            &.plus {
+                color: $primary;
+            }
+        }
+
+        &.discount .detail-value {
+            color: #52C41A;
         }
     }
 }
