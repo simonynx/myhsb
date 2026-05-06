@@ -102,7 +102,7 @@
 						<text class="detail-icon">🎁</text>
 						<text class="detail-label">增值服务</text>
 						<view class="detail-value addon-tags">
-							<text class="addon-tag" v-for="(a, ai) in item.goodsInfo.addons" :key="ai">{{ a.name }}</text>
+							<text class="addon-tag" v-for="(a, ai) in item.goodsInfo.addons" :key="ai">{{ formatAddonName(a.name) }}</text>
 						</view>
 					</view>
 				</view>
@@ -574,6 +574,9 @@
 			},
 			goAppoint() {
 				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+			},
+			formatAddonName(name) {
+				return String(name || '').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+/g, '').trim();
 			},
 			cancelOrder(item) {
 				var self = this;

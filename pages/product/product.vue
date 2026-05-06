@@ -124,7 +124,7 @@
                 <view class="addon-item" v-for="a in roomAddons" :key="a.object_id">
                     <text class="addon-icon">{{ a.icon || '🎁' }}</text>
                     <view class="addon-info">
-                        <text class="addon-name">{{ a.name }}</text>
+                        <text class="addon-name">{{ formatAddonName(a.name) }}</text>
                         <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
                     </view>
                     <text class="addon-price">¥{{ (a.price / 100).toFixed(0) }}</text>
@@ -554,6 +554,10 @@ export default {
                     this.roomAddons = res.data || [];
                 }
             } catch (e) {}
+        },
+
+        formatAddonName(name) {
+            return String(name || '').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+/g, '').trim();
         },
 
         goToAppoint() {

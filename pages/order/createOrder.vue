@@ -67,7 +67,7 @@
                 >
                     <text class="addon-icon">{{ a.icon || '🎁' }}</text>
                     <view class="addon-info">
-                        <text class="addon-name">{{ a.name }}</text>
+                        <text class="addon-name">{{ formatAddonName(a.name) }}</text>
                         <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
                     </view>
                     <text class="addon-price">¥{{ (a.price / 100).toFixed(0) }}</text>
@@ -763,6 +763,10 @@ export default {
 
         isAddonSelected(addon) {
             return this.selectedAddons.some(a => a.object_id === addon.object_id);
+        },
+
+        formatAddonName(name) {
+            return String(name || '').replace(/^[^\u4e00-\u9fa5A-Za-z0-9]+/g, '').trim();
         },
     }
 };
