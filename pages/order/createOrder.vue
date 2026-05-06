@@ -59,7 +59,7 @@
                 </view>
             </view>
             <scroll-view class="addon-packages" scroll-x v-if="addonsOpen && addonPackages.length > 0">
-                <view class="package-label">推荐搭配</view>
+                <view class="package-label">推荐加选</view>
                 <view
                     class="addon-package"
                     v-for="pkg in addonPackages"
@@ -388,44 +388,62 @@ export default {
         },
 
         addonPackages() {
-            const configs = [
-                {
-                    key: 'birthday',
-                    title: '生日小聚',
-                    desc: '布置和补给一次配好，适合生日、纪念日',
-                    include: ['生日'],
-                    exclude: []
-                },
-                {
-                    key: 'party_supply',
-                    title: '多人补给',
-                    desc: '饮品零食提前备好，到店不用临时点',
-                    include: ['饮品', '零食', '小食', '补给'],
-                    exclude: ['生日']
-                },
-                {
-                    key: 'atmosphere',
-                    title: '氛围布置',
-                    desc: '适合拍照、约会、小型聚会',
-                    include: ['氛围', '布置'],
-                    exclude: ['生日']
-                }
-            ];
-
             const packages = [];
-            for (let i = 0; i < configs.length; i++) {
-                const cfg = configs[i];
-                const items = this.findAddonsByKeywords(cfg.include, cfg.exclude);
-                if (items.length === 0) continue;
-                if ((cfg.key === 'birthday' || cfg.key === 'party_supply') && items.length < 2) continue;
-                packages.push({
-                    key: cfg.key,
-                    title: cfg.title,
-                    desc: cfg.desc,
-                    items: items,
-                    total: items.reduce((sum, a) => sum + (a.price || 0), 0),
-                    itemText: items.map(a => this.formatAddonName(a.name)).join(' + ')
-                });
+
+            const birthdayBundle = this.findAddonByAllKeywords(['生日', '补给包']);
+            const birthdayDecor = this.findAddonByAllKeywords(['生日', '布置']);
+            const partyFood = this.findAddonByAnyKeywords(['多人小食', '小食盘'], ['生日']);
+            const drinkSupply = this.findAddonByAnyKeywords(['饮品零食', '饮品', '零食补给'], ['生日']);
+            const atmosphereDecor = this.findAddonByAllKeywords(['氛围', '布置'], ['生日']);
+
+            if (birthdayBundle) {
+                packages.push(this.buildAddonPackage(
+                    'birthday_bundle',
+                    '生日聚会',
+                    '含庆生布置和多人补给，适合4人以上庆生',
+                    [birthdayBundle]
+                ));
+            } else if (birthdayDecor && partyFood) {
+                packages.push(this.buildAddonPackage(
+                    'birthday_combo',
+                    '生日小聚',
+                    '布置加小食，适合给朋友一个轻松庆生局',
+                    [birthdayDecor, partyFood]
+                ));
+            } else if (birthdayDecor) {
+                packages.push(this.buildAddonPackage(
+                    'birthday_decor',
+                    '生日布置',
+                    '适合生日、纪念日等需要仪式感的包厢',
+                    [birthdayDecor]
+                ));
+            }
+
+            if (partyFood) {
+                packages.push(this.buildAddonPackage(
+                    'party_food',
+                    '多人小食',
+                    '适合4人以上朋友局，边玩边补给',
+                    [partyFood]
+                ));
+            }
+
+            if (drinkSupply) {
+                packages.push(this.buildAddonPackage(
+                    'light_supply',
+                    '轻食补给',
+                    '适合2-3人休闲小局，饮品零食提前备好',
+                    [drinkSupply]
+                ));
+            }
+
+            if (atmosphereDecor) {
+                packages.push(this.buildAddonPackage(
+                    'atmosphere_decor',
+                    '拍照氛围',
+                    '适合约会、小型聚会和拍照打卡',
+                    [atmosphereDecor]
+                ));
             }
             return packages;
         },
@@ -853,18 +871,36 @@ export default {
             }
         },
 
-        findAddonsByKeywords(include, exclude) {
-            const result = [];
+        buildAddonPackage(key, title, desc, items) {
+            return {
+                key: key,
+                title: title,
+                desc: desc,
+                items: items,
+                total: items.reduce((sum, a) => sum + (a.price || 0), 0),
+                itemText: items.map(a => this.formatAddonName(a.name)).join(' + ')
+            };
+        },
+
+        findAddonByAllKeywords(include, exclude) {
+            return this.findAddonByKeywords(include, exclude || [], true);
+        },
+
+        findAddonByAnyKeywords(include, exclude) {
+            return this.findAddonByKeywords(include, exclude || [], false);
+        },
+
+        findAddonByKeywords(include, exclude, requireAll) {
             for (let i = 0; i < this.roomAddons.length; i++) {
                 const addon = this.roomAddons[i];
                 const text = String(addon.name || '') + String(addon.description || '');
-                let hasInclude = false;
+                let includeCount = 0;
                 for (let j = 0; j < include.length; j++) {
                     if (text.indexOf(include[j]) >= 0) {
-                        hasInclude = true;
-                        break;
+                        includeCount++;
                     }
                 }
+                const hasInclude = requireAll ? includeCount === include.length : includeCount > 0;
                 if (!hasInclude) continue;
                 let hasExclude = false;
                 for (let k = 0; k < exclude.length; k++) {
@@ -873,9 +909,9 @@ export default {
                         break;
                     }
                 }
-                if (!hasExclude) result.push(addon);
+                if (!hasExclude) return addon;
             }
-            return result;
+            return null;
         },
 
         formatAddonName(name) {
