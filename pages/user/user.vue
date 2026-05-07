@@ -150,7 +150,7 @@
 			<view class="vip-header">
 				<text class="vip-title">会员权益</text>
 				<view class="vip-badge" :style="memberBgStyle">
-					<text class="vip-badge-text">{{ userInfo && userInfo.discount ? (userInfo.discount >= 100 ? '原价' : userInfo.discount + '折') : '原价' }}</text>
+					<text class="vip-badge-text">{{ currentDiscountText }}</text>
 				</view>
 			</view>
 			<view class="vip-levels">
@@ -158,7 +158,7 @@
 					<view :class="lv.className">
 						<text class="vl-icon">{{ lv.icon }}</text>
 						<text class="vl-name">{{ lv.name }}</text>
-						<text class="vl-discount">{{ lv.discount >= 100 ? '原价' : lv.discount + '折' }}</text>
+						<text class="vl-discount">{{ lv.discountText }}</text>
 					</view>
 					<view class="vip-arrow" v-if="idx < memberBenefitLevels.length - 1">→</view>
 				</block>
@@ -323,7 +323,7 @@
 				return this.memberConfig.find(l => l.level === level) || null;
 			},
 			memberLevelName() {
-				return (this.memberLevelData && this.memberLevelData.name) || '普通会员';
+				return (this.memberLevelData && this.memberLevelData.name) || '魔法学徒';
 			},
 			memberIcon() {
 				return (this.memberLevelData && this.memberLevelData.icon) || '🌱';
@@ -426,7 +426,12 @@
 				return (this.nextLevelData && this.nextLevelData.name) || '';
 			},
 			nextLevelDiscount() {
-				return (this.nextLevelData && this.nextLevelData.discount) || '';
+				return this.formatMemberDiscount(this.nextLevelData && this.nextLevelData.discount);
+			},
+			currentDiscountText() {
+				if (this.userInfo && this.userInfo.discount_text) return this.userInfo.discount_text;
+				if (this.memberLevelData && this.memberLevelData.discount_text) return this.memberLevelData.discount_text;
+				return this.formatMemberDiscount(this.userInfo && this.userInfo.discount);
 			},
 			needToNext() {
 				if (!this.nextLevelData) return 0;
@@ -465,6 +470,7 @@
 						icon: l.icon,
 						name: l.name,
 						discount: l.discount,
+						discountText: l.discount_text || this.formatMemberDiscount(l.discount),
 						className: currentLevel >= l.level ? 'vip-level active' : 'vip-level',
 					};
 				});
@@ -504,6 +510,12 @@
 		methods: {
 			...mapActions(['loginAndRegister', 'getUserInfo', 'requestUpdateUserInfo']),
 			...mapMutations(['updateUserInfo']),
+			formatMemberDiscount(discount) {
+				discount = Number(discount || 100);
+				if (!isFinite(discount) || discount >= 100 || discount <= 0) return '原价';
+				if (discount % 10 === 0) return (discount / 10).toFixed(0) + '折';
+				return (discount / 10).toFixed(1) + '折';
+			},
 			handleLogin() {
 				this.loginAndRegister().then(() => {
 					this.getUserInfo();

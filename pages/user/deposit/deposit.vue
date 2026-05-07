@@ -124,7 +124,7 @@
 				return this.memberConfig.find(l => l.level === level) || null;
 			},
 			memberLevelName() {
-				return (this.memberLevelData && this.memberLevelData.name) || '普通会员';
+				return (this.memberLevelData && this.memberLevelData.name) || '魔法学徒';
 			},
 			memberIcon() {
 				return (this.memberLevelData && this.memberLevelData.icon) || '🌱';

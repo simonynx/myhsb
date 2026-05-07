@@ -292,7 +292,7 @@ export default {
 		},
 
 		getMemberLevelName(level) {
-			const names = ['普通会员', '青铜', '白银', '黄金', '钻石'];
+			const names = ['魔法学徒', '霜银法师', '烈金大魔导士', '超位大魔导师'];
 			return names[level] || ('Lv.' + level);
 		},
 

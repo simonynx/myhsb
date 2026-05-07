@@ -12,7 +12,7 @@
 
 		<view class="next-card">
 			<view class="next-title">接下来可以</view>
-			<view class="next-sub">把这次消费变成下次到店的理由</view>
+			<view class="next-sub">查看订单、领券签到，下次再来更省心</view>
 			<view class="action-grid">
 				<view class="action-item primary" @click="goOrder">
 					<text class="action-icon">📋</text>
