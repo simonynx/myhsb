@@ -50,7 +50,7 @@
 
 			<!-- 快捷数据 -->
 			<view class="quick-stats">
-				<view class="qstat-item" @tap="hasLogin ? navTo('/pages/my/reviews') : handleLogin()">
+				<view class="qstat-item" @tap="hasLogin ? goPointsCenter() : handleLogin()">
 					<text class="qstat-num">{{ hasLogin ? (userInfo && userInfo.points || 0) : '-' }}</text>
 					<text class="qstat-label">积分</text>
 				</view>
@@ -522,6 +522,10 @@
 			},
 			goCouponCenter() {
 				uni.navigateTo({ url: '/pages/my/coupons/coupons' });
+			},
+			goPointsCenter() {
+				uni.setStorageSync('voucherInitialTab', 'points');
+				uni.switchTab({ url: '/pages/voucher/voucher' });
 			},
 			goRetentionOrder() {
 				if (this.orderCounts.waitPay > 0) {

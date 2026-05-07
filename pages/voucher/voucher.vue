@@ -310,11 +310,28 @@ export default {
 	},
 	onShow() {
 		uni.$emit('tabBarChange', { key: 'voucher' });
+		this.applyInitialTab();
 		// 商品和优惠券列表公开，无需登录即可浏览
 		this.loadAll();
 	},
 	methods: {
 		...mapActions(['loginAndRegister']),
+
+		applyInitialTab() {
+			var initialTab = uni.getStorageSync('voucherInitialTab');
+			if (!initialTab) return;
+			uni.removeStorageSync('voucherInitialTab');
+			if (initialTab === 'points') {
+				this.mainTab = 2;
+				this.hasAutoSelectedTab = true;
+			} else if (initialTab === 'shop') {
+				this.mainTab = 1;
+				this.hasAutoSelectedTab = true;
+			} else if (initialTab === 'coupon') {
+				this.mainTab = 0;
+				this.hasAutoSelectedTab = true;
+			}
+		},
 
 		async loadAll() {
 			await Promise.all([this.loadCoupons(), this.loadGoods()]);
