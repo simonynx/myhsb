@@ -195,8 +195,8 @@
                     <text v-else class="balance-status short">还差 ¥{{ (balanceShortfall / 100).toFixed(2) }}</text>
                 </view>
                 <view class="balance-hint" v-if="!balanceEnough" @click="goRecharge">
-                    <text class="hint-text">余额不足？去</text>
-                    <text class="hint-link">充值</text>
+                    <text class="hint-text">余额不足？建议</text>
+                    <text class="hint-link">{{ rechargeRecommendText }}</text>
                     <text class="hint-text"> →</text>
                 </view>
 
@@ -279,7 +279,7 @@
                     >
                         <view class="coupon-left">
                             <view class="coupon-price-wrap">
-                                <text class="coupon-unit" v-if="c.coupon_type === 'rebate'">¥</text>
+                                <text class="coupon-unit" v-if="c.displayPrefix">{{ c.displayPrefix }}</text>
                                 <text class="coupon-price">{{ c.displayValue }}</text>
                             </view>
                             <text class="coupon-limit">{{ c.limitText }}</text>
@@ -299,7 +299,7 @@
                     >
                         <view class="coupon-left">
                             <view class="coupon-price-wrap">
-                                <text class="coupon-unit" v-if="c.coupon_type === 'rebate'">¥</text>
+                                <text class="coupon-unit" v-if="c.displayPrefix">{{ c.displayPrefix }}</text>
                                 <text class="coupon-price">{{ c.displayValue }}</text>
                             </view>
                             <text class="coupon-limit">{{ c.disable_reason }}</text>
@@ -323,6 +323,7 @@
 <script>
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
+import COUPON from '../../utils/coupon.js';
 
 export default {
     data() {
@@ -338,6 +339,7 @@ export default {
             couponPickerOpen: false,
             myCoupons: [],       // {object_id, name, discount, min_consume, expire_time, status, status_text}
             selectedCoupon: null,
+            couponManuallySelected: false,
 
             // 积分
             usePoints: false,
@@ -526,19 +528,7 @@ export default {
         // 优惠券预估优惠金额(分)
         // 折扣基数用 afterMemberPriceFen（会员折扣后、积分抵扣前的金额）
         couponDiscountFen() {
-            if (!this.selectedCoupon) return 0;
-            if (this.selectedCoupon.coupon_type === 'rebate') {
-                return this.selectedCoupon.discount || 0;
-            } else if (this.selectedCoupon.coupon_type === 'discount') {
-                const rate = (this.selectedCoupon.rules && this.selectedCoupon.rules.discount_rate) || 1;
-                const maxDiscount = (this.selectedCoupon.rules && this.selectedCoupon.rules.max_discount) || 0;
-                let discount = Math.round(this.afterMemberPriceFen * (1 - rate));
-                if (maxDiscount > 0 && discount > maxDiscount) {
-                    discount = maxDiscount;
-                }
-                return discount;
-            }
-            return 0;
+            return COUPON.calcCouponDiscount(this.selectedCoupon, this.afterMemberPriceFen);
         },
 
         // 优惠券相关
@@ -556,26 +546,11 @@ export default {
         // 可用/不可用优惠券
         // 门槛判断基于 afterMemberPriceFen(会员折扣后),和后端一致
         availableCoupons() {
-            const priceAfterMember = this.afterMemberPriceFen;
-            return this.myCoupons.filter(c => {
-                if (c.status !== 'unused') return false;
-                if (c.min_consume > 0 && priceAfterMember < c.min_consume) return false;
-                return true;
-            }).map(c => ({ ...c, discount: c.discount || 0 }));
+            return COUPON.getAvailableCoupons(this.myCoupons, this.afterMemberPriceFen);
         },
 
         unavailableCoupons() {
-            const priceAfterMember = this.afterMemberPriceFen;
-            return this.myCoupons.filter(c => {
-                if (c.status !== 'unused') return true;
-                if (c.min_consume > 0 && priceAfterMember < c.min_consume) {
-                    return true;
-                }
-                return false;
-            }).map(c => ({
-                ...c,
-                disable_reason: c.min_consume > 0 ? `需满${(c.min_consume / 100).toFixed(0)}元` : '不可用'
-            }));
+            return COUPON.getUnavailableCoupons(this.myCoupons, this.afterMemberPriceFen);
         },
 
         // 最终实付金额(分) — 仅含优惠(会员+优惠券+积分)，余额在支付页面处理
@@ -596,6 +571,20 @@ export default {
             return Math.max(0, this.afterCouponPriceFen - (this.safeUserInfo.account_balance || 0));
         },
 
+        rechargeRecommendAmount() {
+            const shortfallYuan = Math.ceil(this.balanceShortfall / 100);
+            if (shortfallYuan <= 0) return 0;
+            if (shortfallYuan <= 200) return 200;
+            if (shortfallYuan <= 300) return 300;
+            if (shortfallYuan <= 500) return 500;
+            return 1000;
+        },
+
+        rechargeRecommendText() {
+            if (!this.rechargeRecommendAmount) return '充值';
+            return '充' + this.rechargeRecommendAmount + '元更省心';
+        },
+
         submitDisabled() {
             return this.submitting;
         },
@@ -603,11 +592,11 @@ export default {
 
     watch: {
         afterMemberPriceFen() {
-            this.ensureSelectedCouponAvailable();
+            this.syncCouponSelection();
         },
 
         myCoupons() {
-            this.ensureSelectedCouponAvailable();
+            this.syncCouponSelection();
         },
     },
 
@@ -654,36 +643,7 @@ export default {
                 const res = await AUTH.getMyCoupons(this.token, 0);
                 if (res && res._status === 0) {
                     const coupons = res.data || [];
-                    // 适配后端 coupon_type+rules 格式 → 前端旧的 discount/min_consume 格式
-                    this.myCoupons = coupons.map(c => {
-                        const rules = c.rules || {};
-                        const minConsume = c.min_consume || 0;
-                        let discount = 0;
-                        let displayValue = '-';
-                        if (c.coupon_type === 'rebate') {
-                            discount = rules.discount || 0;
-                            displayValue = String((discount / 100).toFixed(0));
-                        } else if (c.coupon_type === 'discount') {
-                            const rate = rules.discount_rate || 1;
-                            displayValue = (Math.round(rate * 100) / 10) + '折';
-                        } else if (c.coupon_type === 'gift') {
-                            displayValue = (rules.gift_value || '-') + '积分';
-                        }
-                        return {
-                            object_id: c.object_id,
-                            name: c.name,
-                            description: c.description,
-                            discount: discount,
-                            coupon_type: c.coupon_type,
-                            rules: c.rules,
-                            min_consume: minConsume,
-                            expire_time: c.expire_time,
-                            status: c.status === 0 ? 'unused' : (c.status === 1 ? 'used' : 'expired'),
-                            is_valid: c.is_valid,
-                            displayValue,
-                            limitText: minConsume > 0 ? '满' + (minConsume / 100).toFixed(0) + '元可用' : '无门槛',
-                        };
-                    });
+                    this.myCoupons = COUPON.normalizeCoupons(coupons);
                 }
             } catch (e) {
                 console.log('load coupons error:', e);
@@ -701,23 +661,21 @@ export default {
 
         // 选择优惠券
         selectCoupon(coupon) {
+            this.couponManuallySelected = true;
             this.selectedCoupon = coupon;
             this.couponPickerOpen = false;
         },
 
-        isCouponAvailable(coupon) {
-            if (!coupon) return false;
-            const current = this.myCoupons.find(c => c.object_id === coupon.object_id) || coupon;
-            if (current.status !== 'unused') return false;
-            if (current.min_consume > 0 && this.afterMemberPriceFen < current.min_consume) return false;
-            return true;
-        },
-
-        ensureSelectedCouponAvailable() {
-            if (!this.selectedCoupon) return true;
-            if (this.isCouponAvailable(this.selectedCoupon)) return true;
-            this.selectedCoupon = null;
-            return false;
+        syncCouponSelection() {
+            const result = COUPON.resolveCouponSelection(
+                this.myCoupons,
+                this.selectedCoupon,
+                this.afterMemberPriceFen,
+                this.couponManuallySelected
+            );
+            this.selectedCoupon = result.selectedCoupon;
+            this.couponManuallySelected = result.manuallySelected;
+            return result.selectedAvailable;
         },
 
         // 人数增减
@@ -757,7 +715,7 @@ export default {
                 return;
             }
             if (this.submitDisabled) return;
-            if (!this.ensureSelectedCouponAvailable()) {
+            if (!this.syncCouponSelection()) {
                 uni.showToast({ title: '已移除不可用优惠券，请确认金额', icon: 'none' });
                 return;
             }
@@ -829,7 +787,8 @@ export default {
 
         // 去充值
         goRecharge() {
-            uni.navigateTo({ url: '/pages/user/deposit/deposit' });
+            const amount = this.rechargeRecommendAmount || 300;
+            uni.navigateTo({ url: '/pages/user/deposit/deposit?amount=' + amount });
         },
 
         // 加载房间增值服务

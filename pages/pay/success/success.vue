@@ -12,14 +12,23 @@
 
 		<view class="next-card">
 			<view class="next-title">接下来可以</view>
+			<view class="next-sub">把这次消费变成下次到店的理由</view>
 			<view class="action-grid">
 				<view class="action-item primary" @click="goOrder">
 					<text class="action-icon">📋</text>
 					<text class="action-text">查看订单</text>
 				</view>
+				<view class="action-item primary-soft" @click="goBookAgain">
+					<text class="action-icon">📅</text>
+					<text class="action-text">再约一场</text>
+				</view>
 				<view class="action-item" @click="goVoucher">
 					<text class="action-icon">🎟️</text>
-					<text class="action-text">领券逛小店</text>
+					<text class="action-text">领券攒积分</text>
+				</view>
+				<view class="action-item" @click="goCheckIn">
+					<text class="action-icon">⭐</text>
+					<text class="action-text">签到拿积分</text>
 				</view>
 				<button class="action-item share-btn" open-type="share">
 					<text class="action-icon">↗</text>
@@ -81,6 +90,12 @@ export default {
 		},
 		goVoucher() {
 			uni.switchTab({ url: '/pages/voucher/voucher' });
+		},
+		goBookAgain() {
+			uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+		},
+		goCheckIn() {
+			uni.switchTab({ url: '/pages/user/user' });
 		},
 		goHome() {
 			uni.switchTab({ url: '/pages/index/index' });
@@ -177,12 +192,19 @@ page {
 	font-size: 30rpx;
 	color: $dark;
 	font-weight: bold;
+	margin-bottom: 6rpx;
+}
+
+.next-sub {
+	display: block;
+	font-size: 24rpx;
+	color: $gray;
 	margin-bottom: 22rpx;
 }
 
 .action-grid {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: 1fr 1fr 1fr;
 	gap: 18rpx;
 }
 
@@ -202,6 +224,11 @@ page {
 	&.primary {
 		background: #FFF3EA;
 		border-color: rgba(255, 100, 50, 0.28);
+	}
+
+	&.primary-soft {
+		background: #FFF8E8;
+		border-color: rgba(255, 185, 51, 0.32);
 	}
 }
 

@@ -184,6 +184,7 @@
 				selectedAmount: 0,
 				selectedTierBonus: 0,
 				selectedTierPresent: 0,
+				preferredAmount: 0,
 				memberConfig: [],
 				defaultAmountList: [
 					{ amount: 200, bonus: 0, present: 20, popular: false, icon: '🎯' },
@@ -192,6 +193,10 @@
 					{ amount: 1000, bonus: 1000, present: 200, popular: false, icon: '👑' },
 				],
 			};
+		},
+		onLoad(options) {
+			var amount = Number(options && options.amount || 0);
+			if (amount > 0) this.preferredAmount = amount;
 		},
 		onShow() {
 			if (this.token && !this.userInfo) {
@@ -217,7 +222,11 @@
 			ensureDefaultSelected() {
 				if (this.selectedAmount) return;
 				var list = this.dynamicAmountList;
-				var selected = list.find(function(item) {
+				var preferredAmount = this.preferredAmount;
+				var preferred = preferredAmount ? list.find(function(item) {
+					return item.amount == preferredAmount;
+				}) : null;
+				var selected = preferred || list.find(function(item) {
 					return item.popular;
 				}) || list[0];
 				if (selected) this.selectAmount(selected);

@@ -68,8 +68,8 @@
                         @click="selectCoupon(c)"
                     >
                         <view class="coupon-left">
-                            <text class="coupon-price">¥{{ (c.discount / 100).toFixed(0) }}</text>
-                            <text class="coupon-limit">{{ c.min_consume > 0 ? '满' + (c.min_consume / 100).toFixed(0) + '元' : '无门槛' }}</text>
+                            <text class="coupon-price">{{ c.displayPrefix }}{{ c.displayValue }}</text>
+                            <text class="coupon-limit">{{ c.limitText }}</text>
                         </view>
                         <view class="coupon-right">
                             <text class="coupon-name">{{ c.name }}</text>
@@ -165,6 +165,7 @@
 <script>
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
+import COUPON from '../../utils/coupon.js';
 import PLATFORM from '../../common/platform.js';
 
 export default {
@@ -269,19 +270,21 @@ export default {
         },
 
         // 可用优惠券（订单相关）
+        couponBaseAmount() {
+            if (!this.order) return 0;
+            const amountAfterMember = this.orderBaseAmount + this.orderAddonsTotal - this.orderMemberDiscount;
+            return amountAfterMember > 0 ? amountAfterMember : this.order.pay_amount;
+        },
+
         availableCoupons() {
             if (!this.order) return [];
-            const originalAmount = (this.order.goodsInfo && this.order.goodsInfo._total_original) || this.order.pay_amount;
-            return this.myCoupons.filter(c => {
-                if (c.status !== 'unused') return false;
-                if (c.min_consume > 0 && originalAmount < c.min_consume) return false;
-                return true;
-            });
+            return COUPON.getAvailableCoupons(this.myCoupons, this.couponBaseAmount);
         },
 
         couponDiscountText() {
             if (!this.selectedCoupon) return '';
-            return '-' + (this.selectedCoupon.discount / 100).toFixed(2) + '元';
+            const discount = COUPON.calcCouponDiscount(this.selectedCoupon, this.couponBaseAmount);
+            return '-' + (discount / 100).toFixed(2) + '元';
         },
     },
 
@@ -397,25 +400,7 @@ export default {
                 const res = await AUTH.getMyCoupons(this.token, 0);
                 const coupons = res && res._status === 0 ? (res.data || []) : (Array.isArray(res) ? res : []);
                 if (coupons.length > 0) {
-                    // 适配后端 coupon_type+rules 格式
-                    this.myCoupons = coupons.map(c => {
-                        let discount = 0;
-                        if (c.coupon_type === 'rebate') {
-                            discount = (c.rules && c.rules.discount) || 0;
-                        } else if (c.coupon_type === 'discount') {
-                            discount = 0; // 折扣券不展示固定金额
-                        }
-                        return {
-                            object_id: c.object_id,
-                            name: c.name,
-                            discount,
-                            coupon_type: c.coupon_type,
-                            rules: c.rules,
-                            min_consume: c.min_consume,
-                            expire_time: c.expire_time,
-                            status: c.status === 0 ? 'unused' : (c.status === 1 ? 'used' : 'expired'),
-                        };
-                    });
+                    this.myCoupons = COUPON.normalizeCoupons(coupons);
                 }
                 // 如果订单已有券，选中它
                 const couponId = (this.order && this.order.goodsInfo && this.order.goodsInfo._coupon_id);
