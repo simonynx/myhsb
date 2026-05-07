@@ -4,9 +4,9 @@
         <view class="nav-bar" :class="scrolled ? 'solid' : 'transparent'">
             <text class="nav-back yticon icon-fanhui" @click="goBack"></text>
             <text class="nav-title">{{ scrolled ? room.name : '包厢详情' }}</text>
-            <view class="nav-share" @click="share">
+            <button class="nav-share" open-type="share" hover-class="none">
                 <text class="yticon icon-fenxiang2"></text>
-            </view>
+            </button>
         </view>
 
         <!-- 轮播图 -->
@@ -256,25 +256,22 @@
                         <text class="pf-count zero" v-else>请选择预约时段</text>
                     </view>
                     <view class="pf-btns">
-                        <view class="pf-btn group" :class="{ disabled: !specSelected.length }" @click="specSelected.length && handleCreateGroup()">
+                        <view class="pf-btn group" :class="specSelected.length ? '' : 'disabled'" @click="specSelected.length && handleCreateGroup()">
                             <text>发起拼团</text>
                         </view>
-                        <view class="pf-btn book" :class="{ disabled: !specSelected.length }" @click="specSelected.length && handleDirectBook()">
+                        <view class="pf-btn book" :class="specSelected.length ? '' : 'disabled'" @click="specSelected.length && handleDirectBook()">
                             <text>直接预约</text>
                         </view>
                     </view>
                 </view>
             </view>
         </view>
-
-        <share ref="share" :contentHeight="580" :shareList="shareList"></share>
     </view>
 </template>
 
 <script>
 import { mapState } from 'vuex';
 import AUTH from '../../utils/auth.js';
-import share from '@/components/share';
 import times from '@/components/pretty-times/pretty-times.vue';
 
 const DEFAULT_STORE_PHONE = '13712345678';
@@ -282,7 +279,7 @@ const STORE_LAT = 22.5431;
 const STORE_LNG = 114.0579;
 
 export default {
-    components: { share, times },
+    components: { times },
 
     data() {
         return {
@@ -299,10 +296,6 @@ export default {
             specSelected: [],
             scrolled: false,
             currentImgIndex: 0,
-            shareList: [
-                { type: 0, title: '赶紧来摸鱼吧！', icon: '/static/logo_small.jpg' },
-                { type: 1, title: '微信', icon: '/static/wechat.png' },
-            ],
             storeAddress: '',
             wifiInfo: '',
             storePhone: DEFAULT_STORE_PHONE,
@@ -356,7 +349,34 @@ export default {
         this.scrolled = e.scrollTop > 200;
     },
 
+    onShareAppMessage() {
+        return this.buildSharePayload();
+    },
+
+    onShareTimeline() {
+        const payload = this.buildSharePayload();
+        return {
+            title: payload.title,
+            query: payload.path.split('?')[1] || '',
+            imageUrl: payload.imageUrl,
+        };
+    },
+
     methods: {
+        buildSharePayload() {
+            const roomId = this.room && this.room.object_id ? this.room.object_id : '';
+            const date = this.currentSelectDate || this.roomDate || '';
+            let path = '/pages/product/product';
+            const query = [];
+            if (roomId) query.push('id=' + encodeURIComponent(roomId));
+            if (date) query.push('date=' + encodeURIComponent(date));
+            if (query.length) path += '?' + query.join('&');
+            return {
+                title: '摸鱼划水吧 · ' + ((this.room && this.room.name) || '包厢详情'),
+                path: path,
+                imageUrl: (this.room && this.room.image1) || '/static/logo_small.jpg',
+            };
+        },
         _findAppoint(appointments, roomId, hour) {
             for (const appt of appointments) {
                 if (appt.room == roomId) {
@@ -645,8 +665,6 @@ export default {
             this._fetchDisableTimeSlot(date);
         },
 
-        share() { this.$refs.share.toggleMask(); },
-
         callPhone() { uni.makePhoneCall({ phoneNumber: this.storePhone }); },
 
         openMap() {
@@ -700,7 +718,24 @@ page { background: $bg; padding-bottom: 120rpx; }
 
     .nav-back { position: absolute; left: 30rpx; font-size: 36rpx; }
     .nav-title { font-size: 32rpx; font-weight: bold; }
-    .nav-share { position: absolute; right: 30rpx; font-size: 40rpx; }
+    .nav-share {
+        position: absolute;
+        right: 18rpx;
+        width: 72rpx;
+        height: 72rpx;
+        padding: 0;
+        margin: 0;
+        border-radius: 50%;
+        background: transparent;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        font-size: 40rpx;
+        color: inherit;
+        &::after { border: none; }
+    }
 }
 
 // 轮播图
