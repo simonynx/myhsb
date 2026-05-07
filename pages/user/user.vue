@@ -183,7 +183,7 @@
 			<view class="invite-code-row">
 				<text class="invite-code-label">我的邀请码：</text>
 				<text class="invite-code-value">{{ inviteCode || '----' }}</text>
-				<view class="invite-copy-btn" @click="copyInviteCode">
+				<view class="invite-copy-btn" @tap="copyInviteCode">
 					<text>复制</text>
 				</view>
 			</view>
@@ -267,7 +267,7 @@
 				<text class="menu-arrow">→</text>
 			</view>
 			<view class="menu-item" @tap="hasLogin ? navTo('/pages/ticket/list') : handleLogin()">
-				<text class="menu-icon">🎫</text>
+				<text class="menu-icon">🎟️</text>
 				<text class="menu-text">我的门票</text>
 				<text class="menu-arrow">→</text>
 			</view>
@@ -349,10 +349,7 @@
 			},
 			balanceText() {
 				if (!this.hasLogin) return '-';
-				var amount = this.userInfo && this.userInfo.account_balance;
-				amount = parseFloat(amount);
-				if (!isFinite(amount)) amount = 0;
-				return '¥' + (amount / 100).toFixed(0);
+				return '¥' + this.balanceAmountText;
 			},
 			balanceMenuText() {
 				return '余额 ' + this.balanceAmountText + ' 元';
@@ -521,7 +518,13 @@
 				uni.navigateTo({ url: '/pages/group/my' });
 			},
 			goCouponCenter() {
-				uni.navigateTo({ url: '/pages/my/coupons/coupons' });
+				if (this.claimableCouponCount > 0) {
+					uni.navigateTo({ url: '/pages/my/coupons/coupons?tab=available' });
+				} else if (this.unusedCouponCount > 0) {
+					uni.navigateTo({ url: '/pages/my/coupons/coupons?tab=unused' });
+				} else {
+					uni.navigateTo({ url: '/pages/my/coupons/coupons' });
+				}
 			},
 			goPointsCenter() {
 				uni.setStorageSync('voucherInitialTab', 'points');
@@ -888,15 +891,21 @@ page {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	flex: 1;
+	min-width: 0;
 }
 .qstat-item .qstat-num {
-	font-size: 38rpx;
+	font-size: 34rpx;
 	font-weight: 800;
 	color: #5C4B3A;
 	background: linear-gradient(135deg, #FF8C42, #FFCC80);
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	background-clip: text;
+	max-width: 190rpx;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 .qstat-item .qstat-label { font-size: 22rpx; color: #A09080; margin-top: 4rpx; }
 .qstat-divider {

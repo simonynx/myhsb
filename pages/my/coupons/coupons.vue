@@ -38,143 +38,151 @@
 			</view>
 		</view>
 
-		<!-- 标签 -->
-		<view class="tab-bar">
-			<view
-				class="tab-item"
-				v-for="(tab, idx) in tabs"
-				:key="idx"
-				:class="{ active: tabIndex === idx }"
-				@click="tabIndex = idx; loadMyCoupons()"
-			>
-				<text>{{ tab.name }}</text>
-				<view class="tab-dot" v-if="tab.count > 0">{{ tab.count }}</view>
-			</view>
+		<view class="login-panel" v-if="!hasLogin">
+			<text class="login-title">登录后查看你的优惠券</text>
+			<text class="login-sub">可领取、未使用和历史优惠券都会放在这里</text>
+			<view class="login-btn" @tap="handleLogin">立即登录</view>
 		</view>
 
-		<!-- 可领优惠券 -->
-		<scroll-view class="scroll-area" scroll-y v-if="tabIndex === 0">
-			<view class="coupon-list" v-if="availableList.length > 0">
+		<block v-else>
+			<!-- 标签 -->
+			<view class="tab-bar">
 				<view
-					class="coupon-card"
-					v-for="(item, idx) in availableList"
+					class="tab-item"
+					v-for="(tab, idx) in tabs"
 					:key="idx"
+					:class="tabIndex === idx ? 'active' : ''"
+					@tap="switchTab(idx)"
 				>
-					<!-- 角落小花 -->
-					<view class="corner-flower">
-						<view class="petal"></view>
-						<view class="petal"></view>
-						<view class="petal"></view>
-						<view class="flower-center"></view>
-					</view>
+					<text>{{ tab.name }}</text>
+					<view class="tab-dot" v-if="tab.count > 0">{{ tab.count }}</view>
+				</view>
+			</view>
 
-					<view class="card-left">
-						<view class="left-value">
-							<text class="left-unit">{{ getCouponUnit(item) === '积分' ? '' : '¥' }}</text>
-							<text class="left-num">{{ getCouponValue(item) }}</text>
-						</view>
-						<text class="left-rule" v-if="item.min_consume > 0">满{{ item.min_consume / 100 }}元可用</text>
-						<text class="left-rule" v-else>无门槛</text>
-					</view>
-					<view class="card-gap">
-						<view class="gap-dot top"></view>
-						<view class="gap-line"></view>
-						<view class="gap-dot bottom"></view>
-					</view>
-					<view class="card-right">
-						<view class="right-header">
-							<text class="right-name">{{ item.name }}</text>
-							<view class="right-tag" v-if="item.description">{{ item.description }}</view>
-						</view>
-						<text class="right-desc">{{ getCouponDesc(item) }}</text>
-						<view class="right-footer">
-							<text class="right-expire" v-if="item.validity_days">领取后{{ item.validity_days }}天有效</text>
-							<text class="right-expire" v-else>有效期至 {{ item.end_time ? item.end_time.substring(0,10) : '永久' }}</text>
-							<button
-								class="right-btn"
-								v-if="!item.user_received"
-								:disabled="item.remaining_count === 0"
-								@click="receiveCoupon(item)"
-							>
-								{{ item.remaining_count === 0 ? '已领完' : '领取' }}
-							</button>
-							<text class="right-status received" v-else>已领取</text>
-						</view>
-					</view>
+			<!-- 可领优惠券 -->
+			<scroll-view class="scroll-area" scroll-y v-if="tabIndex === 0">
+				<view class="loading-box" v-if="availableLoading">
+					<text>加载中...</text>
 				</view>
-			</view>
-			<view class="empty-box" v-else>
-				<view class="empty-cloud">
-					<view class="puff p1"></view>
-					<view class="puff p2"></view>
-					<view class="puff p3"></view>
-				</view>
-				<text class="empty-title">森林里还没有优惠券</text>
-				<text class="empty-sub">过段时间再来看看吧～</text>
-			</view>
-			<view style="height: 40rpx;"></view>
-		</scroll-view>
+				<view class="coupon-list" v-else-if="availableList.length > 0">
+					<view
+						class="coupon-card"
+						v-for="(item, idx) in availableList"
+						:key="idx"
+					>
+						<!-- 角落小花 -->
+						<view class="corner-flower">
+							<view class="petal"></view>
+							<view class="petal"></view>
+							<view class="petal"></view>
+							<view class="flower-center"></view>
+						</view>
 
-		<!-- 我的优惠券列表 -->
-		<scroll-view class="scroll-area" scroll-y v-if="tabIndex !== 0">
-			<view class="coupon-list" v-if="myCoupons.length > 0">
-				<view
-					:class="['coupon-card', { used: item.status === 1, expired: item.status === 2 }]"
-					v-for="(item, idx) in myCoupons"
-					:key="idx"
-				>
-					<view class="corner-flower">
-						<view class="petal"></view>
-						<view class="petal"></view>
-						<view class="petal"></view>
-						<view class="flower-center"></view>
+						<view class="card-left">
+							<view class="left-value">
+								<text class="left-unit">{{ item.displayPrefix }}</text>
+								<text class="left-num">{{ item.displayValue }}</text>
+							</view>
+							<text class="left-rule">{{ item.limitText }}</text>
+						</view>
+						<view class="card-gap">
+							<view class="gap-dot top"></view>
+							<view class="gap-line"></view>
+							<view class="gap-dot bottom"></view>
+						</view>
+						<view class="card-right">
+							<view class="right-header">
+								<text class="right-name">{{ item.name }}</text>
+								<view class="right-tag" v-if="item.description">{{ item.description }}</view>
+							</view>
+							<text class="right-desc">{{ item.descText }}</text>
+							<view class="right-footer">
+								<text class="right-expire">{{ item.validText }}</text>
+								<button
+									class="right-btn"
+									:disabled="receivingCouponId === item.campaign_id"
+									@tap.stop="receiveCoupon(item)"
+								>
+									{{ receivingCouponId === item.campaign_id ? '领取中' : '领取' }}
+								</button>
+							</view>
+						</view>
 					</view>
+				</view>
+				<view class="empty-box" v-else>
+					<view class="empty-cloud">
+						<view class="puff p1"></view>
+						<view class="puff p2"></view>
+						<view class="puff p3"></view>
+					</view>
+					<text class="empty-title">暂无可领取优惠券</text>
+					<text class="empty-sub">已领取的券可以在未使用里查看</text>
+				</view>
+				<view style="height: 40rpx;"></view>
+			</scroll-view>
 
-					<view class="card-left">
-						<view class="left-value">
-							<text class="left-unit">{{ getCouponUnit(item) === '积分' ? '' : '¥' }}</text>
-							<text class="left-num">{{ getCouponValue(item) }}</text>
+			<!-- 我的优惠券列表 -->
+			<scroll-view class="scroll-area" scroll-y v-if="tabIndex !== 0">
+				<view class="loading-box" v-if="myCouponsLoading">
+					<text>加载中...</text>
+				</view>
+				<view class="coupon-list" v-else-if="myCoupons.length > 0">
+					<view
+						:class="item.cardClass"
+						v-for="(item, idx) in myCoupons"
+						:key="idx"
+					>
+						<view class="corner-flower">
+							<view class="petal"></view>
+							<view class="petal"></view>
+							<view class="petal"></view>
+							<view class="flower-center"></view>
 						</view>
-						<text class="left-rule" v-if="item.min_consume > 0">满{{ item.min_consume / 100 }}元可用</text>
-						<text class="left-rule" v-else>无门槛</text>
-					</view>
-					<view class="card-gap">
-						<view class="gap-dot top"></view>
-						<view class="gap-line"></view>
-						<view class="gap-dot bottom"></view>
-					</view>
-					<view class="card-right">
-						<view class="right-header">
-							<text class="right-name">{{ item.name }}</text>
-							<view class="right-tag" v-if="item.description">{{ item.description }}</view>
+
+						<view class="card-left">
+							<view class="left-value">
+								<text class="left-unit">{{ item.displayPrefix }}</text>
+								<text class="left-num">{{ item.displayValue }}</text>
+							</view>
+							<text class="left-rule">{{ item.limitText }}</text>
 						</view>
-						<text class="right-desc">{{ getCouponDesc(item) }}</text>
-						<view class="right-footer">
-							<text class="right-expire" v-if="item.status === 0">有效期至 {{ item.expire_time ? item.expire_time.substring(0,10) : '永久' }}</text>
-							<text class="right-expire used" v-if="item.status === 1">已于 {{ item.used_time ? item.used_time.substring(0,10) : '近期' }} 使用</text>
-							<text class="right-expire expired" v-if="item.status === 2">已过期</text>
+						<view class="card-gap">
+							<view class="gap-dot top"></view>
+							<view class="gap-line"></view>
+							<view class="gap-dot bottom"></view>
 						</view>
-					</view>
-					<!-- 状态水印 -->
-					<view class="watermark" v-if="item.status === 1">
-						<text>已使用</text>
-					</view>
-					<view class="watermark expired" v-if="item.status === 2">
-						<text>已过期</text>
+						<view class="card-right">
+							<view class="right-header">
+								<text class="right-name">{{ item.name }}</text>
+								<view class="right-tag" v-if="item.description">{{ item.description }}</view>
+							</view>
+							<text class="right-desc">{{ item.descText }}</text>
+							<view class="right-footer">
+								<text :class="item.expireClass">{{ item.expireText }}</text>
+								<view class="use-btn" v-if="item.status === 0" @tap="goUseCoupon">去使用</view>
+							</view>
+						</view>
+						<!-- 状态水印 -->
+						<view class="watermark" v-if="item.status === 1">
+							<text>已使用</text>
+						</view>
+						<view class="watermark expired" v-if="item.status === 2">
+							<text>已过期</text>
+						</view>
 					</view>
 				</view>
-			</view>
-			<view class="empty-box" v-else>
-				<view class="empty-cloud">
-					<view class="puff p1"></view>
-					<view class="puff p2"></view>
-					<view class="puff p3"></view>
+				<view class="empty-box" v-else>
+					<view class="empty-cloud">
+						<view class="puff p1"></view>
+						<view class="puff p2"></view>
+						<view class="puff p3"></view>
+					</view>
+					<text class="empty-title">{{ currentEmptyTitle }}</text>
+					<text class="empty-sub">{{ currentEmptySub }}</text>
 				</view>
-				<text class="empty-title">{{ emptyText }}</text>
-				<text class="empty-sub">去森林里逛逛，没准能发现新券哦</text>
-			</view>
-			<view style="height: 40rpx;"></view>
-		</scroll-view>
+				<view style="height: 40rpx;"></view>
+			</scroll-view>
+		</block>
 	</view>
 </template>
 
@@ -185,6 +193,18 @@
 	export default {
 		computed: {
 			...mapState(['hasLogin', 'token']),
+			currentEmptyTitle() {
+				if (this.tabIndex === 1) return '暂无未使用优惠券';
+				if (this.tabIndex === 2) return '暂无已使用优惠券';
+				if (this.tabIndex === 3) return '暂无过期优惠券';
+				return '暂无优惠券';
+			},
+			currentEmptySub() {
+				if (this.tabIndex === 1) return '先去可领取里看看有没有新券';
+				if (this.tabIndex === 2) return '用券下单后会显示在这里';
+				if (this.tabIndex === 3) return '暂时没有过期记录';
+				return '有新券时会第一时间展示';
+			},
 		},
 		data() {
 			return {
@@ -197,28 +217,73 @@
 				],
 				availableList: [],
 				myCoupons: [],
-				emptyIcon: '🎫',
-				emptyText: '暂无优惠券',
+				availableLoading: false,
+				myCouponsLoading: false,
+				receivingCouponId: '',
 			};
+		},
+		onLoad(options) {
+			this.applyInitialTab(options || {});
 		},
 		onShow() {
 			if (this.hasLogin) {
 				this.loadAvailable();
-				this.loadMyCoupons();
+				this.updateTabCounts();
+				if (this.tabIndex !== 0) this.loadMyCoupons();
+			} else {
+				this.availableList = [];
+				this.myCoupons = [];
 			}
 		},
 		methods: {
-			...mapActions(['getUserInfo']),
+			...mapActions(['loginAndRegister', 'getUserInfo']),
+			applyInitialTab(options) {
+				var tab = options.tab || options.type || '';
+				if (tab === 'unused') this.tabIndex = 1;
+				else if (tab === 'used') this.tabIndex = 2;
+				else if (tab === 'expired') this.tabIndex = 3;
+				else this.tabIndex = 0;
+			},
+			switchTab(idx) {
+				if (this.tabIndex === idx) return;
+				this.tabIndex = idx;
+				if (idx === 0) {
+					this.loadAvailable();
+				} else {
+					this.loadMyCoupons();
+				}
+			},
+			handleLogin() {
+				this.loginAndRegister().then(() => {
+					this.getUserInfo();
+					this.loadAvailable();
+					this.updateTabCounts();
+					if (this.tabIndex !== 0) this.loadMyCoupons();
+				});
+			},
 			async loadAvailable() {
+				this.availableLoading = true;
 				try {
 					var res = await AUTH.getCouponList(this.token);
 					if (res._status === 0) {
-						this.availableList = res.data || [];
-						var unused = this.availableList.filter(function(item) { return !item.user_received; });
-						this.tabs[0].count = unused.length;
+						var list = res.data || [];
+						var claimable = list.filter(function(item) {
+							return !item.user_received && item.remaining_count !== 0;
+						});
+						this.availableList = claimable.map(function(item) {
+							return this.prepareCoupon(item);
+						}.bind(this));
+						this.tabs[0].count = this.availableList.length;
+					} else {
+						this.availableList = [];
+						this.tabs[0].count = 0;
 					}
 				} catch (e) {
 					console.error('加载优惠券失败:', e);
+					this.availableList = [];
+					this.tabs[0].count = 0;
+				} finally {
+					this.availableLoading = false;
 				}
 			},
 			async loadMyCoupons() {
@@ -228,14 +293,21 @@
 				}
 				var statusMap = { 0: null, 1: 0, 2: 1, 3: 2 };
 				var status = statusMap[this.tabIndex];
+				this.myCouponsLoading = true;
 				try {
 					var res = await AUTH.getMyCoupons(this.token, status);
 					if (res._status === 0) {
-						this.myCoupons = res.data || [];
-						this.updateTabCounts();
+						this.myCoupons = (res.data || []).map(function(item) {
+							return this.prepareCoupon(item);
+						}.bind(this));
+					} else {
+						this.myCoupons = [];
 					}
 				} catch (e) {
 					console.error('加载我的优惠券失败:', e);
+					this.myCoupons = [];
+				} finally {
+					this.myCouponsLoading = false;
 				}
 			},
 			async updateTabCounts() {
@@ -243,9 +315,9 @@
 					var res = await AUTH.getMyCoupons(this.token);
 					if (res._status === 0) {
 						var all = res.data || [];
-						var unused = all.filter(function(item) { return item.status === 0; });
-						var used = all.filter(function(item) { return item.status === 1; });
-						var expired = all.filter(function(item) { return item.status === 2; });
+						var unused = all.filter(function(item) { return Number(item.status) === 0; });
+						var used = all.filter(function(item) { return Number(item.status) === 1; });
+						var expired = all.filter(function(item) { return Number(item.status) === 2; });
 						this.tabs[1].count = unused.length;
 						this.tabs[2].count = used.length;
 						this.tabs[3].count = expired.length;
@@ -254,53 +326,93 @@
 			},
 			async receiveCoupon(item) {
 				if (item.remaining_count === 0) return;
+				if (this.receivingCouponId) return;
+				this.receivingCouponId = item.campaign_id;
 				uni.showLoading({ title: '领取中...' });
 				try {
 					var res = await AUTH.receiveCoupon(this.token, item.campaign_id);
 					uni.hideLoading();
 					if (res._status === 0) {
 						uni.showToast({ title: '领取成功', icon: 'success' });
-						item.user_received = true;
-						this.tabs[0].count--;
-						this.tabs[1].count++;
-						this.loadMyCoupons();
+						this.availableList = this.availableList.filter(function(c) {
+							return c.campaign_id !== item.campaign_id;
+						});
+						this.tabs[0].count = Math.max(0, this.availableList.length);
+						this.updateTabCounts();
 					} else {
 						uni.showToast({ title: res._reason || '领取失败', icon: 'none' });
 					}
 				} catch (e) {
 					uni.hideLoading();
 					uni.showToast({ title: '领取失败', icon: 'none' });
+				} finally {
+					this.receivingCouponId = '';
 				}
+			},
+			goUseCoupon() {
+				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+			},
+			prepareCoupon(item) {
+				var coupon = Object.assign({}, item);
+				var status = Number(coupon.status || 0);
+				coupon.status = status;
+				coupon.min_consume = this.getMinConsume(coupon);
+				coupon.displayPrefix = this.getCouponPrefix(coupon);
+				coupon.displayValue = this.getCouponValue(coupon);
+				coupon.limitText = coupon.min_consume > 0 ? ('满' + this.formatFen(coupon.min_consume) + '元可用') : '无门槛';
+				coupon.descText = this.getCouponDesc(coupon);
+				coupon.validText = this.getCouponValidText(coupon);
+				coupon.expireText = this.getCouponExpireText(coupon);
+				coupon.cardClass = status === 1 ? 'coupon-card used' : (status === 2 ? 'coupon-card expired' : 'coupon-card');
+				coupon.expireClass = status === 1 ? 'right-expire used' : (status === 2 ? 'right-expire expired' : 'right-expire');
+				return coupon;
+			},
+			getMinConsume(item) {
+				var rules = item.rules || {};
+				if (item.min_consume !== undefined && item.min_consume !== null) return item.min_consume || 0;
+				return rules.min_amount || 0;
+			},
+			getCouponPrefix(item) {
+				if (item.coupon_type === 'rebate') return '¥';
+				return '';
 			},
 			getCouponValue(item) {
 				var rules = item.rules || {};
 				if (item.coupon_type === 'rebate') {
-					return (rules.discount || 0) / 100;
+					return this.formatFen(rules.discount || item.discount || 0);
 				} else if (item.coupon_type === 'discount') {
-					var rate = rules.discount_rate || 1;
-					return Math.round(rate * 100) / 10 + '折';
+					var rate = this.normalizeDiscountRate(rules.discount_rate || item.discount_rate || 1);
+					return (Math.round(rate * 100) / 10) + '折';
 				}
 				return rules.gift_value || '-';
 			},
-			getCouponUnit(item) {
-				if (item.coupon_type === 'rebate') return '元';
-				if (item.coupon_type === 'discount') return '';
-				return '积分';
+			formatFen(fen) {
+				fen = parseFloat(fen);
+				if (!isFinite(fen)) fen = 0;
+				var yuan = fen / 100;
+				return yuan % 1 === 0 ? String(yuan.toFixed(0)) : yuan.toFixed(2);
+			},
+			normalizeDiscountRate(rate) {
+				rate = parseFloat(rate);
+				if (!isFinite(rate) || rate <= 0) return 1;
+				if (rate > 10) return rate / 100;
+				if (rate > 1) return rate / 10;
+				return rate;
 			},
 			getCouponDesc(item) {
 				var rules = item.rules || {};
 				if (item.coupon_type === 'rebate') {
-					var min = rules.min_amount || 0;
+					var min = item.min_consume || rules.min_amount || 0;
 					var discount = rules.discount || 0;
-					var threshold = min > 0 ? ('满' + min / 100 + '元可用') : '无门槛';
-					var amount = discount > 0 ? ('立减' + discount / 100 + '元') : '';
+					var threshold = min > 0 ? ('满' + this.formatFen(min) + '元可用') : '无门槛';
+					var amount = discount > 0 ? ('立减' + this.formatFen(discount) + '元') : '';
 					return amount ? (threshold + ' · ' + amount) : threshold;
 				} else if (item.coupon_type === 'discount') {
 					var parts = [];
-					var min = rules.min_amount;
-					if (min > 0) parts.push('满' + min / 100 + '元可用');
+					var min = item.min_consume || rules.min_amount;
+					if (min > 0) parts.push('满' + this.formatFen(min) + '元可用');
 					var max = rules.max_discount;
-					if (max > 0) parts.push('最高减' + max / 100 + '元');
+					if (max > 0) parts.push('最高减' + this.formatFen(max) + '元');
 					if (parts.length === 0) parts.push('无门槛');
 					return parts.join(' · ');
 				} else if (item.coupon_type === 'gift') {
@@ -309,6 +421,21 @@
 					return '';
 				}
 				return '';
+			},
+			getCouponValidText(item) {
+				if (item.validity_days) return '领取后' + item.validity_days + '天有效';
+				if (item.end_time) return '有效期至 ' + this.shortDate(item.end_time);
+				return '永久有效';
+			},
+			getCouponExpireText(item) {
+				if (item.status === 0) return '有效期至 ' + (item.expire_time ? this.shortDate(item.expire_time) : '永久');
+				if (item.status === 1) return '已于 ' + (item.used_time ? this.shortDate(item.used_time) : '近期') + ' 使用';
+				if (item.status === 2) return '已过期';
+				return '';
+			},
+			shortDate(value) {
+				if (!value) return '';
+				return String(value).substring(0, 10);
 			},
 		},
 	};
@@ -403,6 +530,44 @@ page {
 	display: block;
 }
 
+.login-panel {
+	margin: -24rpx 28rpx 0;
+	background: $card-bg;
+	border-radius: 28rpx;
+	padding: 44rpx 32rpx;
+	position: relative;
+	z-index: 2;
+	box-shadow: 0 8rpx 28rpx rgba(92,75,58,0.06);
+	border: 1rpx solid rgba(255,181,167,0.24);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.login-title {
+	font-size: 32rpx;
+	font-weight: bold;
+	color: $text;
+}
+.login-sub {
+	font-size: 24rpx;
+	color: $text-light;
+	margin-top: 10rpx;
+	text-align: center;
+	line-height: 1.5;
+}
+.login-btn {
+	margin-top: 28rpx;
+	height: 72rpx;
+	line-height: 72rpx;
+	padding: 0 52rpx;
+	border-radius: 36rpx;
+	background: linear-gradient(135deg, $primary-light, $primary);
+	color: #FFF;
+	font-size: 28rpx;
+	font-weight: bold;
+	box-shadow: 0 6rpx 18rpx rgba(255,140,66,0.22);
+}
+
 /* ===== 标签栏 ===== */
 .tab-bar {
 	display: flex;
@@ -453,6 +618,14 @@ page {
 .scroll-area {
 	flex: 1;
 	overflow: hidden;
+}
+.loading-box {
+	padding: 120rpx 0 80rpx;
+	text-align: center;
+	text {
+		font-size: 26rpx;
+		color: $text-light;
+	}
 }
 
 /* ===== 优惠券列表 ===== */
@@ -632,10 +805,17 @@ page {
 		}
 		&::after { border: none; }
 	}
-	.right-status {
-		font-size: 24rpx;
+	.use-btn {
+		min-width: 104rpx;
+		height: 52rpx;
+		line-height: 52rpx;
+		border-radius: 26rpx;
+		text-align: center;
+		background: #FFF3E8;
+		color: $primary;
+		font-size: 23rpx;
 		font-weight: bold;
-		&.received { color: $grass-dark; }
+		border: 1rpx solid rgba(255,140,66,0.22);
 	}
 }
 
