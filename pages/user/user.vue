@@ -19,13 +19,13 @@
 			<view class="profile-top" v-if="hasLogin">
 				<view class="avatar-wrap" @tap="openAuthorizationModal">
 					<image class="avatar" :src="avatarUrl || '/static/missing-face.png'"></image>
-					<view class="avatar-badge" :style="{ background: memberColor }">
+					<view class="avatar-badge" :style="memberBgStyle">
 						<text class="badge-icon">{{ memberIcon }}</text>
 					</view>
 				</view>
 				<view class="profile-info">
 					<text class="nickname">{{ userInfo && userInfo.nickname || '游客' }}</text>
-					<view class="member-tag" :style="{ background: memberColor }">
+					<view class="member-tag" :style="memberBgStyle">
 						<text class="tag-icon">{{ memberIcon }}</text>
 						<text class="tag-name">{{ memberLevelName }}</text>
 					</view>
@@ -55,7 +55,7 @@
 					<text class="qstat-label">积分</text>
 				</view>
 				<view class="qstat-divider"></view>
-				<view class="qstat-item">
+				<view class="qstat-item" @tap="hasLogin ? navTo('/pages/user/balance/balance') : handleLogin()">
 					<text class="qstat-num">{{ hasLogin ? '¥' + (userInfo ? (userInfo.account_balance / 100).toFixed(0) : '0') : '-' }}</text>
 					<text class="qstat-label">余额</text>
 				</view>
@@ -67,8 +67,62 @@
 			</view>
 		</view>
 
+		<!-- 游客权益引导 -->
+		<view class="guest-benefit-card" v-if="!hasLogin">
+			<view class="guest-benefit-main">
+				<text class="guest-benefit-title">登录后可以解锁会员福利</text>
+				<text class="guest-benefit-sub">签到领积分、查看优惠券、邀请好友拿奖励</text>
+			</view>
+			<view class="guest-benefit-btn" @tap="handleLogin">立即登录</view>
+		</view>
+
+		<!-- 今日行动 -->
+		<view class="retention-panel" v-if="hasLogin">
+			<view class="retention-head">
+				<view>
+					<text class="retention-title">今天可以做</text>
+					<text class="retention-sub">{{ retentionSummary }}</text>
+				</view>
+				<text class="retention-note">回访奖励</text>
+			</view>
+			<view class="retention-grid">
+				<view class="retention-card check" @tap="doCheckIn">
+					<text class="retention-icon">签</text>
+					<view class="retention-copy">
+						<text class="retention-card-title">{{ checkInActionTitle }}</text>
+						<text class="retention-card-sub">{{ checkInActionSub }}</text>
+					</view>
+				</view>
+				<view class="retention-card coupon" @tap="goCouponCenter">
+					<text class="retention-icon">券</text>
+					<view class="retention-copy">
+						<text class="retention-card-title">{{ couponActionTitle }}</text>
+						<text class="retention-card-sub">{{ couponActionSub }}</text>
+					</view>
+				</view>
+				<view class="retention-card order" @tap="goRetentionOrder">
+					<text class="retention-icon">单</text>
+					<view class="retention-copy">
+						<text class="retention-card-title">{{ orderActionTitle }}</text>
+						<text class="retention-card-sub">{{ orderActionSub }}</text>
+					</view>
+				</view>
+			</view>
+			<view class="retention-rewards" v-if="checkInInfo.config && checkInInfo.config.milestones">
+				<text class="retention-rewards-label">连续签到奖励</text>
+				<text class="retention-reward-item" v-for="(m, idx) in checkInInfo.config.milestones" :key="idx">
+					{{ m.days }}天+{{ m.bonus_points }}
+				</text>
+			</view>
+		</view>
+
+		<!-- 断签提示 -->
+		<view class="checkin-broken" v-if="hasLogin && checkInInfo.is_broken_streak">
+			<text>⚠️ 连续签到已中断，今日签到重新从第1天开始</text>
+		</view>
+
 		<!-- 会员成长 -->
-		<view class="growth-card">
+		<view class="growth-card" v-if="hasLogin && memberConfig.length > 0">
 			<view class="growth-header">
 				<view class="growth-left">
 					<text class="growth-icon">{{ memberIcon }}</text>
@@ -81,10 +135,10 @@
 				<text class="growth-rate">{{ progressPercent }}%</text>
 			</view>
 			<view class="progress-bar">
-				<view class="progress-fill" :style="{ width: progressPercent + '%', background: 'linear-gradient(90deg, ' + memberColor + ', #FFCC80)' }"></view>
+				<view class="progress-fill" :style="progressFillStyle"></view>
 			</view>
 			<view class="level-dots">
-				<view class="level-dot" v-for="l in levelDots" :key="l.level" :class="{ active: (userInfo && userInfo.member_level || 0) >= l.level }">
+				<view v-for="l in levelDots" :key="l.level" :class="levelDotClass(l)">
 					<text class="dot-icon">{{ l.icon }}</text>
 					<text class="dot-name">{{ l.name }}</text>
 				</view>
@@ -92,16 +146,16 @@
 		</view>
 
 		<!-- 会员权益 -->
-		<view class="vip-card">
+		<view class="vip-card" v-if="hasLogin && memberConfig.length > 0">
 			<view class="vip-header">
 				<text class="vip-title">会员权益</text>
-				<view class="vip-badge" :style="{ background: memberColor }">
+				<view class="vip-badge" :style="memberBgStyle">
 					<text class="vip-badge-text">{{ userInfo && userInfo.discount ? (userInfo.discount >= 100 ? '原价' : userInfo.discount + '折') : '原价' }}</text>
 				</view>
 			</view>
 			<view class="vip-levels">
 				<block v-for="(lv, idx) in memberConfig" :key="lv.level">
-					<view class="vip-level" :class="{ active: (userInfo && userInfo.member_level || 0) >= lv.level }">
+					<view :class="vipLevelClass(lv)">
 						<text class="vl-icon">{{ lv.icon }}</text>
 						<text class="vl-name">{{ lv.name }}</text>
 						<text class="vl-discount">{{ lv.discount >= 100 ? '原价' : lv.discount + '折' }}</text>
@@ -117,47 +171,18 @@
 			</view>
 		</view>
 
-		<!-- 每日签到 -->
-		<view class="checkin-card">
-			<view class="checkin-left">
-				<view class="checkin-icon">📅</view>
-				<view class="checkin-info">
-					<text class="checkin-title">每日签到</text>
-					<text class="checkin-streak" v-if="checkInInfo.current_streak > 0">连续 {{ checkInInfo.current_streak }} 天</text>
-					<text class="checkin-streak" v-else>今日未签到</text>
-				</view>
-			</view>
-			<view class="checkin-btn" :class="checkInInfo.can_check_in ? 'can' : 'done'" @click="doCheckIn">
-				<text v-if="checkInInfo.checked_in_today">已签到 ✓</text>
-				<text v-else-if="checkInInfo.can_check_in">+{{ checkInInfo.next_points || (checkInInfo.config && checkInInfo.config.daily_points) || 10 }}积分</text>
-				<text v-else>明日再来</text>
-			</view>
-		</view>
-		<!-- 签到奖励说明 -->
-		<view class="checkin-rewards" v-if="checkInInfo.config && checkInInfo.config.milestones">
-			<text class="rewards-label">连续签到：</text>
-			<text class="reward-item" v-for="(m, idx) in checkInInfo.config.milestones" :key="idx">
-				{{ m.days }}天+{{ m.bonus_points }}
-			</text>
-			<text class="reward-item" v-if="checkInInfo.config.daily_points">基础{{ checkInInfo.config.daily_points }}/天</text>
-		</view>
-		<!-- 断签提示 -->
-		<view class="checkin-broken" v-if="checkInInfo.is_broken_streak">
-			<text>⚠️ 连续签到已中断，今日签到重新从第1天开始</text>
-		</view>
-
 		<!-- 邀请有礼 -->
-		<view class="invite-card">
+		<view class="invite-card" v-if="hasLogin">
 			<view class="invite-header">
 				<view class="invite-title-row">
 					<text class="invite-icon">🎁</text>
 					<text class="invite-title">邀请有礼</text>
 				</view>
-				<text class="invite-desc">邀请好友注册，双方各得积分奖励</text>
+				<text class="invite-desc">好友注册成功后，你可获得积分和邀请券奖励</text>
 			</view>
 			<view class="invite-code-row">
 				<text class="invite-code-label">我的邀请码：</text>
-				<text class="invite-code-value">{{ inviteInfo.invite_code || '----' }}</text>
+				<text class="invite-code-value">{{ inviteCode || '----' }}</text>
 				<view class="invite-copy-btn" @click="copyInviteCode">
 					<text>复制</text>
 				</view>
@@ -206,17 +231,20 @@
 				<text class="menu-text">我的评价</text>
 				<text class="menu-arrow">→</text>
 			</view>
-			<view class="menu-item" @tap="navTo('/pages/my/coupons/coupons')">
+			<view class="menu-item" @tap="hasLogin ? goCouponCenter() : handleLogin()">
 				<text class="menu-icon">🎫</text>
 				<text class="menu-text">优惠券</text>
+				<view class="menu-tip" v-if="hasLogin && couponTipText">
+					<text class="tip-text">{{ couponTipText }}</text>
+				</view>
 				<text class="menu-arrow">→</text>
 			</view>
-			<view class="menu-item" @tap="goGroup">
+			<view class="menu-item" @tap="hasLogin ? goGroup() : handleLogin()">
 				<text class="menu-icon">👥</text>
 				<text class="menu-text">我的拼团</text>
 				<text class="menu-arrow">→</text>
 			</view>
-			<view class="menu-item" @tap="navTo('/pages/ticket/list')">
+			<view class="menu-item" @tap="hasLogin ? navTo('/pages/ticket/list') : handleLogin()">
 				<text class="menu-icon">🎫</text>
 				<text class="menu-text">我的门票</text>
 				<text class="menu-arrow">→</text>
@@ -225,7 +253,7 @@
 
 		<!-- 充值入口 -->
 		<view class="section menu-section">
-			<view class="menu-item" @tap="navTo('/pages/user/deposit/deposit')">
+			<view class="menu-item" @tap="hasLogin ? navTo('/pages/user/deposit/deposit') : handleLogin()">
 				<text class="menu-icon">💎</text>
 				<text class="menu-text">充值余额</text>
 				<view class="menu-tip">
@@ -233,7 +261,7 @@
 				</view>
 				<text class="menu-arrow">→</text>
 			</view>
-			<view class="menu-item" @tap="navTo('/pages/user/setting/setting')">
+			<view class="menu-item" @tap="hasLogin ? navTo('/pages/user/setting/setting') : handleLogin()">
 				<text class="menu-icon">⚙️</text>
 				<text class="menu-text">设置</text>
 				<text class="menu-arrow">→</text>
@@ -281,9 +309,65 @@
 			memberColor() {
 				return (this.memberLevelData && this.memberLevelData.color) || '#AAAAAA';
 			},
+			memberBgStyle() {
+				return 'background: ' + this.memberColor + ';';
+			},
+			progressFillStyle() {
+				return 'width: ' + this.progressPercent + '%; background: linear-gradient(90deg, ' + this.memberColor + ', #FFCC80);';
+			},
 			memberNo() {
 				var oid = this.userInfo && this.userInfo.object_id ? this.userInfo.object_id : '';
 				return oid.replace(/-/g, '').toUpperCase().slice(0, 8);
+			},
+			inviteCode() {
+				if (this.inviteInfo && this.inviteInfo.invite_code) return this.inviteInfo.invite_code;
+				if (this.userInfo && this.userInfo.invite_code) return this.userInfo.invite_code;
+				return '';
+			},
+			couponTipText() {
+				if (this.claimableCouponCount > 0) return '可领' + this.claimableCouponCount + '张';
+				if (this.unusedCouponCount > 0) return '可用' + this.unusedCouponCount + '张';
+				return '';
+			},
+			checkInPointsText() {
+				var points = this.checkInInfo.next_points || (this.checkInInfo.config && this.checkInInfo.config.daily_points) || 10;
+				return '+' + points + '积分';
+			},
+			checkInActionTitle() {
+				if (this.checkInInfo.checked_in_today) return '今日已签到';
+				if (this.checkInInfo.can_check_in) return this.checkInPointsText;
+				return '明天继续';
+			},
+			checkInActionSub() {
+				if (this.checkInInfo.current_streak > 0) return '已连续' + this.checkInInfo.current_streak + '天';
+				return this.checkInInfo.can_check_in ? '签到攒积分' : '保持回访';
+			},
+			couponActionTitle() {
+				if (this.claimableCouponCount > 0) return '可领' + this.claimableCouponCount + '张券';
+				if (this.unusedCouponCount > 0) return '可用' + this.unusedCouponCount + '张券';
+				return '暂无新券';
+			},
+			couponActionSub() {
+				if (this.claimableCouponCount > 0) return '领完下单可抵扣';
+				if (this.unusedCouponCount > 0) return '下单前记得使用';
+				return '有新券会提醒你';
+			},
+			orderActionTitle() {
+				if (this.orderCounts.waitPay > 0) return '待付款' + this.orderCounts.waitPay + '单';
+				if (this.orderCounts.waitUse > 0) return '待使用' + this.orderCounts.waitUse + '单';
+				return '去安排一局';
+			},
+			orderActionSub() {
+				if (this.orderCounts.waitPay > 0) return '尽快支付保留订单';
+				if (this.orderCounts.waitUse > 0) return '到店出示订单';
+				return '买票或预约包厢';
+			},
+			retentionSummary() {
+				if (this.checkInInfo.can_check_in) return '先签到，把今天的积分拿了';
+				if (this.claimableCouponCount > 0) return '有新券可以领取';
+				if (this.orderCounts.waitPay > 0) return '有订单还没支付';
+				if (this.orderCounts.waitUse > 0) return '有订单等你到店使用';
+				return '看看余额、券和邀请奖励';
 			},
 			nextLevelData() {
 				var level = (this.userInfo && this.userInfo.member_level) || 0;
@@ -316,7 +400,9 @@
 				return Math.min(100, ((total - curr) / (next - curr)) * 100).toFixed(0);
 			},
 			levelDots() {
-				return this.memberConfig.map(l => ({ level: l.level, icon: l.icon, name: l.name }));
+				return this.memberConfig.map(function(l) {
+					return { level: l.level, icon: l.icon, name: l.name };
+				});
 			},
 		},
 		data() {
@@ -325,6 +411,8 @@
 				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 },
 				inviteInfo: {},
 				memberConfig: [],
+				claimableCouponCount: 0,
+				unusedCouponCount: 0,
 				shareImagePath: '',
 			};
 		},
@@ -342,6 +430,10 @@
 				this.loadCheckInInfo();
 				this.loadInviteInfo();
 				this.loadMemberConfig();
+				this.loadOrderCounts();
+				this.loadCouponCounts();
+			} else {
+				this.resetUserPageState();
 			}
 		},
 		methods: {
@@ -353,10 +445,24 @@
 					this.loadCheckInInfo();
 					this.loadInviteInfo();
 					this.loadMemberConfig();
+					this.loadOrderCounts();
+					this.loadCouponCounts();
 				});
 			},
 			goGroup() {
 				uni.navigateTo({ url: '/pages/group/my' });
+			},
+			goCouponCenter() {
+				uni.navigateTo({ url: '/pages/my/coupons/coupons' });
+			},
+			goRetentionOrder() {
+				if (this.orderCounts.waitPay > 0) {
+					this.navTo('/pages/order/order?state=1');
+				} else if (this.orderCounts.waitUse > 0) {
+					this.navTo('/pages/order/order?state=2');
+				} else {
+					uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+				}
 			},
 			async loadCheckInInfo() {
 				if (!this.hasLogin) return;
@@ -402,10 +508,45 @@
 					this.memberConfig = res.data.levels;
 				}
 			},
+			async loadOrderCounts() {
+				if (!this.hasLogin) return;
+				try {
+					const res = await AUTH.getOrderList(-1, this.token);
+					const orders = res && res.data && res.data.orders ? res.data.orders : [];
+					this.orderCounts.waitPay = orders.filter(function(item) { return item.order_status === 0; }).length;
+					this.orderCounts.waitUse = orders.filter(function(item) {
+						return item.order_status === 1 && (item.order_type === 1 || item.order_type === 6);
+					}).length;
+				} catch (e) {
+					this.orderCounts.waitPay = 0;
+					this.orderCounts.waitUse = 0;
+				}
+			},
+			async loadCouponCounts() {
+				if (!this.hasLogin) return;
+				try {
+					const availableRes = await AUTH.getCouponList(this.token);
+					if (availableRes._status === 0 && availableRes.data) {
+						this.claimableCouponCount = availableRes.data.filter(function(item) {
+							return !item.user_received && item.remaining_count !== 0;
+						}).length;
+					}
+				} catch (e) {
+					this.claimableCouponCount = 0;
+				}
+				try {
+					const myRes = await AUTH.getMyCoupons(this.token, 0);
+					if (myRes._status === 0 && myRes.data) {
+						this.unusedCouponCount = myRes.data.length;
+					}
+				} catch (e) {
+					this.unusedCouponCount = 0;
+				}
+			},
 			copyInviteCode() {
-				if (!this.inviteInfo || !this.inviteInfo.invite_code) return;
+				if (!this.inviteCode) return;
 				uni.setClipboardData({
-					data: this.inviteInfo.invite_code,
+					data: this.inviteCode,
 					success: () => uni.showToast({ title: '复制成功', icon: 'success' })
 				});
 			},
@@ -415,9 +556,24 @@
 			openAuthorizationModal() {
 				uni.navigateTo({ url: '/pages/user/setting/setting' });
 			},
+			levelDotClass(item) {
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
+				return level >= item.level ? 'level-dot active' : 'level-dot';
+			},
+			vipLevelClass(item) {
+				var level = (this.userInfo && this.userInfo.member_level) || 0;
+				return level >= item.level ? 'vip-level active' : 'vip-level';
+			},
+			resetUserPageState() {
+				this.orderCounts = { waitPay: 0, waitUse: 0 };
+				this.checkInInfo = { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 };
+				this.inviteInfo = {};
+				this.claimableCouponCount = 0;
+				this.unusedCouponCount = 0;
+			},
 			generateInvitePoster() {
-				var user = this.userInfo;
-				if (!user || !user.invite_code) return;
+				var code = this.inviteCode;
+				if (!code) return;
 				var ctx = uni.createCanvasContext('invitePoster');
 				// 底图
 				ctx.drawImage('/static/share_invite.jpg', 0, 0, 500, 400);
@@ -429,7 +585,7 @@
 				ctx.fillText('我的专属邀请码', 60, 282);
 				ctx.setFillStyle('#FFFFFF');
 				ctx.setFontSize(30);
-				ctx.fillText(user.invite_code, 60, 318);
+				ctx.fillText(code, 60, 318);
 				ctx.setFillStyle('rgba(255, 255, 255, 0.9)');
 				ctx.setFontSize(13);
 				ctx.fillText('好友首次加入', 315, 284);
@@ -447,11 +603,11 @@
 			},
 		},
 		onShareAppMessage() {
-			const path = this.userInfo && this.userInfo.invite_code
-				? '/pages/index/index?invite_code=' + this.userInfo.invite_code
+			const path = this.inviteCode
+				? '/pages/index/index?invite_code=' + this.inviteCode
 				: '/pages/index/index';
 			return {
-				title: '我在摸鱼划水吧等你，一起来玩双方都有积分！',
+				title: '我在摸鱼划水吧等你，一起来玩还有奖励！',
 				imageUrl: this.shareImagePath || '/static/share_invite.jpg',
 				path: path,
 			};
@@ -460,8 +616,8 @@
 			return {
 				title: '还在996？快来摸鱼划水吧充电回血',
 				imageUrl: this.shareImagePath || '/static/share_invite.jpg',
-				query: this.userInfo && this.userInfo.invite_code
-					? 'invite_code=' + this.userInfo.invite_code
+				query: this.inviteCode
+					? 'invite_code=' + this.inviteCode
 					: '',
 			};
 		},
@@ -660,7 +816,7 @@ page {
 
 /* ===== 成长卡片 ===== */
 .growth-card {
-	margin: 0 24rpx 24rpx;
+	margin: 24rpx 24rpx 24rpx;
 	background: linear-gradient(135deg, #FFF8F0 0%, #FFF 60%, #FFF8F0 100%);
 	border-radius: 24rpx;
 	padding: 28rpx;
@@ -842,56 +998,6 @@ page {
 	}
 }
 
-/* ===== 每日签到卡片 ===== */
-.checkin-card {
-	margin: 0 24rpx;
-	background: linear-gradient(135deg, #FFCC80, #FF8C42);
-	border-radius: 24rpx;
-	padding: 32rpx;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	color: #fff;
-	box-shadow: 0 8rpx 24rpx rgba(255, 140, 66, 0.25);
-
-	.checkin-left {
-		display: flex;
-		align-items: center;
-		gap: 20rpx;
-	}
-	.checkin-icon { font-size: 56rpx; }
-	.checkin-info {
-		display: flex;
-		flex-direction: column;
-	}
-	.checkin-title {
-		font-size: 30rpx;
-		font-weight: bold;
-	}
-	.checkin-streak {
-		font-size: 24rpx;
-		opacity: 0.9;
-		margin-top: 4rpx;
-	}
-	.checkin-btn {
-		padding: 14rpx 28rpx;
-		border-radius: 40rpx;
-		font-size: 26rpx;
-		font-weight: bold;
-		background: rgba(255,255,255,0.25);
-		&.can {
-			background: #fff;
-			color: #FF8C42;
-			box-shadow: 0 4rpx 12rpx rgba(140,100,60,0.15);
-		}
-		&.done {
-			background: rgba(255,255,255,0.15);
-			color: rgba(255,255,255,0.6);
-		}
-	}
-}
-
-/* ===== 签到奖励说明 ===== */
 .checkin-broken {
 	margin: 0 32rpx 16rpx;
 	padding: 12rpx 20rpx;
@@ -900,25 +1006,6 @@ page {
 	font-size: 24rpx;
 	color: #C62828;
 	text-align: center;
-}
-.checkin-rewards {
-	margin-top: 16rpx;
-	padding: 0 32rpx 24rpx;
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 12rpx;
-	.rewards-label {
-		font-size: 22rpx;
-		color: #A09080;
-	}
-	.reward-item {
-		font-size: 22rpx;
-		color: #FF8C42;
-		background: #FFF5EE;
-		padding: 4rpx 12rpx;
-		border-radius: 20rpx;
-	}
 }
 
 /* ===== 邀请有礼卡片 ===== */
@@ -1100,5 +1187,150 @@ page {
 	font-size: 26rpx;
 	font-weight: bold;
 	box-shadow: 0 4rpx 16rpx rgba(255, 140, 66, 0.25);
+}
+
+/* ===== 今日行动 ===== */
+.retention-panel {
+	margin: 0 24rpx 24rpx;
+	background: #FFF;
+	border-radius: 24rpx;
+	padding: 24rpx;
+	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
+	border: 1rpx solid rgba(240, 230, 216, 0.6);
+}
+.retention-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	margin-bottom: 18rpx;
+	gap: 18rpx;
+}
+.retention-title {
+	display: block;
+	font-size: 30rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+}
+.retention-sub {
+	display: block;
+	font-size: 22rpx;
+	color: #A09080;
+	margin-top: 4rpx;
+}
+.retention-note {
+	flex-shrink: 0;
+	font-size: 20rpx;
+	color: #FF8C42;
+	background: #FFF5EE;
+	padding: 6rpx 14rpx;
+	border-radius: 18rpx;
+	font-weight: bold;
+}
+.retention-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr;
+	gap: 12rpx;
+}
+.retention-card {
+	min-height: 150rpx;
+	border-radius: 18rpx;
+	padding: 16rpx 12rpx;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	border: 1rpx solid rgba(240, 230, 216, 0.7);
+}
+.retention-card.check { background: #FFF5EE; }
+.retention-card.coupon { background: #FFF8E7; }
+.retention-card.order { background: #EEF8F1; }
+.retention-icon {
+	width: 42rpx;
+	height: 42rpx;
+	border-radius: 14rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #FFF;
+	color: #FF8C42;
+	font-size: 22rpx;
+	font-weight: bold;
+}
+.retention-copy {
+	min-width: 0;
+}
+.retention-card-title {
+	display: block;
+	font-size: 25rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+	line-height: 1.25;
+}
+.retention-card-sub {
+	display: block;
+	font-size: 20rpx;
+	color: #8C7B6B;
+	line-height: 1.35;
+	margin-top: 6rpx;
+}
+.retention-rewards {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10rpx;
+	margin-top: 16rpx;
+	padding-top: 16rpx;
+	border-top: 1rpx solid #F0E6D8;
+}
+.retention-rewards-label {
+	font-size: 21rpx;
+	color: #A09080;
+}
+.retention-reward-item {
+	font-size: 21rpx;
+	color: #FF8C42;
+	background: #FFF5EE;
+	padding: 4rpx 10rpx;
+	border-radius: 18rpx;
+}
+
+/* ===== 游客权益引导 ===== */
+.guest-benefit-card {
+	margin: 0 24rpx 24rpx;
+	background: #FFF;
+	border-radius: 24rpx;
+	padding: 28rpx 24rpx;
+	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
+	border: 1rpx solid rgba(240, 230, 216, 0.6);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18rpx;
+}
+.guest-benefit-main {
+	flex: 1;
+	min-width: 0;
+}
+.guest-benefit-title {
+	display: block;
+	font-size: 30rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+}
+.guest-benefit-sub {
+	display: block;
+	margin-top: 8rpx;
+	font-size: 23rpx;
+	line-height: 1.45;
+	color: #A09080;
+}
+.guest-benefit-btn {
+	flex-shrink: 0;
+	background: #FF8C42;
+	color: #FFF;
+	font-size: 24rpx;
+	font-weight: bold;
+	padding: 12rpx 24rpx;
+	border-radius: 28rpx;
+	box-shadow: 0 4rpx 14rpx rgba(255, 140, 66, 0.22);
 }
 </style>
