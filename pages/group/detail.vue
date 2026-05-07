@@ -216,13 +216,13 @@
                 <text class="share-text">邀请好友</text>
             </button>
             <view class="action-btn warn" v-if="isInitiator && group.status === 'open'" @click="handleCancel">
-                <text>🚫 解散拼团</text>
+                <text>{{ actionLoading ? '处理中...' : '🚫 解散拼团' }}</text>
             </view>
             <view class="action-btn warn" v-else-if="isMember && group.status === 'open'" @click="handleLeave">
-                <text>退出拼团</text>
+                <text>{{ actionLoading ? '处理中...' : '退出拼团' }}</text>
             </view>
             <view class="action-btn primary" v-else-if="canJoin" @click="handleJoin">
-                <text>🎮 加入拼团</text>
+                <text>{{ actionLoading ? '处理中...' : '🎮 加入拼团' }}</text>
             </view>
             <view class="action-btn disabled" v-else>
                 <text>{{ group.status === 'success' ? '✨ 已成团' : '已结束' }}</text>
@@ -243,6 +243,7 @@ export default {
             loading: true,
             countdownTimer: null,
             countdownText: '',
+            actionLoading: false,
         };
     },
 
@@ -402,6 +403,7 @@ export default {
         },
 
         handleJoin() {
+            if (this.actionLoading) return;
             if (!this.canJoin) return;
             if (!this.token) {
                 uni.showModal({
@@ -420,9 +422,11 @@ export default {
                 content: '加入拼团将支付 ¥' + (this.group.price_per_person / 100) + '（成员人均），是否确认？',
                 success: (res) => {
                     if (res.confirm) {
+                        this.actionLoading = true;
                         uni.showLoading({ title: '处理中...' });
                         AUTH.joinGroup(this.token, this.groupId).then(res => {
                             uni.hideLoading();
+                            this.actionLoading = false;
                             if (res && res._status === 0) {
                                 uni.showToast({ title: '加入成功', icon: 'success' });
                                 this.loadDetail();
@@ -442,6 +446,7 @@ export default {
                             }
                         }).catch(() => {
                             uni.hideLoading();
+                            this.actionLoading = false;
                             uni.showToast({ title: '加入失败', icon: 'none' });
                         });
                     }
@@ -450,14 +455,17 @@ export default {
         },
 
         handleLeave() {
+            if (this.actionLoading) return;
             uni.showModal({
                 title: '退出拼团',
                 content: '退出后将退还已支付的费用，是否确认？',
                 success: (res) => {
                     if (res.confirm) {
+                        this.actionLoading = true;
                         uni.showLoading({ title: '处理中...' });
                         AUTH.leaveGroup(this.token, this.groupId).then(res => {
                             uni.hideLoading();
+                            this.actionLoading = false;
                             if (res && res._status === 0) {
                                 uni.showToast({ title: '已退出', icon: 'success' });
                                 this.loadDetail();
@@ -466,6 +474,7 @@ export default {
                             }
                         }).catch(() => {
                             uni.hideLoading();
+                            this.actionLoading = false;
                             uni.showToast({ title: '退出失败', icon: 'none' });
                         });
                     }
@@ -474,14 +483,17 @@ export default {
         },
 
         handleCancel() {
+            if (this.actionLoading) return;
             uni.showModal({
                 title: '解散拼团',
                 content: '解散后所有成员（包括你）已支付的费用将原路退回余额，是否确认解散？',
                 success: (res) => {
                     if (res.confirm) {
+                        this.actionLoading = true;
                         uni.showLoading({ title: '处理中...' });
                         AUTH.cancelGroup(this.token, this.groupId).then(res => {
                             uni.hideLoading();
+                            this.actionLoading = false;
                             if (res && res._status === 0) {
                                 uni.showToast({ title: '已取消', icon: 'success' });
                                 setTimeout(() => uni.navigateBack(), 1500);
@@ -490,6 +502,7 @@ export default {
                             }
                         }).catch(() => {
                             uni.hideLoading();
+                            this.actionLoading = false;
                             uni.showToast({ title: '取消失败', icon: 'none' });
                         });
                     }

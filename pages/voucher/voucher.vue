@@ -66,10 +66,10 @@
 						<text class="c-expire" v-else>有效期至 {{ item.end_time ? item.end_time.substring(0, 10) : '永久' }}</text>
 						<button
 							class="c-btn"
-							:disabled="item.remaining_count === 0"
+							:disabled="item.remaining_count === 0 || receivingCouponId === item.campaign_id"
 							@tap.stop="receiveCoupon(item)"
 						>
-							{{ item.remaining_count === 0 ? '已领完' : '立即领取' }}
+							{{ item.remaining_count === 0 ? '已领完' : (receivingCouponId === item.campaign_id ? '领取中...' : '立即领取') }}
 						</button>
 					</view>
 				</view>
@@ -304,6 +304,7 @@ export default {
 			couponList: [],
 			goodsList: [],
 			hasAutoSelectedTab: false,
+			receivingCouponId: '',
 			goodsEmojis: ['🍿', '🍰', '🧋', '🍟', '🍪', '🎈', '🌸', '🕯️', '🎂', '🎊', '🎲', '🎯', '🃏', '🧩', '🎁', '🧸', '📿', '🔮'],
 		};
 	},
@@ -388,12 +389,14 @@ export default {
 
 		async receiveCoupon(item) {
 			if (item.remaining_count === 0) return;
+			if (this.receivingCouponId) return;
 			if (!this.hasLogin) {
 				this.promptLogin('请先登录再领取优惠券', () => {
 					this.receiveCoupon(item);
 				});
 				return;
 			}
+			this.receivingCouponId = item.campaign_id;
 			uni.showLoading({ title: '领取中...' });
 			try {
 				const res = await AUTH.receiveCoupon(this.token, item.campaign_id);
@@ -408,6 +411,8 @@ export default {
 			} catch (e) {
 				uni.hideLoading();
 				uni.showToast({ title: '领取失败', icon: 'none' });
+			} finally {
+				this.receivingCouponId = '';
 			}
 		},
 

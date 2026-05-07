@@ -147,6 +147,7 @@ export default {
             groupList: [],
             loading: false,
             pendingShareGroup: null,
+            groupRequestSeq: 0,
         };
     },
 
@@ -240,12 +241,14 @@ export default {
 
         fetchGroupList() {
             // 拼团大厅公开，无需登录即可浏览
+            const requestSeq = ++this.groupRequestSeq;
             this.loading = true;
             const params = {};
             if (this.currentDate) {
                 params.date = this.currentDate;
             }
             return AUTH.getGroupList(this.token || null, params).then(res => {
+                if (requestSeq !== this.groupRequestSeq) return;
                 this.loading = false;
                 if (res && res._status === 0) {
                     const data = res.data || {};
@@ -312,6 +315,7 @@ export default {
                     this.groupList = [];
                 }
             }).catch(() => {
+                if (requestSeq !== this.groupRequestSeq) return;
                 this.loading = false;
                 this.groupList = [];
             });

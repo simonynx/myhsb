@@ -282,7 +282,7 @@
                                 <text class="coupon-unit" v-if="c.coupon_type === 'rebate'">¥</text>
                                 <text class="coupon-price">{{ c.displayValue }}</text>
                             </view>
-                            <text class="coupon-limit">{{ c.min_consume > 0 ? `满${c.min_consume / 100}元可用` : '无门槛' }}</text>
+                            <text class="coupon-limit">{{ c.limitText }}</text>
                         </view>
                         <view class="coupon-right">
                             <view class="coupon-name">{{ c.name }}</view>
@@ -601,6 +601,16 @@ export default {
         },
     },
 
+    watch: {
+        afterMemberPriceFen() {
+            this.ensureSelectedCouponAvailable();
+        },
+
+        myCoupons() {
+            this.ensureSelectedCouponAvailable();
+        },
+    },
+
     onLoad(option) {
         const roomData = this.$store.state.currentRoom || {};
         const selectItem = this.$store.state.currentSelectItem || {};
@@ -644,36 +654,36 @@ export default {
                 const res = await AUTH.getMyCoupons(this.token, 0);
                 if (res && res._status === 0) {
                     const coupons = res.data || [];
-                    if (coupons.length > 0) {
-                        // 适配后端 coupon_type+rules 格式 → 前端旧的 discount/min_consume 格式
-                        this.myCoupons = coupons.map(c => {
-                            const rules = c.rules || {};
-                            let discount = 0;
-                            let displayValue = '-';
-                            if (c.coupon_type === 'rebate') {
-                                discount = rules.discount || 0;
-                                displayValue = String((discount / 100).toFixed(0));
-                            } else if (c.coupon_type === 'discount') {
-                                const rate = rules.discount_rate || 1;
-                                displayValue = (Math.round(rate * 100) / 10) + '折';
-                            } else if (c.coupon_type === 'gift') {
-                                displayValue = (rules.gift_value || '-') + '积分';
-                            }
-                            return {
-                                object_id: c.object_id,
-                                name: c.name,
-                                description: c.description,
-                                discount: discount,
-                                coupon_type: c.coupon_type,
-                                rules: c.rules,
-                                min_consume: c.min_consume,
-                                expire_time: c.expire_time,
-                                status: c.status === 0 ? 'unused' : (c.status === 1 ? 'used' : 'expired'),
-                                is_valid: c.is_valid,
-                                displayValue,
-                            };
-                        });
-                    }
+                    // 适配后端 coupon_type+rules 格式 → 前端旧的 discount/min_consume 格式
+                    this.myCoupons = coupons.map(c => {
+                        const rules = c.rules || {};
+                        const minConsume = c.min_consume || 0;
+                        let discount = 0;
+                        let displayValue = '-';
+                        if (c.coupon_type === 'rebate') {
+                            discount = rules.discount || 0;
+                            displayValue = String((discount / 100).toFixed(0));
+                        } else if (c.coupon_type === 'discount') {
+                            const rate = rules.discount_rate || 1;
+                            displayValue = (Math.round(rate * 100) / 10) + '折';
+                        } else if (c.coupon_type === 'gift') {
+                            displayValue = (rules.gift_value || '-') + '积分';
+                        }
+                        return {
+                            object_id: c.object_id,
+                            name: c.name,
+                            description: c.description,
+                            discount: discount,
+                            coupon_type: c.coupon_type,
+                            rules: c.rules,
+                            min_consume: minConsume,
+                            expire_time: c.expire_time,
+                            status: c.status === 0 ? 'unused' : (c.status === 1 ? 'used' : 'expired'),
+                            is_valid: c.is_valid,
+                            displayValue,
+                            limitText: minConsume > 0 ? '满' + (minConsume / 100).toFixed(0) + '元可用' : '无门槛',
+                        };
+                    });
                 }
             } catch (e) {
                 console.log('load coupons error:', e);
@@ -693,6 +703,21 @@ export default {
         selectCoupon(coupon) {
             this.selectedCoupon = coupon;
             this.couponPickerOpen = false;
+        },
+
+        isCouponAvailable(coupon) {
+            if (!coupon) return false;
+            const current = this.myCoupons.find(c => c.object_id === coupon.object_id) || coupon;
+            if (current.status !== 'unused') return false;
+            if (current.min_consume > 0 && this.afterMemberPriceFen < current.min_consume) return false;
+            return true;
+        },
+
+        ensureSelectedCouponAvailable() {
+            if (!this.selectedCoupon) return true;
+            if (this.isCouponAvailable(this.selectedCoupon)) return true;
+            this.selectedCoupon = null;
+            return false;
         },
 
         // 人数增减
@@ -732,6 +757,10 @@ export default {
                 return;
             }
             if (this.submitDisabled) return;
+            if (!this.ensureSelectedCouponAvailable()) {
+                uni.showToast({ title: '已移除不可用优惠券，请确认金额', icon: 'none' });
+                return;
+            }
             const maxPeople = this.currentProduct && this.currentProduct.seats_count || 0;
             if (maxPeople > 0 && this.numOfPeople > maxPeople) {
                 uni.showToast({ title: '预约人数不能超过房间容纳人数(' + maxPeople + '人)', icon: 'none' });

@@ -241,9 +241,10 @@
                 <text class="bottom-label">发起人最终支付</text>
                 <text class="bottom-price">¥{{ actualInitiatorPaidYuan }}</text>
             </view>
-            <view class="submit-btn" :class="!isBalanceEnough || maxExpireHours < 12 ? 'disabled' : ''" @click="handleSubmit">
+            <view class="submit-btn" :class="!isBalanceEnough || maxExpireHours < 12 || submitting ? 'disabled' : ''" @click="handleSubmit">
                 <text v-if="maxExpireHours < 12">⏰ 时间太近了</text>
                 <text v-else-if="!isBalanceEnough">💰 去充值</text>
+                <text v-else-if="submitting">创建中...</text>
                 <text v-else>🚀 发起拼团</text>
             </view>
         </view>
@@ -291,8 +292,8 @@
                     <view class="modal-btn cancel" @click="cancelConfirm">
                         <text>再想想</text>
                     </view>
-                    <view class="modal-btn confirm" @click="confirmSubmit">
-                        <text>确认支付</text>
+                    <view class="modal-btn confirm" :class="submitting ? 'disabled' : ''" @click="confirmSubmit">
+                        <text>{{ submitting ? '处理中...' : '确认支付' }}</text>
                     </view>
                 </view>
             </view>
@@ -328,6 +329,7 @@ export default {
             memberDiscountPercent: 100,
             showConfirmModal: false,
             showAdvanced: false,
+            submitting: false,
         };
     },
 
@@ -536,6 +538,7 @@ export default {
         },
 
         handleSubmit() {
+            if (this.submitting) return;
             if (this.maxExpireHours < 12) {
                 uni.showToast({ title: '预约时间太近了，请直接预约或选择更晚时段', icon: 'none' });
                 return;
@@ -590,11 +593,13 @@ export default {
         },
 
         confirmSubmit() {
+            if (this.submitting) return;
             const data = this._pendingSubmitData;
             if (!data) return;
             this.showConfirmModal = false;
             this._pendingSubmitData = null;
 
+            this.submitting = true;
             uni.showLoading({ title: '创建中...' });
             AUTH.createGroup(this.token, data).then(res => {
                         uni.hideLoading();
@@ -610,6 +615,8 @@ export default {
                                             setTimeout(() => {
                                                 uni.redirectTo({ url: '/pages/group/detail?id=' + res.data.object_id });
                                             }, 800);
+                                        } else {
+                                            this.submitting = false;
                                         }
                                     }
                                 });
@@ -621,6 +628,7 @@ export default {
                             }
                         } else {
                             var msg = (res && res._reason) || '创建失败';
+                            this.submitting = false;
                             if (msg.indexOf('余额不足') !== -1) {
                                 uni.showModal({
                                     title: '余额不足',
@@ -635,6 +643,7 @@ export default {
                         }
                     }).catch(() => {
                         uni.hideLoading();
+                        this.submitting = false;
                         uni.showToast({ title: '创建失败', icon: 'none' });
                     });
         },
@@ -1380,6 +1389,11 @@ $border: #EEEEEE;
         &.confirm {
             color: $primary;
             font-weight: bold;
+        }
+
+        &.disabled {
+            color: #999;
+            background: #F5F5F5;
         }
 
         &:active {
