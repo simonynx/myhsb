@@ -138,7 +138,7 @@
 				<view class="progress-fill" :style="progressFillStyle"></view>
 			</view>
 			<view class="level-dots">
-				<view v-for="l in levelDots" :key="l.level" :class="levelDotClass(l)">
+				<view v-for="l in levelDots" :key="l.level" :class="l.className">
 					<text class="dot-icon">{{ l.icon }}</text>
 					<text class="dot-name">{{ l.name }}</text>
 				</view>
@@ -154,13 +154,13 @@
 				</view>
 			</view>
 			<view class="vip-levels">
-				<block v-for="(lv, idx) in memberConfig" :key="lv.level">
-					<view :class="vipLevelClass(lv)">
+				<block v-for="(lv, idx) in memberBenefitLevels" :key="lv.level">
+					<view :class="lv.className">
 						<text class="vl-icon">{{ lv.icon }}</text>
 						<text class="vl-name">{{ lv.name }}</text>
 						<text class="vl-discount">{{ lv.discount >= 100 ? '原价' : lv.discount + '折' }}</text>
 					</view>
-					<view class="vip-arrow" v-if="idx < memberConfig.length - 1">→</view>
+					<view class="vip-arrow" v-if="idx < memberBenefitLevels.length - 1">→</view>
 				</block>
 			</view>
 			<view class="vip-tip" v-if="nextLevelName">
@@ -400,8 +400,26 @@
 				return Math.min(100, ((total - curr) / (next - curr)) * 100).toFixed(0);
 			},
 			levelDots() {
+				var currentLevel = (this.userInfo && this.userInfo.member_level) || 0;
 				return this.memberConfig.map(function(l) {
-					return { level: l.level, icon: l.icon, name: l.name };
+					return {
+						level: l.level,
+						icon: l.icon,
+						name: l.name,
+						className: currentLevel >= l.level ? 'level-dot active' : 'level-dot',
+					};
+				});
+			},
+			memberBenefitLevels() {
+				var currentLevel = (this.userInfo && this.userInfo.member_level) || 0;
+				return this.memberConfig.map(function(l) {
+					return {
+						level: l.level,
+						icon: l.icon,
+						name: l.name,
+						discount: l.discount,
+						className: currentLevel >= l.level ? 'vip-level active' : 'vip-level',
+					};
 				});
 			},
 		},
@@ -555,14 +573,6 @@
 			},
 			openAuthorizationModal() {
 				uni.navigateTo({ url: '/pages/user/setting/setting' });
-			},
-			levelDotClass(item) {
-				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				return level >= item.level ? 'level-dot active' : 'level-dot';
-			},
-			vipLevelClass(item) {
-				var level = (this.userInfo && this.userInfo.member_level) || 0;
-				return level >= item.level ? 'vip-level active' : 'vip-level';
 			},
 			resetUserPageState() {
 				this.orderCounts = { waitPay: 0, waitUse: 0 };
