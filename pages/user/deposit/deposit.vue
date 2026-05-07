@@ -13,11 +13,11 @@
 				<text class="balance-label">当前余额</text>
 				<view class="balance-amount">
 					<text class="yuan">¥</text>
-					<text class="num">{{ (userInfo.account_balance / 100).toFixed(2) }}</text>
+					<text class="num">{{ balanceText }}</text>
 				</view>
 			</view>
 			<view class="balance-right">
-				<view class="member-badge" :style="{ background: memberColor }">
+				<view class="member-badge" :style="memberBgStyle">
 					<text class="badge-icon">{{ memberIcon }}</text>
 					<text class="badge-name">{{ memberLevelName }}</text>
 				</view>
@@ -36,10 +36,10 @@
 					class="amount-item"
 					v-for="(item, idx) in dynamicAmountList"
 					:key="idx"
-					:class="{ active: selectedAmount == item.amount, popular: item.popular }"
+					:class="item.className"
 					@tap="selectAmount(item)"
 				>
-					<view class="popular-tag" v-if="item.popular">推荐</view>
+					<view class="popular-tag" v-if="item.tagText">{{ item.tagText }}</view>
 					<text class="amount-icon">{{ item.icon }}</text>
 					<text class="amount-num">¥{{ item.amount }}</text>
 					<text class="amount-bonus" v-if="item.bonus">+{{ item.bonus }}积分</text>
@@ -75,7 +75,7 @@
 			<text class="rules-title">📝 使用规则</text>
 			<view class="rules-list">
 				<text class="rule-item">· 余额仅限本小程序预约消费使用</text>
-				<text class="rule-item">· 充值赠送积分即时到账，可抵用预约费用</text>
+				<text class="rule-item">· 赠送余额与本金一起到账，赠送积分可用于积分活动</text>
 				<text class="rule-item">· 余额不支持提现或转账</text>
 			</view>
 		</view>
@@ -132,17 +132,50 @@
 			memberColor() {
 				return (this.memberLevelData && this.memberLevelData.color) || '#AAAAAA';
 			},
+			memberBgStyle() {
+				return 'background: ' + this.memberColor + ';';
+			},
+			balanceText() {
+				var balance = this.userInfo && this.userInfo.account_balance;
+				balance = Number(balance);
+				if (!isFinite(balance)) balance = 0;
+				return (balance / 100).toFixed(2);
+			},
 			dynamicAmountList() {
+				var source = [];
 				if (this.rechargeTiers && this.rechargeTiers.length > 0) {
-					return this.rechargeTiers.map((t, idx) => ({
-						amount: t.amount,
-						bonus: t.bonus || 0,
-						present: t.present || 0,
-						popular: idx === 1,
-						icon: TIER_ICONS[idx % TIER_ICONS.length],
-					}));
+					source = this.rechargeTiers.map(function(t, idx) {
+						return {
+							amount: Number(t.amount) || 0,
+							bonus: Number(t.bonus) || 0,
+							present: Number(t.present) || 0,
+							popular: false,
+							icon: TIER_ICONS[idx % TIER_ICONS.length],
+						};
+					});
+				} else {
+					source = this.defaultAmountList;
 				}
-				return this.defaultAmountList;
+
+				var selectedAmount = this.selectedAmount;
+				var hasMainTier = source.some(function(item) {
+					return item.amount === 300;
+				});
+				return source.map(function(item) {
+					var popular = hasMainTier ? item.amount === 300 : !!item.popular;
+					var className = '';
+					if (selectedAmount == item.amount) className = 'active';
+					if (popular) className += className ? ' popular' : 'popular';
+					return {
+						amount: item.amount,
+						bonus: item.bonus || 0,
+						present: item.present || 0,
+						popular: popular,
+						tagText: popular ? '推荐' : '',
+						icon: item.icon,
+						className: className,
+					};
+				});
 			},
 		},
 		data() {
@@ -153,25 +186,41 @@
 				selectedTierPresent: 0,
 				memberConfig: [],
 				defaultAmountList: [
-					{ amount: 100, bonus: 50, present: 0, popular: false, icon: '🎯' },
-					{ amount: 200, bonus: 120, present: 0, popular: true, icon: '🔥' },
-					{ amount: 300, bonus: 200, present: 0, popular: false, icon: '⭐' },
-					{ amount: 500, bonus: 350, present: 20, popular: false, icon: '💎' },
-					{ amount: 1000, bonus: 800, present: 50, popular: false, icon: '👑' },
+					{ amount: 200, bonus: 0, present: 20, popular: false, icon: '🎯' },
+					{ amount: 300, bonus: 100, present: 50, popular: true, icon: '🔥' },
+					{ amount: 500, bonus: 300, present: 90, popular: false, icon: '💎' },
+					{ amount: 1000, bonus: 1000, present: 200, popular: false, icon: '👑' },
 				],
 			};
 		},
 		onShow() {
-			if (!this.userInfo) this.getUserInfo();
+			if (this.token && !this.userInfo) {
+				this.getUserInfo(true).catch(function() {});
+			}
 			this.loadRechargeTiers();
 			this.loadMemberConfig();
 		},
 		methods: {
 			...mapActions(['getRechargeTiers', 'loginAndRegister', 'getUserInfo']),
 			loadRechargeTiers() {
+				var self = this;
 				if (!this.rechargeTiers || this.rechargeTiers.length === 0) {
-					this.getRechargeTiers();
+					this.getRechargeTiers().then(function() {
+						self.ensureDefaultSelected();
+					}).catch(function() {
+						self.ensureDefaultSelected();
+					});
+					return;
 				}
+				this.ensureDefaultSelected();
+			},
+			ensureDefaultSelected() {
+				if (this.selectedAmount) return;
+				var list = this.dynamicAmountList;
+				var selected = list.find(function(item) {
+					return item.popular;
+				}) || list[0];
+				if (selected) this.selectAmount(selected);
 			},
 			async loadMemberConfig() {
 				if (!this.hasLogin) return;
@@ -181,9 +230,9 @@
 				}
 			},
 			selectAmount(item) {
-				this.selectedAmount = item.amount;
-				this.selectedTierBonus = item.bonus || 0;
-				this.selectedTierPresent = item.present || 0;
+				this.selectedAmount = Number(item.amount) || 0;
+				this.selectedTierBonus = Number(item.bonus) || 0;
+				this.selectedTierPresent = Number(item.present) || 0;
 			},
 			showTerms() {
 				uni.showModal({
@@ -196,6 +245,19 @@
 				uni.navigateTo({ url: '/pages/user/balance/balance' });
 			},
 			doDeposit() {
+				if (!this.hasLogin || !this.token) {
+					uni.showModal({
+						title: '请先登录',
+						content: '登录后才能充值余额',
+						confirmText: '去登录',
+						success: function(res) {
+							if (res.confirm) {
+								uni.switchTab({ url: '/pages/user/user' });
+							}
+						},
+					});
+					return;
+				}
 				if (!this.selectedAmount) {
 					uni.showToast({ title: '请选择充值金额', icon: 'none' });
 					return;
