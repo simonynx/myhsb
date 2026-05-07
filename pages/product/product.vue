@@ -2,7 +2,7 @@
     <view class="page">
         <!-- 导航栏 -->
         <view class="nav-bar" :class="scrolled ? 'solid' : 'transparent'">
-            <text class="nav-back yticon icon-fanhui" @click="goBack"></text>
+            <text class="nav-back yticon icon-fanhui" @tap="goBack"></text>
             <text class="nav-title">{{ scrolled ? room.name : '包厢详情' }}</text>
             <button class="nav-share" open-type="share" hover-class="none">
                 <text class="yticon icon-fenxiang2"></text>
@@ -10,7 +10,7 @@
         </view>
 
         <!-- 轮播图 -->
-        <view class="hero-section" @click="previewImages">
+        <view class="hero-section" @tap="previewImages">
             <swiper
                 class="hero-swiper"
                 indicator-dots
@@ -18,6 +18,7 @@
                 duration="400"
                 interval="3000"
                 autoplay
+                @change="onSwiperChange"
                 indicator-color="rgba(255,255,255,0.4)"
                 indicator-active-color="#fff"
             >
@@ -29,6 +30,11 @@
             <!-- 状态标签 -->
             <view class="hero-badge" :class="statusClass">
                 <text>{{ statusText }}</text>
+            </view>
+
+            <view class="hero-info">
+                <text class="hero-name">{{ room.name || '包厢详情' }}</text>
+                <text class="hero-sub">{{ heroSummary }}</text>
             </view>
 
             <!-- 图片计数 -->
@@ -45,21 +51,36 @@
             <view class="price-row">
                 <view class="price-main">
                     <text class="price-yuan">¥</text>
-                    <text class="price-num">{{ room.price_per_hour / 100 }}</text>
+                    <text class="price-num">{{ pricePerHourText }}</text>
                     <text class="price-unit">/小时</text>
                 </view>
                 <view class="original-price" v-if="room.original_price_per_hour && room.original_price_per_hour > room.price_per_hour">
-                    <text>¥{{ room.original_price_per_hour / 100 }}</text>
+                    <text>¥{{ formatMoney(room.original_price_per_hour) }}</text>
                 </view>
             </view>
 
             <view class="room-name-row">
                 <view class="name-line">
                     <text class="room-name">{{ room.name }}</text>
-                    <text class="seats-badge" v-if="room.seats_count">👥 {{ room.seats_count }}人</text>
+                    <text class="seats-badge" v-if="room.seats_count">{{ room.seats_count }}人</text>
                 </view>
                 <view class="tags-row" v-if="room.tagsArr && room.tagsArr.length">
                     <text class="tag" v-for="t in room.tagsArr" :key="t">{{ t }}</text>
+                </view>
+            </view>
+
+            <view class="quick-info-row">
+                <view class="quick-info-item">
+                    <text class="qi-value">{{ availableSlotCount }}</text>
+                    <text class="qi-label">可约时段</text>
+                </view>
+                <view class="quick-info-item">
+                    <text class="qi-value">{{ openHoursText }}</text>
+                    <text class="qi-label">营业时间</text>
+                </view>
+                <view class="quick-info-item">
+                    <text class="qi-value">{{ addonCountText }}</text>
+                    <text class="qi-label">可加选</text>
                 </view>
             </view>
         </view>
@@ -71,17 +92,23 @@
                 <view class="title-line"></view>
                 <text class="slots-date">{{ currentSelectDate }}</text>
             </view>
+            <view class="slots-summary">
+                <text>{{ slotsSummary }}</text>
+            </view>
 
-            <view class="slots-grid">
+            <view class="slots-grid" v-if="displaySlots.length > 0">
                 <view
                     v-for="(slot, si) in displaySlots"
                     :key="si"
                     class="slot-item"
                     :class="slot.statusClass"
                 >
-                    <text class="slot-time">{{ slot.start }}:00</text>
+                    <text class="slot-time">{{ formatDisplayHour(slot.start) }}</text>
                     <view class="slot-bar"></view>
                 </view>
+            </view>
+            <view class="slots-empty" v-else>
+                <text>该日期暂未开放预约时段</text>
             </view>
 
             <view class="slots-legend">
@@ -152,11 +179,11 @@
                 <text class="store-value">{{ wifiInfo }}</text>
             </view>
             <view class="store-actions">
-                <view class="action-btn nav-btn" @click="openMap">
+                <view class="action-btn nav-btn" @tap="openMap">
                     <text class="yticon icon-ditu"></text>
                     <text>导航</text>
                 </view>
-                <view class="action-btn call-btn" @click="callPhone">
+                <view class="action-btn call-btn" @tap="callPhone">
                     <text class="yticon icon-dianhua"></text>
                     <text>拨打电话</text>
                 </view>
@@ -206,31 +233,32 @@
         <!-- 底部操作栏 -->
         <view class="bottom-bar">
             <view class="price-info">
-                <text class="pi-label">实付金额</text>
+                <text class="pi-label">包厢单价</text>
                 <text class="pi-price">¥{{ estimatePrice }}</text>
+                <text class="pi-sub">按所选时段结算</text>
             </view>
             <view
                 class="book-btn"
                 :class="isFullyBooked ? 'disabled' : ''"
-                @click="goToAppoint"
+                @tap="goToAppoint"
             >
-                <text>{{ isFullyBooked ? '当天已约满' : '立即预约' }}</text>
+                <text>{{ bottomButtonText }}</text>
             </view>
         </view>
 
         <!-- 时间选择弹窗 -->
-        <view class="time-popup" :class="specClass" @touchmove.stop.prevent @click="closePopup">
+        <view class="time-popup" :class="specClass" @touchmove.stop.prevent @tap="closePopup">
             <view class="mask"></view>
-            <view class="panel" @click.stop>
+            <view class="panel" @tap.stop>
                 <view class="panel-header">
                     <view class="panel-room-info">
                         <image class="panel-thumb" :src="room.image1" mode="aspectFill" />
                         <view class="panel-meta">
                             <text class="panel-name">{{ room.name }}</text>
-                            <text class="panel-price">¥{{ room.price_per_hour / 100 }}/小时</text>
+                            <text class="panel-price">¥{{ pricePerHourText }}/小时 · {{ currentSelectDate }}</text>
                         </view>
                     </view>
-                    <text class="panel-close yticon icon-guanbi" @click="closePopup"></text>
+                    <text class="panel-close yticon icon-guanbi" @tap="closePopup"></text>
                 </view>
                 <view class="panel-times">
                     <times
@@ -252,14 +280,14 @@
                 <view class="panel-footer">
                     <view class="pf-info">
                         <text class="pf-label">已选时段</text>
-                        <text class="pf-count" v-if="specSelected.length">{{ specSelected.length }} 个时段</text>
+                        <text class="pf-count" v-if="specSelected.length">{{ selectedSummaryText }}</text>
                         <text class="pf-count zero" v-else>请选择预约时段</text>
                     </view>
                     <view class="pf-btns">
-                        <view class="pf-btn group" :class="specSelected.length ? '' : 'disabled'" @click="specSelected.length && handleCreateGroup()">
+                        <view class="pf-btn group" :class="specSelected.length ? '' : 'disabled'" @tap="specSelected.length && handleCreateGroup()">
                             <text>发起拼团</text>
                         </view>
-                        <view class="pf-btn book" :class="specSelected.length ? '' : 'disabled'" @click="specSelected.length && handleDirectBook()">
+                        <view class="pf-btn book" :class="specSelected.length ? '' : 'disabled'" @tap="specSelected.length && handleDirectBook()">
                             <text>直接预约</text>
                         </view>
                     </view>
@@ -323,9 +351,51 @@ export default {
             const hasBooked = this.room.appoints && this.room.appoints.some(s => s.status === 3);
             return hasBooked ? '部分可约' : '可预约';
         },
+        pricePerHourText() {
+            return this.formatMoney(this.room.price_per_hour || 0);
+        },
         estimatePrice() {
             if (!this.room.price_per_hour) return '0.00';
-            return (this.room.price_per_hour / 100).toFixed(2);
+            return this.formatMoney(this.room.price_per_hour);
+        },
+        openHoursText() {
+            if (this.room.opening_hours_start === undefined || this.room.opening_hours_end === undefined) return '--';
+            return this.formatDisplayHour(this.room.opening_hours_start) + '-' + this.formatDisplayHour(this.room.opening_hours_end);
+        },
+        availableSlotCount() {
+            return this.displaySlots.filter(function(slot) { return slot.status === 1; }).length;
+        },
+        bookedSlotCount() {
+            return this.displaySlots.filter(function(slot) { return slot.status === 3; }).length;
+        },
+        addonCountText() {
+            return this.roomAddons.length > 0 ? String(this.roomAddons.length) : '可到店选';
+        },
+        heroSummary() {
+            const parts = [];
+            if (this.room.seats_count) parts.push('适合' + this.room.seats_count + '人');
+            if (this.openHoursText !== '--') parts.push(this.openHoursText + '营业');
+            if (this.availableSlotCount > 0) parts.push('今日余' + this.availableSlotCount + '段');
+            return parts.length ? parts.join(' · ') : '桌游、聚会、休闲包厢';
+        },
+        slotsSummary() {
+            if (this.displaySlots.length === 0) return '暂未开放预约时段';
+            if (this.availableSlotCount > 0) return '还有 ' + this.availableSlotCount + ' 个时段可预约';
+            if (this.bookedSlotCount > 0) return '今天的可用时段已被约满';
+            return '今天暂无可预约时段';
+        },
+        bottomButtonText() {
+            if (this.isFullyBooked) return '当天已约满';
+            if (this.availableSlotCount > 0) return '选择时段预约';
+            return '查看可选时段';
+        },
+        selectedSummaryText() {
+            if (!this.specSelected.length) return '请选择预约时段';
+            const first = this.specSelected[0];
+            const last = this.specSelected[this.specSelected.length - 1];
+            const begin = first[0].split(' ')[1].substring(0, 5);
+            const end = last[1].split(' ')[1].substring(0, 5);
+            return begin + '-' + end + ' · ' + this.specSelected.length + '小时';
         },
     },
 
@@ -396,6 +466,7 @@ export default {
                 r.tagsArr = r.tags.split('$').map(t => t.trim()).filter(Boolean);
             }
             this.room = r;
+            this.currentImgIndex = 0;
             this.buildImages();
             this.buildDesc();
             this.buildFacilities();
@@ -418,6 +489,7 @@ export default {
 
         buildImages() {
             const r = this.room;
+            this.imgList = [];
             if (r.image1) this.imgList.push({ src: r.image1 });
             if (r.image2) this.imgList.push({ src: r.image2 });
             if (r.image3) this.imgList.push({ src: r.image3 });
@@ -452,6 +524,7 @@ export default {
                 'switch': { icon: '🎯', name: 'Switch' },
             };
             const tags = this.room.tagsArr || [];
+            this.facilities = [];
             this.facilities = tags
                 .filter(t => tagMap[t.toLowerCase()])
                 .map(t => tagMap[t.toLowerCase()]);
@@ -463,16 +536,18 @@ export default {
 
         buildStoreInfo() {
             AUTH.getConstance().then(res => {
-                if (!res) return;
+                if (!res || res._status !== 0 || !res.data) return;
                 const cfg = res.data;
+                const address = (cfg.store_address || '') + (cfg.store_area || '');
+                if (address) this.storeAddress = address;
                 if (cfg.wifi_name) this.wifiInfo = cfg.wifi_name + (cfg.wifi_password ? ' / ' + cfg.wifi_password : '');
                 if (cfg.phone_number) this.storePhone = cfg.phone_number;
             });
         },
 
         initTimeConfig() {
-            this.currentBeginTime = this.room.opening_hours_start + ':00:00';
-            this.currentEndTime = this.room.opening_hours_end + ':00:00';
+            this.currentBeginTime = this.formatTimeValue(this.room.opening_hours_start || 0);
+            this.currentEndTime = this.formatTimeValue(this.room.opening_hours_end || 24);
             this.disableTimeSlot = [];
             if (this.room.appoints) {
                 for (const slot of this.room.appoints) {
@@ -491,6 +566,11 @@ export default {
             if (status === 1) return 'available';
             if (status === 2) return 'past';
             return 'booked';
+        },
+
+        onSwiperChange(e) {
+            const current = e && e.detail ? e.detail.current : 0;
+            this.currentImgIndex = current || 0;
         },
 
         previewImages() {
@@ -512,7 +592,11 @@ export default {
                     if (room.tags && typeof room.tags === 'string') {
                         room.tagsArr = room.tags.split('$').map(t => t.trim()).filter(Boolean);
                     }
+                    if (!room.appoints || !room.appoints.length) {
+                        room.appoints = this.buildSlotsFromAppointments(room, res.data.appointments || []);
+                    }
                     this.rebuildRoom(room);
+                    this.loadRoomAddons(room.object_id);
                 } else {
                     const reason = (res && res._reason) || '加载失败';
                     // 404 或接口不存在时引导用户返回
@@ -549,6 +633,46 @@ export default {
             return hour < 10 ? '0' + hour : String(hour);
         },
 
+        buildSlotsFromAppointments(room, appointments) {
+            const slots = [];
+            const start = parseInt(room.opening_hours_start || 0, 10);
+            const end = parseInt(room.opening_hours_end || 24, 10);
+            const today = new Date();
+            const isToday = this.currentSelectDate === this.formatDate(today);
+            const currentHour = isToday ? today.getHours() : -1;
+            for (let h = start; h < end; h++) {
+                const booked = this._findAppoint(appointments || [], room.object_id, h);
+                const status = h <= currentHour ? 2 : (booked ? 3 : 1);
+                slots.push({
+                    start: h,
+                    end: h + 1,
+                    status: status,
+                    statusClass: this._getSlotClass(status),
+                });
+            }
+            return slots;
+        },
+
+        formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + d;
+        },
+
+        formatDisplayHour(h) {
+            return this._padHour(h || 0) + ':00';
+        },
+
+        formatTimeValue(h) {
+            return this._padHour(h || 0) + ':00:00';
+        },
+
+        formatMoney(fen) {
+            const amount = (fen || 0) / 100;
+            return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(2);
+        },
+
         // 获取指定日期的 appointments 并更新 disableTimeSlot
         _fetchDisableTimeSlot(date) {
             if (!date || !this.room.object_id) return;
@@ -573,7 +697,9 @@ export default {
                 if (res && res._status === 0) {
                     this.roomAddons = res.data || [];
                 }
-            } catch (e) {}
+            } catch (e) {
+                this.roomAddons = [];
+            }
         },
 
         formatAddonName(name) {
@@ -581,8 +707,7 @@ export default {
         },
 
         formatAddonPrice(price) {
-            const amount = (price || 0) / 100;
-            return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
+            return this.formatMoney(price || 0);
         },
 
         goToAppoint() {
@@ -749,7 +874,7 @@ page { background: $bg; padding-bottom: 120rpx; }
 
     .hero-badge {
         position: absolute;
-        bottom: 60rpx; left: 24rpx;
+        top: 112rpx; left: 24rpx;
         padding: 8rpx 20rpx;
         border-radius: 24rpx;
         font-size: 24rpx;
@@ -760,10 +885,36 @@ page { background: $bg; padding-bottom: 120rpx; }
         &.full { background: rgba($red, 0.9); }
     }
 
+    .hero-info {
+        position: absolute;
+        left: 28rpx;
+        right: 120rpx;
+        bottom: 34rpx;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .hero-name {
+        font-size: 42rpx;
+        color: #FFF;
+        font-weight: bold;
+        line-height: 1.25;
+        text-shadow: 0 4rpx 14rpx rgba(0,0,0,0.32);
+    }
+
+    .hero-sub {
+        margin-top: 10rpx;
+        font-size: 24rpx;
+        color: rgba(255,255,255,0.9);
+        line-height: 1.4;
+        text-shadow: 0 2rpx 10rpx rgba(0,0,0,0.28);
+    }
+
     .img-counter {
         position: absolute;
         bottom: 24rpx; right: 24rpx;
-        background: rgba(0,0,0,0.4);
+        background: rgba(0,0,0,0.38);
         color: #fff;
         font-size: 24rpx;
         padding: 6rpx 16rpx;
@@ -773,15 +924,15 @@ page { background: $bg; padding-bottom: 120rpx; }
     .hero-gradient {
         position: absolute;
         bottom: 0; left: 0; right: 0;
-        height: 120rpx;
-        background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.2));
+        height: 220rpx;
+        background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.54));
     }
 }
 
 // 价格卡片
 .price-card {
     background: #fff;
-    margin: -30rpx 20rpx 20rpx;
+    margin: -24rpx 20rpx 20rpx;
     border-radius: 24rpx;
     padding: 30rpx;
     box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
@@ -791,6 +942,7 @@ page { background: $bg; padding-bottom: 120rpx; }
     .price-row {
         display: flex;
         align-items: baseline;
+        justify-content: space-between;
         margin-bottom: 16rpx;
     }
 
@@ -819,6 +971,7 @@ page { background: $bg; padding-bottom: 120rpx; }
         display: flex;
         align-items: center;
         gap: 16rpx;
+        min-width: 0;
     }
 
     .room-name {
@@ -826,7 +979,8 @@ page { background: $bg; padding-bottom: 120rpx; }
         font-weight: bold;
         color: $dark;
         line-height: 1.3;
-        flex-shrink: 0;
+        flex: 1;
+        min-width: 0;
     }
 
     .seats-badge {
@@ -836,6 +990,7 @@ page { background: $bg; padding-bottom: 120rpx; }
         padding: 4rpx 14rpx;
         border-radius: 16rpx;
         font-weight: 500;
+        flex-shrink: 0;
     }
 
     .tags-row {
@@ -850,6 +1005,40 @@ page { background: $bg; padding-bottom: 120rpx; }
         background: #FFF0EB;
         padding: 4rpx 14rpx;
         border-radius: 10rpx;
+    }
+
+    .quick-info-row {
+        display: flex;
+        margin-top: 24rpx;
+        padding-top: 22rpx;
+        border-top: 1rpx solid #F2E8DF;
+    }
+
+    .quick-info-item {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        border-right: 1rpx solid #F2E8DF;
+        &:last-child { border-right: none; }
+    }
+
+    .qi-value {
+        max-width: 180rpx;
+        font-size: 27rpx;
+        color: $dark;
+        font-weight: bold;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .qi-label {
+        font-size: 21rpx;
+        color: $gray;
+        margin-top: 8rpx;
     }
 }
 
@@ -883,10 +1072,21 @@ page { background: $bg; padding-bottom: 120rpx; }
         }
     }
 
+    .slots-summary {
+        margin-bottom: 18rpx;
+        padding: 14rpx 18rpx;
+        border-radius: 14rpx;
+        background: #FFF7F2;
+        color: $primary;
+        font-size: 24rpx;
+        line-height: 1.5;
+    }
+
     .slots-grid {
         display: flex;
         flex-wrap: wrap;
         margin-bottom: 16rpx;
+        row-gap: 12rpx;
     }
 
     .slot-item {
@@ -898,11 +1098,21 @@ page { background: $bg; padding-bottom: 120rpx; }
         box-sizing: border-box;
 
         .slot-time { font-size: 20rpx; color: $gray; margin-bottom: 6rpx; text-align: center; line-height: 1.2; }
-        .slot-bar { width: 36rpx; height: 7rpx; border-radius: 3rpx; }
+        .slot-bar { width: 42rpx; height: 8rpx; border-radius: 4rpx; }
 
         &.available .slot-bar { background: $green; }
         &.booked .slot-bar { background: $red; }
         &.past .slot-bar { background: #DDD; }
+    }
+
+    .slots-empty {
+        padding: 38rpx 20rpx;
+        text-align: center;
+        color: $gray;
+        font-size: 24rpx;
+        background: #FAFAFA;
+        border-radius: 16rpx;
+        margin-bottom: 18rpx;
     }
 
     .slots-legend {
@@ -1143,19 +1353,19 @@ page { background: $bg; padding-bottom: 120rpx; }
 }
 
 // 底部占位
-.bottom-placeholder { height: 120rpx; }
+.bottom-placeholder { height: 168rpx; }
 
 
 // 底部操作栏
 .bottom-bar {
     position: fixed;
     left: 0; right: 0; bottom: 0;
-    height: 100rpx;
+    min-height: 112rpx;
     background: #fff;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 30rpx;
+    padding: 16rpx 30rpx calc(16rpx + env(safe-area-inset-bottom));
     box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.06);
     z-index: 95;
 
@@ -1165,6 +1375,7 @@ page { background: $bg; padding-bottom: 120rpx; }
 
         .pi-label { font-size: 22rpx; color: $gray; }
         .pi-price { font-size: 44rpx; font-weight: bold; color: $primary; line-height: 1.1; }
+        .pi-sub { font-size: 20rpx; color: #B0A29A; margin-top: 2rpx; }
     }
 
     .book-btn {
