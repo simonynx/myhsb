@@ -198,28 +198,50 @@
 
 		<!-- 订单入口 -->
 		<view class="section order-section">
-			<view class="section-header">
-				<text class="section-title">我的订单</text>
-				<text class="section-more" @tap="navTo('/pages/order/order')">全部订单 →</text>
+			<view class="section-header order-header">
+				<view class="order-title-wrap">
+					<text class="section-title">我的订单</text>
+					<text class="order-section-sub">{{ orderSectionHint }}</text>
+				</view>
 			</view>
-			<view class="order-grid">
-				<view class="order-item" @tap="navTo('/pages/order/order?state=1')">
-					<text class="order-icon">⏰</text>
-					<text class="order-name">待付款</text>
+			<view class="order-primary-grid">
+				<view class="order-primary-item pay" @tap="navTo('/pages/order/order?state=1')">
+					<view class="order-primary-icon">
+						<text>付</text>
+					</view>
+					<view class="order-primary-copy">
+						<text class="order-primary-title">待付款</text>
+						<text class="order-primary-sub">及时支付保留订单</text>
+					</view>
 					<view class="order-badge" v-if="orderCounts.waitPay > 0">
 						<text>{{ orderCounts.waitPay > 99 ? '99+' : orderCounts.waitPay }}</text>
 					</view>
 				</view>
-				<view class="order-item" @tap="navTo('/pages/order/order?state=2')">
-					<text class="order-icon">✅</text>
-					<text class="order-name">待使用</text>
+				<view class="order-primary-item use" @tap="navTo('/pages/order/order?state=2')">
+					<view class="order-primary-icon">
+						<text>用</text>
+					</view>
+					<view class="order-primary-copy">
+						<text class="order-primary-title">待使用</text>
+						<text class="order-primary-sub">到店出示即可使用</text>
+					</view>
 					<view class="order-badge" v-if="orderCounts.waitUse > 0">
 						<text>{{ orderCounts.waitUse > 99 ? '99+' : orderCounts.waitUse }}</text>
 					</view>
 				</view>
-				<view class="order-item" @tap="navTo('/pages/order/order?state=3')">
-					<text class="order-icon">📋</text>
-					<text class="order-name">已完成</text>
+			</view>
+			<view class="order-secondary-row">
+				<view class="order-secondary-item" @tap="navTo('/pages/order/order?state=0')">
+					<text class="secondary-icon">全</text>
+					<text class="secondary-text">全部订单</text>
+				</view>
+				<view class="order-secondary-item" @tap="navTo('/pages/order/order?state=3')">
+					<text class="secondary-icon">完</text>
+					<text class="secondary-text">已完成</text>
+				</view>
+				<view class="order-secondary-item" @tap="navTo('/pages/order/order?state=4')">
+					<text class="secondary-icon">失</text>
+					<text class="secondary-text">已失效</text>
 				</view>
 			</view>
 		</view>
@@ -384,6 +406,11 @@
 				if (this.orderCounts.waitPay > 0) return '尽快支付保留订单';
 				if (this.orderCounts.waitUse > 0) return '到店出示订单';
 				return '买票或预约包厢';
+			},
+			orderSectionHint() {
+				if (this.orderCounts.waitPay > 0) return '待付款 ' + this.orderCounts.waitPay + ' 单';
+				if (this.orderCounts.waitUse > 0) return '待使用 ' + this.orderCounts.waitUse + ' 单';
+				return '暂无待处理订单';
 			},
 			retentionSummary() {
 				if (this.checkInInfo.can_check_in) return '先签到，把今天的积分拿了';
@@ -1161,33 +1188,130 @@ page {
 	padding: 24rpx;
 	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
 	border: 1rpx solid rgba(240, 230, 216, 0.6);
-	.order-grid {
-		display: flex;
-		justify-content: space-around;
+
+	.order-header {
+		padding: 0;
+		margin-bottom: 20rpx;
 	}
-	.order-item {
+	.order-title-wrap {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		width: 100%;
+	}
+	.order-section-sub {
+		font-size: 22rpx;
+		color: #B9A998;
+	}
+	.order-primary-grid {
+		display: flex;
+		gap: 16rpx;
+	}
+	.order-primary-item {
+		flex: 1;
+		min-height: 132rpx;
+		border-radius: 20rpx;
+		padding: 22rpx 18rpx;
+		display: flex;
+		align-items: center;
+		gap: 16rpx;
+		position: relative;
+		border: 1rpx solid rgba(255, 220, 180, 0.75);
+		transition: transform 0.15s, opacity 0.15s;
+	}
+	.order-primary-item.pay {
+		background: #FFF7EF;
+	}
+	.order-primary-item.use {
+		background: #F0FAF3;
+		border-color: rgba(180, 226, 195, 0.75);
+	}
+	.order-primary-item:active {
+		transform: scale(0.97);
+		opacity: 0.9;
+	}
+	.order-primary-icon {
+		width: 56rpx;
+		height: 56rpx;
+		border-radius: 18rpx;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: #FFF;
+		box-shadow: 0 4rpx 12rpx rgba(140, 100, 60, 0.08);
+		flex-shrink: 0;
+		text {
+			font-size: 26rpx;
+			font-weight: bold;
+			color: #FF8C42;
+		}
+	}
+	.order-primary-copy {
 		display: flex;
 		flex-direction: column;
+		min-width: 0;
+	}
+	.order-primary-title {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5C4B3A;
+	}
+	.order-primary-sub {
+		font-size: 21rpx;
+		color: #A09080;
+		margin-top: 8rpx;
+		line-height: 1.25;
+	}
+	.order-badge {
+		position: absolute;
+		top: 12rpx;
+		right: 14rpx;
+		background: #FF8C42;
+		border-radius: 20rpx;
+		min-width: 32rpx;
+		height: 32rpx;
+		display: flex;
 		align-items: center;
+		justify-content: center;
+		padding: 0 8rpx;
+		text { font-size: 18rpx; color: #fff; font-weight: bold; }
+	}
+	.order-secondary-row {
+		margin-top: 18rpx;
+		padding-top: 18rpx;
+		border-top: 1rpx solid #F4ECE2;
+		display: flex;
+		gap: 14rpx;
+	}
+	.order-secondary-item {
+		flex: 1;
+		height: 64rpx;
+		border-radius: 32rpx;
+		background: #FAF7F2;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		gap: 8rpx;
-		position: relative;
-		.order-icon { font-size: 48rpx; transition: transform 0.2s; }
-		&:active .order-icon { transform: scale(0.9); }
-		.order-name { font-size: 24rpx; color: #8C7B6B; margin-top: 4rpx; }
-		.order-badge {
-			position: absolute;
-			top: -8rpx;
-			right: 8rpx;
-			background: #FF8C42;
-			border-radius: 20rpx;
-			min-width: 32rpx;
-			height: 32rpx;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			padding: 0 6rpx;
-			text { font-size: 18rpx; color: #fff; font-weight: bold; }
-		}
+		transition: background 0.15s, transform 0.15s;
+	}
+	.order-secondary-item:active {
+		background: #FFF0E0;
+		transform: scale(0.97);
+	}
+	.secondary-icon {
+		width: 30rpx;
+		height: 30rpx;
+		border-radius: 50%;
+		background: #FFF;
+		color: #FF8C42;
+		font-size: 18rpx;
+		font-weight: bold;
+		text-align: center;
+		line-height: 30rpx;
+	}
+	.secondary-text {
+		font-size: 23rpx;
+		color: #8C7B6B;
 	}
 }
 
