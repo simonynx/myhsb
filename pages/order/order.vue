@@ -246,7 +246,7 @@
 					<button class="btn-cancel" @click.stop="cancelOrder(item)">取消预约</button>
 					<button class="btn-pay" @click.stop="goPay(item)">立即支付</button>
 				</view>
-				<view class="action-section" v-if="item.order_status === 1">
+				<view class="action-section" v-else-if="item.order_status === 1">
 					<button v-if="item.refundable" class="btn-refund" @click.stop="refundOrder(item)">申请退款</button>
 					<button class="btn-delete" @click.stop="deleteOrder(item)">删除记录</button>
 				</view>
@@ -306,14 +306,18 @@
 				navList: [
 					{ state: -1, text: '全部', count: 0, orderList: [], loaded: false },
 					{ state: 0, text: '待付款', count: 0, orderList: [], loaded: false },
-					{ state: 1, text: '已预约', count: 0, orderList: [], loaded: false },
-					{ state: 9, text: '已关闭', count: 0, orderList: [], loaded: false },
+					{ state: 1, text: '待使用', count: 0, orderList: [], loaded: false },
+					{ state: 2, text: '已完成', count: 0, orderList: [], loaded: false },
+					{ state: 9, text: '已失效', count: 0, orderList: [], loaded: false },
 				],
 			};
 		},
 		onLoad(options) {
 			if (options.state !== undefined) {
-				this.tabCurrentIndex = parseInt(options.state);
+				var stateIndex = parseInt(options.state);
+				if (!isNaN(stateIndex) && stateIndex >= 0 && stateIndex < this.navList.length) {
+					this.tabCurrentIndex = stateIndex;
+				}
 			}
 			this.countdownTimer = null;
 			this.$once('hook:onUnload', () => {
@@ -353,8 +357,9 @@
 					// 按状态分类
 					var allList = this.navList[0];
 					var unpaidList = this.navList[1];
-					var bookedList = this.navList[2];
-					var closedList = this.navList[3];
+					var pendingUseList = this.navList[2];
+					var finishedList = this.navList[3];
+					var invalidList = this.navList[4];
 
 					for (var j = 0; j < orders.length; j++) {
 						var item = orders[j];
@@ -382,18 +387,21 @@
 
 						if (item.order_status === 0) {
 							unpaidList.orderList.push(item);
-						} else if (item.order_status === 1) {
-							bookedList.orderList.push(item);
+						} else if (this.isPendingUseOrder(item)) {
+							pendingUseList.orderList.push(item);
+						} else if (this.isFinishedOrder(item)) {
+							finishedList.orderList.push(item);
 						} else {
-							closedList.orderList.push(item);
+							invalidList.orderList.push(item);
 						}
 					}
 
 					// 更新count
 					this.navList[0].count = allList.orderList.length;
 					this.navList[1].count = unpaidList.orderList.length;
-					this.navList[2].count = bookedList.orderList.length;
-					this.navList[3].count = closedList.orderList.length;
+					this.navList[2].count = pendingUseList.orderList.length;
+					this.navList[3].count = finishedList.orderList.length;
+					this.navList[4].count = invalidList.orderList.length;
 
 					for (var k = 0; k < this.navList.length; k++) {
 						this.navList[k].loaded = true;
@@ -512,6 +520,34 @@
 				var map = ORDER_TYPE_MAP[item.order_type];
 				return map && map.name || '订单';
 			},
+			isPendingUseOrder(item) {
+				if (!item || item.order_status !== 1) return false;
+				if (item.order_type === 1) return !this.isPastAppointment(item);
+				if (item.order_type === 6) return !item.verified_at && !this.isExpiredTime(item.expire_at);
+				return false;
+			},
+			isFinishedOrder(item) {
+				if (!item || item.order_status !== 1) return false;
+				if (item.order_type === 6) return !!item.verified_at;
+				return !this.isPendingUseOrder(item);
+			},
+			isPastAppointment(item) {
+				if (!item || item.order_type !== 1) return false;
+				var goodsInfo = item.goodsInfo || {};
+				var dateStr = goodsInfo.date || item.date;
+				var timeList = goodsInfo.time_list || item.time_list || [];
+				if (!dateStr || !timeList.length) return false;
+				var lastSlot = timeList[timeList.length - 1];
+				if (!lastSlot || !lastSlot[1]) return false;
+				var apptEndStr = dateStr + ' ' + lastSlot[1] + ':00';
+				var apptEndTime = new Date(apptEndStr.replace(/-/g, '/'));
+				return apptEndTime.getTime() < Date.now();
+			},
+			isExpiredTime(value) {
+				if (!value) return false;
+				var expireTime = new Date(value < 1e12 ? value * 1000 : value);
+				return expireTime.getTime() < Date.now();
+			},
 			getRoomById(rooms, id) {
 				for (var i = 0; i < rooms.length; i++) {
 					if (rooms[i].object_id == id) return rooms[i];
@@ -594,14 +630,17 @@
 							uni.hideLoading();
 							if (!res) return;
 							item.order_status = 8;
-							var { stateTip } = self.orderStateExp(8);
+							var stateResult = self.orderStateExp(item);
+							var stateTip = stateResult.stateTip;
 							item.stateTip = stateTip;
-							// 移动到已关闭
+							item.stateTipColor = stateResult.stateTipColor;
+							// 移动到已失效
 							var currentList = self.navList[self.tabCurrentIndex].orderList;
 							var idx = currentList.findIndex(function(o) { return o.order_number === item.order_number; });
 							if (idx !== -1) currentList.splice(idx, 1);
-							self.navList[3].orderList.push(item);
-							self.navList[3].count = self.navList[3].orderList.length;
+							self.navList[4].orderList.push(item);
+							self.navList[4].count = self.navList[4].orderList.length;
+							self.navList[1].count = self.navList[1].orderList.length;
 						}).catch(function() {
 							uni.hideLoading();
 						});
@@ -623,6 +662,9 @@
 							var idx = currentList.findIndex(function(o) { return o.order_number === item.order_number; });
 							if (idx !== -1) currentList.splice(idx, 1);
 							self.navList[0].count = self.navList[0].orderList.length;
+							if (self.navList[self.tabCurrentIndex]) {
+								self.navList[self.tabCurrentIndex].count = currentList.length;
+							}
 						}).catch(function() {
 							uni.hideLoading();
 						});
@@ -673,7 +715,9 @@
 							uni.hideLoading();
 							if (!res) return;
 							item.order_status = 10;
-							var { stateTip, stateTipColor } = self.orderStateExp(10);
+							var stateResult = self.orderStateExp(item);
+							var stateTip = stateResult.stateTip;
+							var stateTipColor = stateResult.stateTipColor;
 							item.stateTip = stateTip;
 							item.stateTipColor = stateTipColor;
 							uni.showToast({ title: '退款申请已提交', icon: 'success' });
@@ -712,7 +756,14 @@
 				}
 				switch (state) {
 					case 0: stateTip = '待付款'; stateTipColor = '#FF6B6B'; break;
-					case 1: stateTip = '已预约'; stateTipColor = '#52C41A'; break;
+					case 1:
+						if (item && this.isPendingUseOrder(item)) {
+							stateTip = '待使用';
+						} else {
+							stateTip = '已完成';
+						}
+						stateTipColor = '#52C41A';
+						break;
 					case 2: stateTip = '支付失败'; stateTipColor = '#FF6B6B'; break;
 					case 6: stateTip = '已退款'; stateTipColor = '#999'; break;
 					case 8: stateTip = '已取消'; stateTipColor = '#999'; break;

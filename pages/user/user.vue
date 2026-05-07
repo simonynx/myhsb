@@ -56,12 +56,12 @@
 				</view>
 				<view class="qstat-divider"></view>
 				<view class="qstat-item" @tap="hasLogin ? navTo('/pages/user/balance/balance') : handleLogin()">
-					<text class="qstat-num">{{ hasLogin ? '¥' + (userInfo ? (userInfo.account_balance / 100).toFixed(0) : '0') : '-' }}</text>
+					<text class="qstat-num">{{ balanceText }}</text>
 					<text class="qstat-label">余额</text>
 				</view>
 				<view class="qstat-divider"></view>
 				<view class="qstat-item">
-					<text class="qstat-num">{{ hasLogin ? (userInfo ? userInfo.total_consume / 100 : 0) : '-' }}</text>
+					<text class="qstat-num">{{ totalConsumeText }}</text>
 					<text class="qstat-label">累计消费</text>
 				</view>
 			</view>
@@ -218,8 +218,8 @@
 					</view>
 				</view>
 				<view class="order-item" @tap="navTo('/pages/order/order?state=3')">
-					<text class="order-icon">❌</text>
-					<text class="order-name">已失效</text>
+					<text class="order-icon">📋</text>
+					<text class="order-name">已完成</text>
 				</view>
 			</view>
 		</view>
@@ -257,7 +257,7 @@
 				<text class="menu-icon">💎</text>
 				<text class="menu-text">充值余额</text>
 				<view class="menu-tip">
-					<text class="tip-text">余额 {{ (userInfo ? (userInfo.account_balance / 100).toFixed(2) : '0.00') }} 元</text>
+					<text class="tip-text">{{ balanceMenuText }}</text>
 				</view>
 				<text class="menu-arrow">→</text>
 			</view>
@@ -318,6 +318,29 @@
 			memberNo() {
 				var oid = this.userInfo && this.userInfo.object_id ? this.userInfo.object_id : '';
 				return oid.replace(/-/g, '').toUpperCase().slice(0, 8);
+			},
+			balanceAmountText() {
+				var amount = this.userInfo && this.userInfo.account_balance;
+				amount = parseFloat(amount);
+				if (!isFinite(amount)) amount = 0;
+				return (amount / 100).toFixed(2);
+			},
+			balanceText() {
+				if (!this.hasLogin) return '-';
+				var amount = this.userInfo && this.userInfo.account_balance;
+				amount = parseFloat(amount);
+				if (!isFinite(amount)) amount = 0;
+				return '¥' + (amount / 100).toFixed(0);
+			},
+			balanceMenuText() {
+				return '余额 ' + this.balanceAmountText + ' 元';
+			},
+			totalConsumeText() {
+				if (!this.hasLogin) return '-';
+				var amount = this.userInfo && this.userInfo.total_consume;
+				amount = parseFloat(amount);
+				if (!isFinite(amount)) amount = 0;
+				return (amount / 100).toFixed(0);
 			},
 			inviteCode() {
 				if (this.inviteInfo && this.inviteInfo.invite_code) return this.inviteInfo.invite_code;
@@ -533,12 +556,39 @@
 					const orders = res && res.data && res.data.orders ? res.data.orders : [];
 					this.orderCounts.waitPay = orders.filter(function(item) { return item.order_status === 0; }).length;
 					this.orderCounts.waitUse = orders.filter(function(item) {
-						return item.order_status === 1 && (item.order_type === 1 || item.order_type === 6);
-					}).length;
+						return item.order_status === 1 && (this.isPendingAppointment(item) || this.isPendingTicket(item));
+					}.bind(this)).length;
 				} catch (e) {
 					this.orderCounts.waitPay = 0;
 					this.orderCounts.waitUse = 0;
 				}
+			},
+			isPendingAppointment(item) {
+				if (!item || item.order_type !== 1) return false;
+				var goodsInfo = item.goods_info;
+				if (typeof goodsInfo === 'string') {
+					try {
+						goodsInfo = JSON.parse(goodsInfo || '{}');
+					} catch (e) {
+						goodsInfo = {};
+					}
+				}
+				goodsInfo = goodsInfo || {};
+				var dateStr = goodsInfo.date || item.date;
+				var timeList = goodsInfo.time_list || item.time_list || [];
+				if (!dateStr || !timeList.length) return true;
+				var lastSlot = timeList[timeList.length - 1];
+				if (!lastSlot || !lastSlot[1]) return true;
+				var apptEndStr = dateStr + ' ' + lastSlot[1] + ':00';
+				var apptEndTime = new Date(apptEndStr.replace(/-/g, '/'));
+				return apptEndTime.getTime() >= Date.now();
+			},
+			isPendingTicket(item) {
+				if (!item || item.order_type !== 6) return false;
+				if (item.verified_at) return false;
+				if (!item.expire_at) return true;
+				var expireTime = new Date(item.expire_at < 1e12 ? item.expire_at * 1000 : item.expire_at);
+				return expireTime.getTime() >= Date.now();
 			},
 			async loadCouponCounts() {
 				if (!this.hasLogin) return;
