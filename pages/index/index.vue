@@ -82,6 +82,21 @@
 			<text class="hint-close">✕</text>
 		</view>
 
+		<!-- 可领券提醒 -->
+		<view class="coupon-hint" v-if="showCouponHint" @tap="goToVoucher">
+			<view class="coupon-hint-main">
+				<text class="coupon-hint-icon">券</text>
+				<view class="coupon-hint-copy">
+					<text class="coupon-hint-title">{{ claimableCouponTitle }}</text>
+					<text class="coupon-hint-sub">现在领取，下单时可直接抵扣</text>
+				</view>
+			</view>
+			<view class="coupon-hint-right">
+				<text class="coupon-hint-action">去领取</text>
+				<text class="coupon-hint-close" @tap.stop="closeCouponHint">✕</text>
+			</view>
+		</view>
+
 		<!-- ===== 场景套餐 ===== -->
 		<view class="scene-section">
 			<view class="scene-section-head">
@@ -129,7 +144,7 @@
 				</swiper-item>
 			</swiper>
 			<view class="carousel-indicator">
-				<view v-for="i in swiperLength" :key="i" class="indicator-dot" :class="{ active: swiperCurrent === i - 1 }"></view>
+				<view v-for="i in swiperLength" :key="i" :class="swiperCurrent === i - 1 ? 'indicator-dot active' : 'indicator-dot'"></view>
 			</view>
 		</view>
 
@@ -328,9 +343,27 @@
 			secondaryScenePackages() {
 				return this.scenePackages.slice(1);
 			},
+			showCouponHint() {
+				return this.hasLogin && !this.couponHintClosed && this.claimableCouponCount > 0;
+			},
+			claimableCouponTitle() {
+				if (this.claimableCouponName) {
+					return this.claimableCouponName;
+				}
+				return this.claimableCouponCount + '张优惠券待领取';
+			},
 		},
 		watch: {
 			constance(value) { this.loadData(); },
+			hasLogin(value) {
+				if (value) {
+					this.loadClaimableCoupons();
+				} else {
+					this.claimableCouponCount = 0;
+					this.claimableCouponName = '';
+					this.claimableCouponKey = '';
+				}
+			},
 		},
 		data() {
 			return {
@@ -359,6 +392,11 @@
 				],
 				reviews: [],
 				collectionHintClosed: false,
+				couponHintClosed: false,
+				couponHintClosedKey: '',
+				claimableCouponCount: 0,
+				claimableCouponName: '',
+				claimableCouponKey: '',
 				storeNoticeVisible: false,
 			};
 		},
@@ -367,6 +405,7 @@
 			this.loadData();
 			this.loadReviews();
 			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
+			this.loadClaimableCoupons();
 			if (this.hasLogin) this.checkBanner();
 		},
 		onLoad(options) {
@@ -379,6 +418,7 @@
 				this.loadData();
 			}
 			this.loadReviews();
+			this.loadClaimableCoupons();
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getReviewList']),
@@ -433,6 +473,42 @@
 			},
 			goToVoucher() {
 				uni.switchTab({ url: '/pages/voucher/voucher' });
+			},
+			closeCouponHint() {
+				this.couponHintClosed = true;
+				this.couponHintClosedKey = this.claimableCouponKey;
+			},
+			async loadClaimableCoupons() {
+				if (!this.hasLogin) {
+					this.claimableCouponCount = 0;
+					this.claimableCouponName = '';
+					return;
+				}
+				var token = uni.getStorageSync('token');
+				if (!token) {
+					this.claimableCouponCount = 0;
+					this.claimableCouponName = '';
+					return;
+				}
+				try {
+					const res = await AUTH.getCouponList(token);
+					if (res._status === 0 && res.data) {
+						const list = res.data.filter(item => !item.user_received && item.remaining_count !== 0);
+						const key = list.map(item => item.campaign_id).join(',');
+						this.claimableCouponCount = list.length;
+						this.claimableCouponName = list.length > 0 ? list[0].name : '';
+						this.claimableCouponKey = key;
+						if (list.length > 0 && this.couponHintClosedKey !== key) this.couponHintClosed = false;
+					} else {
+						this.claimableCouponCount = 0;
+						this.claimableCouponName = '';
+						this.claimableCouponKey = '';
+					}
+				} catch (e) {
+					this.claimableCouponCount = 0;
+					this.claimableCouponName = '';
+					this.claimableCouponKey = '';
+				}
 			},
 			handleSceneTap(scene) {
 				if (!scene) return;
@@ -968,6 +1044,77 @@ page { background: #FFF8F0; }
 .collection-hint { margin: 16rpx 24rpx 0; background: linear-gradient(90deg, #FFF8E1, #FFECB3); border-radius: 16rpx; padding: 16rpx 24rpx; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.1); }
 .hint-text { font-size: 24rpx; color: #E65100; font-weight: bold; }
 .hint-close { font-size: 24rpx; color: #E65100; opacity: 0.6; padding: 8rpx; }
+
+/* ===== 可领券提醒 ===== */
+.coupon-hint {
+	margin: 16rpx 24rpx 0;
+	background: #FFF;
+	border-radius: 20rpx;
+	padding: 18rpx 20rpx;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	box-shadow: 0 8rpx 24rpx rgba(210, 72, 58, 0.12);
+	border: 2rpx solid #FFD1C2;
+}
+.coupon-hint-main {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	flex: 1;
+}
+.coupon-hint-icon {
+	width: 58rpx;
+	height: 58rpx;
+	border-radius: 16rpx;
+	background: #FFE8DE;
+	color: #D84A35;
+	font-size: 26rpx;
+	font-weight: bold;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	margin-right: 16rpx;
+}
+.coupon-hint-copy {
+	min-width: 0;
+	flex: 1;
+}
+.coupon-hint-title {
+	display: block;
+	font-size: 26rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.coupon-hint-sub {
+	display: block;
+	margin-top: 4rpx;
+	font-size: 21rpx;
+	color: #A08B7A;
+}
+.coupon-hint-right {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	margin-left: 16rpx;
+}
+.coupon-hint-action {
+	font-size: 22rpx;
+	color: #FFF;
+	background: #D84A35;
+	padding: 8rpx 16rpx;
+	border-radius: 20rpx;
+	font-weight: bold;
+}
+.coupon-hint-close {
+	font-size: 22rpx;
+	color: #C4B5A5;
+	padding: 8rpx 0 8rpx 16rpx;
+}
 
 /* ===== 动画 ===== */
 @keyframes popup-in { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
