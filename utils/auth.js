@@ -373,7 +373,9 @@ function uploadFile(token, filePath, fileName) {
       success: (res) => {
         var resData = JSON.parse(res.data);
         if (resData._status !== 0) {
-          uni.showModal({ title: '上传文件失败', content: resData._reason, showCancel: false });
+          var reason = resData._reason || '上传失败';
+          if (reason.indexOf('违规信息') >= 0) reason = '你发布的内容含违规信息，请修改后再提交';
+          uni.showModal({ title: '上传失败', content: reason, showCancel: false });
           reject(resData._reason);
           return;
         }

@@ -276,21 +276,15 @@ const store = new Vuex.Store({
         state.userInfo.subscribe_authorized
       ).then((res) => {
         if (res._status !== 0) {
-          uni.showModal({
-            title: '更新远程用户信息失败',
-            content: res._reason,
-            showCancel: false
-          });
-          return;
+          return Promise.reject(res._reason || '更新远程用户信息失败');
         }
         commit('setUserInfo', res.data);
         return res;
       }).catch((err) => {
-        uni.showModal({
-          title: '更新远程用户信息失败',
-          content: err,
-          showCancel: false
-        });
+        var reason = (err && err._reason) || err || '更新远程用户信息失败';
+        if (typeof reason !== 'string') reason = '更新远程用户信息失败';
+        if (reason.indexOf('违规信息') >= 0) reason = '你发布的内容含违规信息，请修改后再提交';
+        return Promise.reject(reason);
       });
     },
 
@@ -348,7 +342,12 @@ const store = new Vuex.Store({
             birthday || state.userInfo.birthday || '',
             (state.userInfo.tags || ''),
             state.userInfo.subscribe_authorized
-          );
+          ).then(function(res) {
+            if (!res || res._status !== 0) {
+              return Promise.reject((res && res._reason) || '更新远程用户信息失败');
+            }
+            return res;
+          });
           // 同步更新本地 userInfo
           commit('updateUserInfo', { nickname, avatar, phone, gender, birthday });
         }
@@ -361,7 +360,7 @@ const store = new Vuex.Store({
         return true;
       } catch (error) {
         console.error('完成初始化失败:', error);
-        return false;
+        return Promise.reject(error);
       }
     },
 

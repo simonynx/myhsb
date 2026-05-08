@@ -76,7 +76,7 @@
 						class="tag"
 						v-for="tag in tagList"
 						:key="tag"
-						:class="{ active: selectedTags.includes(tag) }"
+						:class="getTagClass(tag)"
 						@click="toggleTag(tag)"
 					>
 						{{ tag }}
@@ -114,7 +114,7 @@
 						</view>
 					</view>
 					<view class="toggle-wrap" @click="toggleSubscribe">
-						<view class="toggle" :class="{ on: subscribeEnabled }">
+						<view :class="subscribeToggleClass">
 							<view class="toggle-dot"></view>
 						</view>
 					</view>
@@ -196,6 +196,9 @@
 			},
 			subscribeEnabled() {
 				return this.subscribeAuthorized || false;
+			},
+			subscribeToggleClass() {
+				return this.subscribeEnabled ? 'toggle on' : 'toggle';
 			},
 		},
 		data() {
@@ -279,7 +282,9 @@
 							this.updateUserInfo({ avatar: url });
 							this.saveProfile();
 						} else {
-							uni.showToast({ title: '上传失败', icon: 'none' });
+							var reason = data._reason || '上传失败';
+							if (reason.indexOf('违规信息') >= 0) reason = '你发布的内容含违规信息，请修改后再提交';
+							uni.showToast({ title: reason, icon: 'none' });
 						}
 					},
 					fail: () => {
@@ -383,6 +388,9 @@
 					this.selectedTags.push(tag);
 				}
 			},
+			getTagClass(tag) {
+				return this.selectedTags.indexOf(tag) > -1 ? 'tag active' : 'tag';
+			},
 
 			async doCheckIn() {
 				if (!this.checkInInfo.can_check_in) {
@@ -443,7 +451,10 @@
 					this.getUserInfo();
 				}).catch((err) => {
 					uni.hideLoading();
-					uni.showToast({ title: '保存失败', icon: 'none' });
+					var reason = (err && err._reason) || err || '保存失败';
+					if (typeof reason !== 'string') reason = '保存失败';
+					if (reason.indexOf('违规信息') >= 0) reason = '你发布的内容含违规信息，请修改后再提交';
+					uni.showToast({ title: reason, icon: 'none' });
 				});
 			},
 

@@ -67,7 +67,7 @@
 					<text class="item-label">手机号</text>
 				</view>
 				<view class="phone-wrap">
-					<text class="phone-text" :class="{ empty: !phone }">
+					<text :class="phoneTextClass">
 						{{ phone || '预约成功会短信通知你' }}
 					</text>
 					<button class="phone-btn" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
@@ -85,7 +85,7 @@
 					<text class="item-label">消息通知</text>
 				</view>
 				<view class="toggle-wrap" @click="toggleSubscribe">
-					<view class="toggle" :class="{ on: subscribeEnabled }">
+					<view :class="subscribeToggleClass">
 						<view class="toggle-dot"></view>
 					</view>
 				</view>
@@ -137,6 +137,12 @@ export default {
 	},
 	computed: {
 		...mapState(['pending_invite_code', 'token']),
+		phoneTextClass() {
+			return this.phone ? 'phone-text' : 'phone-text empty';
+		},
+		subscribeToggleClass() {
+			return this.subscribeEnabled ? 'toggle on' : 'toggle';
+		},
 	},
 	onLoad() {
 		if (this.pending_invite_code) {
@@ -163,6 +169,7 @@ export default {
 						this.avatar = url;
 					}).catch((err) => {
 						console.error('头像上传失败', err);
+						this.avatar = '';
 					});
 				}
 			});
@@ -201,9 +208,12 @@ export default {
 			}).then(() => {
 				uni.hideLoading();
 				uni.navigateBack();
-			}).catch(() => {
+			}).catch((err) => {
 				uni.hideLoading();
-				uni.navigateBack();
+				var reason = (err && err._reason) || err || '保存失败';
+				if (typeof reason !== 'string') reason = '保存失败';
+				if (reason.indexOf('违规信息') >= 0) reason = '你发布的内容含违规信息，请修改后再提交';
+				uni.showToast({ title: reason, icon: 'none' });
 			});
 		},
 	},
