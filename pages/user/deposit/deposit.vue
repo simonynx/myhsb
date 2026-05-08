@@ -25,6 +25,22 @@
 			</view>
 		</view>
 
+		<!-- 本次权益预览 -->
+		<view class="value-card" v-if="selectedAmount">
+			<view class="value-main">
+				<text class="value-eyebrow">本次充值预计到账</text>
+				<view class="value-amount">
+					<text class="value-yuan">¥</text>
+					<text class="value-num">{{ arrivalAmountText }}</text>
+				</view>
+				<text class="value-note">{{ selectedValueNote }}</text>
+			</view>
+			<view class="value-side">
+				<text class="side-label">多得权益</text>
+				<text class="side-value">{{ selectedExtraText }}</text>
+			</view>
+		</view>
+
 		<!-- 充值金额 -->
 		<view class="section">
 			<view class="section-header">
@@ -40,10 +56,16 @@
 					@tap="selectAmount(item)"
 				>
 					<view class="popular-tag" v-if="item.tagText">{{ item.tagText }}</view>
-					<text class="amount-icon">{{ item.icon }}</text>
+					<view class="amount-top">
+						<text class="amount-icon">{{ item.icon }}</text>
+						<text class="amount-reason">{{ item.reasonText }}</text>
+					</view>
 					<text class="amount-num">¥{{ item.amount }}</text>
-					<text class="amount-bonus" v-if="item.bonus">+{{ item.bonus }}积分</text>
-					<text class="amount-present" v-if="item.present">送¥{{ item.present }}余额</text>
+					<text class="amount-arrival">到账¥{{ item.arrival }}</text>
+					<view class="amount-benefits">
+						<text class="benefit-chip" v-if="item.present">送¥{{ item.present }}</text>
+						<text class="benefit-chip soft" v-if="item.bonus">+{{ item.bonus }}积分</text>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -81,7 +103,7 @@
 		</view>
 
 		<!-- 底部安全区占位 -->
-		<view style="height: 280rpx;"></view>
+		<view style="height: 460rpx;"></view>
 
 		<!-- 充值按钮 -->
 		<view class="bottom-area">
@@ -92,12 +114,17 @@
 				</view>
 				<view class="detail-row" v-if="selectedTierPresent > 0">
 					<text class="detail-label">到账余额</text>
-					<text class="detail-value highlight">¥{{ selectedAmount + selectedTierPresent }}</text>
+					<text class="detail-value highlight">¥{{ arrivalAmountText }}</text>
 				</view>
 				<view class="detail-row" v-if="selectedTierBonus > 0">
 					<text class="detail-label">赠送积分</text>
 					<text class="detail-value highlight">+{{ selectedTierBonus }}</text>
 				</view>
+				<view class="detail-row">
+					<text class="detail-label">预计余额</text>
+					<text class="detail-value highlight">¥{{ estimatedBalanceText }}</text>
+				</view>
+				<text class="selected-tip">{{ selectedBottomTip }}</text>
 			</view>
 			<view class="submit-btn" :class="submitBtnClass" @tap="doDeposit">
 				<text class="btn-text">{{ submitBtnText }}</text>
@@ -115,6 +142,18 @@
 	import AUTH from '../../../utils/auth.js';
 
 	const TIER_ICONS = ['🎯', '🔥', '⭐', '💎', '👑'];
+	const TIER_REASON_MAP = {
+		200: '轻量补能',
+		300: '回头客首选',
+		500: '聚会更划算',
+		1000: '常客囤值',
+	};
+	const TIER_NOTE_MAP = {
+		200: '适合先试一次，余额下次预约可直接抵扣',
+		300: '适合双人或小包间，权益和门槛比较均衡',
+		500: '适合多人聚会，赠送余额更容易用起来',
+		1000: '适合高频常客，后续预约省去反复付款',
+	};
 
 	export default {
 		computed: {
@@ -140,6 +179,36 @@
 				balance = Number(balance);
 				if (!isFinite(balance)) balance = 0;
 				return (balance / 100).toFixed(2);
+			},
+			currentBalanceFen() {
+				var balance = this.userInfo && this.userInfo.account_balance;
+				balance = Number(balance);
+				return isFinite(balance) ? balance : 0;
+			},
+			arrivalAmount() {
+				return this.selectedAmount + this.selectedTierPresent;
+			},
+			arrivalAmountText() {
+				return this.formatYuan(this.arrivalAmount);
+			},
+			estimatedBalanceText() {
+				return this.formatFen(this.currentBalanceFen + this.arrivalAmount * 100);
+			},
+			selectedExtraText() {
+				var parts = [];
+				if (this.selectedTierPresent > 0) parts.push('送¥' + this.formatYuan(this.selectedTierPresent));
+				if (this.selectedTierBonus > 0) parts.push('+' + this.selectedTierBonus + '积分');
+				return parts.length ? parts.join(' / ') : '无额外赠送';
+			},
+			selectedValueNote() {
+				if (!this.selectedAmount) return '';
+				return TIER_NOTE_MAP[this.selectedAmount] || '余额可用于预约和到店消费，付款更省心';
+			},
+			selectedBottomTip() {
+				if (this.selectedTierPresent > 0 || this.selectedTierBonus > 0) {
+					return '本次多得 ' + this.selectedExtraText + '，到账后即可使用';
+				}
+				return '余额到账后可用于下次预约抵扣';
 			},
 			submitBtnClass() {
 				return this.depositing ? 'disabled' : '';
@@ -176,9 +245,11 @@
 						amount: item.amount,
 						bonus: item.bonus || 0,
 						present: item.present || 0,
+						arrival: item.amount + (item.present || 0),
 						popular: popular,
 						tagText: popular ? '推荐' : '',
 						icon: item.icon,
+						reasonText: TIER_REASON_MAP[item.amount] || (popular ? '推荐档位' : '灵活选择'),
 						className: className,
 					};
 				});
@@ -249,6 +320,16 @@
 				this.selectedAmount = Number(item.amount) || 0;
 				this.selectedTierBonus = Number(item.bonus) || 0;
 				this.selectedTierPresent = Number(item.present) || 0;
+			},
+			formatYuan(amount) {
+				var value = Number(amount || 0);
+				if (!isFinite(value)) value = 0;
+				return value % 1 === 0 ? value.toFixed(0) : value.toFixed(2);
+			},
+			formatFen(amountFen) {
+				var value = Number(amountFen || 0);
+				if (!isFinite(value)) value = 0;
+				return (value / 100).toFixed(2);
 			},
 			showTerms() {
 				uni.showModal({
@@ -419,7 +500,7 @@ page {
 
 /* ===== 余额卡片 ===== */
 .balance-card {
-	margin: 0 24rpx 32rpx;
+	margin: 0 24rpx 20rpx;
 	background: linear-gradient(135deg, #FFB74D, #FF8C42);
 	border-radius: 28rpx;
 	padding: 36rpx 32rpx;
@@ -478,6 +559,71 @@ page {
 	}
 }
 
+/* ===== 价值预览 ===== */
+.value-card {
+	margin: 0 24rpx 32rpx;
+	padding: 28rpx 30rpx;
+	border-radius: 24rpx;
+	background: #FFF;
+	border: 1rpx solid rgba(240, 220, 196, 0.85);
+	box-shadow: 0 8rpx 28rpx rgba(160, 110, 70, 0.08);
+	display: flex;
+	align-items: center;
+	gap: 24rpx;
+	box-sizing: border-box;
+}
+.value-main {
+	flex: 1;
+	min-width: 0;
+}
+.value-eyebrow {
+	display: block;
+	font-size: 23rpx;
+	color: #9A7A5A;
+	margin-bottom: 6rpx;
+}
+.value-amount {
+	display: flex;
+	align-items: baseline;
+	color: #E8784A;
+	margin-bottom: 6rpx;
+	.value-yuan {
+		font-size: 34rpx;
+		font-weight: bold;
+	}
+	.value-num {
+		font-size: 58rpx;
+		font-weight: bold;
+	}
+}
+.value-note {
+	display: block;
+	font-size: 23rpx;
+	line-height: 1.45;
+	color: #8C7966;
+}
+.value-side {
+	width: 188rpx;
+	padding: 18rpx 14rpx;
+	border-radius: 18rpx;
+	background: #FFF8EF;
+	text-align: center;
+	box-sizing: border-box;
+}
+.side-label {
+	display: block;
+	font-size: 22rpx;
+	color: #A09080;
+	margin-bottom: 8rpx;
+}
+.side-value {
+	display: block;
+	font-size: 25rpx;
+	color: #E8784A;
+	font-weight: bold;
+	line-height: 1.35;
+}
+
 /* ===== 通用区块 ===== */
 .section {
 	margin: 0 24rpx 32rpx;
@@ -504,18 +650,52 @@ page {
 }
 .amount-item {
 	position: relative;
-	width: calc(33.33% - 12rpx);
+	width: calc(50% - 8rpx);
 	background: #FFF;
 	border-radius: 20rpx;
-	padding: 24rpx 16rpx;
-	text-align: center;
+	padding: 22rpx 16rpx 18rpx;
 	border: 2rpx solid #F0E6D8;
 	box-shadow: 0 2rpx 8rpx rgba(140,100,60,0.04);
 	transition: all 0.2s ease;
-	.amount-icon { display: block; font-size: 32rpx; margin-bottom: 8rpx; }
-	.amount-num { display: block; font-size: 36rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 6rpx; }
-	.amount-bonus { display: block; font-size: 20rpx; color: #FF8C42; font-weight: bold; }
-	.amount-present { display: block; font-size: 18rpx; color: #A5D6A7; margin-top: 4rpx; font-weight: bold; }
+	box-sizing: border-box;
+	.amount-top {
+		display: flex;
+		align-items: center;
+		gap: 8rpx;
+		margin-bottom: 10rpx;
+	}
+	.amount-icon { font-size: 30rpx; }
+	.amount-reason {
+		flex: 1;
+		font-size: 20rpx;
+		color: #9A7A5A;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.amount-num { display: block; font-size: 38rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 4rpx; }
+	.amount-arrival { display: block; font-size: 22rpx; color: #E8784A; font-weight: bold; margin-bottom: 10rpx; }
+	.amount-benefits {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6rpx;
+		min-height: 32rpx;
+	}
+	.benefit-chip {
+		display: inline-flex;
+		align-items: center;
+		height: 32rpx;
+		padding: 0 10rpx;
+		border-radius: 999rpx;
+		background: #FFF3EA;
+		color: #E8784A;
+		font-size: 18rpx;
+		font-weight: bold;
+		&.soft {
+			background: #F4FAF3;
+			color: #6AA365;
+		}
+	}
 	.popular-tag {
 		position: absolute;
 		top: -1rpx;
@@ -533,6 +713,9 @@ page {
 	background: #FFF8F0;
 	box-shadow: 0 4rpx 16rpx rgba(255,140,66,0.2);
 	transform: scale(1.02);
+}
+.amount-item.popular {
+	border-color: rgba(255, 140, 66, 0.55);
 }
 
 /* ===== 支付方式 ===== */
@@ -623,6 +806,15 @@ page {
 		.detail-label { font-size: 26rpx; color: #A09080; }
 		.detail-value { font-size: 28rpx; color: #5C4B3A; font-weight: bold; }
 		.detail-value.highlight { color: #FF8C42; }
+	}
+	.selected-tip {
+		display: block;
+		margin-top: 12rpx;
+		padding-top: 14rpx;
+		border-top: 1rpx dashed #F0E6D8;
+		font-size: 23rpx;
+		line-height: 1.45;
+		color: #8C7966;
 	}
 }
 .submit-btn {
