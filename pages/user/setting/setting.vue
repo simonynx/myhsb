@@ -73,13 +73,12 @@
 				</view>
 				<view class="tag-wrap">
 					<view
-						class="tag"
-						v-for="tag in tagList"
-						:key="tag"
-						:class="getTagClass(tag)"
-						@click="toggleTag(tag)"
+						v-for="tag in tagViewList"
+						:key="tag.name"
+						:class="tag.className"
+						@click="toggleTag(tag.name)"
 					>
-						{{ tag }}
+						{{ tag.name }}
 					</view>
 				</view>
 			</view>
@@ -199,6 +198,14 @@
 			},
 			subscribeToggleClass() {
 				return this.subscribeEnabled ? 'toggle on' : 'toggle';
+			},
+			tagViewList() {
+				return this.tagList.map(tag => {
+					return {
+						name: tag,
+						className: this.selectedTags.indexOf(tag) > -1 ? 'tag active' : 'tag',
+					};
+				});
 			},
 		},
 		data() {
@@ -388,10 +395,6 @@
 					this.selectedTags.push(tag);
 				}
 			},
-			getTagClass(tag) {
-				return this.selectedTags.indexOf(tag) > -1 ? 'tag active' : 'tag';
-			},
-
 			async doCheckIn() {
 				if (!this.checkInInfo.can_check_in) {
 					uni.showToast({ title: '今日已签到', icon: 'none' });
