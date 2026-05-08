@@ -99,8 +99,8 @@
 					<text class="detail-value highlight">+{{ selectedTierBonus }}</text>
 				</view>
 			</view>
-			<view class="submit-btn" @tap="doDeposit">
-				<text class="btn-text">立即充值</text>
+			<view class="submit-btn" :class="submitBtnClass" @tap="doDeposit">
+				<text class="btn-text">{{ submitBtnText }}</text>
 			</view>
 			<view class="terms">
 				点击立即充值，即表示同意
@@ -140,6 +140,12 @@
 				balance = Number(balance);
 				if (!isFinite(balance)) balance = 0;
 				return (balance / 100).toFixed(2);
+			},
+			submitBtnClass() {
+				return this.depositing ? 'disabled' : '';
+			},
+			submitBtnText() {
+				return this.depositing ? '支付中...' : '立即充值';
 			},
 			dynamicAmountList() {
 				var source = [];
@@ -185,6 +191,7 @@
 				selectedTierBonus: 0,
 				selectedTierPresent: 0,
 				preferredAmount: 0,
+				depositing: false,
 				memberConfig: [],
 				defaultAmountList: [
 					{ amount: 200, bonus: 0, present: 20, popular: false, icon: '🎯' },
@@ -254,6 +261,7 @@
 				uni.navigateTo({ url: '/pages/user/balance/balance' });
 			},
 			doDeposit() {
+				if (this.depositing) return;
 				if (!this.hasLogin || !this.token) {
 					uni.showModal({
 						title: '请先登录',
@@ -271,18 +279,18 @@
 					uni.showToast({ title: '请选择充值金额', icon: 'none' });
 					return;
 				}
+				this.depositing = true;
 				uni.showLoading({ title: '支付中...' });
 				var amountFen = this.selectedAmount * 100;
-				var selectedAmount = this.selectedAmount;
-				var selectedTierBonus = this.selectedTierBonus;
-				var selectedTierPresent = this.selectedTierPresent;
 				AUTH.recharge(amountFen, this.token).then((res) => {
 					if (!res) {
 						uni.hideLoading();
+						this.depositing = false;
 						return;
 					}
 					if (res._status !== 0) {
 						uni.hideLoading();
+						this.depositing = false;
 						uni.showModal({ title: '充值失败', content: res._reason || '请重试', showCancel: false });
 						return;
 					}
@@ -292,6 +300,7 @@
 					// 参数校验：后端可能返回嵌套结构或缺少字段
 					if (!wxpayData) {
 						uni.hideLoading();
+						this.depositing = false;
 						uni.showModal({ title: '支付参数错误', content: '后端未返回支付数据', showCancel: false });
 						return;
 					}
@@ -313,6 +322,7 @@
 					}
 					if (missing.length > 0) {
 						uni.hideLoading();
+						this.depositing = false;
 						uni.showModal({
 							title: '支付参数缺失',
 							content: '缺少字段: ' + missing.join(', ') + '\n请检查后端 /users/recharge/ 接口返回',
@@ -322,18 +332,10 @@
 					}
 					PLATFORM.requestPayment(payment).then(() => {
 						uni.hideLoading();
-						var bonusText = selectedTierBonus > 0 ? '，赠送 ' + selectedTierBonus + ' 积分' : '';
-						var presentText = selectedTierPresent > 0 ? '，额外到账 ¥' + selectedTierPresent : '';
-						uni.showModal({
-							title: '充值成功',
-							content: '已成功充值 ¥' + selectedAmount + presentText + bonusText + '，请注意查收入账短信',
-							showCancel: false,
-							success: () => {
-								this.getUserInfo();
-							}
-						});
-					}).catch(function(err) {
+						this.goRechargeSuccess(amountFen);
+					}).catch((err) => {
 						uni.hideLoading();
+						this.depositing = false;
 						console.error('支付失败详情:', err);
 						if (err && err.errMsg && err.errMsg.indexOf('cancel') !== -1) {
 							uni.showToast({ title: '支付已取消', icon: 'none' });
@@ -347,7 +349,18 @@
 					});
 				}).catch((err) => {
 					uni.hideLoading();
+					this.depositing = false;
 					uni.showToast({ title: '充值失败', icon: 'none' });
+				});
+			},
+			goRechargeSuccess(amountFen) {
+				var presentFen = this.selectedTierPresent * 100;
+				var url = '/pages/pay/success/success?amount=' + amountFen
+					+ '&type=recharge'
+					+ '&present=' + presentFen
+					+ '&bonus=' + this.selectedTierBonus;
+				this.getUserInfo(true).catch(function() {}).then(function() {
+					uni.redirectTo({ url: url });
 				});
 			},
 		},
@@ -621,6 +634,9 @@ page {
 	transition: transform 0.1s;
 	&:active { transform: scale(0.98); }
 	.btn-text { color: #FFF; font-size: 32rpx; font-weight: bold; }
+}
+.submit-btn.disabled {
+	opacity: 0.72;
 }
 .terms {
 	text-align: center;

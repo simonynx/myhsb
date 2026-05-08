@@ -5,18 +5,21 @@
 			<text class="success-title">{{ title }}</text>
 			<text class="success-sub">{{ subtitle }}</text>
 			<view class="amount-row" v-if="amountText">
-				<text class="amount-label">实付金额</text>
+				<text class="amount-label">{{ amountLabel }}</text>
 				<text class="amount-value">¥{{ amountText }}</text>
+			</view>
+			<view class="reward-row" v-if="rewardText">
+				<text class="reward-text">{{ rewardText }}</text>
 			</view>
 		</view>
 
 		<view class="next-card">
 			<view class="next-title">接下来可以</view>
-			<view class="next-sub">查看订单、领券签到，下次再来更省心</view>
+			<view class="next-sub">{{ nextSubtitle }}</view>
 			<view class="action-grid">
 				<view class="action-item primary" @click="goOrder">
-					<text class="action-icon">📋</text>
-					<text class="action-text">查看订单</text>
+					<text class="action-icon">{{ primaryIcon }}</text>
+					<text class="action-text">{{ primaryText }}</text>
 				</view>
 				<view class="action-item primary-soft" @click="goBookAgain">
 					<text class="action-icon">📅</text>
@@ -42,8 +45,8 @@
 		</view>
 
 		<view class="tip-card">
-			<text class="tip-title">到店小提示</text>
-			<text class="tip-text">到店后出示订单即可核验；如需布置或补给，建议提前联系店员确认。</text>
+			<text class="tip-title">{{ tipTitle }}</text>
+			<text class="tip-text">{{ tipText }}</text>
 		</view>
 	</view>
 </template>
@@ -53,6 +56,8 @@ export default {
 	data() {
 		return {
 			amount: 0,
+			present: 0,
+			bonus: 0,
 			orderId: '',
 			type: 'order',
 		};
@@ -65,15 +70,52 @@ export default {
 		},
 		title() {
 			if (this.type === 'exchange') return '兑换成功';
+			if (this.type === 'recharge') return '充值成功';
 			return '支付成功';
 		},
 		subtitle() {
 			if (this.type === 'exchange') return '兑换记录已生成，到店出示订单即可使用';
+			if (this.type === 'recharge') return '余额已经到账，下一次预约可以直接抵扣';
 			return '订单已确认，期待你到店玩得开心';
+		},
+		amountLabel() {
+			if (this.type === 'recharge') return '充值金额';
+			return '实付金额';
+		},
+		rewardText() {
+			if (this.type !== 'recharge') return '';
+			var parts = [];
+			var present = Number(this.present || 0);
+			var bonus = Number(this.bonus || 0);
+			if (present > 0) parts.push('额外到账 ¥' + (present / 100).toFixed(2));
+			if (bonus > 0) parts.push('赠送 ' + bonus + ' 积分');
+			return parts.join(' · ');
+		},
+		nextSubtitle() {
+			if (this.type === 'recharge') return '查看余额、预约房间，把这次充值用得更值';
+			return '查看订单、领券签到，下次再来更省心';
+		},
+		primaryIcon() {
+			if (this.type === 'recharge') return '💎';
+			return '📋';
+		},
+		primaryText() {
+			if (this.type === 'recharge') return '查看余额';
+			return '查看订单';
+		},
+		tipTitle() {
+			if (this.type === 'recharge') return '余额小提示';
+			return '到店小提示';
+		},
+		tipText() {
+			if (this.type === 'recharge') return '充值本金和赠送余额会一起进入账户；预约时可优先使用余额支付。';
+			return '到店后出示订单即可核验；如需布置或补给，建议提前联系店员确认。';
 		},
 	},
 	onLoad(options) {
 		this.amount = Number(options.amount || 0);
+		this.present = Number(options.present || 0);
+		this.bonus = Number(options.bonus || 0);
 		this.orderId = options.id || '';
 		this.type = options.type || 'order';
 	},
@@ -85,6 +127,10 @@ export default {
 	},
 	methods: {
 		goOrder() {
+			if (this.type === 'recharge') {
+				uni.redirectTo({ url: '/pages/user/balance/balance' });
+				return;
+			}
 			const url = this.orderId ? '/pages/order/order?state=0&id=' + this.orderId : '/pages/order/order?state=0';
 			uni.redirectTo({ url });
 		},
@@ -181,6 +227,19 @@ page {
 	font-size: 40rpx;
 	color: $primary;
 	font-weight: bold;
+}
+
+.reward-row {
+	margin-top: 14rpx;
+	padding: 10rpx 18rpx;
+	border-radius: 999rpx;
+	background: #FFF3EA;
+}
+
+.reward-text {
+	font-size: 24rpx;
+	color: $primary;
+	font-weight: 600;
 }
 
 .next-card {

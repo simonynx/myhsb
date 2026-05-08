@@ -193,6 +193,7 @@ export default {
         },
         canUseBalance() {
             if (!this.order) return false;
+            if (this.isRechargeOrder) return false;
             // 商品订单：检查商品是否支持余额支付
             if (this.order.order_type === 3) {
                 var goodsInfo = this.order.goodsInfo || {};
@@ -209,6 +210,12 @@ export default {
         balanceDeductText() {
             if (!this.canUseBalance || !this.order) return '';
             return `可抵扣 ¥${(this.order.pay_amount / 100).toFixed(2)}`;
+        },
+
+        isRechargeOrder() {
+            if (!this.order) return false;
+            var goodsInfo = this.order.goodsInfo || this.order.goods_info || {};
+            return this.order.order_type === 2 || goodsInfo.goods_type === 2;
         },
 
         // 是否为线下待付款订单
@@ -466,6 +473,11 @@ export default {
         },
 
         selectPay(method) {
+            if (method === 'balance' && this.isRechargeOrder) {
+                uni.showToast({ title: '充值订单只能使用微信支付', icon: 'none' });
+                this.payMethod = 'wechat';
+                return;
+            }
             if (method === 'balance' && !this.canUseBalance) {
                 // 余额不足时引导充值
                 uni.showModal({
@@ -487,7 +499,7 @@ export default {
         doPay() {
             if (this.paying) return;
             // pay_amount 为 0 时（余额/积分已全覆盖），强制走余额支付
-            const isZeroPay = this.order && this.order.pay_amount === 0;
+            const isZeroPay = this.order && this.order.pay_amount === 0 && !this.isRechargeOrder;
             if (this.payMethod === 'balance' || isZeroPay) {
                 // 余额足够时直接扣款
                 this.paying = true;

@@ -128,17 +128,17 @@
 				</view>
 
 				<!-- 充值详情 -->
-				<view class="detail-section recharge-detail" v-if="item.goodsInfo && (item.goodsInfo.amount !== undefined || item.goodsInfo.bonus_points !== undefined || item.goodsInfo.present_money !== undefined)">
+				<view class="detail-section recharge-detail" v-if="item.showRechargeDetail">
 					<view class="recharge-amount">
-						<text class="recharge-num">¥{{ (item.goodsInfo.amount / 100).toFixed(2) }}</text>
+						<text class="recharge-num">¥{{ item.rechargeAmountText }}</text>
 						<text class="recharge-label">充值金额</text>
 					</view>
-					<view class="recharge-bonus" v-if="item.goodsInfo.bonus_points">
-						<text class="bonus-num">+{{ item.goodsInfo.bonus_points }}</text>
+					<view class="recharge-bonus" v-if="item.rechargeBonusText">
+						<text class="bonus-num">+{{ item.rechargeBonusText }}</text>
 						<text class="bonus-label">赠送积分</text>
 					</view>
-					<view class="recharge-present" v-if="item.goodsInfo.present_money">
-						<text class="present-num">+¥{{ (item.goodsInfo.present_money / 100).toFixed(2) }}</text>
+					<view class="recharge-present" v-if="item.rechargePresentText">
+						<text class="present-num">+¥{{ item.rechargePresentText }}</text>
 						<text class="present-label">赠送余额</text>
 					</view>
 				</view>
@@ -414,9 +414,10 @@
 				this.startCountdown();
 			},
 			computePriceDetails(item) {
-				var goodsInfo = item.goodsInfo;
-				var payAmount = item.pay_amount || 0;
-				item.actualPrice = (payAmount / 100).toFixed(2);
+				var goodsInfo = item.goodsInfo || {};
+				var payAmount = this.toFen(item.pay_amount);
+				item.actualPrice = this.formatFen(payAmount);
+				this.computeRechargeDetails(item);
 
 				// 增值服务
 				var addons = goodsInfo.addons || [];
@@ -500,6 +501,39 @@
 					item.pointsDeduction = 0;
 					item.couponDiscount = 0;
 				}
+			},
+			computeRechargeDetails(item) {
+				var goodsInfo = item.goodsInfo || {};
+				var isRecharge = Number(item.order_type) === 2 || Number(goodsInfo.goods_type) === 2;
+				item.showRechargeDetail = isRecharge;
+				item.rechargeAmountText = '';
+				item.rechargeBonusText = '';
+				item.rechargePresentText = '';
+				if (!isRecharge) return;
+
+				var amount = this.firstValidFen(goodsInfo.amount, item.recharge_amount, item.pay_amount);
+				var present = this.firstValidFen(goodsInfo.present_money, 0);
+				var bonus = Number(goodsInfo.bonus_points || 0);
+				item.rechargeAmountText = this.formatFen(amount);
+				item.rechargePresentText = present > 0 ? this.formatFen(present) : '';
+				item.rechargeBonusText = isFinite(bonus) && bonus > 0 ? String(Math.floor(bonus)) : '';
+			},
+			firstValidFen() {
+				for (var i = 0; i < arguments.length; i++) {
+					var value = arguments[i];
+					if (value === undefined || value === null || value === '') continue;
+					var amount = Number(value);
+					if (isFinite(amount)) return amount;
+				}
+				return 0;
+			},
+			toFen(value) {
+				if (value === undefined || value === null || value === '') return 0;
+				var amount = Number(value);
+				return isFinite(amount) ? amount : 0;
+			},
+			formatFen(value) {
+				return (this.toFen(value) / 100).toFixed(2);
 			},
 			getPayMethodText(item) {
 				if (item.order_type === 2) return '微信支付';
