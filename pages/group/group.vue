@@ -205,22 +205,21 @@ export default {
             return this.weekDays[this.selectedDayIndex] ? this.weekDays[this.selectedDayIndex].date : '';
         },
         emptyTitle() {
+            if (this.visibleGroupList.length === 0 && this.rawGroupList.length > 0) return '这个筛选下暂无拼团';
             if (!this.currentDate) return '暂无拼团';
             const day = this.weekDays[this.selectedDayIndex] || {};
             return (day.week || '') + '暂无拼团';
         },
         emptySub() {
+            if (this.visibleGroupList.length === 0 && this.rawGroupList.length > 0) return '换个筛选看看，或者自己发起一个新局。';
             return this.currentDate ? '这一天还没有人发起拼团，你来当第一个！' : '暂时没人缺队友，发起一个邀请朋友吧';
         },
         visibleGroupList() {
             if (this.activeQuickFilter === 'almost') {
                 return this.groupList.filter(g => g.status === 'open' && g.remain === 1);
             }
-            if (this.activeQuickFilter === 'today') {
-                return this.groupList.filter(g => g.dateLabel === '今天');
-            }
-            if (this.activeQuickFilter === 'weekend') {
-                return this.groupList.filter(g => g.isWeekend);
+            if (this.activeQuickFilter === 'new') {
+                return this.groupList.filter(g => g.isNew);
             }
             if (this.activeQuickFilter === 'low') {
                 return this.groupList.filter(g => g.priceLevel === 'low');
@@ -265,9 +264,8 @@ export default {
             const items = [
                 { key: 'all', label: '全部' },
                 { key: 'almost', label: '差1人' },
-                { key: 'today', label: '今天' },
-                { key: 'weekend', label: '周末' },
                 { key: 'low', label: '低价' },
+                { key: 'new', label: '新发布' },
             ];
             return items.map(item => {
                 return {
@@ -365,7 +363,6 @@ export default {
                         const label = this.formatDateLabel(g.date);
                         g.dateLabel = label;
                         g.dateShort = this.formatShortDate(g.date);
-                        g.isWeekend = this.isWeekendDate(g.date);
                         g.roomName = room.name || '拼团房间';
                         g.roomImage = room.image1 || '/static/logo_small.jpg';
                         g.initiatorName = initiator.nickname || '玩家';
@@ -456,13 +453,6 @@ export default {
             if (!dateStr) return '';
             const parts = dateStr.split('-');
             return parseInt(parts[1], 10) + '月' + parseInt(parts[2], 10) + '日';
-        },
-
-        isWeekendDate(dateStr) {
-            if (!dateStr) return false;
-            const d = new Date(dateStr.replace(/-/g, '/'));
-            const day = d.getDay();
-            return day === 0 || day === 6;
         },
 
         dateBadgeClass(dateStr) {
