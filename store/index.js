@@ -318,8 +318,10 @@ const store = new Vuex.Store({
     /**
      * 提交评价
      */
-    submitReview: function({ state }, rating, content) {
+    submitReview: function({ state }, payload) {
       if (!state.token) return Promise.reject('未登录');
+      var rating = payload && payload.rating;
+      var content = payload && payload.content;
       return AUTH.submitReview(state.token, rating, content).then((res) => {
         if (!res || res._status !== 0) return Promise.reject(res._reason || '提交失败');
         return res;

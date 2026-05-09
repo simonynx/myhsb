@@ -5,11 +5,11 @@
 			<view class="my-review-header">
 				<text class="my-review-label">{{ myReview.user_nickname || '我' }}</text>
 				<view class="review-stars">
-					<text v-for="s in 5" :key="s" :class="s <= myReview.rating ? 'star filled' : 'star'">⭐</text>
+					<text v-for="s in 5" :key="s" :class="s <= myReview.ratingNumber ? 'star filled' : 'star'">⭐</text>
 				</view>
 			</view>
-			<text class="my-review-content">{{ myReview.content }}</text>
-			<text class="my-review-time">{{ myReview.created_at }}</text>
+			<text class="my-review-content">{{ myReview.contentText }}</text>
+			<text class="my-review-time">{{ myReview.shortTime }}</text>
 		</view>
 
 		<!-- 提交评价表单 -->
@@ -38,13 +38,13 @@
 			></textarea>
 			<text class="char-count">{{ submitContent.length }}/500</text>
 
-			<view class="submit-btn" @tap="doSubmitReview">
-				<text class="btn-text">{{ myReview ? '更新评价' : '提交评价' }}</text>
+			<view :class="submitting ? 'submit-btn disabled' : 'submit-btn'" @tap="doSubmitReview">
+				<text class="btn-text">{{ submitting ? '提交中...' : (myReview ? '更新评价' : '提交评价') }}</text>
 			</view>
 		</view>
 
 		<!-- 其他用户评价 -->
-		<view class="other-reviews" v-if="otherReviews.length > 0">
+		<view class="other-reviews">
 			<view class="section-title">其他玩家的评价</view>
 			<view
 				class="review-card"
@@ -52,16 +52,20 @@
 				:key="idx"
 			>
 				<view class="review-header">
-					<text class="review-avatar">{{ rev.user_avatar || '😄' }}</text>
+					<text class="review-avatar">{{ rev.avatarText }}</text>
 					<view class="review-meta">
-						<text class="review-name">{{ rev.user_nickname }}</text>
+						<text class="review-name">{{ rev.displayName }}</text>
 						<view class="review-stars">
-							<text v-for="s in 5" :key="s" :class="s <= rev.rating ? 'star filled' : 'star'">⭐</text>
+							<text v-for="s in 5" :key="s" :class="s <= rev.ratingNumber ? 'star filled' : 'star'">⭐</text>
 						</view>
 					</view>
 				</view>
-				<text class="review-text">{{ rev.content }}</text>
-				<text class="review-time">{{ rev.created_at }}</text>
+				<text class="review-text">{{ rev.contentText }}</text>
+				<text class="review-time">{{ rev.shortTime }}</text>
+			</view>
+			<view class="empty-reviews" v-if="reviewsLoaded && otherReviews.length === 0">
+				<text class="empty-title">还没有更多评价</text>
+				<text class="empty-desc">写下你的体验，给后来玩家一点参考。</text>
 			</view>
 		</view>
 	</view>
@@ -79,21 +83,39 @@
 				otherReviews: [],
 				submitRating: 5,
 				submitContent: '',
+				submitting: false,
+				reviewsLoaded: false,
 			};
 		},
 		onLoad() {
 			this.loadReviews();
 		},
+		onShow() {
+			if (this.hasLogin && !this.reviewsLoaded) {
+				this.loadReviews();
+			}
+		},
 		methods: {
-			...mapActions(['getReviewList', 'submitReview']),
+			...mapActions(['loginAndRegister', 'getReviewList', 'submitReview']),
 			async loadReviews() {
 				if (!this.hasLogin) {
-					uni.showModal({ title: '提示', content: '请先登录', showCancel: false });
+					uni.showModal({
+						title: '提示',
+						content: '请先登录后发表评价',
+						success: (res) => {
+							if (res.confirm) {
+								this.loginAndRegister().then(() => {
+									if (this.hasLogin) this.loadReviews();
+								}).catch(() => {});
+							}
+						}
+					});
 					return;
 				}
 				try {
 					var list = await this.getReviewList();
 					console.log('全部评价:', list);
+					this.reviewsLoaded = true;
 					if (!list || list.length === 0) {
 						this.myReview = null;
 						this.otherReviews = [];
@@ -102,9 +124,12 @@
 					// 找出我的评价
 					var myReviewItem = null;
 					var otherList = [];
+					var currentUserId = this.userInfo && this.userInfo.object_id ? String(this.userInfo.object_id) : '';
+					if (!currentUserId && this.userInfo && this.userInfo.id) currentUserId = String(this.userInfo.id);
 					for (var i = 0; i < list.length; i++) {
-						var r = list[i];
-						if (r.user_id === this.userInfo && this.userInfo.id) {
+						var r = this.prepareReviewItem(list[i]);
+						if (!r) continue;
+						if (currentUserId && String(r.user_id) === currentUserId) {
 							myReviewItem = r;
 						} else {
 							otherList.push(r);
@@ -115,14 +140,42 @@
 
 					// 如果有我的评价，填充表单
 					if (myReviewItem) {
-						this.submitRating = myReviewItem.rating;
-						this.submitContent = myReviewItem.content;
+						this.submitRating = myReviewItem.ratingNumber;
+						this.submitContent = myReviewItem.contentText;
 					}
 				} catch (e) {
 					console.error('加载评价失败:', e);
+					this.reviewsLoaded = true;
 				}
 			},
+			prepareReviewItem(raw) {
+				if (!raw) return null;
+				var content = (raw.content || '').replace(/\s+/g, ' ').trim();
+				if (!content) return null;
+				var rating = parseInt(raw.rating || 0);
+				if (!isFinite(rating)) rating = 0;
+				if (rating < 0) rating = 0;
+				if (rating > 5) rating = 5;
+				var avatar = raw.user_avatar || '';
+				var avatarText = avatar && avatar.indexOf('http') !== 0 && avatar.length <= 4 ? avatar : '😄';
+				var time = raw.created_at || '';
+				var shortTime = time;
+				if (time.length >= 16) {
+					shortTime = time.slice(5, 16);
+				}
+				return {
+					object_id: raw.object_id,
+					user_id: raw.user_id,
+					displayName: raw.user_nickname || '匿名玩家',
+					user_nickname: raw.user_nickname || '匿名玩家',
+					avatarText: avatarText,
+					ratingNumber: rating,
+					contentText: content,
+					shortTime: shortTime,
+				};
+			},
 			async doSubmitReview() {
+				if (this.submitting) return;
 				if (!this.submitRating || this.submitRating < 1) {
 					uni.showModal({ title: '提示', content: '请选择评分', showCancel: false });
 					return;
@@ -131,16 +184,22 @@
 					uni.showModal({ title: '提示', content: '请输入评价内容', showCancel: false });
 					return;
 				}
+				this.submitting = true;
 				uni.showLoading({ title: '提交中...' });
 				try {
-					var res = await this.submitReview(this.submitRating, this.submitContent.trim());
+					var res = await this.submitReview({
+						rating: this.submitRating,
+						content: this.submitContent.trim(),
+					});
 					uni.hideLoading();
-					uni.showModal({ title: '成功', content: '评价已提交！', showCancel: false });
+					uni.showToast({ title: this.myReview ? '评价已更新' : '评价已提交', icon: 'success' });
 					// 重新加载
 					this.loadReviews();
 				} catch (e) {
 					uni.hideLoading();
 					uni.showModal({ title: '失败', content: e || '提交失败', showCancel: false });
+				} finally {
+					this.submitting = false;
 				}
 			},
 		},
@@ -261,6 +320,10 @@
 		box-shadow: 0 6rpx 20rpx rgba(232,120,74,0.3);
 		.btn-text { color: #FFF; font-size: 30rpx; font-weight: bold; }
 	}
+	.submit-btn.disabled {
+		opacity: 0.7;
+		box-shadow: none;
+	}
 
 	/* 其他评价 */
 	.other-reviews {
@@ -301,5 +364,25 @@
 		.review-stars .star.filled { filter: drop-shadow(0 1rpx 2rpx rgba(255,193,7,0.4)); }
 		.review-text { display: block; font-size: 26rpx; color: #6D5A48; line-height: 1.6; }
 		.review-time { display: block; font-size: 20rpx; color: #A08B7A; margin-top: 8rpx; }
+	}
+	.empty-reviews {
+		background: #FFF8F0;
+		border: 2rpx dashed rgba(232,120,74,0.22);
+		border-radius: 24rpx;
+		padding: 32rpx 24rpx;
+		text-align: center;
+	}
+	.empty-title {
+		display: block;
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #4A3728;
+		margin-bottom: 8rpx;
+	}
+	.empty-desc {
+		display: block;
+		font-size: 24rpx;
+		color: #A08B7A;
+		line-height: 1.5;
 	}
 </style>

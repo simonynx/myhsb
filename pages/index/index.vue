@@ -240,23 +240,27 @@
 		<!-- ===== 玩家评价 ===== -->
 		<view class="section" v-if="reviews.length > 0">
 			<view class="section-header">
-				<text class="section-title">💬 玩家评价</text>
-				<text class="section-more" @tap="goToMyReviews">我的评价 →</text>
+				<view class="section-title-wrap">
+					<text class="section-title">💬 玩家怎么说</text>
+					<text class="section-sub">{{ reviewSummaryText }}</text>
+				</view>
+				<text class="section-more" @tap="goToMyReviews">{{ hasLogin ? '写评价 →' : '登录评价 →' }}</text>
 			</view>
 			<swiper class="reviews-swiper" vertical autoplay circular interval="4000">
 				<swiper-item v-for="(rev, idx) in reviews" :key="idx">
 					<view class="review-card">
 						<view class="review-header">
-							<text class="review-avatar">{{ rev.user_avatar || '😄' }}</text>
+							<text class="review-avatar">{{ rev.avatarText }}</text>
 							<view class="review-meta">
-								<text class="review-name">{{ rev.user_nickname }}</text>
+								<text class="review-name">{{ rev.displayName }}</text>
 								<view class="review-stars">
-									<text v-for="s in 5" :key="s" :class="s <= rev.rating ? 'star filled' : 'star'">⭐</text>
+									<text v-for="s in 5" :key="s" :class="s <= rev.ratingNumber ? 'star filled' : 'star'">⭐</text>
 								</view>
 							</view>
+							<text class="review-badge">{{ rev.recommendText }}</text>
 						</view>
-						<text class="review-text">{{ rev.content }}</text>
-						<text class="review-time">{{ rev.created_at }}</text>
+						<text class="review-text">{{ rev.contentText }}</text>
+						<text class="review-time">{{ rev.shortTime }}</text>
 					</view>
 				</swiper-item>
 			</swiper>
@@ -352,6 +356,12 @@
 				}
 				return this.claimableCouponCount + '张优惠券待领取';
 			},
+			reviewSummaryText() {
+				if (this.reviewAverageText) {
+					return this.reviewAverageText + ' · ' + this.reviewTotalCount + '条真实体验';
+				}
+				return this.reviewTotalCount + '条真实体验';
+			},
 		},
 		watch: {
 			constance(value) { this.loadData(); },
@@ -391,6 +401,9 @@
 					{ key: 'party', icon: '🎂', name: '生日/团建小局', desc: '4人以上建议提前约位置，布置补给可加选', price: '可加选', action: 'reserve', style: 'background: #E0F5E0;' },
 				],
 				reviews: [],
+				reviewTotalCount: 0,
+				reviewAverageText: '',
+				reviewsLoaded: false,
 				collectionHintClosed: false,
 				couponHintClosed: false,
 				couponHintClosedKey: '',
@@ -403,7 +416,9 @@
 		onShow() {
 			uni.$emit('tabBarChange', { key: 'index' });
 			this.loadData();
-			this.loadReviews();
+			if (this.reviewsLoaded) {
+				this.loadReviews();
+			}
 			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
 			this.loadClaimableCoupons();
 			if (this.hasLogin) this.checkBanner();
@@ -531,6 +546,18 @@
 				}
 			},
 			goToMyReviews() {
+				if (!this.hasLogin) {
+					uni.showModal({
+						title: '提示',
+						content: '登录后可以发表自己的体验',
+						success: (res) => {
+							if (res.confirm) {
+								this.loginAndRegister().catch(() => {});
+							}
+						}
+					});
+					return;
+				}
 				uni.navigateTo({ url: '/pages/my/reviews' });
 			},
 			async loadData() {
@@ -556,15 +583,63 @@
 				try {
 					var list = await this.getReviewList();
 					console.log('评价列表:', list);
-					if (list && list.length > 0) {
-						this.reviews = list;
-					} else {
+					this.reviewsLoaded = true;
+					if (!list || list.length === 0) {
 						this.reviews = [];
+						this.reviewTotalCount = 0;
+						this.reviewAverageText = '';
+						return;
 					}
+					var prepared = [];
+					var ratingTotal = 0;
+					var ratingCount = 0;
+					for (var i = 0; i < list.length; i++) {
+						var item = this.prepareReviewItem(list[i]);
+						if (!item) continue;
+						prepared.push(item);
+						if (item.ratingNumber > 0) {
+							ratingTotal += item.ratingNumber;
+							ratingCount += 1;
+						}
+					}
+					this.reviewTotalCount = prepared.length;
+					this.reviewAverageText = ratingCount > 0 ? (ratingTotal / ratingCount).toFixed(1) + '分' : '';
+					this.reviews = prepared.slice(0, 5);
 				} catch (e) {
 					console.error('加载评价失败:', e);
+					this.reviewsLoaded = true;
 					this.reviews = [];
+					this.reviewTotalCount = 0;
+					this.reviewAverageText = '';
 				}
+			},
+			prepareReviewItem(raw) {
+				if (!raw) return null;
+				var content = (raw.content || '').replace(/\s+/g, ' ').trim();
+				if (!content) return null;
+				var rating = parseInt(raw.rating || 0);
+				if (!isFinite(rating)) rating = 0;
+				if (rating < 0) rating = 0;
+				if (rating > 5) rating = 5;
+				var name = raw.user_nickname || '匿名玩家';
+				var text = content.length > 58 ? content.slice(0, 58) + '...' : content;
+				var time = raw.created_at || '';
+				var shortTime = time;
+				if (time.length >= 10) {
+					shortTime = time.slice(5, 10);
+				}
+				var avatar = raw.user_avatar || '';
+				var avatarText = avatar && avatar.indexOf('http') !== 0 && avatar.length <= 4 ? avatar : '😄';
+				return {
+					object_id: raw.object_id,
+					user_id: raw.user_id,
+					displayName: name,
+					avatarText: avatarText,
+					ratingNumber: rating,
+					contentText: text,
+					shortTime: shortTime,
+					recommendText: rating >= 5 ? '超推荐' : (rating >= 4 ? '推荐' : '体验反馈'),
+				};
 			},
 			swiperChange(e) {
 				this.swiperCurrent = e.detail.current;
@@ -915,8 +990,9 @@ page { background: #FFF8F0; }
 /* ===== 通用区块 ===== */
 .section { margin: 0 24rpx 28rpx; }
 .section-header { display: flex; align-items: baseline; gap: 10rpx; margin-bottom: 16rpx; }
+.section-title-wrap { flex: 1; min-width: 0; }
 .section-title { font-size: 32rpx; font-weight: bold; color: #5C4B3A; }
-.section-sub { font-size: 22rpx; color: #C4B5A5; }
+.section-sub { display: block; font-size: 22rpx; color: #C4B5A5; margin-top: 4rpx; }
 .section-more { margin-left: auto; font-size: 22rpx; color: #FF8C42; font-weight: 500; }
 
 /* ===== 店里玩什么 ===== */
@@ -1007,16 +1083,17 @@ page { background: #FFF8F0; }
 .info-action { font-size: 22rpx; color: #FF8C42; background: #FFF3E8; padding: 6rpx 16rpx; border-radius: 20rpx; font-weight: 500; }
 
 /* ===== 评价 ===== */
-.reviews-swiper { height: 260rpx; }
-.review-card { background: #FFF; border-radius: 24rpx; padding: 20rpx; box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06); height: calc(100% - 40rpx); margin: 10rpx 4rpx; }
+.reviews-swiper { height: 278rpx; }
+.review-card { background: #FFF; border-radius: 24rpx; padding: 22rpx; box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06); height: calc(100% - 44rpx); margin: 10rpx 4rpx; border: 1rpx solid rgba(255,181,167,0.18); box-sizing: border-box; }
 .review-header { display: flex; align-items: center; gap: 12rpx; margin-bottom: 12rpx; }
 .review-avatar { font-size: 44rpx; }
-.review-meta { flex: 1; }
+.review-meta { flex: 1; min-width: 0; }
 .review-name { display: block; font-size: 26rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 2rpx; }
 .review-stars { display: flex; gap: 4rpx; }
 .star { font-size: 18rpx; opacity: 0.3; }
 .star.filled { opacity: 1; }
-.review-text { display: block; font-size: 22rpx; color: #8D6E63; line-height: 1.5; margin-bottom: 8rpx; }
+.review-badge { font-size: 20rpx; color: #FF8C42; background: #FFF3E8; padding: 6rpx 12rpx; border-radius: 16rpx; flex-shrink: 0; }
+.review-text { display: -webkit-box; font-size: 24rpx; color: #6F5A48; line-height: 1.55; margin-bottom: 8rpx; overflow: hidden; text-overflow: ellipsis; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .review-time { font-size: 18rpx; color: #C4B5A5; }
 /* ===== 营销弹窗 ===== */
 .banner-popup { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 40rpx; }
