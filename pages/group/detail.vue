@@ -201,6 +201,22 @@
                 <text class="countdown-value">{{ countdownText }}</text>
             </view>
 
+            <!-- 安心说明 -->
+            <view class="trust-card" v-if="group.status === 'open'">
+                <view class="trust-item">
+                    <text class="trust-icon">↩️</text>
+                    <text class="trust-text">未成团自动退回余额</text>
+                </view>
+                <view class="trust-item">
+                    <text class="trust-icon">🔒</text>
+                    <text class="trust-text">成团后自动锁定房间</text>
+                </view>
+                <view class="trust-item">
+                    <text class="trust-icon">📢</text>
+                    <text class="trust-text">可继续邀请朋友一起加入</text>
+                </view>
+            </view>
+
             <!-- 状态信息 -->
             <view class="status-info" :class="groupStatusClass" v-if="group.status !== 'open'">
                 <text class="status-icon">{{ statusIcon }}</text>
@@ -719,6 +735,32 @@ $cream: #FFF8F0;
     margin-top: 10rpx;
     font-size: 23rpx;
     color: $gray;
+}
+
+/* 安心说明 */
+.trust-card {
+    margin: 0 30rpx 24rpx;
+    background: #fff;
+    border-radius: 24rpx;
+    padding: 22rpx 24rpx;
+    border: 2rpx solid rgba(129,199,132,0.2);
+    box-shadow: 0 8rpx 28rpx rgba(140, 100, 60, 0.06);
+}
+.trust-item {
+    display: flex;
+    align-items: center;
+    padding: 10rpx 0;
+}
+.trust-icon {
+    width: 48rpx;
+    font-size: 30rpx;
+    flex-shrink: 0;
+}
+.trust-text {
+    flex: 1;
+    font-size: 25rpx;
+    color: #6F5A48;
+    line-height: 1.45;
 }
 
 /* 时间卡片 */

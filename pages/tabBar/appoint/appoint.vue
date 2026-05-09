@@ -189,12 +189,13 @@
                         <text class="pf-label">已选时段</text>
                         <text class="pf-count" v-if="specSelected.length">{{ specSelected.length }} 个时段</text>
                         <text class="pf-count zero" v-else>请选择预约时段</text>
+                        <text class="pf-social-tip" v-if="specSelected.length">{{ groupValueText }}</text>
                     </view>
                     <view class="pf-btns">
-                        <view class="pf-btn group" :class="{ disabled: !specSelected.length }" @click="specSelected.length && handleCreateGroup()">
+                        <view :class="groupButtonClass" @click="specSelected.length && handleCreateGroup()">
                             <text>发起拼团</text>
                         </view>
-                        <view class="pf-btn book" :class="{ disabled: !specSelected.length }" @click="specSelected.length && handleDirectBook()">
+                        <view :class="bookButtonClass" @click="specSelected.length && handleDirectBook()">
                             <text>直接预约</text>
                         </view>
                     </view>
@@ -238,6 +239,24 @@ export default {
         currentHour() { return new Date().getHours(); },
         selectedDayInfo() {
             return this.weekDays[this.selectedDayIndex] || {};
+        },
+        groupButtonClass() {
+            return this.specSelected.length ? 'pf-btn group' : 'pf-btn group disabled';
+        },
+        bookButtonClass() {
+            return this.specSelected.length ? 'pf-btn book' : 'pf-btn book disabled';
+        },
+        selectedDurationHours() {
+            return this.specSelected && this.specSelected.length ? this.specSelected.length : 0;
+        },
+        groupValueText() {
+            if (!this.currentSelectItem || !this.selectedDurationHours) return '';
+            const hourCost = (this.currentSelectItem.price_per_hour || 0) * this.selectedDurationHours;
+            const personCost = (this.currentSelectItem.price_per_person || 0) * 4;
+            const total = hourCost + personCost;
+            if (!total) return '发起拼团，凑齐后自动锁房';
+            const perPerson = Math.ceil(total / 4 / 100);
+            return '拼团约人均 ¥' + perPerson + ' 起，凑齐后自动锁房';
         },
     },
     onLoad() {
@@ -1169,6 +1188,14 @@ page {
                 font-weight: bold;
                 color: $primary;
                 &.zero { color: #999; font-weight: normal; }
+            }
+
+            .pf-social-tip {
+                display: block;
+                font-size: 21rpx;
+                color: #7CB342;
+                margin-top: 4rpx;
+                line-height: 1.35;
             }
         }
 

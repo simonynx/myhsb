@@ -136,6 +136,19 @@
 			</view>
 		</view>
 
+		<!-- ===== 社交空间入口 ===== -->
+		<view class="social-space-card" @tap="goToGroupSquare">
+			<view class="social-copy">
+				<text class="social-kicker">第三空间</text>
+				<text class="social-title">今天店里有什么局？</text>
+				<text class="social-desc">看看谁在约桌游、主机和包厢，差人就一起开局。</text>
+			</view>
+			<view class="social-side">
+				<text class="social-badge">找队友</text>
+				<text class="social-action">去看看 →</text>
+			</view>
+		</view>
+
 		<!-- ===== 轮播 ===== -->
 		<view class="carousel-wrapper" v-if="carouselList.length > 0">
 			<swiper class="carousel" circular autoplay interval="4000" @change="swiperChange">
@@ -479,6 +492,9 @@
 			},
 			goToReserve() {
 				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+			},
+			goToGroupSquare() {
+				uni.switchTab({ url: '/pages/group/group' });
 			},
 			goToBuyTicketCount(count) {
 				var num = parseInt(count || 1);
@@ -979,6 +995,26 @@ page { background: #FFF8F0; }
 	padding: 7rpx 14rpx;
 	border-radius: 20rpx;
 }
+
+/* ===== 社交空间入口 ===== */
+.social-space-card {
+	margin: 0 24rpx 24rpx;
+	background: linear-gradient(135deg, #EAF7EC 0%, #FFF8F0 62%, #FFE8D0 100%);
+	border-radius: 28rpx;
+	padding: 26rpx;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	border: 2rpx solid rgba(129,199,132,0.2);
+	box-shadow: 0 8rpx 28rpx rgba(92,75,58,0.07);
+}
+.social-copy { flex: 1; min-width: 0; padding-right: 18rpx; }
+.social-kicker { display: block; font-size: 22rpx; color: #4A9A4A; font-weight: bold; margin-bottom: 6rpx; }
+.social-title { display: block; font-size: 34rpx; color: #5C4B3A; font-weight: bold; line-height: 1.25; }
+.social-desc { display: block; font-size: 23rpx; color: #7C6A58; line-height: 1.45; margin-top: 8rpx; }
+.social-side { display: flex; flex-direction: column; align-items: flex-end; gap: 14rpx; flex-shrink: 0; }
+.social-badge { font-size: 22rpx; color: #FFF; background: #81C784; border-radius: 18rpx; padding: 8rpx 16rpx; font-weight: bold; }
+.social-action { font-size: 24rpx; color: #FF8C42; font-weight: bold; }
 
 /* ===== 轮播 ===== */
 .carousel-wrapper { margin: 0 24rpx; }

@@ -38,12 +38,37 @@
             </scroll-view>
         </view>
 
+        <!-- 社交空间总览 -->
+        <view class="social-summary" v-if="!loading">
+            <view class="summary-main">
+                <text class="summary-kicker">店里正在组局</text>
+                <text class="summary-title">{{ groupSummaryText }}</text>
+                <text class="summary-sub">{{ groupSummarySub }}</text>
+            </view>
+            <view class="summary-pill">
+                <text class="summary-pill-num">{{ almostFullCount }}</text>
+                <text class="summary-pill-text">差1人成团</text>
+            </view>
+        </view>
+
+        <!-- 快捷筛选 -->
+        <view class="quick-filter" v-if="!loading && rawGroupList.length > 0">
+            <view
+                v-for="filter in quickFilters"
+                :key="filter.key"
+                :class="filter.className"
+                @click="selectQuickFilter(filter.key)"
+            >
+                <text>{{ filter.label }}</text>
+            </view>
+        </view>
+
         <!-- 拼团列表 -->
         <view class="group-list">
             <view
                 class="group-card"
                 :class="group.cardClass"
-                v-for="group in groupList"
+                v-for="group in visibleGroupList"
                 :key="group.object_id"
                 @click="goDetail(group.object_id)"
             >
@@ -113,7 +138,7 @@
             </view>
 
             <!-- 空状态 -->
-            <view class="empty-section" v-if="groupList.length === 0 && !loading">
+            <view class="empty-section" v-if="visibleGroupList.length === 0 && !loading">
                 <text class="empty-icon">🎮</text>
                 <text class="empty-title">{{ emptyTitle }}</text>
                 <text class="empty-sub">{{ emptySub }}</text>
@@ -145,6 +170,8 @@ export default {
             weekDays: [],
             selectedDayIndex: 0,
             groupList: [],
+            rawGroupList: [],
+            activeQuickFilter: 'all',
             loading: false,
             pendingShareGroup: null,
             groupRequestSeq: 0,
@@ -176,6 +203,61 @@ export default {
         },
         emptySub() {
             return this.currentDate ? '这一天还没有人发起拼团，你来当第一个！' : '暂时没人缺队友，发起一个邀请朋友吧';
+        },
+        visibleGroupList() {
+            if (this.activeQuickFilter === 'almost') {
+                return this.groupList.filter(g => g.status === 'open' && g.remain === 1);
+            }
+            if (this.activeQuickFilter === 'today') {
+                return this.groupList.filter(g => g.dateLabel === '今天');
+            }
+            if (this.activeQuickFilter === 'weekend') {
+                return this.groupList.filter(g => g.isWeekend);
+            }
+            if (this.activeQuickFilter === 'low') {
+                return this.groupList.filter(g => g.priceLevel === 'low');
+            }
+            return this.groupList;
+        },
+        openGroupCount() {
+            return this.rawGroupList.filter(g => g.status === 'open').length;
+        },
+        almostFullCount() {
+            return this.rawGroupList.filter(g => g.status === 'open' && g.remain === 1).length;
+        },
+        lowestPriceText() {
+            if (!this.rawGroupList.length) return '';
+            let minPrice = 0;
+            for (let i = 0; i < this.rawGroupList.length; i++) {
+                const p = this.rawGroupList[i].price_per_person || 0;
+                if (!p) continue;
+                if (!minPrice || p < minPrice) minPrice = p;
+            }
+            return minPrice ? '¥' + (minPrice / 100).toFixed(0) + '起' : '';
+        },
+        groupSummaryText() {
+            if (this.openGroupCount > 0) return this.openGroupCount + '个局正在等人';
+            return '今天可以从你开始';
+        },
+        groupSummarySub() {
+            if (this.lowestPriceText) return '人均' + this.lowestPriceText + '，未成团自动退回余额';
+            return '发起一个局，朋友和新玩家都能加入';
+        },
+        quickFilters() {
+            const items = [
+                { key: 'all', label: '全部' },
+                { key: 'almost', label: '差1人' },
+                { key: 'today', label: '今天' },
+                { key: 'weekend', label: '周末' },
+                { key: 'low', label: '低价' },
+            ];
+            return items.map(item => {
+                return {
+                    key: item.key,
+                    label: item.label,
+                    className: this.activeQuickFilter === item.key ? 'filter-pill active' : 'filter-pill',
+                };
+            });
         },
     },
 
@@ -235,8 +317,13 @@ export default {
 
         selectDay(index) {
             this.selectedDayIndex = index;
+            this.activeQuickFilter = 'all';
             this.updateDatePillClasses();
             this.fetchGroupList();
+        },
+
+        selectQuickFilter(key) {
+            this.activeQuickFilter = key || 'all';
         },
 
         fetchGroupList() {
@@ -260,6 +347,7 @@ export default {
                         const label = this.formatDateLabel(g.date);
                         g.dateLabel = label;
                         g.dateShort = this.formatShortDate(g.date);
+                        g.isWeekend = this.isWeekendDate(g.date);
                         g.roomName = room.name || '拼团房间';
                         g.roomImage = room.image1 || '/static/logo_small.jpg';
                         g.initiatorName = initiator.nickname || '玩家';
@@ -295,6 +383,7 @@ export default {
                         g.savePerPerson = Math.max(0, g.originalPerPerson - (g.price_per_person || 0));
                         g.originalPerPersonText = (g.originalPerPerson / 100).toFixed(0);
                         g.savePerPersonText = (g.savePerPerson / 100).toFixed(0);
+                        g.priceLevel = (g.price_per_person || 0) <= 5000 ? 'low' : '';
                         g.sortTime = this.getGroupSortTime(g);
                         g.progressStyle = 'width:' + this.progressWidth(g);
                         if (g.remain > 2) {
@@ -310,13 +399,16 @@ export default {
                         return g;
                     });
                     list.sort(this.compareGroups);
+                    this.rawGroupList = list;
                     this.groupList = list;
                 } else {
+                    this.rawGroupList = [];
                     this.groupList = [];
                 }
             }).catch(() => {
                 if (requestSeq !== this.groupRequestSeq) return;
                 this.loading = false;
+                this.rawGroupList = [];
                 this.groupList = [];
             });
         },
@@ -339,6 +431,13 @@ export default {
             if (!dateStr) return '';
             const parts = dateStr.split('-');
             return parseInt(parts[1], 10) + '月' + parseInt(parts[2], 10) + '日';
+        },
+
+        isWeekendDate(dateStr) {
+            if (!dateStr) return false;
+            const d = new Date(dateStr.replace(/-/g, '/'));
+            const day = d.getDay();
+            return day === 0 || day === 6;
         },
 
         dateBadgeClass(dateStr) {
@@ -579,7 +678,7 @@ $cream: #FFF8F0;
 .date-bar {
     background: #fff;
     padding: 20rpx 0;
-    margin: -50rpx 24rpx 24rpx;
+    margin: -50rpx 24rpx 18rpx;
     border-radius: 24rpx;
     box-shadow: 0 4rpx 20rpx rgba(92, 75, 58, 0.06);
     border: 2rpx solid rgba(255, 181, 167, 0.15);
@@ -641,6 +740,89 @@ $cream: #FFF8F0;
         font-weight: bold;
         color: #5C4B3A;
     }
+}
+
+// 社交空间总览
+.social-summary {
+    margin: 0 30rpx 18rpx;
+    padding: 24rpx;
+    border-radius: 26rpx;
+    background: linear-gradient(135deg, #EAF7EC 0%, #FFF8F0 66%, #FFE8D0 100%);
+    border: 2rpx solid rgba(129,199,132,0.22);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 6rpx 20rpx rgba(92, 75, 58, 0.06);
+}
+.summary-main { flex: 1; min-width: 0; padding-right: 18rpx; }
+.summary-kicker {
+    display: block;
+    font-size: 21rpx;
+    color: #4A9A4A;
+    font-weight: bold;
+    margin-bottom: 6rpx;
+}
+.summary-title {
+    display: block;
+    font-size: 32rpx;
+    line-height: 1.25;
+    font-weight: bold;
+    color: $dark;
+}
+.summary-sub {
+    display: block;
+    font-size: 22rpx;
+    color: #7C6A58;
+    line-height: 1.45;
+    margin-top: 8rpx;
+}
+.summary-pill {
+    width: 118rpx;
+    height: 118rpx;
+    border-radius: 30rpx;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4rpx 14rpx rgba(129,199,132,0.16);
+    flex-shrink: 0;
+}
+.summary-pill-num {
+    font-size: 38rpx;
+    line-height: 1;
+    color: $primary;
+    font-weight: bold;
+}
+.summary-pill-text {
+    font-size: 18rpx;
+    color: $gray;
+    margin-top: 8rpx;
+}
+
+// 快捷筛选
+.quick-filter {
+    margin: 0 30rpx 20rpx;
+    display: flex;
+    gap: 12rpx;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+.filter-pill {
+    flex-shrink: 0;
+    padding: 12rpx 22rpx;
+    border-radius: 24rpx;
+    background: #fff;
+    color: $gray;
+    font-size: 23rpx;
+    border: 1rpx solid rgba(245,224,208,0.9);
+}
+.filter-pill.active {
+    background: #FF8C42;
+    color: #fff;
+    border-color: #FF8C42;
+    font-weight: bold;
+    box-shadow: 0 5rpx 14rpx rgba(255,140,66,0.18);
 }
 
 // 拼团列表
