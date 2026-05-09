@@ -69,7 +69,7 @@
 							:disabled="item.remaining_count === 0 || receivingCouponId === item.campaign_id"
 							@tap.stop="receiveCoupon(item)"
 						>
-							{{ item.remaining_count === 0 ? '已领完' : (receivingCouponId === item.campaign_id ? '领取中...' : '立即领取') }}
+							{{ item.remaining_count === 0 ? '已领完' : (receivingCouponId === item.campaign_id ? '领取中' : '领券') }}
 						</button>
 					</view>
 				</view>
@@ -725,10 +725,11 @@ page, .page {
 		.c-name { font-size: 28rpx; font-weight: bold; color: $bark; }
 		.c-expire { font-size: 22rpx; color: $bark-light; margin-top: auto; }
 		.c-btn {
-			margin-top: 10rpx;
+			margin: 10rpx 0 0 auto;
 			padding: 0;
-			width: 140rpx;
-			line-height: 2.4;
+			width: 132rpx;
+			height: 56rpx;
+			line-height: 56rpx;
 			background: linear-gradient(135deg, $wood-light, $wood);
 			color: #FFF;
 			font-size: 24rpx;

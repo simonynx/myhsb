@@ -103,7 +103,7 @@
 									:disabled="receivingCouponId === item.campaign_id"
 									@tap.stop="receiveCoupon(item)"
 								>
-									{{ receivingCouponId === item.campaign_id ? '领取中' : '领取' }}
+									{{ receivingCouponId === item.campaign_id ? '领取中' : '领券' }}
 								</button>
 							</view>
 						</view>
@@ -789,9 +789,11 @@ page {
 		&.expired { color: $primary; }
 	}
 	.right-btn {
+		margin: 0;
 		padding: 0;
-		width: 120rpx;
-		line-height: 2.2;
+		width: 124rpx;
+		height: 54rpx;
+		line-height: 54rpx;
 		background: linear-gradient(135deg, $primary-light, $primary);
 		color: #FFF;
 		font-size: 24rpx;
