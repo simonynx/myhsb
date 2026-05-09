@@ -392,9 +392,9 @@
 					var platform = PLATFORM.getPlatform();
 					var missing = [];
 					if (platform === 'toutiao') {
-						var orderInfo = payment.toutiaoOrderInfo || {};
-						if (!orderInfo.order_id) missing.push('toutiaoOrderInfo.order_id');
-						if (!orderInfo.order_token) missing.push('toutiaoOrderInfo.order_token');
+						var orderInfo = payment.toutiaoOrderInfo || payment.orderInfo || {};
+						if (!orderInfo.order_id) missing.push('orderInfo.order_id');
+						if (!orderInfo.order_token) missing.push('orderInfo.order_token');
 					} else {
 						var paySign = payment.paySign || payment.sign;
 						var requiredFields = ['timeStamp', 'nonceStr', 'package'];

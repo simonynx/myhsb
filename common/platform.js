@@ -45,6 +45,35 @@ function platformLogin() {
 }
 
 // ==================== 支付 ====================
+function normalizeToutiaoOrderInfo(params) {
+	var source = params && (params.payment || params.wxpay || params) || {};
+	var raw = source.toutiaoOrderInfo || source.orderInfo || source;
+	return {
+		order_id: String(raw.order_id || ''),
+		order_token: String(raw.order_token || '')
+	};
+}
+
+function resolveToutiaoPayResult(res, resolve, reject) {
+	var code = Number(res && res.code);
+	if (code === 0) {
+		resolve(res);
+		return;
+	}
+	var messages = {
+		1: '支付超时',
+		2: '支付失败',
+		3: '支付关闭',
+		4: '支付已取消',
+		9: '支付状态待确认'
+	};
+	reject({
+		errMsg: messages[code] || ((res && res.errMsg) || '支付未完成'),
+		code: code,
+		raw: res
+	});
+}
+
 function requestPayment(params) {
 	return new Promise(function(resolve, reject) {
 		if (IS_WEIXIN) {
@@ -62,32 +91,53 @@ function requestPayment(params) {
 				}
 			});
 		} else if (IS_TOUTIAO) {
-			tt.pay({
-				orderInfo: params.toutiaoOrderInfo || {},
+			var orderInfo = normalizeToutiaoOrderInfo(params);
+			if (!orderInfo.order_id || !orderInfo.order_token) {
+				reject({
+					errMsg: '抖音支付参数缺失',
+					missing: !orderInfo.order_id ? 'order_id' : 'order_token'
+				});
+				return;
+			}
+			var settled = false;
+			function safeResolve(res) {
+				if (settled) return;
+				settled = true;
+				resolve(res);
+			}
+			function safeReject(err) {
+				if (settled) return;
+				settled = true;
+				reject(err);
+			}
+			if (typeof tt === 'undefined' || typeof tt.pay !== 'function') {
+				safeReject({
+					errMsg: '当前抖音基础库不支持 tt.pay，请升级抖音或开发者工具'
+				});
+				return;
+			}
+			var payOptions = {
+				orderInfo: orderInfo,
 				service: 5,
 				success: function(res) {
-					var code = Number(res && res.code);
-					if (code === 0) {
-						resolve(res);
-						return;
-					}
-					var messages = {
-						1: '支付超时',
-						2: '支付失败',
-						3: '支付关闭',
-						4: '支付已取消',
-						9: '支付状态待确认'
-					};
-					reject({
-						errMsg: messages[code] || '支付未完成',
-						code: code,
-						raw: res
-					});
+					resolveToutiaoPayResult(res, safeResolve, safeReject);
 				},
 				fail: function(err) {
-					reject(err);
+					safeReject(err);
 				}
-			});
+			};
+			try {
+				var result = tt.pay(payOptions);
+				if (result && typeof result.then === 'function') {
+					result.then(function(res) {
+						resolveToutiaoPayResult(res, safeResolve, safeReject);
+					}).catch(function(err) {
+						safeReject(err);
+					});
+				}
+			} catch (err) {
+				safeReject(err);
+			}
 		} else {
 			reject('当前平台不支持支付');
 		}
