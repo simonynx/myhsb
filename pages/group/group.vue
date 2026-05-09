@@ -32,7 +32,7 @@
                     >
                         <text class="pill-week">{{ item.week }}</text>
                         <text class="pill-date" v-if="item.date">{{ item.dayText }}</text>
-                        <text class="pill-all-text" v-else>全部</text>
+                        <text class="pill-all-text" v-else>{{ item.dayText }}</text>
                     </view>
                 </view>
             </scroll-view>
@@ -46,8 +46,8 @@
                 <text class="summary-sub">{{ groupSummarySub }}</text>
             </view>
             <view class="summary-pill">
-                <text class="summary-pill-num">{{ almostFullCount }}</text>
-                <text class="summary-pill-text">差1人成团</text>
+                <text class="summary-pill-num">{{ summaryPillValue }}</text>
+                <text class="summary-pill-text">{{ summaryPillLabel }}</text>
             </view>
         </view>
 
@@ -125,7 +125,7 @@
                     <view class="card-actions">
                         <button class="share-mini-btn" open-type="share" @click.stop="setShareGroup(group)">
                             <text class="yticon icon-fenxiang2"></text>
-                            <text>喊朋友</text>
+                            <text>{{ group.shareActionText }}</text>
                         </button>
                         <view class="progress-info">
                             <view class="progress-bar">
@@ -145,6 +145,14 @@
                 <view class="empty-btn" @click="goAppoint">
                     <text>发起拼团，喊朋友 →</text>
                 </view>
+            </view>
+
+            <view class="starter-card" v-if="visibleGroupList.length > 0 && !loading" @click="goAppoint">
+                <view class="starter-copy">
+                    <text class="starter-title">没看到合适的局？</text>
+                    <text class="starter-sub">选个包厢和时间，朋友或新玩家都能加入。</text>
+                </view>
+                <text class="starter-action">发起拼团 →</text>
             </view>
         </view>
 
@@ -225,6 +233,16 @@ export default {
         almostFullCount() {
             return this.rawGroupList.filter(g => g.status === 'open' && g.remain === 1).length;
         },
+        summaryPillValue() {
+            if (this.almostFullCount > 0) return this.almostFullCount;
+            if (this.openGroupCount > 0) return this.openGroupCount;
+            return '新';
+        },
+        summaryPillLabel() {
+            if (this.almostFullCount > 0) return '差1人成团';
+            if (this.openGroupCount > 0) return '可加入';
+            return '可发起';
+        },
         lowestPriceText() {
             if (!this.rawGroupList.length) return '';
             let minPrice = 0;
@@ -296,7 +314,7 @@ export default {
             const days = [];
             const today = new Date();
             const weekMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-            days.push({ date: '', week: '全部', label: '全部', className: '' });
+            days.push({ date: '', week: '全部', label: '全部', dayText: '不限', className: '' });
             for (let i = 0; i < 7; i++) {
                 const d = new Date(today.getTime() + i * 86400000);
                 const monthText = this.pad2(d.getMonth() + 1);
@@ -395,6 +413,13 @@ export default {
                         } else {
                             g.progressText = '已满员';
                             g.progressTextClass = 'full';
+                        }
+                        if (g.status === 'open' && g.remain === 1) {
+                            g.shareActionText = '差1人';
+                        } else if (g.status === 'open') {
+                            g.shareActionText = '喊朋友';
+                        } else {
+                            g.shareActionText = '分享';
                         }
                         return g;
                     });
@@ -858,6 +883,44 @@ $cream: #FFF8F0;
     &:active {
         transform: scale(0.97);
     }
+}
+
+.starter-card {
+    margin: 4rpx 0 24rpx;
+    padding: 24rpx;
+    border-radius: 24rpx;
+    background: rgba(255,255,255,0.78);
+    border: 2rpx dashed rgba(255,140,66,0.24);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.starter-copy {
+    flex: 1;
+    min-width: 0;
+    padding-right: 18rpx;
+}
+.starter-title {
+    display: block;
+    font-size: 28rpx;
+    font-weight: bold;
+    color: $dark;
+    margin-bottom: 6rpx;
+}
+.starter-sub {
+    display: block;
+    font-size: 22rpx;
+    color: #8D6E63;
+    line-height: 1.45;
+}
+.starter-action {
+    flex-shrink: 0;
+    font-size: 23rpx;
+    color: #FF8C42;
+    font-weight: bold;
+    background: #FFF0E8;
+    border-radius: 20rpx;
+    padding: 10rpx 16rpx;
 }
 
 .card-header {
