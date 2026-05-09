@@ -62,11 +62,27 @@ function requestPayment(params) {
 				}
 			});
 		} else if (IS_TOUTIAO) {
-			tt.requestPayment({
-				provider: 'douyin',
+			tt.pay({
 				orderInfo: params.toutiaoOrderInfo || {},
+				service: 5,
 				success: function(res) {
-					resolve(res);
+					var code = Number(res && res.code);
+					if (code === 0) {
+						resolve(res);
+						return;
+					}
+					var messages = {
+						1: '支付超时',
+						2: '支付失败',
+						3: '支付关闭',
+						4: '支付已取消',
+						9: '支付状态待确认'
+					};
+					reject({
+						errMsg: messages[code] || '支付未完成',
+						code: code,
+						raw: res
+					});
 				},
 				fail: function(err) {
 					reject(err);
