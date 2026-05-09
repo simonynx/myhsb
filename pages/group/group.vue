@@ -169,6 +169,7 @@
 <script>
 import { mapState } from 'vuex';
 import AUTH from '../../utils/auth.js';
+import { parseDateTime, toTimestamp } from '../../common/util.js';
 import customTabBar from '@/custom-tab-bar/index.vue';
 
 export default {
@@ -380,7 +381,7 @@ export default {
                         }
 
                         // 新鲜度：1小时内发布的算新
-                        const created = g.created_at ? new Date(g.created_at.replace(/-/g, '/')) : null;
+                        const created = parseDateTime(g.created_at);
                         g.isNew = created && (new Date() - created < 3600000);
 
                         // 剩余名额
@@ -486,7 +487,7 @@ export default {
 
         getGroupSortTime(group) {
             if (!group.date || !group.begin_time) return 9999999999999;
-            return new Date((group.date + ' ' + group.begin_time).replace(/-/g, '/')).getTime();
+            return toTimestamp(group.date + ' ' + group.begin_time) || 9999999999999;
         },
 
         compareGroups(a, b) {

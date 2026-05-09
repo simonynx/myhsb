@@ -250,6 +250,7 @@
 <script>
 import { mapState } from 'vuex';
 import AUTH from '../../utils/auth.js';
+import { toTimestamp } from '../../common/util.js';
 
 export default {
     data() {
@@ -304,7 +305,7 @@ export default {
         },
         expireTime() {
             if (!this.group.expire_at) return null;
-            return new Date(this.group.expire_at).getTime();
+            return toTimestamp(this.group.expire_at);
         },
         statusIcon() {
             const map = { open: '🌱', full: '🌻', success: '🎉', cancelled: '🍂' };
