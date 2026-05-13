@@ -180,10 +180,10 @@
             </view>
             </block>
 
-            <!-- 余额提示 -->
-            <view class="balance-hint" :class="!isBalanceEnough ? 'balance-danger' : ''">
-                <text class="balance-icon">{{ isBalanceEnough ? '✅' : '⚠️' }}</text>
-                <text class="balance-text">当前余额 ¥{{ accountBalanceYuan }}，{{ isBalanceEnough ? '余额充足' : '余额不足，请充值' }}</text>
+            <!-- 付款提示 -->
+            <view class="balance-hint">
+                <text class="balance-icon">🔒</text>
+                <text class="balance-text">发起和加入都先报名不付款；满员后临时锁房 15 分钟，请所有成员在详情页完成付款</text>
             </view>
 
             <view class="setting-item vertical">
@@ -207,27 +207,27 @@
             <view class="rule-list">
                 <view class="rule-item">
                     <text class="rule-dot">1</text>
-                    <text class="rule-text">拼团有效期 <text class="rule-bold">{{ expireHours }} 小时</text>，超时自动解散并退款</text>
+                    <text class="rule-text">拼团有效期 <text class="rule-bold">{{ expireHours }} 小时</text>，超时自动结束</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">2</text>
-                    <text class="rule-text">满员后自动成团，系统将为您锁定房间时段并创建预约</text>
+                    <text class="rule-text">满员后进入 <text class="rule-bold">15 分钟付款期</text>，系统会临时锁住房间时段</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">3</text>
-                    <text class="rule-text">拼团有效期最晚需在预约开始前 <text class="rule-bold">2 小时</text>结束，以保证成团后有充足时间锁定房间</text>
+                    <text class="rule-text">所有成员付款完成后，才会正式创建预约单</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">4</text>
-                    <text class="rule-text">发起人可随时<text class="rule-bold">解散拼团</text>，全员费用原路退回余额</text>
+                    <text class="rule-text">付款期内有人未付，超时后已付费用按原支付方式退回</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">5</text>
-                    <text class="rule-text">成员可随时退出，退出后费用退回余额</text>
+                    <text class="rule-text">报名期可直接退出；满员付款期不可退出</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">6</text>
-                    <text class="rule-text">成团后会给所有人发送微信预约提醒消息</text>
+                    <text class="rule-text">满员后会提醒团友付款，也建议把详情页分享出去</text>
                 </view>
             </view>
         </view>
@@ -238,14 +238,13 @@
         <!-- 底部操作栏 -->
         <view class="bottom-bar">
             <view class="bottom-left">
-                <text class="bottom-label">发起人最终支付</text>
+                <text class="bottom-label">满员后发起人支付</text>
                 <text class="bottom-price">¥{{ actualInitiatorPaidYuan }}</text>
             </view>
-            <view class="submit-btn" :class="!isBalanceEnough || maxExpireHours < 12 || submitting ? 'disabled' : ''" @click="handleSubmit">
+            <view class="submit-btn" :class="maxExpireHours < 12 || submitting ? 'disabled' : ''" @click="handleSubmit">
                 <text v-if="maxExpireHours < 12">⏰ 时间太近了</text>
-                <text v-else-if="!isBalanceEnough">💰 去充值</text>
                 <text v-else-if="submitting">创建中...</text>
-                <text v-else>🚀 发起拼团</text>
+                <text v-else>🚀 报名发起</text>
             </view>
         </view>
 
@@ -253,7 +252,7 @@
         <view class="modal-mask" v-if="showConfirmModal" @click="cancelConfirm">
             <view class="modal-content" @click.stop>
                 <view class="modal-header">
-                    <text class="modal-title">确认支付</text>
+                    <text class="modal-title">确认发起</text>
                     <text class="modal-close" @click="cancelConfirm">✕</text>
                 </view>
                 <view class="modal-body">
@@ -275,7 +274,7 @@
                     </view>
                     <view class="modal-divider"></view>
                     <view class="modal-row total">
-                        <text class="modal-label">最终支付</text>
+                        <text class="modal-label">满员后支付</text>
                         <text class="modal-value final">¥{{ actualInitiatorPaidYuan }}</text>
                     </view>
                     <view class="modal-divider"></view>
@@ -293,7 +292,7 @@
                         <text>再想想</text>
                     </view>
                     <view class="modal-btn confirm" :class="submitting ? 'disabled' : ''" @click="confirmSubmit">
-                        <text>{{ submitting ? '处理中...' : '确认支付' }}</text>
+                        <text>{{ submitting ? '处理中...' : '确认发起' }}</text>
                     </view>
                 </view>
             </view>
@@ -543,16 +542,6 @@ export default {
                 uni.showToast({ title: '预约时间太近了，请直接预约或选择更晚时段', icon: 'none' });
                 return;
             }
-            if (!this.isBalanceEnough) {
-                uni.showModal({
-                    title: '余额不足',
-                    content: `发起人最终需支付 ¥${this.actualInitiatorPaidYuan}，当前余额 ¥${this.accountBalanceYuan}，是否去充值？`,
-                    success: (r) => {
-                        if (r.confirm) uni.navigateTo({ url: '/pages/user/deposit/deposit' });
-                    }
-                });
-                return;
-            }
             if (this.maxMembers < 2 || this.maxMembers > 20) {
                 uni.showToast({ title: '人数需在 2~20 之间', icon: 'none' });
                 return;
@@ -602,51 +591,43 @@ export default {
             this.submitting = true;
             uni.showLoading({ title: '创建中...' });
             AUTH.createGroup(this.token, data).then(res => {
-                        uni.hideLoading();
-                        if (res && res._status === 0 && res.data) {
-                            const subsidyHint = res.data && res.data._subsidy_hint;
-                            if (subsidyHint) {
-                                uni.showModal({
-                                    title: '补贴提示',
-                                    content: subsidyHint + '，是否继续创建？',
-                                    success: (r) => {
-                                        if (r.confirm) {
-                                            uni.showToast({ title: '拼团创建成功', icon: 'success' });
-                                            setTimeout(() => {
-                                                uni.redirectTo({ url: '/pages/group/detail?id=' + res.data.object_id });
-                                            }, 800);
-                                        } else {
-                                            this.submitting = false;
-                                        }
-                                    }
-                                });
-                            } else {
-                                uni.showToast({ title: '拼团创建成功', icon: 'success' });
-                                setTimeout(() => {
-                                    uni.redirectTo({ url: '/pages/group/detail?id=' + res.data.object_id });
-                                }, 800);
-                            }
-                        } else {
-                            var msg = (res && res._reason) || '创建失败';
-                            this.submitting = false;
-                            if (msg.indexOf('余额不足') !== -1) {
-                                uni.showModal({
-                                    title: '余额不足',
-                                    content: '发起拼团最终需支付 ¥' + this.actualInitiatorPaidYuan + '，是否去充值？',
-                                    success: (r) => {
-                                        if (r.confirm) uni.navigateTo({ url: '/pages/user/deposit/deposit' });
-                                    }
-                                });
-                            } else {
-                                uni.showToast({ title: msg, icon: 'none' });
-                            }
-                        }
-                    }).catch(() => {
-                        uni.hideLoading();
-                        this.submitting = false;
-                        uni.showToast({ title: '创建失败', icon: 'none' });
-                    });
+                uni.hideLoading();
+                if (res && res._status === 0 && res.data) {
+                    this.handleCreateSuccess(res.data);
+                } else {
+                    var msg = (res && res._reason) || '创建失败';
+                    this.submitting = false;
+                    uni.showToast({ title: msg, icon: 'none' });
+                }
+            }).catch(() => {
+                uni.hideLoading();
+                this.submitting = false;
+                uni.showToast({ title: '创建失败', icon: 'none' });
+            });
         },
+
+        handleCreateSuccess(groupData) {
+            const subsidyHint = groupData && groupData._subsidy_hint;
+            const goDetail = () => {
+                uni.showToast({ title: '拼团创建成功', icon: 'success' });
+                setTimeout(() => {
+                    uni.redirectTo({ url: '/pages/group/detail?id=' + groupData.object_id });
+                }, 800);
+            };
+            if (subsidyHint) {
+                uni.showModal({
+                    title: '补贴提示',
+                    content: subsidyHint,
+                    showCancel: false,
+                    success: () => {
+                        goDetail();
+                    }
+                });
+            } else {
+                goDetail();
+            }
+        },
+
     },
 };
 </script>
@@ -1149,11 +1130,11 @@ $border: #EEEEEE;
         font-weight: 500;
     }
 
-    &.balance-danger {
-        background: #FFF2F0;
+    &.balance-warn {
+        background: #FFF8E8;
 
         .balance-text {
-            color: #FF3B30;
+            color: #9A5A00;
         }
     }
 }

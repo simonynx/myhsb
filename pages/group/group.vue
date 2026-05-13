@@ -258,7 +258,7 @@ export default {
             return '今天可以从你开始';
         },
         groupSummarySub() {
-            if (this.lowestPriceText) return '人均' + this.lowestPriceText + '，未成团自动退回余额';
+            if (this.lowestPriceText) return '人均' + this.lowestPriceText + '，先报名满员后再付款';
             return '发起一个局，朋友和新玩家都能加入';
         },
         quickFilters() {
@@ -466,7 +466,7 @@ export default {
         },
 
         statusText(status) {
-            const map = { open: '拼团中', full: '已满员', success: '已完成', cancelled: '已取消' };
+            const map = { open: '拼团中', payment_pending: '待付款', full: '已满员', success: '已完成', cancelled: '已取消' };
             return map[status] || status;
         },
 

@@ -49,7 +49,7 @@
                             </view>
                         </view>
                         <view class="status-bubble" :class="group.status">
-                            <text>{{ statusText(group.status) }}</text>
+                            <text>{{ group.statusLabel }}</text>
                         </view>
                     </view>
 
@@ -63,14 +63,14 @@
                         </view>
                         <view class="members-preview">
                             <image
-                                v-for="(m, i) in (group.members || []).slice(0, 3)"
+                                v-for="(m, i) in group.previewMembers"
                                 :key="i"
                                 class="member-avatar"
                                 :src="m.avatar"
                                 mode="aspectFill"
                             />
-                            <view class="member-more" v-if="(group.members || []).length > 3">
-                                <text>+{{ group.members.length - 3 }}</text>
+                            <view class="member-more" v-if="group.memberMoreCount > 0">
+                                <text>+{{ group.memberMoreCount }}</text>
                             </view>
                         </view>
                     </view>
@@ -78,11 +78,11 @@
                     <view class="card-footer">
                         <view class="price-info">
                             <text class="price-label">人均</text>
-                            <text class="price-num">¥{{ (group.price_per_person / 100).toFixed(2) }}</text>
+                            <text class="price-num">¥{{ group.priceYuan }}</text>
                         </view>
                         <view class="progress-block">
                             <view class="progress-bar">
-                                <view class="progress-fill" :style="'width:' + progressWidth(group)"></view>
+                                <view class="progress-fill" :style="group.progressStyleText"></view>
                             </view>
                             <text class="progress-text">{{ group.current_members || 1 }}/{{ group.max_members }} 人</text>
                         </view>
@@ -136,8 +136,8 @@ export default {
             try {
                 const res = await AUTH.myGroups(this.token);
                 if (res._status === 0) {
-                    this.initiatedList = res.data.initiated || [];
-                    this.joinedList = res.data.joined || [];
+                    this.initiatedList = this.normalizeGroupList(res.data.initiated || []);
+                    this.joinedList = this.normalizeGroupList(res.data.joined || []);
                 }
             } catch (e) {
                 console.error('加载我的拼团失败', e);
@@ -150,13 +150,23 @@ export default {
             uni.switchTab({ url: '/pages/group/group' });
         },
         statusText(status) {
-            const map = { open: '拼团中', full: '已满员', success: '已完成', cancelled: '已取消' };
+            const map = { pending: '旧版待支付', open: '拼团中', payment_pending: '待付款', full: '已满员', success: '已完成', refunding: '退款中', cancelled: '已取消' };
             return map[status] || status;
         },
-        progressWidth(group) {
+        normalizeGroupList(list) {
+            return list.map(group => this.normalizeGroup(group));
+        },
+        normalizeGroup(group) {
+            const members = group.members || [];
             const current = group.current_members || 1;
             const max = group.max_members || 1;
-            return `${(current / max) * 100}%`;
+            const percent = Math.min(100, (current / max) * 100);
+            group.statusLabel = this.statusText(group.status);
+            group.previewMembers = members.slice(0, 3);
+            group.memberMoreCount = Math.max(0, members.length - 3);
+            group.priceYuan = ((group.price_per_person || 0) / 100).toFixed(2);
+            group.progressStyleText = 'width:' + percent + '%';
+            return group;
         }
     }
 };
@@ -280,6 +290,7 @@ export default {
 }
 
 .card-ribbon.open { background: linear-gradient(180deg, #A5D6A7, #81C784); }
+.card-ribbon.payment_pending { background: linear-gradient(180deg, #81D4FA, #FFCC80); }
 .card-ribbon.full { background: linear-gradient(180deg, #FFCC80, #FFB74D); }
 .card-ribbon.success { background: linear-gradient(180deg, #81D4FA, #4FC3F7); }
 .card-ribbon.cancelled { background: linear-gradient(180deg, #E0E0E0, #BDBDBD); }
@@ -351,12 +362,22 @@ export default {
     color: #2E7D32;
 }
 
+.status-bubble.payment_pending {
+    background: linear-gradient(135deg, #E3F2FD, #FFE0B2);
+    color: #E65100;
+}
+
 .status-bubble.full {
     background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
     color: #E65100;
 }
 
 .status-bubble.success {
+    background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
+    color: #1565C0;
+}
+
+.status-bubble.refunding {
     background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
     color: #1565C0;
 }

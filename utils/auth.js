@@ -219,6 +219,10 @@ function joinGroup(token, groupId) {
   return request('/groups/' + groupId + '/join/', 'POST', {}, token);
 }
 
+function payGroup(token, groupId) {
+  return request('/groups/' + groupId + '/pay/', 'POST', {}, token);
+}
+
 function leaveGroup(token, groupId) {
   return request('/groups/' + groupId + '/leave/', 'POST', {}, token);
 }
@@ -465,6 +469,7 @@ var httpRequest = {
   getGroupDetail: getGroupDetail,
   createGroup: createGroup,
   joinGroup: joinGroup,
+  payGroup: payGroup,
   leaveGroup: leaveGroup,
   cancelGroup: cancelGroup,
   myGroups: myGroups,
