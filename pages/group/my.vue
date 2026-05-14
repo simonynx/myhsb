@@ -48,7 +48,7 @@
                                 <text class="time-tag">⏰ {{ group.begin_time }} ~ {{ group.end_time }}</text>
                             </view>
                         </view>
-                        <view class="status-bubble" :class="group.status">
+                        <view class="status-bubble" :class="group.statusBubbleClass">
                             <text>{{ group.statusLabel }}</text>
                         </view>
                     </view>
@@ -119,7 +119,7 @@ export default {
         };
     },
     computed: {
-        ...mapState(['token']),
+        ...mapState(['token', 'userInfo']),
         currentList() {
             return this.activeTab === 'initiated' ? this.initiatedList : this.joinedList;
         }
@@ -154,19 +154,37 @@ export default {
             return map[status] || status;
         },
         normalizeGroupList(list) {
-            return list.map(group => this.normalizeGroup(group));
+            return list.map(group => this.normalizeGroup(group)).sort((a, b) => {
+                if (a.needsMyPayment && !b.needsMyPayment) return -1;
+                if (!a.needsMyPayment && b.needsMyPayment) return 1;
+                return 0;
+            });
         },
         normalizeGroup(group) {
             const members = group.members || [];
             const current = group.current_members || 1;
             const max = group.max_members || 1;
             const percent = Math.min(100, (current / max) * 100);
-            group.statusLabel = this.statusText(group.status);
+            group.needsMyPayment = this.isMyPaymentPending(group);
+            group.statusLabel = group.needsMyPayment ? '待我付款' : this.statusText(group.status);
+            group.statusBubbleClass = group.needsMyPayment ? 'payment_pending need-me' : group.status;
             group.previewMembers = members.slice(0, 3);
             group.memberMoreCount = Math.max(0, members.length - 3);
             group.priceYuan = ((group.price_per_person || 0) / 100).toFixed(2);
             group.progressStyleText = 'width:' + percent + '%';
             return group;
+        },
+        isMyPaymentPending(group) {
+            if (!this.userInfo || group.status !== 'payment_pending') return false;
+            const uid = String(this.userInfo.object_id || '');
+            const initiator = group.initiator || {};
+            if (uid && String(initiator.object_id || '') === uid) {
+                return group.initiator_payment_status !== 'paid';
+            }
+            const members = group.members || [];
+            const member = members.find(item => String(item.user_id || '') === uid);
+            if (!member) return false;
+            return !(member.status === 'paid' || member.paid_at);
         }
     }
 };
@@ -365,6 +383,11 @@ export default {
 .status-bubble.payment_pending {
     background: linear-gradient(135deg, #E3F2FD, #FFE0B2);
     color: #E65100;
+}
+
+.status-bubble.need-me {
+    background: linear-gradient(135deg, #FFE0B2, #FF8C42);
+    color: #fff;
 }
 
 .status-bubble.full {

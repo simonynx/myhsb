@@ -81,13 +81,47 @@ function getPhoneNumber(e, token) {
 // ==================== 订阅消息 ====================
 
 var SUBSCRIBE_TEMPLATE_ID = '';
+var GROUP_SUCCESS_SUBSCRIBE_TEMPLATE_ID = '';
 
 function setSubscribeTemplateId(templateId) {
   SUBSCRIBE_TEMPLATE_ID = templateId;
 }
 
-function requestSubscribeMessage() {
-  return PLATFORM.requestSubscribeMessage([SUBSCRIBE_TEMPLATE_ID || 'YOUR_TEMPLATE_ID']);
+function setGroupSuccessSubscribeTemplateId(templateId) {
+  GROUP_SUCCESS_SUBSCRIBE_TEMPLATE_ID = templateId;
+}
+
+function setSubscribeTemplateConfig(config) {
+  config = config || {};
+  setSubscribeTemplateId(config.wechat_subscribe_template_id || '');
+  setGroupSuccessSubscribeTemplateId(config.group_success_subscribe_template_id || '');
+}
+
+function uniqueTemplateIds(ids) {
+  var result = [];
+  (ids || []).forEach(function(id) {
+    if (!id || id === 'YOUR_TEMPLATE_ID') return;
+    if (result.indexOf(id) < 0) result.push(id);
+  });
+  return result;
+}
+
+function requestSubscribeMessage(typeOrIds) {
+  var ids = [];
+  if (Array.isArray(typeOrIds)) {
+    ids = typeOrIds;
+  } else if (typeOrIds === 'group') {
+    ids = [SUBSCRIBE_TEMPLATE_ID, GROUP_SUCCESS_SUBSCRIBE_TEMPLATE_ID];
+  } else if (typeOrIds === 'group_success') {
+    ids = [GROUP_SUCCESS_SUBSCRIBE_TEMPLATE_ID];
+  } else {
+    ids = [SUBSCRIBE_TEMPLATE_ID];
+  }
+  ids = uniqueTemplateIds(ids);
+  if (!ids.length) {
+    return Promise.resolve(false);
+  }
+  return PLATFORM.requestSubscribeMessage(ids);
 }
 
 // ==================== 业务 API ====================
@@ -425,6 +459,8 @@ var httpRequest = {
   loginOut: loginOut,
   requestSubscribeMessage: requestSubscribeMessage,
   setSubscribeTemplateId: setSubscribeTemplateId,
+  setGroupSuccessSubscribeTemplateId: setGroupSuccessSubscribeTemplateId,
+  setSubscribeTemplateConfig: setSubscribeTemplateConfig,
   setUserProflie: setUserProflie,
   getUserProfile: getUserProfile,
   getOrderList: getOrderList,

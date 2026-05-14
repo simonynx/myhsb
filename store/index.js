@@ -295,9 +295,7 @@ const store = new Vuex.Store({
       return AUTH.getConstance(state.token || null).then((res) => {
         if (!res || res._status !== 0) return;
         commit('setConstanceInfo', res.data);
-        if (res.data.wechat_subscribe_template_id) {
-          AUTH.setSubscribeTemplateId(res.data.wechat_subscribe_template_id);
-        }
+        AUTH.setSubscribeTemplateConfig(res.data);
         return res;
       }).catch((err) => {
         console.error('获取配置信息失败:', err);

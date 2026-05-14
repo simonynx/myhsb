@@ -590,7 +590,9 @@ export default {
 
             this.submitting = true;
             uni.showLoading({ title: '创建中...' });
-            AUTH.createGroup(this.token, data).then(res => {
+            AUTH.requestSubscribeMessage('group').catch(() => false).then(() => {
+                return AUTH.createGroup(this.token, data);
+            }).then(res => {
                 uni.hideLoading();
                 if (res && res._status === 0 && res.data) {
                     this.handleCreateSuccess(res.data);

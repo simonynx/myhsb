@@ -148,12 +148,20 @@ function requestPayment(params) {
 function requestSubscribeMessage(templateIds) {
 	return new Promise(function(resolve, reject) {
 		if (IS_WEIXIN) {
+			var ids = (templateIds || []).filter(function(id) {
+				return !!id;
+			});
+			if (!ids.length) {
+				resolve(false);
+				return;
+			}
 			uni.requestSubscribeMessage({
-				tmplIds: templateIds || [],
+				tmplIds: ids,
 				success: function(res) {
-					var tid = templateIds && templateIds[0] || '';
-					var result = tid ? res[tid] : '';
-					resolve(result === 'accept');
+					var accepted = ids.some(function(tid) {
+						return res[tid] === 'accept';
+					});
+					resolve(accepted);
 				},
 				fail: function(err) {
 					reject(err);

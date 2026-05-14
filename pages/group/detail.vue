@@ -533,7 +533,9 @@ export default {
                     if (res.confirm) {
                         this.actionLoading = true;
                         uni.showLoading({ title: '处理中...' });
-                        AUTH.joinGroup(this.token, this.groupId).then(res => {
+                        AUTH.requestSubscribeMessage('group').catch(() => false).then(() => {
+                            return AUTH.joinGroup(this.token, this.groupId);
+                        }).then(res => {
                             uni.hideLoading();
                             if (res && res._status === 0) {
                                 this.actionLoading = false;
@@ -571,7 +573,9 @@ export default {
             }
             this.actionLoading = true;
             uni.showLoading({ title: '生成订单...' });
-            AUTH.payGroup(this.token, this.groupId).then(res => {
+            AUTH.requestSubscribeMessage('group').catch(() => false).then(() => {
+                return AUTH.payGroup(this.token, this.groupId);
+            }).then(res => {
                 uni.hideLoading();
                 if (res && res._status === 0 && res.data) {
                     if (res.data.need_pay) {
