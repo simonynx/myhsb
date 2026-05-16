@@ -570,8 +570,15 @@ export default {
           return;
         }
 
-        if (res.data._amount_mismatch) {
+        if (res.data && res.data._amount_mismatch) {
           console.warn('金额不一致:', '前端预估=', res.data._expected_amount, '后端实际=', res.data._actual_amount);
+          uni.showModal({
+            title: '金额已更新',
+            content: '门票金额发生变化，请重新确认后再提交订单',
+            showCancel: false
+          });
+          this.loadTicketPrice();
+          return;
         }
 
         const orderNumber = res.data.order_number;
