@@ -353,18 +353,18 @@
                         :class="selectedSubscription && selectedSubscription.object_id === sub.object_id ? 'selected' : ''"
                         @click="selectSubscription(sub)"
                     >
-                        <view class="coupon-left" style="background: linear-gradient(135deg, #FF8C42, #E8784A);">
+                        <view class="coupon-left" style="background: linear-gradient(135deg, #FF8C42, #E8784A); border-right-color: rgba(255,255,255,0.25);">
                             <view class="coupon-price-wrap">
-                                <text class="coupon-price">{{ sub.remaining_limit }}</text>
-                                <text class="coupon-unit">{{ sub.card_template.target_type === 2 ? '时' : '次' }}</text>
+                                <text class="coupon-price" style="color: #ffffff !important;">{{ sub.remaining_limit }}</text>
+                                <text class="coupon-unit" style="color: #ffffff !important; margin-left: 2px;">{{ sub.card_template.target_type === 2 ? '时' : '次' }}</text>
                             </view>
-                            <text class="coupon-limit">剩{{ sub.remaining_limit }}{{ sub.card_template.target_type === 2 ? '小时' : '次' }}</text>
+                            <text class="coupon-limit" style="color: rgba(255,255,255,0.85) !important;">剩{{ sub.remaining_limit }}{{ sub.card_template.target_type === 2 ? '小时' : '次' }}</text>
                         </view>
                         <view class="coupon-right">
                             <view class="coupon-name">{{ sub.card_template.name }}</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #999; margin-top: 4rpx;">适用: 包厢小时费</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #999;" v-if="sub.card_template.cover_person_fee">· 包含：免1人大厅门票</view>
-                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ sub.expire_time }}</view>
+                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ sub.expire_at ? sub.expire_at.split(' ')[0] : '' }}</view>
                             <view class="coupon-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
                         </view>
                     </view>
