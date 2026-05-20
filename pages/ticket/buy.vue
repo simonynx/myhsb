@@ -56,6 +56,22 @@
           <text class="row-value discount">-¥{{ memberDiscountAmount }}</text>
         </view>
 
+        <!-- 次卡/月卡折抵 -->
+        <view class="price-row coupon-row" @click="openSubscriptionPicker">
+          <text class="row-label">
+            <text class="tag" :class="selectedSubscription ? 'tag-active' : 'tag-gray'">卡包</text>
+            <block v-if="selectedSubscription">{{ selectedSubscription.card_template.name }}</block>
+            <block v-else-if="usableSubscriptions.length > 0">{{ usableSubscriptions.length }}张可用</block>
+            <block v-else>次卡/月卡折抵</block>
+          </text>
+          <view class="coupon-right">
+            <text class="coupon-value" v-if="selectedSubscription">-¥{{ (subscriptionDiscountAmountFen / 100).toFixed(2) }}</text>
+            <text class="cell-more yticon icon-you" :class="selectedSubscription ? 'cell-active' : 'cell-inactive'">
+              {{ selectedSubscription ? '已选' : (usableSubscriptions.length > 0 ? '去选择' : '暂无可用') }}
+            </text>
+          </view>
+        </view>
+
         <!-- 优惠券 -->
         <view class="price-row coupon-row" @click="openCouponPicker">
           <text class="row-label">
@@ -269,6 +285,46 @@
         </scroll-view>
       </view>
     </view>
+
+    <!-- 次卡/月卡选择面板 -->
+    <view class="mask" :class="subscriptionPickerOpen ? 'show' : 'hide'" @click="closeSubscriptionPicker">
+      <view class="coupon-picker" :class="subscriptionPickerOpen ? 'show' : ''" @click.stop>
+        <view class="picker-header">
+          <text class="picker-title">选择可用卡包</text>
+          <text class="picker-close yticon icon-guanbi" @click="closeSubscriptionPicker"></text>
+        </view>
+        <scroll-view scroll-y class="picker-body">
+          <view class="unavailable-hint" v-if="usableSubscriptions.length === 0">
+            <text>暂无可用次卡或月卡</text>
+          </view>
+          <view
+            class="coupon-card"
+            v-for="sub in usableSubscriptions"
+            :key="sub.object_id"
+            :class="selectedSubscription && selectedSubscription.object_id === sub.object_id ? 'selected' : ''"
+            @click="selectSubscription(sub)"
+          >
+            <view class="coupon-left" style="background: linear-gradient(135deg, #FF8C42, #E8784A);">
+              <view class="coupon-price-wrap">
+                <text class="coupon-price">{{ sub.remaining_limit }}</text>
+                <text class="coupon-unit">次</text>
+              </view>
+              <text class="coupon-limit">剩{{ sub.remaining_limit }}次</text>
+            </view>
+            <view class="coupon-right">
+              <view class="coupon-name">{{ sub.card_template.name }}</view>
+              <view class="coupon-expire" style="font-size: 20rpx; color: #999; margin-top: 4rpx;">适用: 大厅入场券抵扣</view>
+              <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ sub.expire_time }}</view>
+              <view class="coupon-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
+            </view>
+          </view>
+          <view class="no-coupon" :class="!selectedSubscription ? 'no-coupon-active' : ''" @click="selectSubscription(null)">
+            <text class="no-coupon-text">不使用卡包</text>
+            <view class="coupon-check" v-if="!selectedSubscription">✓</view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -290,6 +346,10 @@ export default {
       // 积分
       usePoints: false,
       pointsToUse: 0,
+      // 次卡/月卡
+      mySubscriptions: [],
+      selectedSubscription: null,
+      subscriptionPickerOpen: false,
     };
   },
 
@@ -323,10 +383,26 @@ export default {
       return (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + '折';
     },
 
+    usableSubscriptions() {
+      if (!this.mySubscriptions) return [];
+      return this.mySubscriptions.filter(sub => {
+        return sub.card_template.target_type === 1 && sub.remaining_limit > 0;
+      });
+    },
+
+    subscriptionDeductedCount() {
+      return this.selectedSubscription ? Math.min(this.ticketCount, this.selectedSubscription.remaining_limit) : 0;
+    },
+
+    subscriptionDiscountAmountFen() {
+      return this.subscriptionDeductedCount * this.ticketPriceFen;
+    },
+
     memberDiscountAmountFen() {
       const d = this.userDiscount;
       if (!d || d >= 100) return 0;
-      return Math.floor(this.basePriceFen * (1 - d / 100));
+      const remainingBaseFen = Math.max(0, this.basePriceFen - this.subscriptionDiscountAmountFen);
+      return Math.floor(remainingBaseFen * (1 - d / 100));
     },
 
     memberDiscountAmount() {
@@ -339,7 +415,7 @@ export default {
     },
 
     afterMemberPriceFen() {
-      return this.basePriceFen - this.memberDiscountAmountFen;
+      return this.basePriceFen - this.subscriptionDiscountAmountFen - this.memberDiscountAmountFen;
     },
 
     // 积分相关
@@ -450,12 +526,14 @@ export default {
         success: () => {
           this.loginAndRegister().then(() => {
             this.loadMyCoupons();
+            this.loadMySubscriptions();
           });
         }
       });
       return;
     }
     this.loadMyCoupons();
+    this.loadMySubscriptions();
   },
 
   methods: {
@@ -472,6 +550,36 @@ export default {
       } catch (e) {
         console.log('load coupons error:', e);
       }
+    },
+
+    async loadMySubscriptions() {
+      if (!this.token) return;
+      try {
+        const res = await AUTH.getUserSubscriptions(this.token, 1);
+        if (res && res._status === 0) {
+          this.mySubscriptions = res.data || [];
+          this.$nextTick(() => {
+            if (this.usableSubscriptions.length > 0) {
+              this.selectedSubscription = this.usableSubscriptions[0];
+            }
+          });
+        }
+      } catch (e) {
+        console.log('load subscriptions error:', e);
+      }
+    },
+
+    openSubscriptionPicker() {
+      this.subscriptionPickerOpen = true;
+    },
+
+    closeSubscriptionPicker() {
+      this.subscriptionPickerOpen = false;
+    },
+
+    selectSubscription(sub) {
+      this.selectedSubscription = sub;
+      this.subscriptionPickerOpen = false;
     },
 
     incPeople() {
@@ -562,6 +670,7 @@ export default {
           coupon_id: this.selectedCoupon ? this.selectedCoupon.object_id : null,
           use_points: this.usePoints ? this.pointsToUse : 0,
           expected_amount: this.finalPriceFen,
+          user_subscription_id: this.selectedSubscription ? this.selectedSubscription.object_id : null,
         };
 
         const res = await AUTH.checkout(this.token, param);

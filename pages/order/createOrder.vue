@@ -167,6 +167,24 @@
                     </text>
                 </view>
 
+                <!-- 次卡/月卡折抵 -->
+                <view class="price-row coupon-row" @click="openSubscriptionPicker">
+                    <text class="row-label">
+                        <text class="tag" :class="selectedSubscription ? 'tag-active' : 'tag-gray'">卡包</text>
+                        <block v-if="selectedSubscription">{{ selectedSubscription.card_template.name }}</block>
+                        <block v-else-if="usableSubscriptions.length > 0">{{ usableSubscriptions.length }}张可用</block>
+                        <block v-else>次卡/月卡折抵</block>
+                    </text>
+                    <view class="coupon-right">
+                        <text class="coupon-value" v-if="selectedSubscription">
+                            -¥{{ (subscriptionDiscountAmountFen / 100).toFixed(2) }}
+                        </text>
+                        <text class="cell-more yticon icon-you" :class="selectedSubscription ? 'cell-active' : 'cell-inactive'">
+                            {{ selectedSubscription ? '已选' : (usableSubscriptions.length > 0 ? '去选择' : '暂无可用') }}
+                        </text>
+                    </view>
+                </view>
+
                 <!-- 优惠券 -->
                 <view class="price-row coupon-row" @click="openCouponPicker">
                     <text class="row-label">
@@ -317,6 +335,46 @@
                 </scroll-view>
             </view>
         </view>
+
+        <!-- 次卡/月卡选择面板 -->
+        <view class="mask" :class="subscriptionPickerOpen ? 'show' : 'hide'" @click="closeSubscriptionPicker">
+            <view class="coupon-picker" :class="subscriptionPickerOpen ? 'show' : ''" @click.stop>
+                <view class="picker-header">
+                    <text class="picker-title">选择可用卡包</text>
+                    <text class="picker-close yticon icon-guanbi" @click="closeSubscriptionPicker"></text>
+                </view>
+                <scroll-view scroll-y class="picker-body">
+                    <view class="unavailable-hint" v-if="usableSubscriptions.length === 0">
+                        <text>暂无可用次卡或月卡</text>
+                    </view>
+                    <view class="coupon-card"
+                        v-for="sub in usableSubscriptions"
+                        :key="sub.object_id"
+                        :class="selectedSubscription && selectedSubscription.object_id === sub.object_id ? 'selected' : ''"
+                        @click="selectSubscription(sub)"
+                    >
+                        <view class="coupon-left" style="background: linear-gradient(135deg, #FF8C42, #E8784A);">
+                            <view class="coupon-price-wrap">
+                                <text class="coupon-price">{{ sub.remaining_limit }}</text>
+                                <text class="coupon-unit">{{ sub.card_template.target_type === 2 ? '时' : '次' }}</text>
+                            </view>
+                            <text class="coupon-limit">剩{{ sub.remaining_limit }}{{ sub.card_template.target_type === 2 ? '小时' : '次' }}</text>
+                        </view>
+                        <view class="coupon-right">
+                            <view class="coupon-name">{{ sub.card_template.name }}</view>
+                            <view class="coupon-expire" style="font-size: 20rpx; color: #999; margin-top: 4rpx;">适用: 包厢小时费</view>
+                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;" v-if="sub.card_template.cover_person_fee">· 包含：免1人大厅门票</view>
+                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ sub.expire_time }}</view>
+                            <view class="coupon-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
+                        </view>
+                    </view>
+                    <view class="no-coupon" :class="!selectedSubscription ? 'no-coupon-active' : ''" @click="selectSubscription(null)">
+                        <text class="no-coupon-text">不使用卡包</text>
+                        <view class="coupon-check" v-if="!selectedSubscription">✓</view>
+                    </view>
+                </scroll-view>
+            </view>
+        </view>
     </view>
 </template>
 
@@ -352,6 +410,11 @@ export default {
 
             // 提交状态
             submitting: false,
+
+            // 次卡/月卡
+            mySubscriptions: [],
+            selectedSubscription: null,
+            subscriptionPickerOpen: false,
         };
     },
 
@@ -469,13 +532,47 @@ export default {
             return (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + '折';
         },
 
+        usableSubscriptions() {
+            if (!this.mySubscriptions) return [];
+            return this.mySubscriptions.filter(sub => {
+                if (sub.card_template.target_type !== 2) return false;
+                if (sub.remaining_limit < this.selectTimes.length) return false;
+                
+                const usableRooms = sub.card_template.usable_rooms || [];
+                if (usableRooms.length > 0) {
+                    const roomId = this.currentProduct && this.currentProduct.object_id;
+                    const match = usableRooms.some(r => r.object_id === roomId || r === roomId);
+                    if (!match) return false;
+                }
+                return true;
+            });
+        },
+
+        subscriptionDeductedHours() {
+            return this.selectedSubscription ? Math.min(this.selectTimes.length, this.selectedSubscription.remaining_limit) : 0;
+        },
+
+        subscriptionWaivedPerson() {
+            return (this.selectedSubscription && this.selectedSubscription.card_template.cover_person_fee && this.numOfPeople > 0) ? 1 : 0;
+        },
+
+        subscriptionDiscountAmountFen() {
+            if (!this.selectedSubscription) return 0;
+            const roomOffset = this.subscriptionDeductedHours * this.currentProduct.price_per_hour;
+            const personOffset = this.subscriptionWaivedPerson * this.singlePersonPrice;
+            return roomOffset + personOffset;
+        },
+
         // 会员折扣金额(分)
         // 和后端一致: int(price * (1 - rate)) 截断取整
-        // 注意：会员折扣只应用于房间+人数部分，不含增值服务
+        // 注意：会员折扣只应用于卡包抵扣后的房间+人数的剩余现金部分，不含增值服务
         memberDiscountAmountFen() {
             const d = this.userDiscount;
             if (!d || d >= 100) return 0;
-            return Math.floor(this.roomSubtotalFen * (1 - d / 100));
+            const remainingRoomFee = Math.max(0, (this.selectTimes.length - this.subscriptionDeductedHours) * this.currentProduct.price_per_hour);
+            const remainingPeopleFee = Math.max(0, (this.numOfPeople - this.subscriptionWaivedPerson) * this.singlePersonPrice);
+            const memberDiscountBase = remainingRoomFee + remainingPeopleFee;
+            return Math.floor(memberDiscountBase * (1 - d / 100));
         },
 
         memberDiscountAmount() {
@@ -484,7 +581,7 @@ export default {
 
         // 折后价格(分)
         afterMemberPriceFen() {
-            return this.originalPriceFen - this.memberDiscountAmountFen;
+            return this.originalPriceFen - this.subscriptionDiscountAmountFen - this.memberDiscountAmountFen;
         },
 
         // 积分相关
@@ -630,6 +727,7 @@ export default {
 
         this.singlePersonPrice = this.currentProduct.price_per_person || 0;
         this.loadMyCoupons();
+        this.loadMySubscriptions();
         this.loadRoomAddons();
     },
 
@@ -648,6 +746,38 @@ export default {
             } catch (e) {
                 console.log('load coupons error:', e);
             }
+        },
+
+        // 加载我的次卡/月卡
+        async loadMySubscriptions() {
+            if (!this.token) return;
+            try {
+                const res = await AUTH.getUserSubscriptions(this.token, 1);
+                if (res && res._status === 0) {
+                    this.mySubscriptions = res.data || [];
+                    // 默认自动选择第一个可用的卡包
+                    this.$nextTick(() => {
+                        if (this.usableSubscriptions.length > 0) {
+                            this.selectedSubscription = this.usableSubscriptions[0];
+                        }
+                    });
+                }
+            } catch (e) {
+                console.log('load subscriptions error:', e);
+            }
+        },
+
+        openSubscriptionPicker() {
+            this.subscriptionPickerOpen = true;
+        },
+
+        closeSubscriptionPicker() {
+            this.subscriptionPickerOpen = false;
+        },
+
+        selectSubscription(sub) {
+            this.selectedSubscription = sub;
+            this.subscriptionPickerOpen = false;
         },
 
         // 打开优惠券选择面板
@@ -756,6 +886,7 @@ export default {
                     coupon_id: this.selectedCoupon ? this.selectedCoupon.object_id : null,
                     addons: this.selectedAddons.map(a => a.object_id),
                     expected_amount: this.finalPriceFen,
+                    user_subscription_id: this.selectedSubscription ? this.selectedSubscription.object_id : null,
                 };
 
                 const res = await AUTH.checkout(this.token, param);

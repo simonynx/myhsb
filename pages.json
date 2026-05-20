@@ -226,6 +226,23 @@
 				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
+		},
+		{
+			"path": "pages/user/subscription/buy",
+			"style": {
+				"navigationBarTitleText": "特惠卡包超市",
+				"navigationBarBackgroundColor": "#FF8C42",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
+			"path": "pages/user/subscription/my",
+			"style": {
+				"navigationBarTitleText": "我的卡包",
+				"navigationBarBackgroundColor": "#FF8C42",
+				"navigationBarTextStyle": "white",
+				"navigationStyle": "custom"
+			}
 		}
 	],
 	"globalStyle": {

@@ -271,6 +271,11 @@
 				<text class="menu-text">我的门票</text>
 				<text class="menu-arrow">→</text>
 			</view>
+			<view class="menu-item" @tap="hasLogin ? navTo('/pages/user/subscription/my') : handleLogin()">
+				<text class="menu-icon">💳</text>
+				<text class="menu-text">我的卡包</text>
+				<text class="menu-arrow">→</text>
+			</view>
 		</view>
 
 		<!-- 充值入口 -->
@@ -280,6 +285,14 @@
 				<text class="menu-text">充值余额</text>
 				<view class="menu-tip">
 					<text class="tip-text">{{ balanceMenuText }}</text>
+				</view>
+				<text class="menu-arrow">→</text>
+			</view>
+			<view class="menu-item" @tap="hasLogin ? navTo('/pages/user/subscription/buy') : handleLogin()">
+				<text class="menu-icon">🎁</text>
+				<text class="menu-text">次卡/月卡超市</text>
+				<view class="menu-tip">
+					<text class="tip-text">特惠卡包</text>
 				</view>
 				<text class="menu-arrow">→</text>
 			</view>

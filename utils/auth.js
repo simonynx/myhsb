@@ -413,6 +413,20 @@ function cancelTicketTransfer(token, params) {
 }
 
 
+function getSubscriptionCards(token) {
+  return request('/subscription_cards/', 'GET', null, token);
+}
+
+function getUserSubscriptions(token, status, targetType, roomId) {
+  var params = [];
+  if (status !== undefined && status !== null) params.push('status=' + status);
+  if (targetType !== undefined && targetType !== null) params.push('target_type=' + targetType);
+  if (roomId !== undefined && roomId !== null) params.push('room_id=' + roomId);
+  var url = '/user_subscriptions/' + (params.length ? '?' + params.join('&') : '');
+  return request(url, 'GET', null, token);
+}
+
+
 function uploadFile(token, filePath, fileName) {
   var _url = API_BASE_URL + '/upload/' + fileName;
   var header = { 'content-type': 'multipart/form-data' };
@@ -535,6 +549,9 @@ var httpRequest = {
   inviteInfo: inviteInfo,
   applyInviteCode: applyInviteCode,
   activeBanners: activeBanners,
+  // 次卡/月卡
+  getSubscriptionCards: getSubscriptionCards,
+  getUserSubscriptions: getUserSubscriptions,
 };
 
 export default httpRequest;
