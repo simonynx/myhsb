@@ -364,7 +364,7 @@
                             <view class="coupon-name">{{ sub.card_template.name }}</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #999; margin-top: 4rpx;">适用: 包厢小时费</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #999;" v-if="sub.card_template.cover_person_fee">· 包含：免1人大厅门票</view>
-                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ (sub.expire_at && typeof sub.expire_at.split === 'function') ? sub.expire_at.split(' ')[0] : (sub.expire_at || '') }}</view>
+                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ sub.formatted_expire }}</view>
                             <view class="coupon-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
                         </view>
                     </view>
@@ -545,6 +545,16 @@ export default {
                     if (!match) return false;
                 }
                 return true;
+            }).map(sub => {
+                let expireDate = '';
+                if (sub.expire_at && typeof sub.expire_at === 'string') {
+                    expireDate = sub.expire_at.split(' ')[0];
+                } else {
+                    expireDate = sub.expire_at || '';
+                }
+                return Object.assign({}, sub, {
+                    formatted_expire: expireDate
+                });
             });
         },
 
