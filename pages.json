@@ -218,6 +218,14 @@
 				"navigationBarTextStyle": "white",
 				"navigationStyle": "custom"
 			}
+		},
+		{
+			"path": "pages/ticket/receive",
+			"style": {
+				"navigationBarTitleText": "接受门票赠送",
+				"navigationBarBackgroundColor": "#FF8C42",
+				"navigationBarTextStyle": "white"
+			}
 		}
 	],
 	"globalStyle": {

@@ -395,6 +395,24 @@ function verifyTicket(token, params) {
   return request('/orders/verify_ticket/', 'POST', params, token);
 }
 
+function createTicketTransfer(token, params) {
+  return request('/orders/create_transfer/', 'POST', params, token);
+}
+
+function getTransferInfo(token, transferToken) {
+  var url = '/orders/get_transfer_info/' + (transferToken != null ? '?transfer_token=' + transferToken : '');
+  return request(url, 'GET', null, token);
+}
+
+function acceptTicketTransfer(token, params) {
+  return request('/orders/accept_transfer/', 'POST', params, token);
+}
+
+function cancelTicketTransfer(token, params) {
+  return request('/orders/cancel_transfer/', 'POST', params, token);
+}
+
+
 function uploadFile(token, filePath, fileName) {
   var _url = API_BASE_URL + '/upload/' + fileName;
   var header = { 'content-type': 'multipart/form-data' };
@@ -477,6 +495,10 @@ var httpRequest = {
   refundOrder: refundOrder,
   getTicketOrders: getTicketOrders,
   verifyTicket: verifyTicket,
+  createTicketTransfer: createTicketTransfer,
+  getTransferInfo: getTransferInfo,
+  acceptTicketTransfer: acceptTicketTransfer,
+  cancelTicketTransfer: cancelTicketTransfer,
   getRoomDataList: getRoomDataList,
   getRoomAppointments: getRoomAppointments,
   getRoomDetail: getRoomDetail,
