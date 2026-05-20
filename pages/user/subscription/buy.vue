@@ -183,6 +183,7 @@ export default {
 		var amount = Number(options && options.amount || 0);
 		if (amount > 0) this.preferredAmount = amount;
 		if (options && options.card_id) this.preferredCardId = options.card_id;
+		this.fetchCards();
 	},
 	onShow() {
 		if (this.token) {
