@@ -437,7 +437,7 @@ export default {
 
         // 原始价格(分)
         roomPriceFen() {
-            if (!this.currentProduct) return 0;
+            if (!this.currentProduct || !this.currentProduct.price_per_hour) return 0;
             return this.currentProduct.price_per_hour * this.selectTimes.length;
         },
 
@@ -562,7 +562,7 @@ export default {
         },
 
         subscriptionDiscountAmountFen() {
-            if (!this.selectedSubscription) return 0;
+            if (!this.selectedSubscription || !this.currentProduct || !this.currentProduct.price_per_hour) return 0;
             const roomOffset = this.subscriptionDeductedHours * this.currentProduct.price_per_hour;
             const personOffset = this.subscriptionWaivedPerson * this.singlePersonPrice;
             return roomOffset + personOffset;
@@ -573,7 +573,7 @@ export default {
         // 注意：会员折扣只应用于卡包抵扣后的房间+人数的剩余现金部分，不含增值服务
         memberDiscountAmountFen() {
             const d = this.userDiscount;
-            if (!d || d >= 100) return 0;
+            if (!d || d >= 100 || !this.currentProduct || !this.currentProduct.price_per_hour) return 0;
             const remainingRoomFee = Math.max(0, (this.selectTimes.length - this.subscriptionDeductedHours) * this.currentProduct.price_per_hour);
             const remainingPeopleFee = Math.max(0, (this.numOfPeople - this.subscriptionWaivedPerson) * this.singlePersonPrice);
             const memberDiscountBase = remainingRoomFee + remainingPeopleFee;
