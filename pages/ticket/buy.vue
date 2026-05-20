@@ -332,6 +332,7 @@
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import COUPON from '../../utils/coupon.js';
+import { formatDate } from '../../common/util.js';
 
 export default {
   data() {
@@ -388,14 +389,8 @@ export default {
       return this.mySubscriptions.filter(sub => {
         return sub.card_template.target_type === 1 && sub.remaining_limit > 0;
       }).map(sub => {
-        let expireDate = '';
-        if (sub.expire_at && typeof sub.expire_at === 'string') {
-          expireDate = sub.expire_at.split(' ')[0];
-        } else {
-          expireDate = sub.expire_at || '';
-        }
         return Object.assign({}, sub, {
-          formatted_expire: expireDate
+          formatted_expire: formatDate(sub.expire_at)
         });
       });
     },
