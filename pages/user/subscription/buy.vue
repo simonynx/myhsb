@@ -260,7 +260,7 @@ export default {
 
 			// Call checkout
 			AUTH.checkout(this.token, {
-				order_type: 5, // OrderType.SUBSCRIPTION
+				order_type: 7, // OrderType.SUBSCRIPTION
 				subscription_card_id: this.selectedCard.object_id
 			}).then(res => {
 				uni.hideLoading();
