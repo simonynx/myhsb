@@ -368,9 +368,9 @@
                         <view class="coupon-group-title">{{ slotView.title }}</view>
                         <view class="subscription-card"
                             v-for="sub in slotView.items"
-                            :key="slotView.key + '-' + sub.object_id"
+                            :key="sub.view_key"
                             :class="isSubscriptionSelected(slotView.key, sub) ? 'selected' : ''"
-                            @tap.stop="selectSubscriptionForSlot(slotView.key, sub)"
+                            @click.stop="selectSubscriptionForSlot(slotView.key, sub)"
                         >
                             <view class="subscription-meter" :class="slotView.meterClass">
                                 <view class="meter-main">
@@ -395,7 +395,7 @@
                                 <view class="subscription-check" v-if="isSubscriptionSelected(slotView.key, sub)">✓</view>
                             </view>
                         </view>
-                        <view class="no-coupon" :class="!getSelectedSubscription(slotView.key) ? 'no-coupon-active' : ''" @tap.stop="selectSubscriptionForSlot(slotView.key, null)">
+                        <view class="no-coupon" :class="!getSelectedSubscription(slotView.key) ? 'no-coupon-active' : ''" @click.stop="selectSubscriptionForSlot(slotView.key, null)">
                             <text class="no-coupon-text">{{ slotView.noUseText }}</text>
                             <view class="coupon-check" v-if="!getSelectedSubscription(slotView.key)">✓</view>
                         </view>

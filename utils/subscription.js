@@ -158,6 +158,7 @@ function decorateForSlot(slot, sub, ctx) {
   var rule = getUsageRule(template, slot) || {};
   var remaining = Number(sub.remaining_limit) || 0;
   var formattedExpire = formatDate(Number(sub.expire_at) || sub.expire_at);
+  var viewKey = slot + '_' + sub.object_id;
 
   if (slot === SLOT_ROOM_HOURS) {
     var selectedHours = Number(ctx.selectedRoomHours) || 0;
@@ -169,6 +170,7 @@ function decorateForSlot(slot, sub, ctx) {
     return Object.assign({}, sub, {
       deducted_limit: deductedHours,
       deducted_hours: deductedHours,
+      view_key: viewKey,
       remaining_after_use: Math.max(0, remaining - deductedHours),
       discount_amount_fen: roomDiscountFen,
       formatted_expire: formattedExpire,
@@ -187,6 +189,7 @@ function decorateForSlot(slot, sub, ctx) {
     return Object.assign({}, sub, {
       deducted_limit: deductedCount,
       deducted_count: deductedCount,
+      view_key: viewKey,
       remaining_after_use: Math.max(0, remaining - deductedCount),
       discount_amount_fen: discountFen,
       formatted_expire: formattedExpire,
@@ -198,6 +201,7 @@ function decorateForSlot(slot, sub, ctx) {
 
   return Object.assign({}, sub, {
     deducted_limit: 0,
+    view_key: viewKey,
     remaining_after_use: remaining,
     discount_amount_fen: 0,
     formatted_expire: formattedExpire,
