@@ -222,7 +222,6 @@
           <button 
             open-type="share" 
             class="modal-btn confirm-btn"
-            @click="onShareClick"
           >
             包装好了，发送给好友
           </button>
@@ -450,12 +449,6 @@ export default {
       this.shareTicket = {};
     },
 
-    onShareClick() {
-      setTimeout(() => {
-        this.closeShareModal();
-        this.loadTickets();
-      }, 800);
-    },
   },
 
   onShareAppMessage(res) {

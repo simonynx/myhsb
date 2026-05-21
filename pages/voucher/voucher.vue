@@ -489,7 +489,7 @@ export default {
 			this.subscriptionTargetType = targetType;
 		},
 		isMonthlySubscription(card) {
-			return card && Number(card.target_type) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 20;
+			return card && Number(card.target_type) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 16;
 		},
 		getSubscriptionBadge(card) {
 			if (!card) return '卡包';
@@ -501,7 +501,7 @@ export default {
 			const targetType = Number(card.target_type);
 			const totalLimit = Number(card.total_limit);
 			if (targetType === 1) return totalLimit === 10;
-			if (targetType === 2) return totalLimit === 10;
+			if (targetType === 2) return totalLimit === 20;
 			return false;
 		},
 		getSubscriptionUnitPriceText(card) {

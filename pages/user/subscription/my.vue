@@ -160,7 +160,7 @@ export default {
 			uni.navigateTo({ url: '/pages/user/subscription/buy' });
 		},
 		isMonthlyCard(template) {
-			return template && Number(template.target_type) === 1 && Number(template.validity_days) <= 31 && Number(template.total_limit) >= 20;
+			return template && Number(template.target_type) === 1 && Number(template.validity_days) <= 31 && Number(template.total_limit) >= 16;
 		},
 		getCardBadge(template) {
 			if (!template) return '卡包';

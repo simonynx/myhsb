@@ -349,12 +349,15 @@
 				}
 			}
 			this.countdownTimer = null;
-			this.$once('hook:onUnload', () => {
-				if (this.countdownTimer) clearInterval(this.countdownTimer);
-			});
 		},
 		onShow() {
 			this.refreshData();
+		},
+		onHide() {
+			this.clearCountdown();
+		},
+		onUnload() {
+			this.clearCountdown();
 		},
 		methods: {
 			...mapActions(['getUserInfo']),
@@ -660,7 +663,7 @@
 
 			startCountdown() {
 				var self = this;
-				if (this.countdownTimer) clearInterval(this.countdownTimer);
+				this.clearCountdown();
 				this.countdownTimer = setInterval(function() {
 					var now = Date.now();
 					var lists = self.navList;
@@ -687,6 +690,12 @@
 					}
 					if (updated) self.$forceUpdate();
 				}, 1000);
+			},
+			clearCountdown() {
+				if (this.countdownTimer) {
+					clearInterval(this.countdownTimer);
+					this.countdownTimer = null;
+				}
 			},
 			tabClick(index) {
 				if (this.tabCurrentIndex === index) return;
