@@ -223,7 +223,7 @@
             open-type="share" 
             class="modal-btn confirm-btn"
           >
-            包装好了，发送给好友
+            发送给好友
           </button>
         </view>
       </view>
@@ -245,7 +245,7 @@ export default {
       shareModalVisible: false,
       shareToken: '',
       shareTicket: {},
-      customMessage: '送你一张【摸鱼划水吧】大厅入场券，祝你今天摸鱼愉快！🐟',
+      customMessage: '送你一张摸鱼划水吧大厅入场券，一起去放松一下',
     };
   },
 
@@ -371,7 +371,7 @@ export default {
           this.shareToken = res.data.transfer_token;
           this.shareTicket = item;
           this.markTicketTransferring(item, res.data);
-          this.customMessage = '送你一张【摸鱼划水吧】大厅入场券，祝你今天摸鱼愉快！🐟';
+          this.customMessage = '送你一张摸鱼划水吧大厅入场券，一起去放松一下';
           this.shareModalVisible = true;
         } else {
           uni.showToast({ title: (res && res._reason) || '操作失败', icon: 'none' });
@@ -407,7 +407,7 @@ export default {
       }
       this.shareToken = item.active_transfer.transfer_token;
       this.shareTicket = item;
-      this.customMessage = '送你一张【摸鱼划水吧】大厅入场券，祝你今天摸鱼愉快！🐟';
+      this.customMessage = '送你一张摸鱼划水吧大厅入场券，一起去放松一下';
       this.shareModalVisible = true;
     },
 
@@ -449,14 +449,23 @@ export default {
       this.shareTicket = {};
     },
 
+    getGiftShareTitle() {
+      const count = Number(this.shareTicket && this.shareTicket.ticket_count) || 1;
+      return count > 1 ? '送你' + count + '张摸鱼划水吧门票' : '送你一张摸鱼划水吧门票';
+    },
+
   },
 
   onShareAppMessage(res) {
     if (res.from === 'button' && this.shareToken) {
-      const title = this.customMessage || '送你一张【摸鱼划水吧】大厅入场券，快来一起摸鱼！';
+      const message = (this.customMessage || '').trim();
+      let path = '/pages/ticket/receive?transfer_token=' + this.shareToken;
+      if (message) {
+        path += '&message=' + encodeURIComponent(message);
+      }
       return {
-        title: title,
-        path: '/pages/ticket/receive?transfer_token=' + this.shareToken,
+        title: this.getGiftShareTitle(),
+        path: path,
         imageUrl: '/static/ticket_gift_share.png',
       };
     }

@@ -26,6 +26,7 @@
         <image class="sender-avatar" :src="parseAvatar(transferInfo.from_user_avatar) || '/static/tab-my-current.png'" mode="aspectFill"></image>
         <text class="sender-name">{{ transferInfo.from_user_nickname }} 送了你一张</text>
         <text class="ticket-name">大厅入场券 ({{ transferInfo.ticket_count || 1 }}人)</text>
+        <text class="gift-message" v-if="giftMessage">“{{ giftMessage }}”</text>
       </view>
       
       <text class="card-desc" style="margin-top: 10rpx;">一键登录后，门票将直接存入您的票包</text>
@@ -42,6 +43,7 @@
         <image class="sender-avatar" :src="parseAvatar(transferInfo.from_user_avatar) || '/static/tab-my-current.png'" mode="aspectFill"></image>
         <text class="sender-name">{{ transferInfo.from_user_nickname }} 送了你一张</text>
         <text class="ticket-name">大厅入场券 ({{ transferInfo.ticket_count || 1 }}人)</text>
+        <text class="gift-message" v-if="giftMessage">“{{ giftMessage }}”</text>
         <view class="ticket-line"></view>
         <text class="ticket-expire" v-if="transferInfo.expire_at">有效期至: {{ formatTime(transferInfo.expire_at) }}</text>
       </view>
@@ -71,6 +73,7 @@ export default {
       claimStatus: 'loading', // 'loading' | 'need_login' | 'success' | 'fail'
       errorMsg: '',
       transferInfo: {},
+      giftMessage: '',
     };
   },
 
@@ -81,6 +84,13 @@ export default {
   onLoad(options) {
     if (options.transfer_token) {
       this.transferToken = options.transfer_token;
+    }
+    if (options.message) {
+      try {
+        this.giftMessage = decodeURIComponent(options.message);
+      } catch (e) {
+        this.giftMessage = options.message;
+      }
     }
   },
 
@@ -358,6 +368,18 @@ $gray: #7F8C8D;
     font-weight: bold;
     color: #E8784A;
     margin-bottom: 30rpx;
+  }
+  .gift-message {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 20rpx 24rpx;
+    margin-bottom: 26rpx;
+    border-radius: 18rpx;
+    background: #FFF3EA;
+    color: #6B5142;
+    font-size: 25rpx;
+    line-height: 1.5;
+    text-align: center;
   }
   .ticket-line {
     width: 100%;
