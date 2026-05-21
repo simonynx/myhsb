@@ -56,6 +56,12 @@
 							<text class="limit-num">{{ sub.remaining_limit }}</text>
 							<text class="limit-unit">{{ sub.card_template.target_type === 2 ? '小时' : '次' }}</text>
 							<text class="limit-label">剩余额度</text>
+							<view class="usage-bar-wrap" v-if="sub.total_limit > 0">
+								<view class="usage-bar">
+									<view class="usage-fill" :style="{ width: sub.used_percent + '%' }"></view>
+								</view>
+								<text class="usage-text">已用 {{ sub.used_limit }}/{{ sub.total_limit }}{{ sub.card_template.target_type === 2 ? '小时' : '次' }}</text>
+							</view>
 						</view>
 					</view>
 					
@@ -66,7 +72,10 @@
 								包厢限制：{{ sub.room_names_limit }}
 							</text>
 						</view>
-						<text class="expire-time">有效期至: {{ sub.formatted_expire }}</text>
+						<view class="expire-wrap">
+							<text class="expire-time">有效期至: {{ sub.formatted_expire }}</text>
+							<text class="expire-time warning" v-if="sub.expire_warning">{{ sub.expire_warning }}</text>
+						</view>
 					</view>
 				</view>
 			</view>
@@ -120,7 +129,11 @@ export default {
 						return Object.assign({}, sub, {
 							formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
 							room_names_limit: roomNames,
-							target_type_num: Number(sub.card_template.target_type) || 0
+							target_type_num: Number(sub.card_template.target_type) || 0,
+							total_limit: Number(sub.card_template.total_limit) || 0,
+							used_limit: Math.max(0, (Number(sub.card_template.total_limit) || 0) - (Number(sub.remaining_limit) || 0)),
+							used_percent: this.calcUsedPercent(sub),
+							expire_warning: this.getExpireWarning(sub)
 						});
 					});
 				} else {
@@ -153,6 +166,22 @@ export default {
 			if (!template) return '卡包';
 			if (Number(template.target_type) === 2) return '小时卡';
 			return this.isMonthlyCard(template) ? '月卡' : '次卡';
+		},
+		calcUsedPercent(sub) {
+			const total = Number(sub.card_template.total_limit) || 0;
+			if (total <= 0) return 0;
+			const used = Math.max(0, total - (Number(sub.remaining_limit) || 0));
+			return Math.min(100, Math.floor(used * 100 / total));
+		},
+		getExpireWarning(sub) {
+			if (sub.status !== 1 || !sub.expire_at) return '';
+			const expireMs = (Number(sub.expire_at) || 0) * 1000;
+			if (!expireMs) return '';
+			const days = Math.ceil((expireMs - Date.now()) / 86400000);
+			if (days < 0) return '已过期';
+			if (days === 0) return '今天到期';
+			if (days <= 7) return '剩' + days + '天到期';
+			return '';
 		},
 		getCardClass(sub) {
 			if (sub.status === 1) return 'active';
@@ -400,6 +429,28 @@ page {
 			color: rgba(255, 255, 255, 0.8);
 			margin-top: 6rpx;
 		}
+		.usage-bar-wrap {
+			width: 220rpx;
+			margin-top: 14rpx;
+		}
+		.usage-bar {
+			height: 8rpx;
+			border-radius: 999rpx;
+			background: rgba(255, 255, 255, 0.25);
+			overflow: hidden;
+		}
+		.usage-fill {
+			height: 100%;
+			border-radius: 999rpx;
+			background: rgba(255, 255, 255, 0.9);
+		}
+		.usage-text {
+			display: block;
+			margin-top: 6rpx;
+			font-size: 20rpx;
+			color: rgba(255, 255, 255, 0.78);
+			white-space: nowrap;
+		}
 	}
 }
 
@@ -421,10 +472,21 @@ page {
 		font-size: 22rpx;
 		color: rgba(255, 255, 255, 0.9);
 	}
+	.expire-wrap {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 4rpx;
+		flex-shrink: 0;
+	}
 	.expire-time {
 		font-size: 20rpx;
 		color: rgba(255, 255, 255, 0.8);
 		white-space: nowrap;
+		&.warning {
+			color: #FFE7A3;
+			font-weight: bold;
+		}
 	}
 }
 

@@ -314,7 +314,7 @@ export default {
             var card = this.subscriptionOrderCard;
             if (this.subscriptionOrderTargetType === 2) {
                 var text = '包厢预约折抵';
-                if (card.cover_person_fee || goodsInfo.cover_person_fee) text += '，免1人大厅门票';
+                if (card.cover_person_fee || goodsInfo.cover_person_fee) text += '，满2小时免持卡人门票';
                 return text;
             }
             if (this.subscriptionOrderTargetType === 1) return '大厅门票折抵';

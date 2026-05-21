@@ -94,7 +94,7 @@
 							<view class="detail-item" v-if="card.target_type === 2">
 								<text class="detail-dot">•</text>
 								<text class="detail-text">
-									人头费：<text class="highlight">{{ card.cover_person_fee ? '免1人大厅门票' : '不含人头费' }}</text>
+									人头费：<text class="highlight">{{ card.cover_person_fee ? '满2小时免持卡人门票' : '另按到店人数收取' }}</text>
 								</text>
 							</view>
 							<view class="detail-item" v-if="card.usable_rooms && card.usable_rooms.length > 0">
@@ -282,7 +282,7 @@ export default {
 			var targetType = Number(card.target_type);
 			var totalLimit = Number(card.total_limit);
 			if (targetType === 1) return totalLimit === 10;
-			if (targetType === 2) return totalLimit === 5;
+			if (targetType === 2) return totalLimit === 10;
 			return false;
 		},
 		getInitialCard() {

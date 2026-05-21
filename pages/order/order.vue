@@ -544,7 +544,7 @@
 				var useTypeText = '';
 				if (targetType === 2) {
 					useTypeText = '包厢预约折抵';
-					if (card.cover_person_fee || goodsInfo.cover_person_fee) useTypeText += '，免1人大厅门票';
+					if (card.cover_person_fee || goodsInfo.cover_person_fee) useTypeText += '，满2小时免持卡人门票';
 				} else if (targetType === 1) {
 					useTypeText = '大厅门票折抵';
 				}

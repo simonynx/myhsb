@@ -36,7 +36,7 @@
             </view>
             <view class="room-prices" v-if="currentProduct">
                 <view class="price-row">
-                    <text class="price-label">包厢 {{ (currentProduct.price_per_hour / 100).toFixed(0) }}/小时 × {{ selectTimes.length }}时段</text>
+                    <text class="price-label">包厢 {{ (currentProduct.price_per_hour / 100).toFixed(0) }}/小时 × {{ selectedRoomHours }}小时</text>
                     <text class="price-value">¥{{ roomPrice }}</text>
                 </view>
                 <view class="price-row" v-if="numOfPeople > 0">
@@ -364,7 +364,7 @@
                         <view class="coupon-right">
                             <view class="coupon-name">{{ sub.card_template.name }}</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #999; margin-top: 4rpx;">适用: 包厢小时费</view>
-                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;" v-if="sub.card_template.cover_person_fee">· 包含：免1人大厅门票</view>
+                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;" v-if="sub.card_template.cover_person_fee">· {{ subscriptionPersonFeeRuleText }}</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #E8784A;">{{ sub.usage_text }}</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ sub.formatted_expire }}</view>
                             <view class="coupon-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
@@ -385,6 +385,26 @@ import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import COUPON from '../../utils/coupon.js';
 import { formatDate } from '../../common/util.js';
+
+const SUBSCRIPTION_PERSON_FEE_MIN_HOURS = 2;
+
+function getHourFromDateTime(value) {
+    const text = String(value || '');
+    const timeText = text.indexOf(' ') >= 0 ? text.split(' ')[1] : text;
+    const hour = parseInt(timeText.split(':')[0], 10);
+    return Number.isFinite(hour) ? hour : null;
+}
+
+function getSelectsTotalHours(selects) {
+    if (!Array.isArray(selects)) return 0;
+    return selects.reduce((total, item) => {
+        if (!Array.isArray(item) || item.length < 2) return total;
+        const begin = getHourFromDateTime(item[0]);
+        const end = getHourFromDateTime(item[1]);
+        if (begin === null || end === null || end <= begin) return total;
+        return total + (end - begin);
+    }, 0);
+}
 
 export default {
     data() {
@@ -437,10 +457,16 @@ export default {
             return this.selectTimes.join(', ');
         },
 
+        selectedRoomHours() {
+            const selects = this.currentProduct && this.currentProduct.selects;
+            const hours = getSelectsTotalHours(selects);
+            return hours > 0 ? hours : this.selectTimes.length;
+        },
+
         // 原始价格(分)
         roomPriceFen() {
             if (!this.currentProduct || !this.currentProduct.price_per_hour) return 0;
-            return this.currentProduct.price_per_hour * this.selectTimes.length;
+            return this.currentProduct.price_per_hour * this.selectedRoomHours;
         },
 
         peoplePriceFen() {
@@ -535,6 +561,10 @@ export default {
             return (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + '折';
         },
 
+        subscriptionPersonFeeRuleText() {
+            return '满' + SUBSCRIPTION_PERSON_FEE_MIN_HOURS + '小时免持卡人门票';
+        },
+
         usableSubscriptions() {
             if (!this.mySubscriptions) return [];
             return this.mySubscriptions.filter(sub => {
@@ -552,21 +582,21 @@ export default {
                 return true;
             }).map(sub => {
                 const template = sub.card_template || {};
-                const deductedHours = Math.min(this.selectTimes.length, Number(sub.remaining_limit) || 0);
-                const coverPerson = template.cover_person_fee && this.numOfPeople > 0;
+                const deductedHours = Math.min(this.selectedRoomHours, Number(sub.remaining_limit) || 0);
+                const coverPerson = template.cover_person_fee && deductedHours >= SUBSCRIPTION_PERSON_FEE_MIN_HOURS && this.numOfPeople > 0;
                 return Object.assign({}, sub, {
                     formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
-                    usage_text: '本次可抵' + deductedHours + '小时' + (coverPerson ? '，免1人大厅门票' : '')
+                    usage_text: '本次可抵' + deductedHours + '小时' + (coverPerson ? '，免持卡人门票' : (template.cover_person_fee ? '，满' + SUBSCRIPTION_PERSON_FEE_MIN_HOURS + '小时可免持卡人门票' : ''))
                 });
             });
         },
 
         subscriptionDeductedHours() {
-            return this.selectedSubscription ? Math.min(this.selectTimes.length, this.selectedSubscription.remaining_limit) : 0;
+            return this.selectedSubscription ? Math.min(this.selectedRoomHours, Number(this.selectedSubscription.remaining_limit) || 0) : 0;
         },
 
         subscriptionWaivedPerson() {
-            return (this.selectedSubscription && this.selectedSubscription.card_template.cover_person_fee && this.numOfPeople > 0) ? 1 : 0;
+            return (this.selectedSubscription && this.selectedSubscription.card_template.cover_person_fee && this.subscriptionDeductedHours >= SUBSCRIPTION_PERSON_FEE_MIN_HOURS && this.numOfPeople > 0) ? 1 : 0;
         },
 
         subscriptionDiscountAmountFen() {
@@ -580,7 +610,9 @@ export default {
             if (!this.selectedSubscription) return '';
             let text = '已自动使用，抵' + this.subscriptionDeductedHours + '小时包厢费';
             if (this.subscriptionWaivedPerson > 0) {
-                text += '，并免1人大厅门票';
+                text += '，并免持卡人门票';
+            } else if (this.selectedSubscription.card_template.cover_person_fee) {
+                text += '，满' + SUBSCRIPTION_PERSON_FEE_MIN_HOURS + '小时可免持卡人门票';
             }
             return text;
         },
@@ -591,7 +623,7 @@ export default {
         memberDiscountAmountFen() {
             const d = this.userDiscount;
             if (!d || d >= 100 || !this.currentProduct || !this.currentProduct.price_per_hour) return 0;
-            const remainingRoomFee = Math.max(0, (this.selectTimes.length - this.subscriptionDeductedHours) * this.currentProduct.price_per_hour);
+            const remainingRoomFee = Math.max(0, (this.selectedRoomHours - this.subscriptionDeductedHours) * this.currentProduct.price_per_hour);
             const remainingPeopleFee = Math.max(0, (this.numOfPeople - this.subscriptionWaivedPerson) * this.singlePersonPrice);
             const memberDiscountBase = remainingRoomFee + remainingPeopleFee;
             return Math.floor(memberDiscountBase * (1 - d / 100));

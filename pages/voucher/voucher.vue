@@ -177,29 +177,49 @@
 
 			<!-- 列表 -->
 			<view class="section-header">
-				<text class="section-title">特惠多次卡/月卡包</text>
+				<text class="section-title">常来更省的卡包</text>
 			</view>
 
-			<view class="subscription-list" v-if="subscriptionCards.length > 0">
+			<view class="subscription-tabs" v-if="subscriptionTargetTabs.length > 1">
+				<view
+					class="subscription-tab"
+					v-for="tab in subscriptionTargetTabs"
+					:key="tab.value"
+					:class="subscriptionTargetType === tab.value ? 'active' : ''"
+					@tap="switchSubscriptionTarget(tab.value)"
+				>
+					<text class="subscription-tab-name">{{ tab.name }}</text>
+					<text class="subscription-tab-desc">{{ tab.desc }}</text>
+				</view>
+			</view>
+
+			<view class="subscription-list" v-if="displaySubscriptionCards.length > 0">
 				<view 
 					class="sub-card-item" 
-					v-for="card in subscriptionCards" 
+					v-for="card in displaySubscriptionCards"
 					:key="card.object_id"
 					@tap="buyCard(card)"
 				>
-					<view class="sub-card-left" :class="card.card_type === 2 ? 'monthly' : 'times'">
-						<text class="sub-card-type">{{ card.card_type === 2 ? '月卡' : '次卡' }}</text>
+					<view class="sub-card-left" :class="card.target_type === 2 ? 'room' : (isMonthlySubscription(card) ? 'monthly' : 'times')">
+						<text class="sub-card-type">{{ getSubscriptionBadge(card) }}</text>
 						<view class="sub-card-val-row">
 							<text class="sub-card-limit">{{ card.total_limit }}</text>
 							<text class="sub-card-unit">{{ card.target_type === 2 ? '小时' : '次' }}</text>
 						</view>
 					</view>
 					<view class="sub-card-right">
-						<text class="sub-card-name">{{ card.name }}</text>
+						<view class="sub-card-name-row">
+							<text class="sub-card-name">{{ card.name }}</text>
+							<text class="sub-card-recommend" v-if="isRecommendedSubscription(card)">推荐</text>
+						</view>
+						<view class="sub-card-benefits">
+							<text class="sub-card-benefit">{{ getSubscriptionUnitPriceText(card) }}</text>
+							<text class="sub-card-save" v-if="getSubscriptionSaveText(card)">{{ getSubscriptionSaveText(card) }}</text>
+						</view>
 						<view class="sub-card-info">
 							<text class="info-line">· 适用: {{ card.target_type === 2 ? '包厢费折抵' : '大厅门票折抵' }}</text>
 							<text class="info-line">· 有效期: {{ card.validity_days }}天</text>
-							<text class="info-line" v-if="card.cover_person_fee">· 人头费: 免收1人大厅门票</text>
+							<text class="info-line" v-if="card.target_type === 2">{{ card.cover_person_fee ? '· 人头费: 满2小时免持卡人门票' : '· 人头费: 另按到店人数收取' }}</text>
 						</view>
 						<view class="sub-card-footer">
 							<view class="sub-card-price">
@@ -342,11 +362,23 @@ export default {
 				});
 			});
 		},
+		subscriptionTargetTabs() {
+			const tabs = [
+				{ name: '大厅卡', desc: '抵门票', value: 1 },
+				{ name: '包厢卡', desc: '抵小时', value: 2 },
+			];
+			return tabs.filter(tab => this.subscriptionCards.some(card => Number(card.target_type) === tab.value));
+		},
+		displaySubscriptionCards() {
+			if (!this.subscriptionTargetType) return this.subscriptionCards;
+			return this.subscriptionCards.filter(card => Number(card.target_type) === this.subscriptionTargetType);
+		},
 	},
 	data() {
 		return {
 			mainTab: 0,
 			subTab: 0,
+			subscriptionTargetType: 0,
 			mainTabs: [
 				{ name: '领券', emoji: '🎟️', badge: 0 },
 				{ name: '小店', emoji: '🏠', badge: 0 },
@@ -417,6 +449,9 @@ export default {
 				const res = await AUTH.getSubscriptionCards(this.token);
 				if (res._status === 0) {
 					this.subscriptionCards = res.data || [];
+					if (!this.subscriptionTargetType && this.subscriptionCards.length > 0) {
+						this.subscriptionTargetType = Number(this.subscriptionCards[0].target_type) || 0;
+					}
 				}
 			} catch (e) {}
 		},
@@ -449,6 +484,44 @@ export default {
 		},
 		buyCard(card) {
 			uni.navigateTo({ url: '/pages/user/subscription/buy?card_id=' + card.object_id });
+		},
+		switchSubscriptionTarget(targetType) {
+			this.subscriptionTargetType = targetType;
+		},
+		isMonthlySubscription(card) {
+			return card && Number(card.target_type) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 20;
+		},
+		getSubscriptionBadge(card) {
+			if (!card) return '卡包';
+			if (Number(card.target_type) === 2) return '小时卡';
+			return this.isMonthlySubscription(card) ? '月卡' : '次卡';
+		},
+		isRecommendedSubscription(card) {
+			if (!card) return false;
+			const targetType = Number(card.target_type);
+			const totalLimit = Number(card.total_limit);
+			if (targetType === 1) return totalLimit === 10;
+			if (targetType === 2) return totalLimit === 10;
+			return false;
+		},
+		getSubscriptionUnitPriceText(card) {
+			if (!card || !card.total_limit) return '';
+			const price = Number(card.price) || 0;
+			const totalLimit = Number(card.total_limit) || 0;
+			if (price <= 0 || totalLimit <= 0) return '';
+			const unit = Number(card.target_type) === 2 ? '小时' : '次';
+			const amount = price / totalLimit / 100;
+			const text = amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
+			return '折合 ¥' + text + '/' + unit;
+		},
+		getSubscriptionSaveText(card) {
+			if (!card || !card.original_price) return '';
+			const originalPrice = Number(card.original_price) || 0;
+			const price = Number(card.price) || 0;
+			if (originalPrice <= price) return '';
+			const save = (originalPrice - price) / 100;
+			const text = save % 1 === 0 ? save.toFixed(0) : save.toFixed(1);
+			return '省 ¥' + text;
 		},
 		selectInitialTab() {
 			if (this.hasAutoSelectedTab || this.mainTab !== 0) return;
@@ -1085,6 +1158,39 @@ page, .page {
 }
 
 /* ===== 次卡月卡特惠卡包样式 ===== */
+.subscription-tabs {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14rpx;
+	padding: 0 24rpx 16rpx;
+}
+.subscription-tab {
+	border: 2rpx solid rgba(160, 120, 80, 0.14);
+	border-radius: 14rpx;
+	background: #FFF;
+	padding: 16rpx 18rpx;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	box-sizing: border-box;
+	.subscription-tab-name {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: $bark;
+	}
+	.subscription-tab-desc {
+		font-size: 22rpx;
+		color: $bark-light;
+	}
+	&.active {
+		border-color: $wood;
+		background: #FFF8F0;
+		.subscription-tab-name,
+		.subscription-tab-desc {
+			color: $wood;
+		}
+	}
+}
 .subscription-list {
 	padding: 10rpx 24rpx;
 	display: flex;
@@ -1115,6 +1221,9 @@ page, .page {
 		}
 		&.monthly {
 			background: linear-gradient(135deg, #AB47BC, #7B1FA2);
+		}
+		&.room {
+			background: linear-gradient(135deg, #5C6BC0, #3949AB);
 		}
 		
 		.sub-card-type {
@@ -1154,6 +1263,41 @@ page, .page {
 			font-size: 28rpx;
 			font-weight: bold;
 			color: $bark;
+		}
+		.sub-card-name-row {
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 10rpx;
+		}
+		.sub-card-recommend {
+			font-size: 20rpx;
+			color: #FFF;
+			background: $wood;
+			padding: 3rpx 10rpx;
+			border-radius: 6rpx;
+			font-weight: bold;
+		}
+		.sub-card-benefits {
+			display: flex;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 8rpx;
+		}
+		.sub-card-benefit,
+		.sub-card-save {
+			font-size: 20rpx;
+			border-radius: 6rpx;
+			padding: 4rpx 10rpx;
+		}
+		.sub-card-benefit {
+			color: $bark;
+			background: #FFF2E8;
+		}
+		.sub-card-save {
+			color: $wood;
+			background: #FFF8F0;
+			font-weight: bold;
 		}
 		
 		.sub-card-info {
