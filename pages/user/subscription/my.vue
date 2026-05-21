@@ -44,7 +44,7 @@
 
 					<view class="card-header">
 						<view class="card-type-tag">
-							{{ sub.card_template.card_type === 2 ? '月卡' : '次卡' }}
+							{{ getCardBadge(sub.card_template) }}
 						</view>
 						<text class="card-status-name">{{ getStatusText(sub) }}</text>
 					</view>
@@ -145,6 +145,14 @@ export default {
 		},
 		goBuy() {
 			uni.navigateTo({ url: '/pages/user/subscription/buy' });
+		},
+		isMonthlyCard(template) {
+			return template && Number(template.target_type) === 1 && Number(template.validity_days) <= 31 && Number(template.total_limit) >= 20;
+		},
+		getCardBadge(template) {
+			if (!template) return '卡包';
+			if (Number(template.target_type) === 2) return '小时卡';
+			return this.isMonthlyCard(template) ? '月卡' : '次卡';
 		},
 		getCardClass(sub) {
 			if (sub.status === 1) return 'active';

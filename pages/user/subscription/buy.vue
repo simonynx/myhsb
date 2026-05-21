@@ -27,30 +27,46 @@
 				<text class="section-emoji">🎫</text>
 				<text class="section-title">常来更省的次卡/月卡</text>
 			</view>
+
+			<view class="target-tabs" v-if="targetTabs.length > 1">
+				<view
+					class="target-tab"
+					v-for="tab in targetTabs"
+					:key="tab.value"
+					:class="activeTargetType === tab.value ? 'active' : ''"
+					@tap="switchTargetTab(tab.value)"
+				>
+					<text class="target-name">{{ tab.name }}</text>
+					<text class="target-desc">{{ tab.desc }}</text>
+				</view>
+			</view>
 			
 			<view v-if="loading" class="loading-state">
 				<text class="loading-text">加载中...</text>
 			</view>
 			
-			<view v-else-if="cards.length === 0" class="empty-state">
+			<view v-else-if="displayCards.length === 0" class="empty-state">
 				<text class="empty-text">暂无可购买的卡包</text>
 			</view>
 			
 			<view v-else class="card-list">
 				<view 
 					class="card-item" 
-					v-for="(card) in cards" 
+					v-for="(card) in displayCards"
 					:key="card.object_id"
 					:class="selectedCardId === card.object_id ? 'active' : ''"
 					@tap="selectCard(card)"
 				>
-					<view class="card-tag" :class="card.card_type === 2 ? 'monthly' : 'times'">
-						{{ card.card_type === 2 ? '月卡' : '次卡' }}
+					<view class="card-tag" :class="card.target_type === 2 ? 'room' : (isMonthlyCard(card) ? 'monthly' : 'times')">
+						{{ getCardBadge(card) }}
 					</view>
 					
 					<view class="card-body">
 						<view class="card-title-row">
-							<text class="card-name">{{ card.name }}</text>
+							<view class="card-name-wrap">
+								<text class="card-name">{{ card.name }}</text>
+								<text class="recommend-label" v-if="isRecommendedCard(card)">推荐</text>
+							</view>
 							<view class="card-prices">
 								<text class="price-symbol">¥</text>
 								<text class="price-val">{{ (card.price / 100).toFixed(0) }}</text>
@@ -166,11 +182,23 @@ export default {
 			buying: false,
 			preferredAmount: 0,
 			preferredCardId: '',
-			preferredTargetType: 0
+			preferredTargetType: 0,
+			activeTargetType: 0
 		};
 	},
 	computed: {
 		...mapState(['hasLogin', 'userInfo', 'token']),
+		targetTabs() {
+			var tabs = [
+				{ name: '大厅卡', desc: '抵门票', value: 1 },
+				{ name: '包厢卡', desc: '抵小时', value: 2 },
+			];
+			return tabs.filter(tab => this.cards.some(card => Number(card.target_type) === tab.value));
+		},
+		displayCards() {
+			if (!this.activeTargetType) return this.cards;
+			return this.cards.filter(card => Number(card.target_type) === this.activeTargetType);
+		},
 		balanceText() {
 			var balance = this.userInfo && this.userInfo.account_balance;
 			balance = Number(balance);
@@ -193,6 +221,7 @@ export default {
 		if (options && options.card_id) this.preferredCardId = options.card_id;
 		var targetType = Number(options && options.target_type || 0);
 		if (targetType > 0) this.preferredTargetType = targetType;
+		if (targetType > 0) this.activeTargetType = targetType;
 		this.fetchCards();
 	},
 	onShow() {
@@ -209,6 +238,9 @@ export default {
 				if (res._status === 0 && res.data) {
 					this.cards = res.data;
 					if (this.cards.length > 0) {
+						if (!this.activeTargetType) {
+							this.activeTargetType = this.preferredTargetType || Number(this.cards[0].target_type) || 0;
+						}
 						this.selectCard(this.getInitialCard());
 					}
 				} else {
@@ -229,14 +261,39 @@ export default {
 				this.paytype = 'wxpay';
 			}
 		},
+		switchTargetTab(targetType) {
+			if (this.activeTargetType === targetType) return;
+			this.activeTargetType = targetType;
+			if (!this.selectedCard || Number(this.selectedCard.target_type) !== targetType) {
+				var next = this.getInitialCard();
+				if (next) this.selectCard(next);
+			}
+		},
+		isMonthlyCard(card) {
+			return card && Number(card.target_type) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 20;
+		},
+		getCardBadge(card) {
+			if (!card) return '卡包';
+			if (Number(card.target_type) === 2) return '小时卡';
+			return this.isMonthlyCard(card) ? '月卡' : '次卡';
+		},
+		isRecommendedCard(card) {
+			if (!card) return false;
+			var targetType = Number(card.target_type);
+			var totalLimit = Number(card.total_limit);
+			if (targetType === 1) return totalLimit === 10;
+			if (targetType === 2) return totalLimit === 5;
+			return false;
+		},
 		getInitialCard() {
 			var preferredCardId = this.preferredCardId;
 			var found = preferredCardId ? this.cards.find(c => c.object_id === preferredCardId) : null;
 			if (found) return found;
 
 			var candidates = this.cards;
-			if (this.preferredTargetType) {
-				var typedCards = this.cards.filter(c => Number(c.target_type) === this.preferredTargetType);
+			var targetType = this.activeTargetType || this.preferredTargetType;
+			if (targetType) {
+				var typedCards = this.cards.filter(c => Number(c.target_type) === targetType);
 				if (typedCards.length > 0) candidates = typedCards;
 			}
 
@@ -247,7 +304,7 @@ export default {
 					return Math.abs(card.price - targetFen) < Math.abs(best.price - targetFen) ? card : best;
 				}, null) || candidates[0];
 			}
-			return candidates[0];
+			return candidates.find(card => this.isRecommendedCard(card)) || candidates[0];
 		},
 		getCardUnitPriceText(card) {
 			if (!card || !card.total_limit) return '';
@@ -368,12 +425,32 @@ export default {
 				}).catch(err => {
 					console.error('微信支付失败:', err);
 					this.buying = false;
-					uni.showModal({ title: '支付未完成', content: '支付取消或失败，您可在我的订单中继续支付', showCancel: false });
+					uni.showModal({
+						title: '支付未完成',
+						content: '订单已保留，可继续完成支付',
+						confirmText: '继续支付',
+						cancelText: '稍后',
+						success: (res) => {
+							if (res.confirm) {
+								uni.redirectTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(orderNumber) + '&entry=3' });
+							}
+						}
+					});
 				});
 			}).catch(err => {
 				uni.hideLoading();
 				this.buying = false;
-				uni.showModal({ title: '获取支付参数失败', content: err._reason || '请重试', showCancel: false });
+				uni.showModal({
+					title: '获取支付参数失败',
+					content: (err && err._reason) || '订单已保留，可稍后继续支付',
+					confirmText: '查看订单',
+					cancelText: '稍后',
+					success: (res) => {
+						if (res.confirm) {
+							uni.redirectTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(orderNumber) + '&entry=3' });
+						}
+					}
+				});
 			});
 		}
 	}
@@ -475,6 +552,39 @@ page {
 	.section-emoji { font-size: 36rpx; }
 	.section-title { font-size: 32rpx; font-weight: bold; color: #5C4B3A; }
 }
+.target-tabs {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14rpx;
+	margin-bottom: 22rpx;
+}
+.target-tab {
+	border: 2rpx solid #F0E6D8;
+	border-radius: 12rpx;
+	padding: 16rpx 18rpx;
+	background: #FCF9F5;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	box-sizing: border-box;
+	.target-name {
+		font-size: 28rpx;
+		font-weight: bold;
+		color: #5C4B3A;
+	}
+	.target-desc {
+		font-size: 22rpx;
+		color: #A09080;
+	}
+	&.active {
+		border-color: #FF8C42;
+		background: #FFF8F0;
+		.target-name,
+		.target-desc {
+			color: #E8784A;
+		}
+	}
+}
 
 .loading-state, .empty-state {
 	padding: 80rpx 0;
@@ -519,6 +629,9 @@ page {
 	&.monthly {
 		background: linear-gradient(135deg, #AB47BC, #7B1FA2);
 	}
+	&.room {
+		background: linear-gradient(135deg, #5C6BC0, #3949AB);
+	}
 }
 .card-body {
 	margin-top: 10rpx;
@@ -529,11 +642,26 @@ page {
 	align-items: flex-start;
 	margin-bottom: 16rpx;
 }
+.card-name-wrap {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10rpx;
+	max-width: 68%;
+}
 .card-name {
 	font-size: 32rpx;
 	font-weight: bold;
 	color: #5C4B3A;
-	max-width: 70%;
+	max-width: 100%;
+}
+.recommend-label {
+	font-size: 20rpx;
+	color: #FFF;
+	background: #E8784A;
+	border-radius: 6rpx;
+	padding: 4rpx 10rpx;
+	font-weight: bold;
 }
 .card-prices {
 	text-align: right;
