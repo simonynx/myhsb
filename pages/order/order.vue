@@ -70,6 +70,30 @@
 					</view>
 				</view>
 
+				<!-- 卡包购买详情 -->
+				<view class="detail-section" v-if="item.order_type === 7">
+					<view class="detail-row">
+						<text class="detail-icon">🎫</text>
+						<text class="detail-label">卡包</text>
+						<text class="detail-value">{{ item.subscriptionName }}</text>
+					</view>
+					<view class="detail-row" v-if="item.subscriptionLimitText">
+						<text class="detail-icon">🔢</text>
+						<text class="detail-label">额度</text>
+						<text class="detail-value">{{ item.subscriptionLimitText }}</text>
+					</view>
+					<view class="detail-row" v-if="item.subscriptionUseTypeText">
+						<text class="detail-icon">📍</text>
+						<text class="detail-label">适用</text>
+						<text class="detail-value">{{ item.subscriptionUseTypeText }}</text>
+					</view>
+					<view class="detail-row" v-if="item.subscriptionValidityText">
+						<text class="detail-icon">⏳</text>
+						<text class="detail-label">有效期</text>
+						<text class="detail-value">{{ item.subscriptionValidityText }}</text>
+					</view>
+				</view>
+
 				<!-- 预约详情 -->
 				<view class="detail-section" v-if="item.order_type === 1">
 					<view class="detail-row">
@@ -213,6 +237,10 @@
 						<text class="price-label">商品金额</text>
 						<text class="price-value">¥{{ item.originalPrice }}</text>
 					</view>
+					<view class="price-row" v-if="item.order_type === 7 && item.originalPrice > 0">
+						<text class="price-label">卡包金额</text>
+						<text class="price-value">¥{{ item.originalPrice }}</text>
+					</view>
 					<view class="price-row" v-if="item.memberDiscount > 0">
 						<text class="price-label">会员折扣</text>
 						<text class="price-value discount">-¥{{ item.memberDiscount }}</text>
@@ -282,6 +310,7 @@
 		4: { icon: '🛒', name: '线下消费' },
 		5: { icon: '💎', name: '积分兑换' },
 		6: { icon: '🎫', name: '大厅门票' },
+		7: { icon: '🎫', name: '次卡/月卡' },
 	};
 
 	const PAY_METHOD_MAP = {
@@ -487,6 +516,8 @@
 					item.memberDiscount = 0;
 					item.pointsDeduction = goodsInfo._points_deducted ? (goodsInfo._points_deducted / 100).toFixed(2) : 0;
 					item.couponDiscount = goodsInfo._coupon_discount ? (goodsInfo._coupon_discount / 100).toFixed(2) : 0;
+				} else if (item.order_type === 7) {
+					this.computeSubscriptionDetails(item);
 				} else if (item.order_type === 3 || item.order_type === 5) {
 					// 商品订单 / 积分兑换订单
 					var skuPrice = item.sku_price_real || item.pay_amount || 0;
@@ -501,6 +532,35 @@
 					item.pointsDeduction = 0;
 					item.couponDiscount = 0;
 				}
+			},
+			computeSubscriptionDetails(item) {
+				var goodsInfo = item.goodsInfo || {};
+				var card = goodsInfo.card_template || goodsInfo.subscription_card || goodsInfo.card || {};
+				var name = card.name || goodsInfo.card_name || goodsInfo.name || item.goods_name || '次卡/月卡';
+				var targetType = Number(card.target_type || goodsInfo.target_type || 0);
+				var totalLimit = Number(card.total_limit || goodsInfo.total_limit || 0);
+				var validityDays = Number(card.validity_days || goodsInfo.validity_days || 0);
+				var unit = targetType === 2 ? '小时' : '次';
+				var useTypeText = '';
+				if (targetType === 2) {
+					useTypeText = '包厢预约折抵';
+					if (card.cover_person_fee || goodsInfo.cover_person_fee) useTypeText += '，免1人大厅门票';
+				} else if (targetType === 1) {
+					useTypeText = '大厅门票折抵';
+				}
+
+				item.subscriptionName = name;
+				item.subscriptionLimitText = totalLimit > 0 ? totalLimit + unit : '';
+				item.subscriptionUseTypeText = useTypeText;
+				item.subscriptionValidityText = validityDays > 0 ? '购买后' + validityDays + '天内有效' : '';
+
+				var cardAmount = this.firstValidFen(card.price, goodsInfo.price, goodsInfo.amount, item.pay_amount);
+				item.roomPrice = this.formatFen(cardAmount);
+				item.originalPrice = item.roomPrice;
+				item.addonsPrice = '0.00';
+				item.memberDiscount = 0;
+				item.pointsDeduction = goodsInfo._points_deducted ? this.formatFen(goodsInfo._points_deducted) : 0;
+				item.couponDiscount = goodsInfo._coupon_discount ? this.formatFen(goodsInfo._coupon_discount) : 0;
 			},
 			computeRechargeDetails(item) {
 				var goodsInfo = item.goodsInfo || {};

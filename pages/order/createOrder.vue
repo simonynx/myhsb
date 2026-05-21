@@ -173,17 +173,18 @@
                         <text class="tag" :class="selectedSubscription ? 'tag-active' : 'tag-gray'">卡包</text>
                         <block v-if="selectedSubscription">{{ selectedSubscription.card_template.name }}</block>
                         <block v-else-if="usableSubscriptions.length > 0">{{ usableSubscriptions.length }}张可用</block>
-                        <block v-else>次卡/月卡折抵</block>
+                        <block v-else>购卡更省</block>
                     </text>
                     <view class="coupon-right">
                         <text class="coupon-value" v-if="selectedSubscription">
                             -¥{{ (subscriptionDiscountAmountFen / 100).toFixed(2) }}
                         </text>
                         <text class="cell-more yticon icon-you" :class="selectedSubscription ? 'cell-active' : 'cell-inactive'">
-                            {{ selectedSubscription ? '已选' : (usableSubscriptions.length > 0 ? '去选择' : '暂无可用') }}
+                            {{ selectedSubscription ? '已选' : (usableSubscriptions.length > 0 ? '去选择' : '去购卡') }}
                         </text>
                     </view>
                 </view>
+                <view class="selection-hint" v-if="selectedSubscription">{{ subscriptionUsageText }}</view>
 
                 <!-- 优惠券 -->
                 <view class="price-row coupon-row" @click="openCouponPicker">
@@ -356,14 +357,15 @@
                         <view class="coupon-left" style="background: linear-gradient(135deg, #FF8C42, #E8784A); border-right-color: rgba(255,255,255,0.25);">
                             <view class="coupon-price-wrap">
                                 <text class="coupon-price" style="color: #ffffff !important;">{{ sub.remaining_limit }}</text>
-                                <text class="coupon-unit" style="color: #ffffff !important; margin-left: 2px;">{{ sub.card_template.target_type === 2 ? '时' : '次' }}</text>
+                                <text class="coupon-unit" style="color: #ffffff !important; margin-left: 2px;">时</text>
                             </view>
-                            <text class="coupon-limit" style="color: rgba(255,255,255,0.85) !important;">剩{{ sub.remaining_limit }}{{ sub.card_template.target_type === 2 ? '小时' : '次' }}</text>
+                            <text class="coupon-limit" style="color: rgba(255,255,255,0.85) !important;">剩{{ sub.remaining_limit }}小时</text>
                         </view>
                         <view class="coupon-right">
                             <view class="coupon-name">{{ sub.card_template.name }}</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #999; margin-top: 4rpx;">适用: 包厢小时费</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #999;" v-if="sub.card_template.cover_person_fee">· 包含：免1人大厅门票</view>
+                            <view class="coupon-expire" style="font-size: 20rpx; color: #E8784A;">{{ sub.usage_text }}</view>
                             <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ sub.formatted_expire }}</view>
                             <view class="coupon-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
                         </view>
@@ -536,10 +538,12 @@ export default {
         usableSubscriptions() {
             if (!this.mySubscriptions) return [];
             return this.mySubscriptions.filter(sub => {
-                if (sub.card_template.target_type !== 2) return false;
-                if (sub.remaining_limit < this.selectTimes.length) return false;
+                const template = sub.card_template || {};
+                const remaining = Number(sub.remaining_limit) || 0;
+                if (Number(template.target_type) !== 2) return false;
+                if (remaining <= 0) return false;
                 
-                const usableRooms = sub.card_template.usable_rooms || [];
+                const usableRooms = template.usable_rooms || [];
                 if (usableRooms.length > 0) {
                     const roomId = this.currentProduct && this.currentProduct.object_id;
                     const match = usableRooms.some(r => r.object_id === roomId || r === roomId);
@@ -547,8 +551,12 @@ export default {
                 }
                 return true;
             }).map(sub => {
+                const template = sub.card_template || {};
+                const deductedHours = Math.min(this.selectTimes.length, Number(sub.remaining_limit) || 0);
+                const coverPerson = template.cover_person_fee && this.numOfPeople > 0;
                 return Object.assign({}, sub, {
-                    formatted_expire: formatDate(sub.expire_at)
+                    formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
+                    usage_text: '本次可抵' + deductedHours + '小时' + (coverPerson ? '，免1人大厅门票' : '')
                 });
             });
         },
@@ -566,6 +574,15 @@ export default {
             const roomOffset = this.subscriptionDeductedHours * this.currentProduct.price_per_hour;
             const personOffset = this.subscriptionWaivedPerson * this.singlePersonPrice;
             return roomOffset + personOffset;
+        },
+
+        subscriptionUsageText() {
+            if (!this.selectedSubscription) return '';
+            let text = '已自动使用，抵' + this.subscriptionDeductedHours + '小时包厢费';
+            if (this.subscriptionWaivedPerson > 0) {
+                text += '，并免1人大厅门票';
+            }
+            return text;
         },
 
         // 会员折扣金额(分)
@@ -604,16 +621,22 @@ export default {
         pointsToFen() {
             return this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_to_fen || 1;
         },
+        pointsAmountLimit() {
+            const rate = Number(this.pointsToFen) || 0;
+            if (rate <= 0) return 0;
+            return Math.floor(Math.max(0, this.afterMemberPriceFen - this.couponDiscountFen) / rate);
+        },
         maxUsablePoints() {
-            // 档位上限 = min(用户积分余额, 配置的最大抵扣量),并向下取整到步长的整数倍
-            const raw = Math.min(this.safeUserInfo.points || 0, this.pointsMaxUse);
-            return Math.floor(raw / this.pointsStep) * this.pointsStep;
+            // 档位上限 = min(用户积分余额, 配置上限, 当前待支付现金额),并向下取整到步长的整数倍
+            const step = Math.max(1, Number(this.pointsStep) || 1);
+            const raw = Math.min(this.safeUserInfo.points || 0, this.pointsMaxUse, this.pointsAmountLimit);
+            return Math.floor(raw / step) * step;
         },
 
         canUsePoints() {
             // 必须满配置的最低门槛，且向下取整后有可用积分才能用
             return this.safeUserInfo.points >= this.pointsMinUse
-                && this.maxUsablePoints > 0
+                && this.maxUsablePoints >= this.pointsMinUse
                 && this.afterMemberPriceFen > 0;
         },
 
@@ -694,7 +717,16 @@ export default {
 
     watch: {
         afterMemberPriceFen() {
+            this.syncPointUsage();
             this.syncCouponSelection();
+        },
+
+        maxUsablePoints() {
+            this.syncPointUsage();
+        },
+
+        selectedCoupon() {
+            this.syncPointUsage();
         },
 
         myCoupons() {
@@ -757,14 +789,14 @@ export default {
         async loadMySubscriptions() {
             if (!this.token) return;
             try {
-                const res = await AUTH.getUserSubscriptions(this.token, 1);
+                const roomId = this.currentProduct && this.currentProduct.object_id;
+                const res = await AUTH.getUserSubscriptions(this.token, 1, 2, roomId);
                 if (res && res._status === 0) {
                     this.mySubscriptions = res.data || [];
-                    // 默认自动选择第一个可用的卡包
                     this.$nextTick(() => {
-                        if (this.usableSubscriptions.length > 0) {
-                            this.selectedSubscription = this.usableSubscriptions[0];
-                        }
+                        const usable = this.usableSubscriptions;
+                        const matched = this.selectedSubscription ? usable.find(sub => sub.object_id === this.selectedSubscription.object_id) : null;
+                        this.selectedSubscription = matched || (usable.length > 0 ? usable[0] : null);
                     });
                 }
             } catch (e) {
@@ -773,6 +805,10 @@ export default {
         },
 
         openSubscriptionPicker() {
+            if (this.usableSubscriptions.length === 0) {
+                this.goBuySubscription();
+                return;
+            }
             this.subscriptionPickerOpen = true;
         },
 
@@ -783,6 +819,11 @@ export default {
         selectSubscription(sub) {
             this.selectedSubscription = sub;
             this.subscriptionPickerOpen = false;
+        },
+
+        goBuySubscription() {
+            const amount = Math.ceil(this.originalPriceFen / 100);
+            uni.navigateTo({ url: '/pages/user/subscription/buy?target_type=2&amount=' + amount });
         },
 
         // 打开优惠券选择面板
@@ -813,6 +854,23 @@ export default {
             return result.selectedAvailable;
         },
 
+        syncPointUsage() {
+            if (!this.canUsePoints) {
+                this.usePoints = false;
+                this.pointsToUse = 0;
+                return;
+            }
+            if (!this.usePoints) {
+                this.pointsToUse = 0;
+                return;
+            }
+            const step = Math.max(1, Number(this.pointsStep) || 1);
+            let val = Math.min(this.pointsToUse || this.maxUsablePoints, this.maxUsablePoints);
+            val = Math.floor(val / step) * step;
+            if (val < this.pointsMinUse) val = this.pointsMinUse;
+            this.pointsToUse = Math.min(val, this.maxUsablePoints);
+        },
+
         // 人数增减
         incPeople() {
             const max = this.currentProduct && this.currentProduct.seats_count || 10;
@@ -824,17 +882,22 @@ export default {
 
         // 切换积分使用
         togglePoints(e) {
-            this.usePoints = e.detail.value;
-            if (!this.usePoints) {
+            const enabled = !!e.detail.value && this.canUsePoints;
+            this.usePoints = enabled;
+            if (!enabled) {
                 this.pointsToUse = 0;
             } else {
-                // 默认使用最大可用积分
                 this.pointsToUse = this.maxUsablePoints;
             }
         },
 
         onPointsChange(e) {
-            let val = Math.floor(e.detail.value / this.pointsStep) * this.pointsStep;
+            if (!this.canUsePoints) {
+                this.pointsToUse = 0;
+                return;
+            }
+            const step = Math.max(1, Number(this.pointsStep) || 1);
+            let val = Math.floor(e.detail.value / step) * step;
             val = Math.max(this.pointsMinUse, Math.min(val, this.maxUsablePoints));
             this.pointsToUse = val;
         },
@@ -850,6 +913,7 @@ export default {
                 return;
             }
             if (this.submitDisabled) return;
+            this.syncPointUsage();
             if (!this.syncCouponSelection()) {
                 uni.showToast({ title: '已移除不可用优惠券，请确认金额', icon: 'none' });
                 return;
@@ -1316,6 +1380,15 @@ page {
                 align-items: center;
                 .coupon-value { color: $primary; margin-right: 8rpx; font-weight: bold; }
             }
+        }
+
+        .selection-hint {
+            font-size: 24rpx;
+            color: $primary;
+            background: #FFF8F6;
+            border-radius: 8rpx;
+            padding: 8rpx 14rpx;
+            margin: -4rpx 0 12rpx;
         }
 
         // 余额行

@@ -61,15 +61,12 @@
 					
 					<view class="card-footer">
 						<view class="footer-desc">
-							<text class="desc-line">适用：{{ sub.card_template.target_type === 2 ? '包厢预约折抵' : '大厅门票折抵' }}</text>
-							<text class="desc-line" v-if="sub.card_template.usable_rooms && sub.card_template.usable_rooms.length > 0">
-								包厢限制：{{ sub.card_template.usable_rooms.map(r => r.name).join(', ') }}
-							</text>
-							<text class="desc-line" v-else-if="sub.card_template.target_type === 2">
-								包厢限制：所有包间通用
+							<text class="desc-line">适用：{{ sub.target_type_num === 2 ? '包厢预约折抵' : '大厅门票折抵' }}</text>
+							<text class="desc-line" v-if="sub.target_type_num === 2">
+								包厢限制：{{ sub.room_names_limit }}
 							</text>
 						</view>
-						<text class="expire-time">有效期至: {{ formatTime(sub.expire_at) }}</text>
+						<text class="expire-time">有效期至: {{ sub.formatted_expire }}</text>
 					</view>
 				</view>
 			</view>
@@ -87,6 +84,7 @@
 <script>
 import { mapState } from 'vuex';
 import AUTH from '../../../utils/auth.js';
+import { formatDate } from '../../../common/util.js';
 
 export default {
 	data() {
@@ -96,7 +94,7 @@ export default {
 			currentTab: 1, // 1:使用中, 2:额度已耗尽, 3:已过期
 			tabList: [
 				{ name: '使用中', value: 1 },
-				{ name: '已额度耗尽', value: 2 },
+				{ name: '已用完', value: 2 },
 				{ name: '已过期', value: 3 }
 			]
 		};
@@ -113,7 +111,18 @@ export default {
 			AUTH.getUserSubscriptions(this.token, this.currentTab).then(res => {
 				this.loading = false;
 				if (res._status === 0 && res.data) {
-					this.list = res.data;
+					this.list = res.data.map(sub => {
+						let roomNames = '所有包厢通用';
+						const usableRooms = sub.card_template.usable_rooms || [];
+						if (usableRooms.length > 0) {
+							roomNames = usableRooms.map(r => r.name || '').filter(Boolean).join(', ');
+						}
+						return Object.assign({}, sub, {
+							formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
+							room_names_limit: roomNames,
+							target_type_num: Number(sub.card_template.target_type) || 0
+						});
+					});
 				} else {
 					uni.showToast({ title: res._reason || '加载数据失败', icon: 'none' });
 				}
@@ -127,18 +136,15 @@ export default {
 			this.fetchData();
 		},
 		goBack() {
-			uni.navigateBack();
+			const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
+			if (pages && pages.length > 1) {
+				uni.navigateBack();
+			} else {
+				uni.switchTab({ url: '/pages/user/user' });
+			}
 		},
 		goBuy() {
 			uni.navigateTo({ url: '/pages/user/subscription/buy' });
-		},
-		formatTime(timestamp) {
-			if (!timestamp) return '永久';
-			var date = new Date(timestamp * 1000);
-			var y = date.getFullYear();
-			var m = date.getMonth() + 1;
-			var d = date.getDate();
-			return y + '-' + (m < 10 ? '0' + m : m) + '-' + (d < 10 ? '0' + d : d);
 		},
 		getCardClass(sub) {
 			if (sub.status === 1) return 'active';
@@ -148,7 +154,7 @@ export default {
 		getBgClass(sub) {
 			// 根据卡种配置动态给不同的精美渐变色
 			if (sub.status !== 1) return 'grey-bg';
-			if (sub.card_template.target_type === 2) {
+			if (sub.target_type_num === 2) {
 				return 'purple-bg'; // 包厢卡紫色渐变
 			}
 			return 'orange-bg'; // 大厅门票卡橙色渐变

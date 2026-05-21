@@ -29,6 +29,10 @@
                     <text class="info-tag">线下消费</text>
                     <text class="info-text">{{ (order.goodsInfo && order.goodsInfo.room_name) }} · {{ (order.goodsInfo && order.goodsInfo.duration) }}小时 · {{ order.goodsInfo && order.goodsInfo.user_count }}人</text>
                 </view>
+                <view class="order-info" v-if="order.order_type === 7">
+                    <text class="info-tag">卡包</text>
+                    <text class="info-text">{{ subscriptionOrderName }}</text>
+                </view>
             </view>
 
             <!-- 订单明细 -->
@@ -37,6 +41,18 @@
                 <view class="detail-row" v-if="orderBaseAmount > 0">
                     <text class="detail-label">基础消费</text>
                     <text class="detail-value">¥{{ formatMoney(orderBaseAmount) }}</text>
+                </view>
+                <view class="detail-row" v-if="order && order.order_type === 7 && subscriptionOrderAmount > 0">
+                    <text class="detail-label">卡包金额</text>
+                    <text class="detail-value">¥{{ formatMoney(subscriptionOrderAmount) }}</text>
+                </view>
+                <view class="detail-row" v-if="order && order.order_type === 7 && subscriptionOrderLimitText">
+                    <text class="detail-label">额度</text>
+                    <text class="detail-value">{{ subscriptionOrderLimitText }}</text>
+                </view>
+                <view class="detail-row" v-if="order && order.order_type === 7 && subscriptionOrderUseTypeText">
+                    <text class="detail-label">适用</text>
+                    <text class="detail-value">{{ subscriptionOrderUseTypeText }}</text>
                 </view>
                 <view class="detail-row" v-for="(a, index) in orderAddons" :key="index">
                     <text class="detail-label">{{ formatAddonName(a.name) }}</text>
@@ -268,8 +284,53 @@ export default {
             return this.orderGoodsInfo._coupon_discount || this.orderGoodsInfo._discount_amount || this.orderPricingInfo.coupon_discount || 0;
         },
 
+        subscriptionOrderCard() {
+            var goodsInfo = this.orderGoodsInfo || {};
+            return goodsInfo.card_template || goodsInfo.subscription_card || goodsInfo.card || {};
+        },
+
+        subscriptionOrderName() {
+            var goodsInfo = this.orderGoodsInfo || {};
+            var card = this.subscriptionOrderCard;
+            return card.name || goodsInfo.card_name || goodsInfo.name || (this.order && this.order.goods_name) || '次卡/月卡';
+        },
+
+        subscriptionOrderTargetType() {
+            var goodsInfo = this.orderGoodsInfo || {};
+            var card = this.subscriptionOrderCard;
+            return Number(card.target_type || goodsInfo.target_type || 0);
+        },
+
+        subscriptionOrderLimitText() {
+            var goodsInfo = this.orderGoodsInfo || {};
+            var card = this.subscriptionOrderCard;
+            var totalLimit = Number(card.total_limit || goodsInfo.total_limit || 0);
+            if (!totalLimit) return '';
+            return totalLimit + (this.subscriptionOrderTargetType === 2 ? '小时' : '次');
+        },
+
+        subscriptionOrderUseTypeText() {
+            var goodsInfo = this.orderGoodsInfo || {};
+            var card = this.subscriptionOrderCard;
+            if (this.subscriptionOrderTargetType === 2) {
+                var text = '包厢预约折抵';
+                if (card.cover_person_fee || goodsInfo.cover_person_fee) text += '，免1人大厅门票';
+                return text;
+            }
+            if (this.subscriptionOrderTargetType === 1) return '大厅门票折抵';
+            return '';
+        },
+
+        subscriptionOrderAmount() {
+            var goodsInfo = this.orderGoodsInfo || {};
+            var card = this.subscriptionOrderCard;
+            var amount = Number(card.price || goodsInfo.price || goodsInfo.amount || (this.order && this.order.pay_amount) || 0);
+            return isFinite(amount) ? amount : 0;
+        },
+
         hasOrderDetails() {
             return this.orderBaseAmount > 0 ||
+                (this.order && this.order.order_type === 7) ||
                 this.orderAddonsTotal > 0 ||
                 this.orderMemberDiscount > 0 ||
                 this.orderPointsDeducted > 0 ||

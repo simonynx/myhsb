@@ -25,7 +25,7 @@
 		<view class="section">
 			<view class="section-header">
 				<text class="section-emoji">🎫</text>
-				<text class="section-title">限时特惠多次卡包</text>
+				<text class="section-title">常来更省的次卡/月卡</text>
 			</view>
 			
 			<view v-if="loading" class="loading-state">
@@ -57,6 +57,10 @@
 								<text class="orig-price" v-if="card.original_price">¥{{ (card.original_price / 100).toFixed(0) }}</text>
 							</view>
 						</view>
+						<view class="card-benefits">
+							<text class="benefit-pill" v-if="getCardUnitPriceText(card)">{{ getCardUnitPriceText(card) }}</text>
+							<text class="benefit-save" v-if="getCardSaveText(card)">{{ getCardSaveText(card) }}</text>
+						</view>
 						
 						<view class="card-details">
 							<view class="detail-item">
@@ -74,7 +78,7 @@
 							<view class="detail-item" v-if="card.target_type === 2">
 								<text class="detail-dot">•</text>
 								<text class="detail-text">
-									人头费：<text class="highlight">{{ card.cover_person_fee ? '免费免除1人门票' : '不含人头费' }}</text>
+									人头费：<text class="highlight">{{ card.cover_person_fee ? '免1人大厅门票' : '不含人头费' }}</text>
 								</text>
 							</view>
 							<view class="detail-item" v-if="card.usable_rooms && card.usable_rooms.length > 0">
@@ -133,9 +137,12 @@
 		<!-- 购买浮动栏 -->
 		<view class="bottom-area" v-if="selectedCard">
 			<view class="price-summary">
-				<text class="sum-label">应付金额：</text>
-				<text class="sum-symbol">¥</text>
-				<text class="sum-price">{{ (selectedCard.price / 100).toFixed(2) }}</text>
+				<view class="sum-main">
+					<text class="sum-label">应付金额：</text>
+					<text class="sum-symbol">¥</text>
+					<text class="sum-price">{{ (selectedCard.price / 100).toFixed(2) }}</text>
+				</view>
+				<text class="sum-extra" v-if="getCardUnitPriceText(selectedCard)">{{ getCardUnitPriceText(selectedCard) }}</text>
 			</view>
 			<view class="submit-btn" :class="buying ? 'disabled' : ''" @tap="doPurchase">
 				<text class="btn-text">{{ buying ? '正在下单...' : '立即购买' }}</text>
@@ -158,7 +165,8 @@ export default {
 			paytype: 'wxpay',
 			buying: false,
 			preferredAmount: 0,
-			preferredCardId: ''
+			preferredCardId: '',
+			preferredTargetType: 0
 		};
 	},
 	computed: {
@@ -183,6 +191,8 @@ export default {
 		var amount = Number(options && options.amount || 0);
 		if (amount > 0) this.preferredAmount = amount;
 		if (options && options.card_id) this.preferredCardId = options.card_id;
+		var targetType = Number(options && options.target_type || 0);
+		if (targetType > 0) this.preferredTargetType = targetType;
 		this.fetchCards();
 	},
 	onShow() {
@@ -199,13 +209,7 @@ export default {
 				if (res._status === 0 && res.data) {
 					this.cards = res.data;
 					if (this.cards.length > 0) {
-						var preferredCardId = this.preferredCardId;
-						var found = preferredCardId ? this.cards.find(c => c.object_id === preferredCardId) : null;
-						if (found) {
-							this.selectCard(found);
-						} else {
-							this.selectCard(this.cards[0]);
-						}
+						this.selectCard(this.getInitialCard());
 					}
 				} else {
 					uni.showToast({ title: res._reason || '加载失败', icon: 'none' });
@@ -224,6 +228,45 @@ export default {
 			} else {
 				this.paytype = 'wxpay';
 			}
+		},
+		getInitialCard() {
+			var preferredCardId = this.preferredCardId;
+			var found = preferredCardId ? this.cards.find(c => c.object_id === preferredCardId) : null;
+			if (found) return found;
+
+			var candidates = this.cards;
+			if (this.preferredTargetType) {
+				var typedCards = this.cards.filter(c => Number(c.target_type) === this.preferredTargetType);
+				if (typedCards.length > 0) candidates = typedCards;
+			}
+
+			if (this.preferredAmount > 0) {
+				var targetFen = this.preferredAmount > 10000 ? this.preferredAmount : this.preferredAmount * 100;
+				return candidates.reduce((best, card) => {
+					if (!best) return card;
+					return Math.abs(card.price - targetFen) < Math.abs(best.price - targetFen) ? card : best;
+				}, null) || candidates[0];
+			}
+			return candidates[0];
+		},
+		getCardUnitPriceText(card) {
+			if (!card || !card.total_limit) return '';
+			var totalLimit = Number(card.total_limit) || 0;
+			var price = Number(card.price) || 0;
+			if (totalLimit <= 0 || price <= 0) return '';
+			var unit = Number(card.target_type) === 2 ? '小时' : '次';
+			var amount = price / totalLimit / 100;
+			var text = amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
+			return '折合 ¥' + text + '/' + unit;
+		},
+		getCardSaveText(card) {
+			if (!card || !card.original_price) return '';
+			var originalPrice = Number(card.original_price) || 0;
+			var price = Number(card.price) || 0;
+			if (originalPrice <= price) return '';
+			var save = (originalPrice - price) / 100;
+			var text = save % 1 === 0 ? save.toFixed(0) : save.toFixed(1);
+			return '比单买省 ¥' + text;
 		},
 		selectBalancePay() {
 			if (!this.hasEnoughBalance) {
@@ -324,6 +367,7 @@ export default {
 					}, 1200);
 				}).catch(err => {
 					console.error('微信支付失败:', err);
+					this.buying = false;
 					uni.showModal({ title: '支付未完成', content: '支付取消或失败，您可在我的订单中继续支付', showCancel: false });
 				});
 			}).catch(err => {
@@ -513,6 +557,28 @@ page {
 		text-decoration: line-through;
 	}
 }
+.card-benefits {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 10rpx;
+	margin-bottom: 16rpx;
+}
+.benefit-pill,
+.benefit-save {
+	font-size: 22rpx;
+	border-radius: 6rpx;
+	padding: 5rpx 10rpx;
+}
+.benefit-pill {
+	color: #5C4B3A;
+	background: #FFF2E8;
+}
+.benefit-save {
+	color: #E8784A;
+	background: #FFF8F0;
+	font-weight: bold;
+}
 .card-details {
 	display: flex;
 	flex-direction: column;
@@ -605,8 +671,15 @@ page {
 }
 .price-summary {
 	display: flex;
-	align-items: baseline;
-	
+	flex-direction: column;
+	justify-content: center;
+	min-width: 0;
+
+	.sum-main {
+		display: flex;
+		align-items: baseline;
+	}
+
 	.sum-label {
 		font-size: 26rpx;
 		color: #5C4B3A;
@@ -620,6 +693,11 @@ page {
 		font-size: 48rpx;
 		font-weight: bold;
 		color: #E8784A;
+	}
+	.sum-extra {
+		font-size: 22rpx;
+		color: #8C7966;
+		margin-top: 2rpx;
 	}
 }
 .submit-btn {
