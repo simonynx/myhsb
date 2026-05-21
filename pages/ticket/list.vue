@@ -172,25 +172,44 @@
     <!-- 礼品卡包装弹窗 -->
     <view class="share-modal-mask" v-if="shareModalVisible" @click.self="closeShareModal">
       <view class="share-modal-content">
-        <!-- 信封/礼盒头部装饰 -->
-        <view class="gift-header">
-          <text class="gift-icon">🎁</text>
-          <text class="gift-title">摸鱼专属礼卡</text>
-        </view>
-        
-        <!-- 礼卡预览区域 -->
-        <view class="gift-card-preview">
-          <view class="preview-inner">
-            <text class="preview-desc">大厅入场券 × {{ shareTicket.ticket_count || 1 }}人</text>
-            <view class="preview-message-box">
-              <textarea 
-                class="message-input" 
-                v-model="customMessage" 
-                maxlength="50" 
-                placeholder="给好友写句悄悄话吧..."
+        <view class="gift-card-shell">
+          <view class="gift-card-top">
+            <view class="brand-row">
+              <text class="brand-name">摸鱼划水吧</text>
+              <text class="brand-pill">门票礼卡</text>
+            </view>
+            <text class="gift-title">送你一张大厅入场券</text>
+            <text class="gift-subtitle">好友领取后，将直接存入对方票包</text>
+          </view>
+
+          <view class="ticket-face">
+            <view class="ticket-hole left"></view>
+            <view class="ticket-hole right"></view>
+            <view class="ticket-main-row">
+              <view class="ticket-main-copy">
+                <text class="ticket-eyebrow">GIFT TICKET</text>
+                <text class="ticket-name-large">大厅入场券</text>
+              </view>
+              <view class="ticket-count-badge">
+                <text class="ticket-count-num">×{{ shareTicket.ticket_count || 1 }}</text>
+                <text class="ticket-count-label">人</text>
+              </view>
+            </view>
+            <view class="ticket-dashed"></view>
+            <view class="message-panel">
+              <text class="message-label">留言</text>
+              <textarea
+                class="message-input"
+                v-model="customMessage"
+                maxlength="50"
+                placeholder="给好友写一句话"
               />
             </view>
-            <text class="preview-tip">* 提示：好友领取后整张门票会转入好友票包</text>
+          </view>
+
+          <view class="share-rule-row">
+            <text class="rule-dot"></text>
+            <text class="rule-text">领取后整张门票转入好友票包；好友未领取前可取消转赠。</text>
           </view>
         </view>
 
@@ -445,6 +464,7 @@ export default {
       return {
         title: title,
         path: '/pages/ticket/receive?transfer_token=' + this.shareToken,
+        imageUrl: '/static/ticket_gift_share.png',
       };
     }
     return {
@@ -779,22 +799,25 @@ page { background: $bg; }
 .share-modal-mask {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(44,35,28,0.62);
   z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 36rpx;
+  box-sizing: border-box;
 }
 
 .share-modal-content {
-  width: 600rpx;
-  background: #FFFBF7;
-  border-radius: 36rpx;
+  width: 654rpx;
+  max-width: 100%;
+  background: #FFF8F0;
+  border-radius: 30rpx;
   overflow: hidden;
-  box-shadow: 0 16rpx 48rpx rgba(0,0,0,0.15);
+  box-shadow: 0 24rpx 60rpx rgba(92,75,58,0.22);
   display: flex;
   flex-direction: column;
-  border: 4rpx solid #FFE4D0;
+  border: 2rpx solid rgba(255,224,194,0.9);
   animation: modalShow 0.3s ease-out;
 }
 
@@ -803,73 +826,170 @@ page { background: $bg; }
   to { transform: scale(1); opacity: 1; }
 }
 
-.gift-header {
-  background: linear-gradient(135deg, #FF6B6B, #FF8C42);
-  padding: 40rpx 30rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.gift-card-shell {
+  padding: 28rpx;
+}
+
+.gift-card-top {
+  background: linear-gradient(135deg, #FF8C42 0%, #FFB5A7 100%);
+  border-radius: 24rpx 24rpx 8rpx 8rpx;
+  padding: 30rpx 30rpx 34rpx;
   color: #fff;
-  .gift-icon { font-size: 80rpx; margin-bottom: 12rpx; animation: giftBounce 2s infinite; }
-  .gift-title { font-size: 36rpx; font-weight: bold; letter-spacing: 2rpx; }
+
+  .brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 26rpx;
+  }
+  .brand-name {
+    font-size: 28rpx;
+    font-weight: bold;
+  }
+  .brand-pill {
+    font-size: 22rpx;
+    padding: 8rpx 18rpx;
+    border-radius: 999rpx;
+    background: rgba(255,255,255,0.22);
+  }
+  .gift-title {
+    display: block;
+    font-size: 40rpx;
+    font-weight: bold;
+    line-height: 1.25;
+    margin-bottom: 10rpx;
+  }
+  .gift-subtitle {
+    display: block;
+    font-size: 24rpx;
+    color: rgba(255,255,255,0.88);
+  }
 }
 
-@keyframes giftBounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10rpx); }
-}
+.ticket-face {
+  position: relative;
+  margin-top: -10rpx;
+  background: #fff;
+  border-radius: 8rpx 8rpx 24rpx 24rpx;
+  padding: 34rpx 30rpx 30rpx;
+  box-shadow: 0 10rpx 26rpx rgba(92,75,58,0.08);
+  border: 2rpx solid rgba(255,224,194,0.75);
 
-.gift-card-preview {
-  padding: 40rpx 30rpx 30rpx;
-  .preview-inner {
-    background: #fff;
+  .ticket-hole {
+    position: absolute;
+    top: 122rpx;
+    width: 32rpx;
+    height: 32rpx;
+    border-radius: 50%;
+    background: #FFF8F0;
+    &.left { left: -17rpx; }
+    &.right { right: -17rpx; }
+  }
+  .ticket-main-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24rpx;
+  }
+  .ticket-main-copy {
+    flex: 1;
+    min-width: 0;
+  }
+  .ticket-eyebrow {
+    display: block;
+    font-size: 22rpx;
+    color: $gray;
+    margin-bottom: 10rpx;
+  }
+  .ticket-name-large {
+    display: block;
+    font-size: 48rpx;
+    font-weight: bold;
+    color: #FF7830;
+    line-height: 1.15;
+  }
+  .ticket-count-badge {
+    width: 112rpx;
+    height: 112rpx;
     border-radius: 24rpx;
-    padding: 30rpx;
-    border: 2rpx dashed #FFD0C0;
+    background: #FFF3E6;
+    border: 2rpx solid #FFE0C2;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
-  .preview-desc {
-    font-size: 30rpx;
+  .ticket-count-num {
+    font-size: 34rpx;
     font-weight: bold;
-    color: $dark;
-    margin-bottom: 24rpx;
+    color: #FF7830;
   }
-  .preview-message-box {
-    width: 100%;
-    background: #FFF8F0;
-    border-radius: 16rpx;
-    padding: 20rpx;
-    box-sizing: border-box;
-    margin-bottom: 20rpx;
-    border: 2rpx solid #FFEBE0;
-    .message-input {
-      width: 100%;
-      height: 120rpx;
-      font-size: 26rpx;
-      color: $dark;
-      line-height: 1.5;
-    }
-  }
-  .preview-tip {
+  .ticket-count-label {
     font-size: 22rpx;
-    color: #FF6B6B;
-    font-weight: 500;
+    color: $gray;
+  }
+  .ticket-dashed {
+    border-top: 2rpx dashed #EADBCD;
+    margin: 30rpx 8rpx 26rpx;
+  }
+}
+
+.message-panel {
+  background: #FFF8F0;
+  border: 2rpx solid #FFE6D3;
+  border-radius: 18rpx;
+  padding: 18rpx 20rpx;
+
+  .message-label {
+    display: block;
+    font-size: 22rpx;
+    color: #A08B7A;
+    margin-bottom: 8rpx;
+  }
+  .message-input {
+    width: 100%;
+    height: 104rpx;
+    font-size: 26rpx;
+    color: $dark;
+    line-height: 1.45;
+  }
+}
+
+.share-rule-row {
+  display: flex;
+  gap: 10rpx;
+  align-items: flex-start;
+  margin-top: 20rpx;
+  padding: 0 4rpx;
+
+  .rule-dot {
+    width: 10rpx;
+    height: 10rpx;
+    border-radius: 50%;
+    background: #FF8C42;
+    margin-top: 12rpx;
+    flex-shrink: 0;
+  }
+  .rule-text {
+    flex: 1;
+    font-size: 22rpx;
+    line-height: 1.5;
+    color: #8C7966;
   }
 }
 
 .modal-btns {
   display: flex;
   border-top: 2rpx solid #F0E6DF;
-  height: 100rpx;
+  min-height: 104rpx;
   align-items: center;
   .modal-btn {
     flex: 1;
-    height: 100rpx;
-    line-height: 100rpx;
+    min-height: 104rpx;
+    line-height: 104rpx;
     text-align: center;
-    font-size: 30rpx;
+    font-size: 28rpx;
     font-weight: bold;
     background: transparent;
     border: none;
@@ -882,8 +1002,8 @@ page { background: $bg; }
       border-right: 2rpx solid #F0E6DF;
     }
     &.confirm-btn {
-      color: #FF6B6B;
-      background: #FFF2EB;
+      color: #fff;
+      background: linear-gradient(135deg, #FF8C42, #FFB5A7);
     }
   }
 }
