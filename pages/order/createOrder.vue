@@ -364,13 +364,13 @@
                     <view class="unavailable-hint" v-if="availableSubscriptionCount === 0">
                         <text>暂无可用次卡或月卡</text>
                     </view>
-                    <block v-for="slotView in subscriptionSlotViews" :key="slotView.key">
+                    <view class="subscription-slot-group" v-for="slotView in subscriptionSlotViews" :key="slotView.key">
                         <view class="coupon-group-title">{{ slotView.title }}</view>
                         <view class="subscription-card"
                             v-for="sub in slotView.items"
                             :key="slotView.key + '-' + sub.object_id"
                             :class="isSubscriptionSelected(slotView.key, sub) ? 'selected' : ''"
-                            @click="selectSubscriptionForSlot(slotView.key, sub)"
+                            @tap.stop="selectSubscriptionForSlot(slotView.key, sub)"
                         >
                             <view class="subscription-meter" :class="slotView.meterClass">
                                 <view class="meter-main">
@@ -395,11 +395,11 @@
                                 <view class="subscription-check" v-if="isSubscriptionSelected(slotView.key, sub)">✓</view>
                             </view>
                         </view>
-                        <view class="no-coupon" :class="!getSelectedSubscription(slotView.key) ? 'no-coupon-active' : ''" @click="selectSubscriptionForSlot(slotView.key, null)">
+                        <view class="no-coupon" :class="!getSelectedSubscription(slotView.key) ? 'no-coupon-active' : ''" @tap.stop="selectSubscriptionForSlot(slotView.key, null)">
                             <text class="no-coupon-text">{{ slotView.noUseText }}</text>
                             <view class="coupon-check" v-if="!getSelectedSubscription(slotView.key)">✓</view>
                         </view>
-                    </block>
+                    </view>
                     <view class="picker-actions" v-if="availableSubscriptionCount > 0">
                         <view class="picker-done-btn" @click="closeSubscriptionPicker">完成</view>
                     </view>
@@ -884,6 +884,16 @@ export default {
             return SUBSCRIPTION.getSelected(this.selectedSubscriptionBySlot, slot);
         },
 
+        setSubscriptionState(slot, sub, skipped) {
+            if (this.$set) {
+                this.$set(this.subscriptionSkippedBySlot, slot, skipped);
+                this.$set(this.selectedSubscriptionBySlot, slot, sub);
+            } else {
+                this.subscriptionSkippedBySlot[slot] = skipped;
+                this.selectedSubscriptionBySlot[slot] = sub;
+            }
+        },
+
         setSelectedSubscription(slot, sub) {
             if (sub) {
                 SUBSCRIPTION.SLOT_DEFS.forEach(def => {
@@ -896,23 +906,15 @@ export default {
                     );
                     const shouldSkip = shouldClear || !SUBSCRIPTION.isStackable(sub);
                     if (shouldClear || shouldSkip) {
-                        if (this.$set) {
-                            if (shouldClear) this.$set(this.selectedSubscriptionBySlot, def.key, null);
-                            this.$set(this.subscriptionSkippedBySlot, def.key, shouldSkip);
-                        } else {
-                            if (shouldClear) this.selectedSubscriptionBySlot[def.key] = null;
-                            this.subscriptionSkippedBySlot[def.key] = shouldSkip;
-                        }
+                        this.setSubscriptionState(
+                            def.key,
+                            shouldClear ? null : SUBSCRIPTION.getSelected(this.selectedSubscriptionBySlot, def.key),
+                            shouldSkip
+                        );
                     }
                 });
             }
-            if (this.$set) {
-                this.$set(this.selectedSubscriptionBySlot, slot, sub);
-                this.$set(this.subscriptionSkippedBySlot, slot, !sub);
-            } else {
-                this.selectedSubscriptionBySlot[slot] = sub;
-                this.subscriptionSkippedBySlot[slot] = !sub;
-            }
+            this.setSubscriptionState(slot, sub, !sub);
         },
 
         isSubscriptionSelected(slot, sub) {
@@ -945,6 +947,7 @@ export default {
 
         selectSubscriptionForSlot(slot, sub) {
             this.setSelectedSubscription(slot, sub);
+            if (sub) this.syncSubscriptionSelection();
         },
 
         goBuySubscription() {
