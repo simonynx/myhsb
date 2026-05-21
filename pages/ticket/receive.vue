@@ -89,12 +89,7 @@ export default {
   },
 
   onShow() {
-    uni.getSystemInfo({
-      success: (res) => {
-        this.statusBarHeight = res.statusBarHeight || 0;
-      }
-    });
-
+    this.statusBarHeight = PLATFORM.getStatusBarHeight();
     this.fetchTransferPreview();
   },
 

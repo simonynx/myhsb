@@ -175,7 +175,7 @@
                     </view>
 
                     <!-- 占位 -->
-                    <view class="member-item placeholder" v-for="i in placeholderCount" :key="'p' + i">
+                    <view class="member-item placeholder" v-for="placeholderKey in placeholderKeys" :key="placeholderKey">
                         <view class="member-avatar empty">
                             <text>?</text>
                         </view>
@@ -355,6 +355,13 @@ export default {
             const max = this.group.max_members || 4;
             const curr = this.group.current_members || 1;
             return Math.max(0, max - curr);
+        },
+        placeholderKeys() {
+            const list = [];
+            for (let i = 0; i < this.placeholderCount; i++) {
+                list.push('placeholder_' + i);
+            }
+            return list;
         },
         expireTime() {
             if (!this.group.expire_at) return null;

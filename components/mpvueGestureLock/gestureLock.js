@@ -1,3 +1,5 @@
+import PLATFORM from '../../common/platform.js';
+
 class GestureLock {
 
     constructor(containerWidth, cycleRadius) {
@@ -12,7 +14,7 @@ class GestureLock {
         this.offsetY = 0; // 容器的 Y 偏移
         this.activeLine = {}; // 最后一个激活的锁与当前位置之间的线段
 
-        this.windowWidth = wx.getSystemInfoSync().windowWidth; // 窗口大小(用于rpx 和 px 转换)
+        this.windowWidth = PLATFORM.getWindowWidth(); // 窗口大小(用于rpx 和 px 转换)
 
         this.initCircleArray();
     }

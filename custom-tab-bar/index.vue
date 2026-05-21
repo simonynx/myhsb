@@ -68,6 +68,8 @@
 </template>
 
 <script>
+import PLATFORM from '../common/platform.js';
+
 const TAB_KEYS = {
 	'/pages/index/index': 'index',
 	'/pages/voucher/voucher': 'voucher',
@@ -93,11 +95,7 @@ export default {
 		};
 	},
 	mounted() {
-		uni.getSystemInfo({
-			success: (info) => {
-				this.safeAreaBottom = info.safeAreaInsets && info.safeAreaInsets.bottom || 0;
-			}
-		});
+		this.safeAreaBottom = PLATFORM.getSafeAreaBottom();
 		this.syncCurrentTab();
 		uni.$on('tabBarChange', this.onTabBarChange);
 	},

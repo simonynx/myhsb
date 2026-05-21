@@ -310,12 +310,13 @@
 		<custom-tab-bar></custom-tab-bar>
 
 		<!-- 隐藏 canvas 用于生成专属邀请海报 -->
-		<canvas canvas-id="invitePoster" style="width: 500px; height: 400px; position: fixed; left: -9999px; top: 0;"></canvas>
+		<canvas id="invitePoster" type="2d" class="invite-poster-canvas"></canvas>
 	</view>
 </template>
 
 <script>
 	import AUTH from '../../utils/auth.js'
+	import PLATFORM from '../../common/platform.js'
 	import customTabBar from '@/custom-tab-bar/index.vue';
 	import {
 		mapState,
@@ -690,34 +691,79 @@
 				this.claimableCouponCount = 0;
 				this.unusedCouponCount = 0;
 			},
+			loadCanvasImage(canvas, src) {
+				return new Promise(function(resolve, reject) {
+					if (!canvas || typeof canvas.createImage !== 'function') {
+						reject(new Error('canvas 2d image api unavailable'));
+						return;
+					}
+					var image = canvas.createImage();
+					image.onload = function() {
+						resolve(image);
+					};
+					image.onerror = reject;
+					image.src = src;
+				});
+			},
+			drawInvitePoster(ctx, bgImage, code) {
+				ctx.clearRect(0, 0, 500, 400);
+				if (bgImage) {
+					ctx.drawImage(bgImage, 0, 0, 500, 400);
+				} else {
+					ctx.fillStyle = '#FFF8F0';
+					ctx.fillRect(0, 0, 500, 400);
+				}
+				ctx.fillStyle = 'rgba(255, 140, 66, 0.92)';
+				ctx.fillRect(42, 255, 416, 76);
+				ctx.fillStyle = '#FFFFFF';
+				ctx.font = '14px sans-serif';
+				ctx.fillText('我的专属邀请码', 60, 282);
+				ctx.fillStyle = '#FFFFFF';
+				ctx.font = '30px sans-serif';
+				ctx.fillText(code, 60, 318);
+				ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+				ctx.font = '13px sans-serif';
+				ctx.fillText('好友首次加入', 315, 284);
+				ctx.fillText('双方都有奖励', 315, 313);
+			},
 			generateInvitePoster() {
 				var code = this.inviteCode;
 				if (!code) return;
-				var ctx = uni.createCanvasContext('invitePoster');
-				// 底图
-				ctx.drawImage('/static/share_invite.jpg', 0, 0, 500, 400);
-				// 邀请码区
-				ctx.setFillStyle('rgba(255, 140, 66, 0.92)');
-				ctx.fillRect(42, 255, 416, 76);
-				ctx.setFillStyle('#FFFFFF');
-				ctx.setFontSize(14);
-				ctx.fillText('我的专属邀请码', 60, 282);
-				ctx.setFillStyle('#FFFFFF');
-				ctx.setFontSize(30);
-				ctx.fillText(code, 60, 318);
-				ctx.setFillStyle('rgba(255, 255, 255, 0.9)');
-				ctx.setFontSize(13);
-				ctx.fillText('好友首次加入', 315, 284);
-				ctx.fillText('双方都有奖励', 315, 313);
-				ctx.draw(false, function() {
-					uni.canvasToTempFilePath({
-						canvasId: 'invitePoster',
-						width: 500,
-						height: 400,
-						success: function(res) {
-							this.shareImagePath = res.tempFilePath;
-						}.bind(this)
-					});
+				var query = uni.createSelectorQuery().in(this);
+				query.select('#invitePoster').fields({ node: true, size: true }).exec(function(res) {
+					var nodeInfo = res && res[0];
+					var canvas = nodeInfo && nodeInfo.node;
+					if (!canvas || typeof canvas.getContext !== 'function') return;
+
+					var posterWidth = 500;
+					var posterHeight = 400;
+					var systemInfo = PLATFORM.getSystemInfo();
+					var dpr = Number(systemInfo.pixelRatio || 1);
+					canvas.width = posterWidth * dpr;
+					canvas.height = posterHeight * dpr;
+
+					var ctx = canvas.getContext('2d');
+					ctx.save();
+					ctx.scale(dpr, dpr);
+					this.loadCanvasImage(canvas, '/static/share_invite.jpg').then(function(bgImage) {
+						this.drawInvitePoster(ctx, bgImage, code);
+					}.bind(this)).catch(function() {
+						this.drawInvitePoster(ctx, null, code);
+					}.bind(this)).then(function() {
+						ctx.restore();
+						uni.canvasToTempFilePath({
+							canvas: canvas,
+							x: 0,
+							y: 0,
+							width: posterWidth,
+							height: posterHeight,
+							destWidth: posterWidth * dpr,
+							destHeight: posterHeight * dpr,
+							success: function(fileRes) {
+								this.shareImagePath = fileRes.tempFilePath;
+							}.bind(this)
+						}, this);
+					}.bind(this));
 				}.bind(this));
 			},
 		},
@@ -758,6 +804,15 @@ page {
 	padding-top: 0;
 	min-height: 100vh;
 	padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+}
+
+.invite-poster-canvas {
+	width: 500px;
+	height: 400px;
+	position: fixed;
+	left: -9999px;
+	top: 0;
+	pointer-events: none;
 }
 
 /* ===== 自定义导航栏 ===== */

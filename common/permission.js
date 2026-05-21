@@ -1,3 +1,5 @@
+import PLATFORM from './platform.js';
+
 /// null = 未请求，1 = 已允许，0 = 拒绝|受限, 2 = 系统未开启
 
 var isIOS
@@ -236,11 +238,9 @@ function gotoAppPermissionSetting() {
 const permission = {
     get isIOS(){
         if (typeof isIOS === 'boolean') return isIOS;
-        // fallback，异步获取结果会在后续调用时生效
-        uni.getSystemInfo({
-            success: (res) => { isIOS = res.platform === 'ios'; }
-        });
-        return false;
+        const info = PLATFORM.getSystemInfo();
+        isIOS = info.platform === 'ios';
+        return isIOS;
     },
     requestIOS: requestIOS,
     requestAndroid: requestAndroid,

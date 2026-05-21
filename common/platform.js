@@ -1,13 +1,68 @@
 // common/platform.js — 跨平台抽象层（微信/抖音）
 
-var systemInfo = null;
-try {
-	systemInfo = uni.getSystemInfoSync();
-} catch (e) {
-	console.log('获取系统信息失败', e);
+function mergeInfo(target, source) {
+	if (!source) return target;
+	Object.keys(source).forEach(function(key) {
+		if (source[key] !== undefined && source[key] !== null) {
+			target[key] = source[key];
+		}
+	});
+	return target;
 }
 
-// 平台判断（编译后唯一生效的分支）
+function readWeixinSystemInfo() {
+	var info = {};
+	if (typeof wx === 'undefined') return info;
+	try {
+		if (typeof wx.getAppBaseInfo === 'function') {
+			mergeInfo(info, wx.getAppBaseInfo());
+		}
+		if (typeof wx.getDeviceInfo === 'function') {
+			mergeInfo(info, wx.getDeviceInfo());
+		}
+		if (typeof wx.getWindowInfo === 'function') {
+			mergeInfo(info, wx.getWindowInfo());
+		}
+		if (typeof wx.getSystemSetting === 'function') {
+			mergeInfo(info, wx.getSystemSetting());
+		}
+	} catch (e) {
+		console.log('获取微信系统信息失败', e);
+	}
+	if (Object.keys(info).length) {
+		info.uniPlatform = 'mp-weixin';
+	}
+	return info;
+}
+
+function readSystemInfo() {
+	var weixinInfo = readWeixinSystemInfo();
+	if (weixinInfo.uniPlatform) return weixinInfo;
+
+	if (typeof tt !== 'undefined') {
+		try {
+			if (typeof uni !== 'undefined' && uni.getSystemInfoSync) {
+				var toutiaoInfo = uni.getSystemInfoSync();
+				toutiaoInfo.uniPlatform = toutiaoInfo.uniPlatform || 'mp-toutiao';
+				return toutiaoInfo;
+			}
+		} catch (e) {
+			console.log('获取抖音系统信息失败', e);
+		}
+		return { uniPlatform: 'mp-toutiao' };
+	}
+
+	try {
+		if (typeof uni !== 'undefined' && uni.getSystemInfoSync) {
+			return uni.getSystemInfoSync();
+		}
+	} catch (e) {
+		console.log('获取系统信息失败', e);
+	}
+	return {};
+}
+
+var systemInfo = readSystemInfo();
 var PLATFORM = (systemInfo && systemInfo.uniPlatform) || '';
 var IS_WEIXIN = PLATFORM === 'mp-weixin';
 var IS_TOUTIAO = PLATFORM === 'mp-toutiao';
@@ -16,6 +71,35 @@ function getPlatform() {
 	if (IS_WEIXIN) return 'weixin';
 	if (IS_TOUTIAO) return 'toutiao';
 	return PLATFORM;
+}
+
+function getSystemInfo() {
+	systemInfo = readSystemInfo();
+	return systemInfo || {};
+}
+
+function getStatusBarHeight() {
+	var info = getSystemInfo();
+	return Number(info.statusBarHeight || 0);
+}
+
+function getSafeAreaBottom() {
+	var info = getSystemInfo();
+	if (info.safeAreaInsets && info.safeAreaInsets.bottom) {
+		return Number(info.safeAreaInsets.bottom || 0);
+	}
+	if (info.safeArea && info.safeArea.bottom) {
+		var screenHeight = Number(info.screenHeight || info.windowHeight || 0);
+		if (screenHeight > info.safeArea.bottom) {
+			return screenHeight - info.safeArea.bottom;
+		}
+	}
+	return 0;
+}
+
+function getWindowWidth() {
+	var info = getSystemInfo();
+	return Number(info.windowWidth || info.screenWidth || 375);
 }
 
 // ==================== 登录 ====================
@@ -323,6 +407,10 @@ module.exports = {
 	IS_WEIXIN: IS_WEIXIN,
 	IS_TOUTIAO: IS_TOUTIAO,
 	getPlatform: getPlatform,
+	getSystemInfo: getSystemInfo,
+	getStatusBarHeight: getStatusBarHeight,
+	getSafeAreaBottom: getSafeAreaBottom,
+	getWindowWidth: getWindowWidth,
 	platformLogin: platformLogin,
 	requestPayment: requestPayment,
 	requestSubscribeMessage: requestSubscribeMessage,
