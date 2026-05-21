@@ -100,9 +100,18 @@
         <view class="price-section">
             <view class="section-title">费用明细</view>
             <view class="price-list">
-                <!-- 基础消费 -->
-                <view class="price-row">
-                    <text class="row-label">基础消费</text>
+                <!-- 基础费用 -->
+                <view class="price-group-title">基础费用</view>
+                <view class="price-row detail-row">
+                    <text class="row-label">包厢费 {{ roomHourlyPriceText }}/小时 × {{ selectedRoomHours }}小时</text>
+                    <text class="row-value">¥{{ roomPrice }}</text>
+                </view>
+                <view class="price-row detail-row">
+                    <text class="row-label">入场券 × {{ numOfPeople }}人</text>
+                    <text class="row-value">¥{{ peoplePrice }}</text>
+                </view>
+                <view class="price-row subtotal-row">
+                    <text class="row-label">基础费用小计</text>
                     <text class="row-value">¥{{ roomSubtotal }}</text>
                 </view>
 
@@ -112,6 +121,37 @@
                     <text class="row-value">+¥{{ addonsPrice }}</text>
                 </view>
 
+                <!-- 次卡/月卡折抵 -->
+                <view class="price-row coupon-row subscription-price-row" @click="openSubscriptionPicker">
+                    <text class="row-label">
+                        <text class="tag" :class="selectedSubscription ? 'tag-active' : 'tag-gray'">卡包</text>
+                        <block v-if="selectedSubscription">{{ selectedSubscription.card_template.name }}</block>
+                        <block v-else-if="usableSubscriptions.length > 0">{{ usableSubscriptions.length }}张可用</block>
+                        <block v-else>购卡更省</block>
+                    </text>
+                    <view class="coupon-right">
+                        <text class="coupon-value" v-if="selectedSubscription">
+                            -¥{{ formatMoney(subscriptionDiscountAmountFen) }}
+                        </text>
+                        <text class="cell-more yticon icon-you" :class="selectedSubscription ? 'cell-active' : 'cell-inactive'">
+                            {{ selectedSubscription ? '已选' : (usableSubscriptions.length > 0 ? '去选择' : '去购卡') }}
+                        </text>
+                    </view>
+                </view>
+                <view class="subscription-breakdown" v-if="selectedSubscription">
+                    <view class="breakdown-row" v-if="subscriptionRoomDiscountFen > 0">
+                        <text>抵扣 {{ subscriptionDeductedHours }}小时包厢费</text>
+                        <text>-¥{{ formatMoney(subscriptionRoomDiscountFen) }}</text>
+                    </view>
+                    <view class="breakdown-row" v-if="subscriptionPersonDiscountFen > 0">
+                        <text>免持卡人门票</text>
+                        <text>-¥{{ formatMoney(subscriptionPersonDiscountFen) }}</text>
+                    </view>
+                    <view class="breakdown-note" v-else-if="selectedSubscription.card_template.cover_person_fee">
+                        {{ subscriptionPersonFeeHint }}
+                    </view>
+                </view>
+
                 <!-- 会员折扣 -->
                 <view class="price-row discount-row" v-if="memberDiscountAmountFen > 0">
                     <text class="row-label">
@@ -119,6 +159,24 @@
                         {{ memberLevelName }}专享{{ memberDiscountText }}
                     </text>
                     <text class="row-value discount">-¥{{ memberDiscountAmount }}</text>
+                </view>
+
+                <!-- 优惠券 -->
+                <view class="price-row coupon-row" @click="openCouponPicker">
+                    <text class="row-label">
+                        <text class="tag" :class="selectedCoupon ? 'tag-active' : 'tag-gray'">券</text>
+                        <block v-if="selectedCoupon">{{ selectedCoupon.name }}</block>
+                        <block v-else-if="availableCoupons.length > 0">{{ availableCoupons.length }}张可用</block>
+                        <block v-else>优惠券</block>
+                    </text>
+                    <view class="coupon-right">
+                        <text class="coupon-value" v-if="selectedCoupon">
+                            -¥{{ couponDiscount }}
+                        </text>
+                        <text class="cell-more yticon icon-you" :class="selectedCoupon ? 'cell-active' : 'cell-inactive'">
+                            {{ selectedCoupon ? '已选' : (availableCoupons.length > 0 ? '去选择' : '暂无可用') }}
+                        </text>
+                    </view>
                 </view>
 
                 <!-- 积分兑换 -->
@@ -165,43 +223,6 @@
                         <text class="tag">积分</text>
                         当前0积分,消费预约可获取积分
                     </text>
-                </view>
-
-                <!-- 次卡/月卡折抵 -->
-                <view class="price-row coupon-row" @click="openSubscriptionPicker">
-                    <text class="row-label">
-                        <text class="tag" :class="selectedSubscription ? 'tag-active' : 'tag-gray'">卡包</text>
-                        <block v-if="selectedSubscription">{{ selectedSubscription.card_template.name }}</block>
-                        <block v-else-if="usableSubscriptions.length > 0">{{ usableSubscriptions.length }}张可用</block>
-                        <block v-else>购卡更省</block>
-                    </text>
-                    <view class="coupon-right">
-                        <text class="coupon-value" v-if="selectedSubscription">
-                            -¥{{ (subscriptionDiscountAmountFen / 100).toFixed(2) }}
-                        </text>
-                        <text class="cell-more yticon icon-you" :class="selectedSubscription ? 'cell-active' : 'cell-inactive'">
-                            {{ selectedSubscription ? '已选' : (usableSubscriptions.length > 0 ? '去选择' : '去购卡') }}
-                        </text>
-                    </view>
-                </view>
-                <view class="selection-hint" v-if="selectedSubscription">{{ subscriptionUsageText }}</view>
-
-                <!-- 优惠券 -->
-                <view class="price-row coupon-row" @click="openCouponPicker">
-                    <text class="row-label">
-                        <text class="tag" :class="selectedCoupon ? 'tag-active' : 'tag-gray'">券</text>
-                        <block v-if="selectedCoupon">{{ selectedCoupon.name }}</block>
-                        <block v-else-if="availableCoupons.length > 0">{{ availableCoupons.length }}张可用</block>
-                        <block v-else>优惠券</block>
-                    </text>
-                    <view class="coupon-right">
-                        <text class="coupon-value" v-if="selectedCoupon">
-                            -¥{{ couponDiscount }}
-                        </text>
-                        <text class="cell-more yticon icon-you" :class="selectedCoupon ? 'cell-active' : 'cell-inactive'">
-                            {{ selectedCoupon ? '已选' : (availableCoupons.length > 0 ? '去选择' : '暂无可用') }}
-                        </text>
-                    </view>
                 </view>
 
                 <!-- 余额提示 -->
@@ -348,26 +369,34 @@
                     <view class="unavailable-hint" v-if="usableSubscriptions.length === 0">
                         <text>暂无可用次卡或月卡</text>
                     </view>
-                    <view class="coupon-card"
+                    <view class="subscription-card"
                         v-for="sub in usableSubscriptions"
                         :key="sub.object_id"
                         :class="selectedSubscription && selectedSubscription.object_id === sub.object_id ? 'selected' : ''"
                         @click="selectSubscription(sub)"
                     >
-                        <view class="coupon-left" style="background: linear-gradient(135deg, #FF8C42, #E8784A); border-right-color: rgba(255,255,255,0.25);">
-                            <view class="coupon-price-wrap">
-                                <text class="coupon-price" style="color: #ffffff !important;">{{ sub.remaining_limit }}</text>
-                                <text class="coupon-unit" style="color: #ffffff !important; margin-left: 2px;">时</text>
+                        <view class="subscription-meter">
+                            <view class="meter-main">
+                                <text class="meter-num">{{ sub.remaining_limit }}</text>
+                                <text class="meter-unit">时</text>
                             </view>
-                            <text class="coupon-limit" style="color: rgba(255,255,255,0.85) !important;">剩{{ sub.remaining_limit }}小时</text>
+                            <text class="meter-label">剩余小时</text>
                         </view>
-                        <view class="coupon-right">
-                            <view class="coupon-name">{{ sub.card_template.name }}</view>
-                            <view class="coupon-expire" style="font-size: 20rpx; color: #999; margin-top: 4rpx;">适用: 包厢小时费</view>
-                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;" v-if="sub.card_template.cover_person_fee">· {{ subscriptionPersonFeeRuleText }}</view>
-                            <view class="coupon-expire" style="font-size: 20rpx; color: #E8784A;">{{ sub.usage_text }}</view>
-                            <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ sub.formatted_expire }}</view>
-                            <view class="coupon-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
+                        <view class="subscription-info">
+                            <view class="subscription-head">
+                                <text class="subscription-name">{{ sub.card_template.name }}</text>
+                                <text class="subscription-picked" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">已选</text>
+                            </view>
+                            <view class="subscription-tags">
+                                <text class="subscription-tag strong">抵{{ sub.deducted_hours }}小时</text>
+                                <text class="subscription-tag" v-if="sub.waives_person_fee">免持卡人门票</text>
+                                <text class="subscription-tag muted" v-else-if="sub.card_template.cover_person_fee">{{ subscriptionPersonFeeRuleText }}</text>
+                            </view>
+                            <view class="subscription-saving">本次节省 ¥{{ formatMoney(sub.discount_amount_fen) }}</view>
+                            <view class="subscription-meta">
+                                使用后剩 {{ sub.remaining_after_use }}小时 · 有效期至 {{ sub.formatted_expire }}
+                            </view>
+                            <view class="subscription-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
                         </view>
                     </view>
                     <view class="no-coupon" :class="!selectedSubscription ? 'no-coupon-active' : ''" @click="selectSubscription(null)">
@@ -542,6 +571,12 @@ export default {
             return (this.roomPriceFen / 100).toFixed(2);
         },
 
+        roomHourlyPriceText() {
+            const price = this.currentProduct && this.currentProduct.price_per_hour || 0;
+            const amount = price / 100;
+            return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
+        },
+
         peoplePrice() {
             return (this.peoplePriceFen / 100).toFixed(2);
         },
@@ -582,9 +617,18 @@ export default {
                 return true;
             }).map(sub => {
                 const template = sub.card_template || {};
-                const deductedHours = Math.min(this.selectedRoomHours, Number(sub.remaining_limit) || 0);
+                const remaining = Number(sub.remaining_limit) || 0;
+                const deductedHours = Math.min(this.selectedRoomHours, remaining);
                 const coverPerson = template.cover_person_fee && deductedHours >= SUBSCRIPTION_PERSON_FEE_MIN_HOURS && this.numOfPeople > 0;
+                const roomDiscountFen = deductedHours * (this.currentProduct && this.currentProduct.price_per_hour || 0);
+                const personDiscountFen = coverPerson ? this.singlePersonPrice : 0;
                 return Object.assign({}, sub, {
+                    deducted_hours: deductedHours,
+                    waives_person_fee: coverPerson,
+                    remaining_after_use: Math.max(0, remaining - deductedHours),
+                    room_discount_fen: roomDiscountFen,
+                    person_discount_fen: personDiscountFen,
+                    discount_amount_fen: roomDiscountFen + personDiscountFen,
                     formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
                     usage_text: '本次可抵' + deductedHours + '小时' + (coverPerson ? '，免持卡人门票' : (template.cover_person_fee ? '，满' + SUBSCRIPTION_PERSON_FEE_MIN_HOURS + '小时可免持卡人门票' : ''))
                 });
@@ -599,22 +643,25 @@ export default {
             return (this.selectedSubscription && this.selectedSubscription.card_template.cover_person_fee && this.subscriptionDeductedHours >= SUBSCRIPTION_PERSON_FEE_MIN_HOURS && this.numOfPeople > 0) ? 1 : 0;
         },
 
-        subscriptionDiscountAmountFen() {
-            if (!this.selectedSubscription || !this.currentProduct || !this.currentProduct.price_per_hour) return 0;
-            const roomOffset = this.subscriptionDeductedHours * this.currentProduct.price_per_hour;
-            const personOffset = this.subscriptionWaivedPerson * this.singlePersonPrice;
-            return roomOffset + personOffset;
+        subscriptionRoomDiscountFen() {
+            if (!this.currentProduct || !this.currentProduct.price_per_hour) return 0;
+            return this.subscriptionDeductedHours * this.currentProduct.price_per_hour;
         },
 
-        subscriptionUsageText() {
-            if (!this.selectedSubscription) return '';
-            let text = '已自动使用，抵' + this.subscriptionDeductedHours + '小时包厢费';
-            if (this.subscriptionWaivedPerson > 0) {
-                text += '，并免持卡人门票';
-            } else if (this.selectedSubscription.card_template.cover_person_fee) {
-                text += '，满' + SUBSCRIPTION_PERSON_FEE_MIN_HOURS + '小时可免持卡人门票';
-            }
-            return text;
+        subscriptionPersonDiscountFen() {
+            return this.subscriptionWaivedPerson * this.singlePersonPrice;
+        },
+
+        subscriptionPersonFeeHint() {
+            if (!this.selectedSubscription || !this.selectedSubscription.card_template.cover_person_fee) return '';
+            const needHours = Math.max(0, SUBSCRIPTION_PERSON_FEE_MIN_HOURS - this.subscriptionDeductedHours);
+            if (needHours <= 0) return '';
+            return '本次抵' + this.subscriptionDeductedHours + '小时，还差' + needHours + '小时可免持卡人门票';
+        },
+
+        subscriptionDiscountAmountFen() {
+            if (!this.selectedSubscription || !this.currentProduct || !this.currentProduct.price_per_hour) return 0;
+            return this.subscriptionRoomDiscountFen + this.subscriptionPersonDiscountFen;
         },
 
         // 会员折扣金额(分)
@@ -1121,6 +1168,10 @@ export default {
             const amount = (price || 0) / 100;
             return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
         },
+
+        formatMoney(price) {
+            return ((Number(price) || 0) / 100).toFixed(2);
+        },
     }
 };
 </script>
@@ -1286,6 +1337,12 @@ page {
     }
 
     .price-list {
+        .price-group-title {
+            font-size: 22rpx;
+            color: #B0A7A0;
+            margin: 4rpx 0 10rpx;
+        }
+
         .price-row {
             display: flex;
             align-items: center;
@@ -1308,6 +1365,27 @@ page {
             }
 
             .discount { color: $primary; }
+        }
+
+        .detail-row {
+            min-height: 42rpx;
+            margin-bottom: 8rpx;
+            .row-label,
+            .row-value {
+                font-size: 24rpx;
+                color: #666;
+            }
+        }
+
+        .subtotal-row {
+            border-top: 1rpx dashed #EEE;
+            padding-top: 12rpx;
+            margin-bottom: 18rpx;
+            .row-label,
+            .row-value {
+                color: $dark;
+                font-weight: 600;
+            }
         }
 
         .tag {
@@ -1414,13 +1492,33 @@ page {
             }
         }
 
-        .selection-hint {
+        .subscription-price-row {
+            background: #FFF8F4;
+            border-radius: 10rpx;
+            padding: 12rpx 16rpx;
+            margin-bottom: 8rpx;
+        }
+
+        .subscription-breakdown {
             font-size: 24rpx;
-            color: $primary;
+            color: #A85D38;
             background: #FFF8F6;
             border-radius: 8rpx;
             padding: 8rpx 14rpx;
-            margin: -4rpx 0 12rpx;
+            margin: 0 0 12rpx;
+            display: flex;
+            flex-direction: column;
+            gap: 6rpx;
+            .breakdown-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                font-size: 22rpx;
+            }
+            .breakdown-note {
+                font-size: 22rpx;
+                line-height: 1.4;
+            }
         }
 
         // 余额行
@@ -1843,6 +1941,132 @@ page {
                     justify-content: center;
                     font-size: 24rpx;
                 }
+            }
+        }
+
+        .subscription-card {
+            display: flex;
+            background: #FFF9F5;
+            border: 2rpx solid #FFE1D2;
+            border-radius: 18rpx;
+            margin-bottom: 16rpx;
+            overflow: hidden;
+            position: relative;
+            &.selected {
+                border-color: $primary;
+                background: #FFF2EC;
+                box-shadow: 0 6rpx 18rpx rgba(255, 100, 50, 0.12);
+            }
+
+            .subscription-meter {
+                width: 170rpx;
+                flex-shrink: 0;
+                background: linear-gradient(135deg, #FF8A3D, #FF6432);
+                color: #FFF;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 22rpx 12rpx;
+                box-sizing: border-box;
+            }
+            .meter-main {
+                display: flex;
+                align-items: baseline;
+                justify-content: center;
+            }
+            .meter-num {
+                font-size: 56rpx;
+                line-height: 1;
+                font-weight: bold;
+            }
+            .meter-unit {
+                font-size: 24rpx;
+                font-weight: bold;
+                margin-left: 4rpx;
+            }
+            .meter-label {
+                font-size: 20rpx;
+                color: rgba(255, 255, 255, 0.82);
+                margin-top: 8rpx;
+            }
+
+            .subscription-info {
+                flex: 1;
+                min-width: 0;
+                padding: 18rpx 22rpx;
+                position: relative;
+            }
+            .subscription-head {
+                display: flex;
+                align-items: center;
+                gap: 10rpx;
+                padding-right: 42rpx;
+            }
+            .subscription-name {
+                font-size: 27rpx;
+                line-height: 1.35;
+                color: $dark;
+                font-weight: bold;
+            }
+            .subscription-picked {
+                flex-shrink: 0;
+                font-size: 20rpx;
+                color: #FFF;
+                background: $primary;
+                border-radius: 6rpx;
+                padding: 2rpx 8rpx;
+            }
+            .subscription-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8rpx;
+                margin-top: 10rpx;
+            }
+            .subscription-tag {
+                font-size: 20rpx;
+                color: #9A5B36;
+                background: #FFEDE4;
+                border-radius: 6rpx;
+                padding: 4rpx 8rpx;
+                &.strong {
+                    color: $primary;
+                    background: #FFF0E8;
+                    font-weight: bold;
+                }
+                &.muted {
+                    color: #9A7B6A;
+                    background: #F7EFEA;
+                }
+            }
+            .subscription-saving {
+                margin-top: 10rpx;
+                font-size: 24rpx;
+                color: $primary;
+                font-weight: bold;
+            }
+            .subscription-meta {
+                margin-top: 6rpx;
+                font-size: 20rpx;
+                line-height: 1.35;
+                color: $gray;
+                padding-right: 42rpx;
+            }
+            .subscription-check {
+                position: absolute;
+                right: 18rpx;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 40rpx;
+                height: 40rpx;
+                background: $primary;
+                color: #fff;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24rpx;
+                font-weight: bold;
             }
         }
 
