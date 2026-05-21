@@ -781,6 +781,7 @@
 				}
 				// 门票订单(order_type===6)可退款，需未核销且未过期
 				if (item.order_type === 6) {
+					if (item.received_transfer) return false;
 					if (item.verified_at) return false;
 					if (item.expire_at) {
 						var expireTime = new Date(item.expire_at < 1e12 ? item.expire_at * 1000 : item.expire_at);

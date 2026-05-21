@@ -65,8 +65,10 @@
               <text class="ticket-count">× {{ item.ticket_count || 1 }}人</text>
             </view>
             <view class="ticket-price-row">
-              <text class="price-label">实付金额</text>
-              <text class="price-value">¥{{ (item.pay_amount / 100).toFixed(2) }}</text>
+              <text class="price-label">{{ item.received_transfer ? '获得方式' : '实付金额' }}</text>
+              <text class="price-value" :class="item.received_transfer ? 'gifted' : ''">
+                {{ item.received_transfer ? '好友赠送' : '¥' + (item.pay_amount / 100).toFixed(2) }}
+              </text>
             </view>
           </view>
 
@@ -112,11 +114,30 @@
                 <view class="action-btn secondary" @click="goToOrderDetail(item)">
                   <text>详情</text>
                 </view>
-                <view class="action-btn secondary" @click="refundTicket(item)">
+                <view class="action-btn secondary" v-if="!item.received_transfer" @click="refundTicket(item)">
                   <text>退款</text>
                 </view>
                 <view class="action-btn primary" @click="openShareModal(item)">
                   <text>送好友</text>
+                </view>
+              </view>
+            </template>
+
+            <!-- 转赠中：避免赠送人与好友同时使用同一张票 -->
+            <template v-else-if="item._statusClass === 'transferring'">
+              <view class="status-hint transfer-hint">
+                <text class="hint-icon">🎁</text>
+                <text class="hint-text">赠送链接已生成，好友领取前可取消转赠。</text>
+              </view>
+              <view class="action-btns">
+                <view class="action-btn secondary" @click="goToOrderDetail(item)">
+                  <text>详情</text>
+                </view>
+                <view class="action-btn secondary danger" @click="cancelTransfer(item)">
+                  <text>取消转赠</text>
+                </view>
+                <view class="action-btn primary" @click="continueShareTransfer(item)">
+                  <text>继续发送</text>
                 </view>
               </view>
             </template>
@@ -169,7 +190,7 @@
                 placeholder="给好友写句悄悄话吧..."
               />
             </view>
-            <text class="preview-tip">* 提示：好友领取后此门票所有权转移</text>
+            <text class="preview-tip">* 提示：好友领取后整张门票会转入好友票包</text>
           </view>
         </view>
 
@@ -243,6 +264,9 @@ export default {
             } else if (expireAt && expireAt < now) {
               statusClass = 'expired';
               statusText = '已过期';
+            } else if (item.active_transfer && item.active_transfer.transfer_token) {
+              statusClass = 'transferring';
+              statusText = '转赠中';
             }
             let expireDate = formatDate(expireAt);
             return {
@@ -304,6 +328,10 @@ export default {
     },
 
     async openShareModal(item) {
+      if (item.active_transfer && item.active_transfer.transfer_token) {
+        this.continueShareTransfer(item);
+        return;
+      }
       uni.showLoading({ title: '生成中...' });
       try {
         const res = await AUTH.createTicketTransfer(this.token, { order_number: item.order_number });
@@ -311,6 +339,7 @@ export default {
         if (res && res._status === 0) {
           this.shareToken = res.data.transfer_token;
           this.shareTicket = item;
+          this.markTicketTransferring(item, res.data);
           this.customMessage = '送你一张【摸鱼划水吧】大厅入场券，祝你今天摸鱼愉快！🐟';
           this.shareModalVisible = true;
         } else {
@@ -320,6 +349,65 @@ export default {
         uni.hideLoading();
         console.error('create transfer error:', e);
         uni.showToast({ title: '生成转赠链接失败', icon: 'none' });
+      }
+    },
+
+    markTicketTransferring(item, transfer) {
+      if (!item || !transfer || !transfer.transfer_token) return;
+      const activeTransfer = {
+        transfer_token: transfer.transfer_token,
+        expire_at: transfer.expire_at,
+        status: 0,
+        status_name: '待接收',
+      };
+      if (this.$set) {
+        this.$set(item, 'active_transfer', activeTransfer);
+      } else {
+        item.active_transfer = activeTransfer;
+      }
+      item._statusClass = 'transferring';
+      item._statusText = '转赠中';
+    },
+
+    continueShareTransfer(item) {
+      if (!item.active_transfer || !item.active_transfer.transfer_token) {
+        this.openShareModal(item);
+        return;
+      }
+      this.shareToken = item.active_transfer.transfer_token;
+      this.shareTicket = item;
+      this.customMessage = '送你一张【摸鱼划水吧】大厅入场券，祝你今天摸鱼愉快！🐟';
+      this.shareModalVisible = true;
+    },
+
+    async cancelTransfer(item) {
+      if (!item.active_transfer || !item.active_transfer.transfer_token) {
+        this.loadTickets();
+        return;
+      }
+      const modal = await uni.showModal({
+        title: '取消转赠',
+        content: '取消后，好友将无法通过当前链接领取这张门票。',
+        confirmText: '确认取消',
+        confirmColor: '#FF6B6B',
+      });
+      if (!modal.confirm) return;
+
+      uni.showLoading({ title: '处理中...' });
+      try {
+        const res = await AUTH.cancelTicketTransfer(this.token, {
+          transfer_token: item.active_transfer.transfer_token
+        });
+        uni.hideLoading();
+        if (res && res._status === 0) {
+          uni.showToast({ title: '已取消转赠', icon: 'success' });
+          this.loadTickets();
+        } else {
+          uni.showToast({ title: (res && res._reason) || '取消失败', icon: 'none' });
+        }
+      } catch (e) {
+        uni.hideLoading();
+        uni.showToast({ title: '取消失败，请重试', icon: 'none' });
       }
     },
 
@@ -468,6 +556,7 @@ page { background: $bg; }
     flex-shrink: 0;
   }
   &.unused .card-left-bar { background: linear-gradient(to bottom, #4CAF50, #81C784); }
+  &.transferring .card-left-bar { background: linear-gradient(to bottom, #FF8C42, #FFD166); }
   &.used .card-left-bar { background: linear-gradient(to bottom, $gray, #C8B8A8); }
   &.expired .card-left-bar { background: linear-gradient(to bottom, #FF3B30, #FF8A80); }
 
@@ -489,6 +578,7 @@ page { background: $bg; }
     padding: 6rpx 18rpx;
     border-radius: 24rpx;
     &.unused { background: #E8F5E9; color: #4CAF50; }
+    &.transferring { background: #FFF3E0; color: #EF6C00; }
     &.used { background: #F5F5F5; color: $gray; }
     &.expired { background: #FFEBEE; color: #FF3B30; }
   }
@@ -518,7 +608,15 @@ page { background: $bg; }
     align-items: baseline;
     justify-content: space-between;
     .price-label { font-size: 26rpx; color: $gray; }
-    .price-value { font-size: 40rpx; font-weight: bold; color: $primary; }
+    .price-value {
+      font-size: 40rpx;
+      font-weight: bold;
+      color: $primary;
+      &.gifted {
+        font-size: 32rpx;
+        color: #EF6C00;
+      }
+    }
   }
 }
 
@@ -610,6 +708,19 @@ page { background: $bg; }
     .hint-icon { font-size: 32rpx; }
     .hint-text { font-size: 28rpx; color: $gray; }
   }
+  .transfer-hint {
+    background: #FFF8F0;
+    border: 2rpx solid #FFE0C2;
+    border-radius: 18rpx;
+    margin-bottom: 20rpx;
+    padding: 18rpx 20rpx;
+    justify-content: flex-start;
+    .hint-text {
+      flex: 1;
+      line-height: 1.45;
+      color: $dark;
+    }
+  }
 
   .action-btns {
     display: flex;
@@ -624,6 +735,9 @@ page { background: $bg; }
       &.secondary {
         background: #F5F0E8;
         color: $dark;
+      }
+      &.danger {
+        color: #FF6B6B;
       }
       &.primary {
         background: linear-gradient(135deg, #FF8C42, #FFB5A7);
