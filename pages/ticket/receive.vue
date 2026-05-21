@@ -63,6 +63,7 @@
 
 <script>
 import AUTH from '../../utils/auth.js';
+import PLATFORM from '../../common/platform.js';
 import { mapState } from 'vuex';
 
 export default {
@@ -82,16 +83,9 @@ export default {
   },
 
   onLoad(options) {
-    if (options.transfer_token) {
-      this.transferToken = options.transfer_token;
-    }
-    if (options.message) {
-      try {
-        this.giftMessage = decodeURIComponent(options.message);
-      } catch (e) {
-        this.giftMessage = options.message;
-      }
-    }
+    const query = PLATFORM.getLaunchQuery(options || {});
+    this.transferToken = query.transfer_token || query.ticket_transfer_token || '';
+    this.giftMessage = query.message || '';
   },
 
   onShow() {

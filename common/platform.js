@@ -219,18 +219,89 @@ function getShareConfig(title, path, imageUrl) {
 	return config;
 }
 
+function safeDecode(value) {
+	if (value === undefined || value === null) return '';
+	value = String(value);
+	try {
+		return decodeURIComponent(value);
+	} catch (e) {
+		return value;
+	}
+}
+
+function parseQueryString(queryString) {
+	var result = {};
+	if (!queryString) return result;
+	var parts = String(queryString).split('&');
+	for (var i = 0; i < parts.length; i++) {
+		var item = parts[i];
+		if (!item) continue;
+		var eqIndex = item.indexOf('=');
+		var rawKey = eqIndex >= 0 ? item.slice(0, eqIndex) : item;
+		var rawValue = eqIndex >= 0 ? item.slice(eqIndex + 1) : '';
+		var key = safeDecode(rawKey);
+		if (!key) continue;
+		result[key] = safeDecode(rawValue);
+	}
+	return result;
+}
+
+function buildPagePath(path, params) {
+	var pairs = [];
+	params = params || {};
+	Object.keys(params).forEach(function(key) {
+		var value = params[key];
+		if (value === undefined || value === null || value === '') return;
+		pairs.push(encodeURIComponent(key) + '=' + encodeURIComponent(String(value)));
+	});
+	if (!pairs.length) return path;
+	return path + (path.indexOf('?') >= 0 ? '&' : '?') + pairs.join('&');
+}
+
 // ==================== 扫码场景解析 ====================
 function parseScene(options) {
 	var scene = '';
-	if (IS_WEIXIN) {
-		scene = options && options.scene || '';
-	} else if (IS_TOUTIAO) {
-		// 抖音扫码参数可能通过 query.scene 传入
-		if (options && options.query && options.query.scene) {
-			scene = options.query.scene;
+	if (options && options.query && options.query.scene) {
+		scene = options.query.scene;
+	} else if (options && options.scene) {
+		// 微信 App 生命周期里的 scene 是数字启动场景值，不是业务参数；页面 onLoad 的 scene 才可能是二维码参数。
+		var rawScene = String(options.scene);
+		if (!IS_WEIXIN || !/^\d+$/.test(rawScene)) {
+			scene = rawScene;
 		}
 	}
 	return scene;
+}
+
+function getLaunchQuery(options) {
+	var result = {};
+	options = options || {};
+	var reserved = {
+		path: true,
+		scene: true,
+		query: true,
+		shareTicket: true,
+		referrerInfo: true
+	};
+	function assign(source) {
+		if (!source || typeof source !== 'object') return;
+		Object.keys(source).forEach(function(key) {
+			if (reserved[key]) return;
+			var value = source[key];
+			if (value === undefined || value === null || value === '') return;
+			result[key] = safeDecode(value);
+		});
+	}
+	assign(options.query);
+	assign(options);
+	var scene = parseScene(options);
+	if (scene) {
+		var sceneQuery = parseQueryString(safeDecode(scene));
+		Object.keys(sceneQuery).forEach(function(key) {
+			result[key] = sceneQuery[key];
+		});
+	}
+	return result;
 }
 
 // ==================== 获取手机号回调 ====================
@@ -256,6 +327,9 @@ module.exports = {
 	requestPayment: requestPayment,
 	requestSubscribeMessage: requestSubscribeMessage,
 	getShareConfig: getShareConfig,
+	buildPagePath: buildPagePath,
 	parseScene: parseScene,
+	parseQueryString: parseQueryString,
+	getLaunchQuery: getLaunchQuery,
 	parsePhoneEvent: parsePhoneEvent
 };

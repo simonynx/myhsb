@@ -233,6 +233,7 @@
 
 <script>
 import AUTH from '../../utils/auth.js';
+import PLATFORM from '../../common/platform.js';
 import { mapState } from 'vuex';
 import { formatDate } from '../../common/util.js';
 
@@ -454,20 +455,24 @@ export default {
       return count > 1 ? '送你' + count + '张摸鱼划水吧门票' : '送你一张摸鱼划水吧门票';
     },
 
-  },
-
-  onShareAppMessage(res) {
-    if (res.from === 'button' && this.shareToken) {
+    getGiftShareConfig() {
       const message = (this.customMessage || '').trim();
-      let path = '/pages/ticket/receive?transfer_token=' + this.shareToken;
-      if (message) {
-        path += '&message=' + encodeURIComponent(message);
-      }
+      const path = PLATFORM.buildPagePath('/pages/ticket/receive', {
+        transfer_token: this.shareToken,
+        message: message,
+      });
       return {
         title: this.getGiftShareTitle(),
         path: path,
         imageUrl: '/static/ticket_gift_share.png',
       };
+    },
+
+  },
+
+  onShareAppMessage(res) {
+    if (this.shareToken) {
+      return this.getGiftShareConfig();
     }
     return {
       title: '摸鱼划水吧',

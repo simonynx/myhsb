@@ -8,7 +8,42 @@
 	} from 'vuex';
 	export default {
 		methods: {
-			...mapActions(['loginAndRegister'])
+			...mapActions(['loginAndRegister']),
+			handleSharedTicketLaunch(options) {
+				try {
+					var PLATFORM = require('./common/platform.js');
+					var query = PLATFORM.getLaunchQuery(options || {});
+					var transferToken = query.transfer_token || query.ticket_transfer_token || '';
+					if (!transferToken) return false;
+
+					var path = options && options.path || '';
+					if (path.indexOf('pages/ticket/receive') >= 0) return true;
+
+					var now = Date.now();
+					if (this._lastTicketTransferToken === transferToken && now - (this._lastTicketTransferAt || 0) < 1500) {
+						return true;
+					}
+					this._lastTicketTransferToken = transferToken;
+					this._lastTicketTransferAt = now;
+
+					var url = PLATFORM.buildPagePath('/pages/ticket/receive', {
+						transfer_token: transferToken,
+						message: query.message || ''
+					});
+					setTimeout(function() {
+						uni.navigateTo({
+							url: url,
+							fail: function() {
+								uni.redirectTo({ url: url });
+							}
+						});
+					}, 500);
+					return true;
+				} catch (e) {
+					console.log('处理门票转赠分享失败', e);
+				}
+				return false;
+			}
 		},
 		computed:{
 			...mapState(['hasLogin'])
@@ -35,39 +70,23 @@
 				} catch (e) {
 					console.log('恢复登录态失败', e);
 				}
+				this.handleSharedTicketLaunch(options);
 				// 解析扫码场景（兼容微信和抖音）
 				try {
 					var PLATFORM = require('./common/platform.js');
-					var scene = PLATFORM.parseScene(options || {});
-					if (scene) {
-						console.log('扫码场景:', scene);
-						try {
-							scene = decodeURIComponent(scene);
-						} catch (decodeErr) {}
-						var orderSn = '';
-						var params = scene.split('&');
-						for (var i = 0; i < params.length; i++) {
-							var item = params[i];
-							var eqIndex = item.indexOf('=');
-							if (eqIndex <= 0) continue;
-							var key = item.slice(0, eqIndex);
-							var value = item.slice(eqIndex + 1);
-							if (key === 'order_sn') {
-								orderSn = value;
-								break;
-							}
-						}
-						if (orderSn) {
-							setTimeout(function() {
-								uni.navigateTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(orderSn) });
-							}, 1000);
-						}
+					var launchQuery = PLATFORM.getLaunchQuery(options || {});
+					var orderSn = launchQuery.order_sn || '';
+					if (orderSn) {
+						setTimeout(function() {
+							uni.navigateTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(orderSn) });
+						}, 1000);
 					}
 				} catch (e) {
 					console.log('解析扫码场景失败', e);
 				}
 			},
-		onShow: function() {
+		onShow: function(options) {
+			this.handleSharedTicketLaunch(options);
 			console.log('App Show')
 		},
 		onHide: function() {
