@@ -241,6 +241,10 @@
 						<text class="price-label">卡包金额</text>
 						<text class="price-value">¥{{ item.originalPrice }}</text>
 					</view>
+					<view class="price-row" v-for="deduct in item.subscriptionDeductions" :key="deduct.key">
+						<text class="price-label">{{ deduct.label }}</text>
+						<text class="price-value discount">-¥{{ deduct.amountText }}</text>
+					</view>
 					<view class="price-row" v-if="item.memberDiscount > 0">
 						<text class="price-label">会员折扣</text>
 						<text class="price-value discount">-¥{{ item.memberDiscount }}</text>
@@ -301,6 +305,7 @@
 <script>
 	import { mapState, mapActions } from 'vuex';
 	import AUTH from '../../utils/auth.js';
+	import SUBSCRIPTION from '../../utils/subscription.js';
 	import { formatDate, formatDateTime } from '../../common/util.js';
 
 	const ORDER_TYPE_MAP = {
@@ -449,6 +454,7 @@
 				var goodsInfo = item.goodsInfo || {};
 				var payAmount = this.toFen(item.pay_amount);
 				item.actualPrice = this.formatFen(payAmount);
+				item.subscriptionDeductions = [];
 				this.computeRechargeDetails(item);
 
 				// 增值服务
@@ -465,6 +471,7 @@
 					var roomPrice = item.room.price_per_hour * hours + item.room.price_per_person * goodsInfo.user_count;
 					item.roomPrice = (roomPrice / 100).toFixed(2);
 					item.originalPrice = ((roomPrice + addonsPrice) / 100).toFixed(2);
+					item.subscriptionDeductions = this.buildSubscriptionDeductions(goodsInfo, item.room);
 
 					// 会员折扣（如果有）
 					var discount = this.userInfo && this.userInfo.discount || 100;
@@ -516,6 +523,7 @@
 					var ticketPrice = item.goodsInfo.ticket_price || item.pay_amount / ticketCount;
 					item.roomPrice = ((ticketPrice * ticketCount) / 100).toFixed(2);
 					item.originalPrice = item.roomPrice;
+					item.subscriptionDeductions = this.buildSubscriptionDeductions(goodsInfo, null);
 					item.memberDiscount = 0;
 					item.pointsDeduction = goodsInfo._points_deducted ? (goodsInfo._points_deducted / 100).toFixed(2) : 0;
 					item.couponDiscount = goodsInfo._coupon_discount ? (goodsInfo._coupon_discount / 100).toFixed(2) : 0;
@@ -531,26 +539,28 @@
 					item.couponDiscount = 0;
 				} else {
 					item.roomPrice = '0.00';
+					item.subscriptionDeductions = [];
 					item.memberDiscount = 0;
 					item.pointsDeduction = 0;
 					item.couponDiscount = 0;
 				}
 			},
+			buildSubscriptionDeductions(goodsInfo, room) {
+				return SUBSCRIPTION.buildDeductionRows(goodsInfo, room).map(row => {
+					return Object.assign({}, row, {
+						amountText: this.formatFen(row.amount)
+					});
+				});
+			},
 			computeSubscriptionDetails(item) {
 				var goodsInfo = item.goodsInfo || {};
 				var card = goodsInfo.card_template || goodsInfo.subscription_card || goodsInfo.card || {};
+				var template = Object.assign({}, goodsInfo, card);
 				var name = card.name || goodsInfo.card_name || goodsInfo.name || item.goods_name || '次卡/月卡';
-				var targetType = Number(card.target_type || goodsInfo.target_type || 0);
 				var totalLimit = Number(card.total_limit || goodsInfo.total_limit || 0);
 				var validityDays = Number(card.validity_days || goodsInfo.validity_days || 0);
-				var unit = targetType === 2 ? '小时' : '次';
-				var useTypeText = '';
-				if (targetType === 2) {
-					useTypeText = '包厢预约折抵';
-					if (card.cover_person_fee || goodsInfo.cover_person_fee) useTypeText += '，满2小时免持卡人门票';
-				} else if (targetType === 1) {
-					useTypeText = '大厅门票折抵';
-				}
+				var unit = SUBSCRIPTION.getCardUnit(template);
+				var useTypeText = SUBSCRIPTION.getCardUsageText(template);
 
 				item.subscriptionName = name;
 				item.subscriptionLimitText = totalLimit > 0 ? totalLimit + unit : '';

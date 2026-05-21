@@ -57,7 +57,7 @@
 					:class="selectedCardId === card.object_id ? 'active' : ''"
 					@tap="selectCard(card)"
 				>
-					<view class="card-tag" :class="card.target_type === 2 ? 'room' : (isMonthlyCard(card) ? 'monthly' : 'times')">
+					<view class="card-tag" :class="getCardTargetType(card) === 2 ? 'room' : (isMonthlyCard(card) ? 'monthly' : 'times')">
 						{{ getCardBadge(card) }}
 					</view>
 					
@@ -82,19 +82,13 @@
 							<view class="detail-item">
 								<text class="detail-dot">•</text>
 								<text class="detail-text">
-									包含额度：<text class="highlight">{{ card.total_limit }}{{ card.target_type === 2 ? '小时' : '次' }}</text>
+									包含额度：<text class="highlight">{{ card.total_limit }}{{ getCardUnit(card) }}</text>
 								</text>
 							</view>
 							<view class="detail-item">
 								<text class="detail-dot">•</text>
 								<text class="detail-text">
-									适用类型：<text class="highlight">{{ card.target_type === 2 ? '包厢预约折抵' : '大厅门票折抵' }}</text>
-								</text>
-							</view>
-							<view class="detail-item" v-if="card.target_type === 2">
-								<text class="detail-dot">•</text>
-								<text class="detail-text">
-									人头费：<text class="highlight">{{ card.cover_person_fee ? '满2小时免持卡人门票' : '另按到店人数收取' }}</text>
+									可抵扣：<text class="highlight">{{ getCardUsageText(card) }}</text>
 								</text>
 							</view>
 							<view class="detail-item" v-if="card.usable_rooms && card.usable_rooms.length > 0">
@@ -103,7 +97,7 @@
 									适用包间：<text class="room-tag" v-for="r in card.usable_rooms" :key="r.object_id">{{ r.name }}</text>
 								</text>
 							</view>
-							<view class="detail-item" v-else-if="card.target_type === 2">
+							<view class="detail-item" v-else-if="getCardTargetType(card) === 2">
 								<text class="detail-dot">•</text>
 								<text class="detail-text">适用包间：<text class="highlight">所有包间通用</text></text>
 							</view>
@@ -170,6 +164,7 @@
 <script>
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../../utils/auth.js';
+import SUBSCRIPTION from '../../../utils/subscription.js';
 
 export default {
 	data() {
@@ -190,14 +185,14 @@ export default {
 		...mapState(['hasLogin', 'userInfo', 'token']),
 		targetTabs() {
 			var tabs = [
-				{ name: '大厅卡', desc: '抵门票', value: 1 },
+				{ name: '大厅卡', desc: '抵门票/本人入场', value: 1 },
 				{ name: '包厢卡', desc: '抵小时', value: 2 },
 			];
-			return tabs.filter(tab => this.cards.some(card => Number(card.target_type) === tab.value));
+			return tabs.filter(tab => this.cards.some(card => this.getCardTargetType(card) === tab.value));
 		},
 		displayCards() {
 			if (!this.activeTargetType) return this.cards;
-			return this.cards.filter(card => Number(card.target_type) === this.activeTargetType);
+			return this.cards.filter(card => this.getCardTargetType(card) === this.activeTargetType);
 		},
 		balanceText() {
 			var balance = this.userInfo && this.userInfo.account_balance;
@@ -239,7 +234,7 @@ export default {
 					this.cards = res.data;
 					if (this.cards.length > 0) {
 						if (!this.activeTargetType) {
-							this.activeTargetType = this.preferredTargetType || Number(this.cards[0].target_type) || 0;
+							this.activeTargetType = this.preferredTargetType || this.getCardTargetType(this.cards[0]) || 0;
 						}
 						this.selectCard(this.getInitialCard());
 					}
@@ -264,22 +259,32 @@ export default {
 		switchTargetTab(targetType) {
 			if (this.activeTargetType === targetType) return;
 			this.activeTargetType = targetType;
-			if (!this.selectedCard || Number(this.selectedCard.target_type) !== targetType) {
+			if (!this.selectedCard || this.getCardTargetType(this.selectedCard) !== targetType) {
 				var next = this.getInitialCard();
 				if (next) this.selectCard(next);
 			}
 		},
+		getCardTargetType(card) {
+			return SUBSCRIPTION.getCardTargetType(card);
+		},
 		isMonthlyCard(card) {
-			return card && Number(card.target_type) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 16;
+			return card && this.getCardTargetType(card) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 16;
 		},
 		getCardBadge(card) {
 			if (!card) return '卡包';
-			if (Number(card.target_type) === 2) return '小时卡';
+			if (this.getCardTargetType(card) === 2) return '小时卡';
 			return this.isMonthlyCard(card) ? '月卡' : '次卡';
+		},
+		getCardUnit(card) {
+			return SUBSCRIPTION.getCardUnit(card);
+		},
+		getCardUsageText(card) {
+			if (!card) return '';
+			return SUBSCRIPTION.getCardUsageText(card);
 		},
 		isRecommendedCard(card) {
 			if (!card) return false;
-			var targetType = Number(card.target_type);
+			var targetType = this.getCardTargetType(card);
 			var totalLimit = Number(card.total_limit);
 			if (targetType === 1) return totalLimit === 10;
 			if (targetType === 2) return totalLimit === 20;
@@ -293,7 +298,7 @@ export default {
 			var candidates = this.cards;
 			var targetType = this.activeTargetType || this.preferredTargetType;
 			if (targetType) {
-				var typedCards = this.cards.filter(c => Number(c.target_type) === targetType);
+				var typedCards = this.cards.filter(c => this.getCardTargetType(c) === targetType);
 				if (typedCards.length > 0) candidates = typedCards;
 			}
 
@@ -311,7 +316,7 @@ export default {
 			var totalLimit = Number(card.total_limit) || 0;
 			var price = Number(card.price) || 0;
 			if (totalLimit <= 0 || price <= 0) return '';
-			var unit = Number(card.target_type) === 2 ? '小时' : '次';
+			var unit = this.getCardUnit(card);
 			var amount = price / totalLimit / 100;
 			var text = amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
 			return '折合 ¥' + text + '/' + unit;

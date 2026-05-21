@@ -417,11 +417,12 @@ function getSubscriptionCards(token) {
   return request('/subscription_cards/', 'GET', null, token);
 }
 
-function getUserSubscriptions(token, status, targetType, roomId) {
+function getUserSubscriptions(token, status, targetType, roomId, usageSlot) {
   var params = [];
   if (status !== undefined && status !== null) params.push('status=' + status);
   if (targetType !== undefined && targetType !== null) params.push('target_type=' + targetType);
   if (roomId !== undefined && roomId !== null) params.push('room_id=' + roomId);
+  if (usageSlot !== undefined && usageSlot !== null) params.push('usage_slot=' + usageSlot);
   var url = '/user_subscriptions/' + (params.length ? '?' + params.join('&') : '');
   return request(url, 'GET', null, token);
 }

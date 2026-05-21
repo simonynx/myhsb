@@ -334,6 +334,7 @@
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import COUPON from '../../utils/coupon.js';
+import SUBSCRIPTION from '../../utils/subscription.js';
 import { formatDate } from '../../common/util.js';
 
 export default {
@@ -390,10 +391,14 @@ export default {
       if (!this.mySubscriptions) return [];
       return this.mySubscriptions.filter(sub => {
         const template = sub.card_template || {};
-        return Number(template.target_type) === 1 && (Number(sub.remaining_limit) || 0) > 0;
+        return !!SUBSCRIPTION.getUsageRule(template, SUBSCRIPTION.SLOT_TICKET) && (Number(sub.remaining_limit) || 0) > 0;
       }).map(sub => {
-        const deductedCount = Math.min(this.ticketCount, Number(sub.remaining_limit) || 0);
+        const rule = SUBSCRIPTION.getUsageRule(sub.card_template || {}, SUBSCRIPTION.SLOT_TICKET) || {};
+        const ruleMax = Number(rule.max_per_order) || 0;
+        const orderLimit = ruleMax > 0 ? Math.min(this.ticketCount, ruleMax) : this.ticketCount;
+        const deductedCount = Math.min(orderLimit, Number(sub.remaining_limit) || 0);
         return Object.assign({}, sub, {
+          deducted_count: deductedCount,
           formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
           usage_text: '本次可抵' + deductedCount + '张大厅入场券'
         });
@@ -401,7 +406,11 @@ export default {
     },
 
     subscriptionDeductedCount() {
-      return this.selectedSubscription ? Math.min(this.ticketCount, this.selectedSubscription.remaining_limit) : 0;
+      if (!this.selectedSubscription) return 0;
+      const rule = SUBSCRIPTION.getUsageRule(this.selectedSubscription.card_template || {}, SUBSCRIPTION.SLOT_TICKET) || {};
+      const ruleMax = Number(rule.max_per_order) || 0;
+      const orderLimit = ruleMax > 0 ? Math.min(this.ticketCount, ruleMax) : this.ticketCount;
+      return Math.min(orderLimit, Number(this.selectedSubscription.remaining_limit) || 0);
     },
 
     subscriptionDiscountAmountFen() {
@@ -585,7 +594,7 @@ export default {
     async loadMySubscriptions() {
       if (!this.token) return;
       try {
-        const res = await AUTH.getUserSubscriptions(this.token, 1, 1);
+        const res = await AUTH.getUserSubscriptions(this.token, 1, null, null, 'ticket');
         if (res && res._status === 0) {
           this.mySubscriptions = res.data || [];
           this.$nextTick(() => {

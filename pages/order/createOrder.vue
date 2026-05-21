@@ -124,31 +124,26 @@
                 <!-- 次卡/月卡折抵 -->
                 <view class="price-row coupon-row subscription-price-row" @click="openSubscriptionPicker">
                     <text class="row-label">
-                        <text class="tag" :class="selectedSubscription ? 'tag-active' : 'tag-gray'">卡包</text>
-                        <block v-if="selectedSubscription">{{ selectedSubscription.card_template.name }}</block>
-                        <block v-else-if="usableSubscriptions.length > 0">{{ usableSubscriptions.length }}张可用</block>
-                        <block v-else>购卡更省</block>
+                        <text class="tag" :class="hasSubscriptionDiscount ? 'tag-active' : 'tag-gray'">卡包</text>
+                        {{ subscriptionSummaryText }}
                     </text>
                     <view class="coupon-right">
-                        <text class="coupon-value" v-if="selectedSubscription">
+                        <text class="coupon-value" v-if="hasSubscriptionDiscount">
                             -¥{{ formatMoney(subscriptionDiscountAmountFen) }}
                         </text>
-                        <text class="cell-more yticon icon-you" :class="selectedSubscription ? 'cell-active' : 'cell-inactive'">
-                            {{ selectedSubscription ? '已选' : (usableSubscriptions.length > 0 ? '去选择' : '去购卡') }}
+                        <text class="cell-more yticon icon-you" :class="hasSubscriptionDiscount ? 'cell-active' : 'cell-inactive'">
+                            {{ subscriptionActionText }}
                         </text>
                     </view>
                 </view>
-                <view class="subscription-breakdown" v-if="selectedSubscription">
+                <view class="subscription-breakdown" v-if="hasSubscriptionDiscount">
                     <view class="breakdown-row" v-if="subscriptionRoomDiscountFen > 0">
                         <text>抵扣 {{ subscriptionDeductedHours }}小时包厢费</text>
                         <text>-¥{{ formatMoney(subscriptionRoomDiscountFen) }}</text>
                     </view>
-                    <view class="breakdown-row" v-if="subscriptionPersonDiscountFen > 0">
-                        <text>免持卡人门票</text>
-                        <text>-¥{{ formatMoney(subscriptionPersonDiscountFen) }}</text>
-                    </view>
-                    <view class="breakdown-note" v-else-if="selectedSubscription.card_template.cover_person_fee">
-                        {{ subscriptionPersonFeeHint }}
+                    <view class="breakdown-row" v-if="selfEntryFeeDiscountFen > 0">
+                        <text>大厅次卡抵本人入场费</text>
+                        <text>-¥{{ formatMoney(selfEntryFeeDiscountFen) }}</text>
                     </view>
                 </view>
 
@@ -366,42 +361,47 @@
                     <text class="picker-close yticon icon-guanbi" @click="closeSubscriptionPicker"></text>
                 </view>
                 <scroll-view scroll-y class="picker-body">
-                    <view class="unavailable-hint" v-if="usableSubscriptions.length === 0">
+                    <view class="unavailable-hint" v-if="availableSubscriptionCount === 0">
                         <text>暂无可用次卡或月卡</text>
                     </view>
-                    <view class="subscription-card"
-                        v-for="sub in usableSubscriptions"
-                        :key="sub.object_id"
-                        :class="selectedSubscription && selectedSubscription.object_id === sub.object_id ? 'selected' : ''"
-                        @click="selectSubscription(sub)"
-                    >
-                        <view class="subscription-meter">
-                            <view class="meter-main">
-                                <text class="meter-num">{{ sub.remaining_limit }}</text>
-                                <text class="meter-unit">时</text>
+                    <block v-for="slotView in subscriptionSlotViews" :key="slotView.key">
+                        <view class="coupon-group-title">{{ slotView.title }}</view>
+                        <view class="subscription-card"
+                            v-for="sub in slotView.items"
+                            :key="slotView.key + '-' + sub.object_id"
+                            :class="isSubscriptionSelected(slotView.key, sub) ? 'selected' : ''"
+                            @click="selectSubscriptionForSlot(slotView.key, sub)"
+                        >
+                            <view class="subscription-meter" :class="slotView.meterClass">
+                                <view class="meter-main">
+                                    <text class="meter-num">{{ sub.remaining_limit }}</text>
+                                    <text class="meter-unit">{{ slotView.unit }}</text>
+                                </view>
+                                <text class="meter-label">{{ slotView.meterLabel }}</text>
                             </view>
-                            <text class="meter-label">剩余小时</text>
+                            <view class="subscription-info">
+                                <view class="subscription-head">
+                                    <text class="subscription-name">{{ sub.card_template.name }}</text>
+                                    <text class="subscription-picked" v-if="isSubscriptionSelected(slotView.key, sub)">已选</text>
+                                </view>
+                                <view class="subscription-tags">
+                                    <text class="subscription-tag strong">{{ sub.primary_tag }}</text>
+                                    <text class="subscription-tag muted" v-if="sub.secondary_tag">{{ sub.secondary_tag }}</text>
+                                </view>
+                                <view class="subscription-saving">本次节省 ¥{{ formatMoney(sub.discount_amount_fen) }}</view>
+                                <view class="subscription-meta">
+                                    使用后剩 {{ sub.remaining_after_use }}{{ slotView.unit }} · 有效期至 {{ sub.formatted_expire }}
+                                </view>
+                                <view class="subscription-check" v-if="isSubscriptionSelected(slotView.key, sub)">✓</view>
+                            </view>
                         </view>
-                        <view class="subscription-info">
-                            <view class="subscription-head">
-                                <text class="subscription-name">{{ sub.card_template.name }}</text>
-                                <text class="subscription-picked" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">已选</text>
-                            </view>
-                            <view class="subscription-tags">
-                                <text class="subscription-tag strong">抵{{ sub.deducted_hours }}小时</text>
-                                <text class="subscription-tag" v-if="sub.waives_person_fee">免持卡人门票</text>
-                                <text class="subscription-tag muted" v-else-if="sub.card_template.cover_person_fee">{{ subscriptionPersonFeeRuleText }}</text>
-                            </view>
-                            <view class="subscription-saving">本次节省 ¥{{ formatMoney(sub.discount_amount_fen) }}</view>
-                            <view class="subscription-meta">
-                                使用后剩 {{ sub.remaining_after_use }}小时 · 有效期至 {{ sub.formatted_expire }}
-                            </view>
-                            <view class="subscription-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
+                        <view class="no-coupon" :class="!getSelectedSubscription(slotView.key) ? 'no-coupon-active' : ''" @click="selectSubscriptionForSlot(slotView.key, null)">
+                            <text class="no-coupon-text">{{ slotView.noUseText }}</text>
+                            <view class="coupon-check" v-if="!getSelectedSubscription(slotView.key)">✓</view>
                         </view>
-                    </view>
-                    <view class="no-coupon" :class="!selectedSubscription ? 'no-coupon-active' : ''" @click="selectSubscription(null)">
-                        <text class="no-coupon-text">不使用卡包</text>
-                        <view class="coupon-check" v-if="!selectedSubscription">✓</view>
+                    </block>
+                    <view class="picker-actions" v-if="availableSubscriptionCount > 0">
+                        <view class="picker-done-btn" @click="closeSubscriptionPicker">完成</view>
                     </view>
                 </scroll-view>
             </view>
@@ -413,9 +413,7 @@
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import COUPON from '../../utils/coupon.js';
-import { formatDate } from '../../common/util.js';
-
-const SUBSCRIPTION_PERSON_FEE_MIN_HOURS = 2;
+import SUBSCRIPTION from '../../utils/subscription.js';
 
 function getHourFromDateTime(value) {
     const text = String(value || '');
@@ -465,7 +463,8 @@ export default {
 
             // 次卡/月卡
             mySubscriptions: [],
-            selectedSubscription: null,
+            selectedSubscriptionBySlot: SUBSCRIPTION.createSelectedState(),
+            subscriptionSkippedBySlot: SUBSCRIPTION.createSkippedState(),
             subscriptionPickerOpen: false,
         };
     },
@@ -596,72 +595,64 @@ export default {
             return (val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)) + '折';
         },
 
-        subscriptionPersonFeeRuleText() {
-            return '满' + SUBSCRIPTION_PERSON_FEE_MIN_HOURS + '小时免持卡人门票';
+        subscriptionContext() {
+            return {
+                mySubscriptions: this.mySubscriptions,
+                selectedBySlot: this.selectedSubscriptionBySlot,
+                skippedBySlot: this.subscriptionSkippedBySlot,
+                currentProduct: this.currentProduct,
+                selectedRoomHours: this.selectedRoomHours,
+                numOfPeople: this.numOfPeople,
+                singlePersonPrice: this.singlePersonPrice,
+            };
         },
 
-        usableSubscriptions() {
-            if (!this.mySubscriptions) return [];
-            return this.mySubscriptions.filter(sub => {
-                const template = sub.card_template || {};
-                const remaining = Number(sub.remaining_limit) || 0;
-                if (Number(template.target_type) !== 2) return false;
-                if (remaining <= 0) return false;
-                
-                const usableRooms = template.usable_rooms || [];
-                if (usableRooms.length > 0) {
-                    const roomId = this.currentProduct && this.currentProduct.object_id;
-                    const match = usableRooms.some(r => r.object_id === roomId || r === roomId);
-                    if (!match) return false;
-                }
-                return true;
-            }).map(sub => {
-                const template = sub.card_template || {};
-                const remaining = Number(sub.remaining_limit) || 0;
-                const deductedHours = Math.min(this.selectedRoomHours, remaining);
-                const coverPerson = template.cover_person_fee && deductedHours >= SUBSCRIPTION_PERSON_FEE_MIN_HOURS && this.numOfPeople > 0;
-                const roomDiscountFen = deductedHours * (this.currentProduct && this.currentProduct.price_per_hour || 0);
-                const personDiscountFen = coverPerson ? this.singlePersonPrice : 0;
-                return Object.assign({}, sub, {
-                    deducted_hours: deductedHours,
-                    waives_person_fee: coverPerson,
-                    remaining_after_use: Math.max(0, remaining - deductedHours),
-                    room_discount_fen: roomDiscountFen,
-                    person_discount_fen: personDiscountFen,
-                    discount_amount_fen: roomDiscountFen + personDiscountFen,
-                    formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
-                    usage_text: '本次可抵' + deductedHours + '小时' + (coverPerson ? '，免持卡人门票' : (template.cover_person_fee ? '，满' + SUBSCRIPTION_PERSON_FEE_MIN_HOURS + '小时可免持卡人门票' : ''))
-                });
-            });
+        subscriptionSlotViews() {
+            return SUBSCRIPTION.buildSlotViews(this.subscriptionContext);
+        },
+
+        availableSubscriptionCount() {
+            return SUBSCRIPTION.getAvailableCount(this.subscriptionContext);
+        },
+
+        hasSubscriptionDiscount() {
+            return this.subscriptionDiscountAmountFen > 0;
+        },
+
+        subscriptionSummaryText() {
+            return SUBSCRIPTION.getSummaryText(this.subscriptionContext);
+        },
+
+        subscriptionActionText() {
+            return SUBSCRIPTION.getActionText(this.subscriptionContext);
+        },
+
+        subscriptionMetrics() {
+            return SUBSCRIPTION.getMetrics(this.subscriptionContext);
         },
 
         subscriptionDeductedHours() {
-            return this.selectedSubscription ? Math.min(this.selectedRoomHours, Number(this.selectedSubscription.remaining_limit) || 0) : 0;
+            return this.subscriptionMetrics.deductedHours;
         },
 
-        subscriptionWaivedPerson() {
-            return (this.selectedSubscription && this.selectedSubscription.card_template.cover_person_fee && this.subscriptionDeductedHours >= SUBSCRIPTION_PERSON_FEE_MIN_HOURS && this.numOfPeople > 0) ? 1 : 0;
+        subscriptionEntryDeductedPeople() {
+            return this.subscriptionMetrics.entryDeductedCount;
         },
 
         subscriptionRoomDiscountFen() {
-            if (!this.currentProduct || !this.currentProduct.price_per_hour) return 0;
-            return this.subscriptionDeductedHours * this.currentProduct.price_per_hour;
+            return this.subscriptionMetrics.roomDiscountFen;
         },
 
-        subscriptionPersonDiscountFen() {
-            return this.subscriptionWaivedPerson * this.singlePersonPrice;
-        },
-
-        subscriptionPersonFeeHint() {
-            if (!this.selectedSubscription || !this.selectedSubscription.card_template.cover_person_fee) return '';
-            const needHours = Math.max(0, SUBSCRIPTION_PERSON_FEE_MIN_HOURS - this.subscriptionDeductedHours);
-            if (needHours <= 0) return '';
-            return '本次抵' + this.subscriptionDeductedHours + '小时，还差' + needHours + '小时可免持卡人门票';
+        selfEntryFeeDiscountFen() {
+            return this.subscriptionMetrics.entryDiscountFen;
         },
 
         subscriptionDiscountAmountFen() {
-            if (!this.selectedSubscription || !this.currentProduct || !this.currentProduct.price_per_hour) return 0;
-            return this.subscriptionRoomDiscountFen + this.subscriptionPersonDiscountFen;
+            return this.subscriptionMetrics.totalDiscountFen;
+        },
+
+        subscriptionUsagesPayload() {
+            return SUBSCRIPTION.buildUsagesPayload(this.subscriptionContext);
         },
 
         // 会员折扣金额(分)
@@ -671,7 +662,7 @@ export default {
             const d = this.userDiscount;
             if (!d || d >= 100 || !this.currentProduct || !this.currentProduct.price_per_hour) return 0;
             const remainingRoomFee = Math.max(0, (this.selectedRoomHours - this.subscriptionDeductedHours) * this.currentProduct.price_per_hour);
-            const remainingPeopleFee = Math.max(0, (this.numOfPeople - this.subscriptionWaivedPerson) * this.singlePersonPrice);
+            const remainingPeopleFee = Math.max(0, (this.numOfPeople - this.subscriptionEntryDeductedPeople) * this.singlePersonPrice);
             const memberDiscountBase = remainingRoomFee + remainingPeopleFee;
             return Math.floor(memberDiscountBase * (1 - d / 100));
         },
@@ -811,6 +802,14 @@ export default {
         myCoupons() {
             this.syncCouponSelection();
         },
+
+        mySubscriptions() {
+            this.syncSubscriptionSelection();
+        },
+
+        numOfPeople() {
+            this.syncSubscriptionSelection();
+        },
     },
 
     onLoad(option) {
@@ -869,13 +868,11 @@ export default {
             if (!this.token) return;
             try {
                 const roomId = this.currentProduct && this.currentProduct.object_id;
-                const res = await AUTH.getUserSubscriptions(this.token, 1, 2, roomId);
+                const res = await AUTH.getUserSubscriptions(this.token, 1, null, roomId);
                 if (res && res._status === 0) {
                     this.mySubscriptions = res.data || [];
                     this.$nextTick(() => {
-                        const usable = this.usableSubscriptions;
-                        const matched = this.selectedSubscription ? usable.find(sub => sub.object_id === this.selectedSubscription.object_id) : null;
-                        this.selectedSubscription = matched || (usable.length > 0 ? usable[0] : null);
+                        this.syncSubscriptionSelection();
                     });
                 }
             } catch (e) {
@@ -883,8 +880,59 @@ export default {
             }
         },
 
+        getSelectedSubscription(slot) {
+            return SUBSCRIPTION.getSelected(this.selectedSubscriptionBySlot, slot);
+        },
+
+        setSelectedSubscription(slot, sub) {
+            if (sub) {
+                SUBSCRIPTION.SLOT_DEFS.forEach(def => {
+                    if (def.key === slot) return;
+                    const selected = SUBSCRIPTION.getSelected(this.selectedSubscriptionBySlot, def.key);
+                    const shouldClear = selected && (
+                        selected.object_id === sub.object_id ||
+                        !SUBSCRIPTION.isStackable(selected) ||
+                        !SUBSCRIPTION.isStackable(sub)
+                    );
+                    const shouldSkip = shouldClear || !SUBSCRIPTION.isStackable(sub);
+                    if (shouldClear || shouldSkip) {
+                        if (this.$set) {
+                            if (shouldClear) this.$set(this.selectedSubscriptionBySlot, def.key, null);
+                            this.$set(this.subscriptionSkippedBySlot, def.key, shouldSkip);
+                        } else {
+                            if (shouldClear) this.selectedSubscriptionBySlot[def.key] = null;
+                            this.subscriptionSkippedBySlot[def.key] = shouldSkip;
+                        }
+                    }
+                });
+            }
+            if (this.$set) {
+                this.$set(this.selectedSubscriptionBySlot, slot, sub);
+                this.$set(this.subscriptionSkippedBySlot, slot, !sub);
+            } else {
+                this.selectedSubscriptionBySlot[slot] = sub;
+                this.subscriptionSkippedBySlot[slot] = !sub;
+            }
+        },
+
+        isSubscriptionSelected(slot, sub) {
+            return SUBSCRIPTION.isSelected(this.selectedSubscriptionBySlot, slot, sub);
+        },
+
+        syncSubscriptionSelection() {
+            const nextBySlot = SUBSCRIPTION.resolveSelection(this.subscriptionContext);
+            SUBSCRIPTION.SLOT_DEFS.forEach(def => {
+                const next = nextBySlot[def.key] || null;
+                if (this.$set) {
+                    this.$set(this.selectedSubscriptionBySlot, def.key, next);
+                } else {
+                    this.selectedSubscriptionBySlot[def.key] = next;
+                }
+            });
+        },
+
         openSubscriptionPicker() {
-            if (this.usableSubscriptions.length === 0) {
+            if (this.availableSubscriptionCount === 0) {
                 this.goBuySubscription();
                 return;
             }
@@ -895,9 +943,8 @@ export default {
             this.subscriptionPickerOpen = false;
         },
 
-        selectSubscription(sub) {
-            this.selectedSubscription = sub;
-            this.subscriptionPickerOpen = false;
+        selectSubscriptionForSlot(slot, sub) {
+            this.setSelectedSubscription(slot, sub);
         },
 
         goBuySubscription() {
@@ -1034,7 +1081,7 @@ export default {
                     coupon_id: this.selectedCoupon ? this.selectedCoupon.object_id : null,
                     addons: this.selectedAddons.map(a => a.object_id),
                     expected_amount: this.finalPriceFen,
-                    user_subscription_id: this.selectedSubscription ? this.selectedSubscription.object_id : null,
+                    subscription_usages: this.subscriptionUsagesPayload,
                 };
 
                 const res = await AUTH.checkout(this.token, param);
@@ -1969,6 +2016,9 @@ page {
                 justify-content: center;
                 padding: 22rpx 12rpx;
                 box-sizing: border-box;
+                &.entry {
+                    background: linear-gradient(135deg, #36B37E, #1F9D68);
+                }
             }
             .meter-main {
                 display: flex;
@@ -2099,6 +2149,20 @@ page {
                 align-items: center;
                 justify-content: center;
                 font-size: 24rpx;
+            }
+        }
+
+        .picker-actions {
+            padding: 18rpx 0 10rpx;
+            .picker-done-btn {
+                height: 76rpx;
+                line-height: 76rpx;
+                border-radius: 38rpx;
+                background: $primary;
+                color: #fff;
+                text-align: center;
+                font-size: 28rpx;
+                font-weight: bold;
             }
         }
     }

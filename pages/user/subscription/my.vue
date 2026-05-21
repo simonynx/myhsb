@@ -54,20 +54,20 @@
 						
 						<view class="limit-section">
 							<text class="limit-num">{{ sub.remaining_limit }}</text>
-							<text class="limit-unit">{{ sub.card_template.target_type === 2 ? '小时' : '次' }}</text>
+							<text class="limit-unit">{{ getCardUnit(sub.card_template) }}</text>
 							<text class="limit-label">剩余额度</text>
 							<view class="usage-bar-wrap" v-if="sub.total_limit > 0">
 								<view class="usage-bar">
 									<view class="usage-fill" :style="{ width: sub.used_percent + '%' }"></view>
 								</view>
-								<text class="usage-text">已用 {{ sub.used_limit }}/{{ sub.total_limit }}{{ sub.card_template.target_type === 2 ? '小时' : '次' }}</text>
+								<text class="usage-text">已用 {{ sub.used_limit }}/{{ sub.total_limit }}{{ getCardUnit(sub.card_template) }}</text>
 							</view>
 						</view>
 					</view>
 					
 					<view class="card-footer">
 						<view class="footer-desc">
-							<text class="desc-line">适用：{{ sub.target_type_num === 2 ? '包厢预约折抵' : '大厅门票折抵' }}</text>
+							<text class="desc-line">可抵扣：{{ getCardUsageText(sub.card_template) }}</text>
 							<text class="desc-line" v-if="sub.target_type_num === 2">
 								包厢限制：{{ sub.room_names_limit }}
 							</text>
@@ -93,6 +93,7 @@
 <script>
 import { mapState } from 'vuex';
 import AUTH from '../../../utils/auth.js';
+import SUBSCRIPTION from '../../../utils/subscription.js';
 import { formatDate } from '../../../common/util.js';
 
 export default {
@@ -129,7 +130,7 @@ export default {
 						return Object.assign({}, sub, {
 							formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
 							room_names_limit: roomNames,
-							target_type_num: Number(sub.card_template.target_type) || 0,
+							target_type_num: SUBSCRIPTION.getCardTargetType(sub.card_template),
 							total_limit: Number(sub.card_template.total_limit) || 0,
 							used_limit: Math.max(0, (Number(sub.card_template.total_limit) || 0) - (Number(sub.remaining_limit) || 0)),
 							used_percent: this.calcUsedPercent(sub),
@@ -160,12 +161,19 @@ export default {
 			uni.navigateTo({ url: '/pages/user/subscription/buy' });
 		},
 		isMonthlyCard(template) {
-			return template && Number(template.target_type) === 1 && Number(template.validity_days) <= 31 && Number(template.total_limit) >= 16;
+			return template && SUBSCRIPTION.getCardTargetType(template) === 1 && Number(template.validity_days) <= 31 && Number(template.total_limit) >= 16;
 		},
 		getCardBadge(template) {
 			if (!template) return '卡包';
-			if (Number(template.target_type) === 2) return '小时卡';
+			if (SUBSCRIPTION.getCardTargetType(template) === 2) return '小时卡';
 			return this.isMonthlyCard(template) ? '月卡' : '次卡';
+		},
+		getCardUnit(template) {
+			return SUBSCRIPTION.getCardUnit(template);
+		},
+		getCardUsageText(template) {
+			if (!template) return '';
+			return SUBSCRIPTION.getCardUsageText(template);
 		},
 		calcUsedPercent(sub) {
 			const total = Number(sub.card_template.total_limit) || 0;

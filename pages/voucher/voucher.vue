@@ -200,11 +200,11 @@
 					:key="card.object_id"
 					@tap="buyCard(card)"
 				>
-					<view class="sub-card-left" :class="card.target_type === 2 ? 'room' : (isMonthlySubscription(card) ? 'monthly' : 'times')">
+					<view class="sub-card-left" :class="getSubscriptionTargetType(card) === 2 ? 'room' : (isMonthlySubscription(card) ? 'monthly' : 'times')">
 						<text class="sub-card-type">{{ getSubscriptionBadge(card) }}</text>
 						<view class="sub-card-val-row">
 							<text class="sub-card-limit">{{ card.total_limit }}</text>
-							<text class="sub-card-unit">{{ card.target_type === 2 ? '小时' : '次' }}</text>
+							<text class="sub-card-unit">{{ getSubscriptionUnit(card) }}</text>
 						</view>
 					</view>
 					<view class="sub-card-right">
@@ -217,9 +217,8 @@
 							<text class="sub-card-save" v-if="getSubscriptionSaveText(card)">{{ getSubscriptionSaveText(card) }}</text>
 						</view>
 						<view class="sub-card-info">
-							<text class="info-line">· 适用: {{ card.target_type === 2 ? '包厢费折抵' : '大厅门票折抵' }}</text>
+							<text class="info-line">· 可抵扣: {{ getSubscriptionUsageText(card) }}</text>
 							<text class="info-line">· 有效期: {{ card.validity_days }}天</text>
-							<text class="info-line" v-if="card.target_type === 2">{{ card.cover_person_fee ? '· 人头费: 满2小时免持卡人门票' : '· 人头费: 另按到店人数收取' }}</text>
 						</view>
 						<view class="sub-card-footer">
 							<view class="sub-card-price">
@@ -332,6 +331,7 @@
 <script>
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
+import SUBSCRIPTION from '../../utils/subscription.js';
 import customTabBar from '@/custom-tab-bar/index.vue';
 
 export default {
@@ -364,14 +364,14 @@ export default {
 		},
 		subscriptionTargetTabs() {
 			const tabs = [
-				{ name: '大厅卡', desc: '抵门票', value: 1 },
+				{ name: '大厅卡', desc: '抵门票/本人入场', value: 1 },
 				{ name: '包厢卡', desc: '抵小时', value: 2 },
 			];
-			return tabs.filter(tab => this.subscriptionCards.some(card => Number(card.target_type) === tab.value));
+			return tabs.filter(tab => this.subscriptionCards.some(card => this.getSubscriptionTargetType(card) === tab.value));
 		},
 		displaySubscriptionCards() {
 			if (!this.subscriptionTargetType) return this.subscriptionCards;
-			return this.subscriptionCards.filter(card => Number(card.target_type) === this.subscriptionTargetType);
+			return this.subscriptionCards.filter(card => this.getSubscriptionTargetType(card) === this.subscriptionTargetType);
 		},
 	},
 	data() {
@@ -450,7 +450,7 @@ export default {
 				if (res._status === 0) {
 					this.subscriptionCards = res.data || [];
 					if (!this.subscriptionTargetType && this.subscriptionCards.length > 0) {
-						this.subscriptionTargetType = Number(this.subscriptionCards[0].target_type) || 0;
+						this.subscriptionTargetType = this.getSubscriptionTargetType(this.subscriptionCards[0]) || 0;
 					}
 				}
 			} catch (e) {}
@@ -488,17 +488,27 @@ export default {
 		switchSubscriptionTarget(targetType) {
 			this.subscriptionTargetType = targetType;
 		},
+		getSubscriptionTargetType(card) {
+			return SUBSCRIPTION.getCardTargetType(card);
+		},
 		isMonthlySubscription(card) {
-			return card && Number(card.target_type) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 16;
+			return card && this.getSubscriptionTargetType(card) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 16;
 		},
 		getSubscriptionBadge(card) {
 			if (!card) return '卡包';
-			if (Number(card.target_type) === 2) return '小时卡';
+			if (this.getSubscriptionTargetType(card) === 2) return '小时卡';
 			return this.isMonthlySubscription(card) ? '月卡' : '次卡';
+		},
+		getSubscriptionUnit(card) {
+			return SUBSCRIPTION.getCardUnit(card);
+		},
+		getSubscriptionUsageText(card) {
+			if (!card) return '';
+			return SUBSCRIPTION.getCardUsageText(card);
 		},
 		isRecommendedSubscription(card) {
 			if (!card) return false;
-			const targetType = Number(card.target_type);
+			const targetType = this.getSubscriptionTargetType(card);
 			const totalLimit = Number(card.total_limit);
 			if (targetType === 1) return totalLimit === 10;
 			if (targetType === 2) return totalLimit === 20;
@@ -509,7 +519,7 @@ export default {
 			const price = Number(card.price) || 0;
 			const totalLimit = Number(card.total_limit) || 0;
 			if (price <= 0 || totalLimit <= 0) return '';
-			const unit = Number(card.target_type) === 2 ? '小时' : '次';
+			const unit = this.getSubscriptionUnit(card);
 			const amount = price / totalLimit / 100;
 			const text = amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
 			return '折合 ¥' + text + '/' + unit;

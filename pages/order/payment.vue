@@ -42,6 +42,10 @@
                     <text class="detail-label">基础消费</text>
                     <text class="detail-value">¥{{ formatMoney(orderBaseAmount) }}</text>
                 </view>
+                <view class="detail-row discount" v-for="deduct in orderSubscriptionDeductions" :key="deduct.key">
+                    <text class="detail-label">{{ deduct.label }}</text>
+                    <text class="detail-value">-¥{{ formatMoney(deduct.amount) }}</text>
+                </view>
                 <view class="detail-row" v-if="order && order.order_type === 7 && subscriptionOrderAmount > 0">
                     <text class="detail-label">卡包金额</text>
                     <text class="detail-value">¥{{ formatMoney(subscriptionOrderAmount) }}</text>
@@ -182,6 +186,7 @@
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import COUPON from '../../utils/coupon.js';
+import SUBSCRIPTION from '../../utils/subscription.js';
 import PLATFORM from '../../common/platform.js';
 
 export default {
@@ -255,6 +260,16 @@ export default {
             return [];
         },
 
+        orderSubscriptionDeductions() {
+            return SUBSCRIPTION.buildDeductionRows(this.orderGoodsInfo);
+        },
+
+        orderSubscriptionDiscountTotal() {
+            return this.orderSubscriptionDeductions.reduce(function(total, item) {
+                return total + (Number(item.amount) || 0);
+            }, 0);
+        },
+
         orderAddonsTotal() {
             if (this.orderGoodsInfo._addons_total) return this.orderGoodsInfo._addons_total;
             if (this.orderPricingInfo.addons_total) return this.orderPricingInfo.addons_total;
@@ -264,8 +279,21 @@ export default {
         },
 
         orderBaseAmount() {
-            if (this.orderGoodsInfo._original_amount) return this.orderGoodsInfo._original_amount;
-            if (this.orderPricingInfo.base_amount) return this.orderPricingInfo.base_amount;
+            var hasFlatOriginal = this.orderGoodsInfo._original_amount !== undefined && this.orderGoodsInfo._original_amount !== null;
+            if (hasFlatOriginal) {
+                var flatOriginal = Number(this.orderGoodsInfo._original_amount) || 0;
+                if (this.order && (this.order.order_type === 1 || this.order.order_type === 6)) {
+                    return flatOriginal + this.orderSubscriptionDiscountTotal;
+                }
+                return flatOriginal;
+            }
+            if (this.orderPricingInfo.base_amount !== undefined && this.orderPricingInfo.base_amount !== null) {
+                var pricingBase = Number(this.orderPricingInfo.base_amount) || 0;
+                if (this.order && (this.order.order_type === 1 || this.order.order_type === 6)) {
+                    return pricingBase + this.orderSubscriptionDiscountTotal;
+                }
+                return pricingBase;
+            }
             if (this.order && this.order.order_type === 4 && this.orderGoodsInfo._total_original) {
                 return Math.max(0, this.orderGoodsInfo._total_original - this.orderAddonsTotal);
             }
@@ -298,7 +326,7 @@ export default {
         subscriptionOrderTargetType() {
             var goodsInfo = this.orderGoodsInfo || {};
             var card = this.subscriptionOrderCard;
-            return Number(card.target_type || goodsInfo.target_type || 0);
+            return SUBSCRIPTION.getCardTargetType(Object.assign({}, goodsInfo, card));
         },
 
         subscriptionOrderLimitText() {
@@ -306,19 +334,13 @@ export default {
             var card = this.subscriptionOrderCard;
             var totalLimit = Number(card.total_limit || goodsInfo.total_limit || 0);
             if (!totalLimit) return '';
-            return totalLimit + (this.subscriptionOrderTargetType === 2 ? '小时' : '次');
+            return totalLimit + SUBSCRIPTION.getCardUnit(Object.assign({}, goodsInfo, card));
         },
 
         subscriptionOrderUseTypeText() {
             var goodsInfo = this.orderGoodsInfo || {};
             var card = this.subscriptionOrderCard;
-            if (this.subscriptionOrderTargetType === 2) {
-                var text = '包厢预约折抵';
-                if (card.cover_person_fee || goodsInfo.cover_person_fee) text += '，满2小时免持卡人门票';
-                return text;
-            }
-            if (this.subscriptionOrderTargetType === 1) return '大厅门票折抵';
-            return '';
+            return SUBSCRIPTION.getCardUsageText(Object.assign({}, goodsInfo, card));
         },
 
         subscriptionOrderAmount() {
@@ -331,6 +353,7 @@ export default {
         hasOrderDetails() {
             return this.orderBaseAmount > 0 ||
                 (this.order && this.order.order_type === 7) ||
+                this.orderSubscriptionDeductions.length > 0 ||
                 this.orderAddonsTotal > 0 ||
                 this.orderMemberDiscount > 0 ||
                 this.orderPointsDeducted > 0 ||
