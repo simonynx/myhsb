@@ -323,7 +323,12 @@ const store = new Vuex.Store({
       return AUTH.submitReview(state.token, rating, content).then((res) => {
         if (!res || res._status !== 0) return Promise.reject(res._reason || '提交失败');
         return res;
-      }).catch((err) => Promise.reject(err));
+      }).catch((err) => {
+        var reason = (err && err._reason) || (err && err.data && (err.data.detail || err.data._reason)) || err || '提交失败';
+        if (typeof reason !== 'string') reason = '提交失败';
+        if (reason.indexOf('违规信息') >= 0) reason = '你发布的内容含违规信息，请修改后再提交';
+        return Promise.reject(reason);
+      });
     },
 
     /**

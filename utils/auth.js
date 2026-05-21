@@ -298,7 +298,7 @@ function getReviewList(token) {
 }
 
 function submitReview(token, rating, content) {
-  var data = { rating: rating, content: content };
+  var data = { rating: rating, content: content, platform: PLATFORM.getPlatform() };
   return request('/reviews/', 'POST', data, token);
 }
 
