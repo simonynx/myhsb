@@ -412,8 +412,23 @@ export default {
 				uni.hideLoading();
 				this.buying = false;
 				if (!res) return;
+				if (res._status !== undefined && Number(res._status) !== 0) {
+					uni.showModal({
+						title: '获取支付参数失败',
+						content: res._reason || '订单已保留，可稍后继续支付',
+						confirmText: '查看订单',
+						cancelText: '稍后',
+						success: (modalRes) => {
+							if (modalRes.confirm) {
+								uni.redirectTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(orderNumber) + '&entry=3' });
+							}
+						}
+					});
+					return;
+				}
 				
-				var payment = res.payment || res.wxpay || res;
+				var payload = res.data || res;
+				var payment = payload.payment || payload.wxpay || payload;
 				var PLATFORM = require('../../../common/platform.js');
 				
 				PLATFORM.requestPayment(payment).then(() => {

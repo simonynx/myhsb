@@ -54,6 +54,22 @@ function normalizeToutiaoOrderInfo(params) {
 	};
 }
 
+function normalizeWeixinPaymentParams(params) {
+	var source = params || {};
+	for (var i = 0; i < 3; i++) {
+		var next = source && (source.payment || source.wxpay || source.data);
+		if (!next || next === source) break;
+		source = next;
+	}
+	return {
+		timeStamp: String(source.timeStamp || source.timestamp || ''),
+		nonceStr: String(source.nonceStr || source.nonce_str || ''),
+		package: String(source.package || source.packageValue || ''),
+		signType: source.signType || source.sign_type || 'MD5',
+		paySign: String(source.paySign || source.sign || source.pay_sign || '')
+	};
+}
+
 function resolveToutiaoPayResult(res, resolve, reject) {
 	var code = Number(res && res.code);
 	if (code === 0) {
@@ -77,12 +93,25 @@ function resolveToutiaoPayResult(res, resolve, reject) {
 function requestPayment(params) {
 	return new Promise(function(resolve, reject) {
 		if (IS_WEIXIN) {
+			var payment = normalizeWeixinPaymentParams(params);
+			var missing = [];
+			if (!payment.timeStamp) missing.push('timeStamp');
+			if (!payment.nonceStr) missing.push('nonceStr');
+			if (!payment.package) missing.push('package');
+			if (!payment.paySign) missing.push('paySign');
+			if (missing.length) {
+				reject({
+					errMsg: '微信支付参数缺失: ' + missing.join(', '),
+					missing: missing
+				});
+				return;
+			}
 			wx.requestPayment({
-				timeStamp: params.timeStamp,
-				nonceStr: params.nonceStr,
-				package: params.package,
-				signType: params.signType || 'MD5',
-				paySign: params.paySign,
+				timeStamp: payment.timeStamp,
+				nonceStr: payment.nonceStr,
+				package: payment.package,
+				signType: payment.signType,
+				paySign: payment.paySign,
 				success: function(res) {
 					resolve(res);
 				},
