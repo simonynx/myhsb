@@ -302,8 +302,21 @@ export default {
       uni.navigateTo({ url: '/pages/order/order?order_number=' + item.order_number });
     },
 
+    showConfirmModal(options) {
+      return new Promise((resolve) => {
+        uni.showModal(Object.assign({}, options, {
+          success: function(res) {
+            resolve(res || { confirm: false });
+          },
+          fail: function() {
+            resolve({ confirm: false });
+          }
+        }));
+      });
+    },
+
     async refundTicket(item) {
-      const res = await uni.showModal({
+      const res = await this.showConfirmModal({
         title: '确认退款',
         content: '退款将原路退回，确认申请退款吗？',
         confirmText: '确认退款',
@@ -385,7 +398,7 @@ export default {
         this.loadTickets();
         return;
       }
-      const modal = await uni.showModal({
+      const modal = await this.showConfirmModal({
         title: '取消转赠',
         content: '取消后，好友将无法通过当前链接领取这张门票。',
         confirmText: '确认取消',
@@ -407,6 +420,7 @@ export default {
         }
       } catch (e) {
         uni.hideLoading();
+        console.error('cancel transfer error:', e);
         uni.showToast({ title: '取消失败，请重试', icon: 'none' });
       }
     },
