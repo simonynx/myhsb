@@ -53,39 +53,14 @@
                 </view>
             </view>
 
-            <!-- 过期时间选择 -->
-            <view class="setting-item expire-setting">
+            <view class="setting-item vertical expire-setting">
                 <view class="setting-left">
                     <text class="setting-icon">⏳</text>
-                    <text class="setting-label">有效期</text>
+                    <text class="setting-label">报名截止</text>
                 </view>
-                <view class="expire-pills">
-                    <view
-                        class="expire-pill"
-                        :class="expire12Class"
-                        @click="maxExpireHours >= 12 && (expireHours = 12, expireHoursManuallyChanged = true)"
-                    >
-                        <text>12小时</text>
-                    </view>
-                    <view
-                        class="expire-pill"
-                        :class="expire24Class"
-                        @click="maxExpireHours >= 24 && (expireHours = 24, expireHoursManuallyChanged = true)"
-                    >
-                        <text>24小时</text>
-                    </view>
-                    <view
-                        class="expire-pill"
-                        :class="expire48Class"
-                        @click="maxExpireHours >= 48 && (expireHours = 48, expireHoursManuallyChanged = true)"
-                    >
-                        <text>48小时</text>
-                    </view>
-                </view>
-                <text v-if="isTimeTooClose" class="expire-warning error">⏰ 距离开始不足2小时，请直接预约或选择更晚时段</text>
-                <text v-else-if="maxExpireHours < 12" class="expire-warning warn">⏰ 临近开局，报名会在开始前2小时截止</text>
-                <text v-else-if="maxExpireHours < 24" class="expire-warning warn">⏰ 距离预约开始还有约 {{ maxExpireHours }} 小时，24/48小时选项暂不可用</text>
-                <text v-else-if="maxExpireHours < 48" class="expire-warning info">ℹ️ 距离预约开始还有约 {{ maxExpireHours }} 小时，48小时选项暂不可用</text>
+                <text class="expire-fixed" :class="isTimeTooClose ? 'error' : ''">{{ expireDisplayText }}</text>
+                <text class="expire-warning" v-if="!isTimeTooClose">到点未满员会自动结束，建议发起后尽快分享给朋友。</text>
+                <text class="expire-warning error" v-else>距离开始不足2小时，请直接预约或选择更晚时段。</text>
             </view>
         </view>
 
@@ -284,7 +259,7 @@
                         <text class="modal-value">{{ maxMembers }} 人</text>
                     </view>
                     <view class="modal-row">
-                        <text class="modal-label">有效期</text>
+                        <text class="modal-label">报名截止</text>
                         <text class="modal-value">{{ expireDisplayText }}</text>
                     </view>
                 </view>
@@ -322,9 +297,6 @@ export default {
             note: '',
             initiatorManuallyChanged: false,
             timeSlots: [],
-            expireHours: 24,
-            // 有效期是否已被用户手动修改过（防止 watch 覆盖用户选择）
-            expireHoursManuallyChanged: false,
             groupDiscountPercent: 100,
             memberDiscountPercent: 100,
             showConfirmModal: false,
@@ -424,24 +396,9 @@ export default {
         isTimeTooClose() {
             return this.maxExpireMs <= 0;
         },
-        // 过期时间不能超过预约前 2 小时
-        maxExpireHours() {
-            if (this.maxExpireMs <= 0) return 0;
-            return Math.floor(this.maxExpireMs / (3600 * 1000));
-        },
         expireDisplayText() {
             if (this.isTimeTooClose) return '已过报名截止';
-            if (this.maxExpireHours < this.expireHours) return '开始前2小时截止';
-            return this.expireHours + ' 小时';
-        },
-        expire12Class() {
-            return (this.expireHours === 12 ? 'active ' : '') + (this.maxExpireHours < 12 ? 'disabled' : '');
-        },
-        expire24Class() {
-            return (this.expireHours === 24 ? 'active ' : '') + (this.maxExpireHours < 24 ? 'disabled' : '');
-        },
-        expire48Class() {
-            return (this.expireHours === 48 ? 'active ' : '') + (this.maxExpireHours < 48 ? 'disabled' : '');
+            return '开始前2小时截止';
         },
     },
 
@@ -449,16 +406,6 @@ export default {
         maxMembers(newVal) {
             if (!this.initiatorManuallyChanged) {
                 this.initiatorInputYuan = this.basePerPersonYuan;
-            }
-        },
-        maxExpireHours: {
-            immediate: true,
-            handler(val) {
-                if (this.expireHoursManuallyChanged) return;
-                // 自动调整为不超过 maxExpireHours 的最大可用选项
-                const options = [48, 24, 12];
-                const best = options.find(o => val >= o);
-                this.expireHours = best || 12;
             }
         }
     },
@@ -622,12 +569,11 @@ export default {
                 max_members: this.maxMembers,
                 price_per_person: this.memberPriceFen,
                 note: this.note.trim(),
-                expire_hours: this.expireHours,
             };
 
             this.trackGroupEvent('group_create_submit', {
                 price_per_person: this.memberPriceFen,
-                expire_hours: this.expireHours,
+                expire_rule: 'start_minus_2h',
             });
 
             // 显示自定义支付确认弹窗
@@ -955,55 +901,28 @@ $border: #EEEEEE;
     }
 }
 
-// 有效期选择 pills
-.expire-pills {
-    display: flex;
-    align-items: center;
-    gap: 16rpx;
+.expire-setting {
+    .expire-fixed {
+        font-size: 30rpx;
+        color: $primary;
+        font-weight: bold;
+        background: #FFF0EB;
+        border-radius: 18rpx;
+        padding: 14rpx 20rpx;
 
-    .expire-pill {
-        padding: 10rpx 24rpx;
-        border-radius: 24rpx;
-        background: $light;
-        border: 2rpx solid $border;
-        transition: all 0.2s;
-
-        text {
-            font-size: 26rpx;
-            color: $gray;
-        }
-
-        &.active {
-            background: linear-gradient(135deg, $pink, $primary);
-            border-color: $primary;
-            box-shadow: 0 4rpx 12rpx rgba(255,100,50,0.2);
-
-            text {
-                color: #fff;
-                font-weight: bold;
-            }
-        }
-
-        &.disabled {
-            opacity: 0.4;
-            background: #f0f0f0;
-            border-color: #ddd;
-            pointer-events: none;
+        &.error {
+            color: #ff4757;
+            background: #FFF1F0;
         }
     }
-}
-
-.expire-setting {
-    flex-wrap: wrap;
 
     .expire-warning {
-        flex-basis: 100%;
         font-size: 24rpx;
         margin-top: 12rpx;
+        color: $gray;
+        line-height: 1.45;
 
         &.error { color: #ff4757; }
-        &.warn { color: #ff9500; }
-        &.info { color: #999; }
     }
 }
 
