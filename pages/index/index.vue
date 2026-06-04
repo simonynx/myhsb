@@ -464,6 +464,7 @@
 			},
 			hasLogin(value) {
 				if (value) {
+					this.loadCheckInInfo({ force: true });
 					this.scheduleDeferredRefresh(true);
 					this.trackHomeBenefitView();
 				} else {
@@ -540,6 +541,9 @@
 			this.trackInviteLandingView();
 			if (this.constance) this.loadData();
 			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
+			if (this.hasLogin) {
+				this.loadCheckInInfo({ force: true });
+			}
 			this.scheduleDeferredRefresh(false);
 		},
 		onLoad(options) {
