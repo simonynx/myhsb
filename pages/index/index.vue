@@ -391,7 +391,7 @@
 				return this.scenePackages.slice(1);
 			},
 			showCouponHint() {
-				return this.hasLogin && !this.couponHintClosed && this.claimableCouponCount > 0;
+				return this.hasLogin && !this.showInviteLanding && !this.couponHintClosed && this.claimableCouponCount > 0;
 			},
 			claimableCouponTitle() {
 				if (this.claimableCouponName) {

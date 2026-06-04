@@ -78,6 +78,7 @@
                         class="card-img"
                         :src="room.image1"
                         mode="aspectFill"
+                        lazy-load
                     />
                     <!-- 渐变遮罩 -->
                     <view class="card-img-overlay"></view>
@@ -231,6 +232,11 @@ export default {
             disableTimeSlot: [],
             specSelected: [],
             loading: false,
+            roomLoading: false,
+            roomLoadingKey: '',
+            roomDataKey: '',
+            roomLastLoadedAt: 0,
+            roomRequestSeq: 0,
         };
     },
 
@@ -261,7 +267,7 @@ export default {
     },
     onLoad() {
         this.buildWeekDays();
-        this.fetchRoomList();
+        this.fetchRoomList({ force: true, initial: true });
     },
 
     onShow() {
@@ -309,16 +315,27 @@ export default {
             if (this.selectedDayIndex === idx) return;
             this.selectedDayIndex = idx;
             this.currentSelectDate = this.formatDate(this.weekDays[idx].fullDate);
-            this.fetchRoomList();
+            this.fetchRoomList({ force: true, initial: !this.roomList.length });
         },
 
-        fetchRoomList() {
+        fetchRoomList(options) {
+            options = options || {};
             const dayInfo = this.selectedDayInfo;
             if (!dayInfo || !dayInfo.fullDate) return;
             const day = dayInfo.fullDate;
-            this.loading = true;
-            AUTH.getRoomDataList(this.token, this.formatDate(day)).then(res => {
-                this.loading = false;
+            const dateKey = this.formatDate(day);
+            const now = Date.now();
+            if (this.roomLoading && this.roomLoadingKey === dateKey) return;
+            if (!options.force && this.roomDataKey === dateKey && now - this.roomLastLoadedAt < 8 * 1000) {
+                return;
+            }
+            this.roomLoading = true;
+            this.roomLoadingKey = dateKey;
+            const requestSeq = ++this.roomRequestSeq;
+            const shouldShowSkeleton = options.initial || !this.roomList.length;
+            if (shouldShowSkeleton) this.loading = true;
+            AUTH.getRoomDataList(this.token, dateKey).then(res => {
+                if (requestSeq !== this.roomRequestSeq) return;
                 if (!res || !res.data) return;
                 const data = res.data;
                 if (!data.rooms) {
@@ -328,8 +345,9 @@ export default {
                 const today = new Date();
                 const isToday = this.selectedDayInfo.isToday;
                 const currentHour = isToday ? today.getHours() : -1;
+                const bookedSlots = this.buildBookedSlotMap(data.appointments || []);
 
-                res.data.rooms.forEach(item => {
+                data.rooms.forEach(item => {
                     item.appoints = [];
                     if (item.tags) {
                         item.tagsArr = item.tags.split('$').filter(t => t.trim());
@@ -337,7 +355,7 @@ export default {
                         item.tagsArr = [];
                     }
                     for (let i = item.opening_hours_start; i < item.opening_hours_end; i++) {
-                        const status = i <= currentHour ? 2 : (this.findAppoint(res.data.appointments, item.object_id, i) ? 3 : 1);
+                        const status = i <= currentHour ? 2 : (this.isBookedSlot(bookedSlots, item.object_id, i) ? 3 : 1);
                         const statusClass = status === 1 ? 'available' : status === 2 ? 'past' : 'booked';
                         item.appoints.push({ start: i, end: i + 1, status, statusClass });
                     }
@@ -357,18 +375,45 @@ export default {
                     item.isFullyBooked = allBooked;
                 });
                 this.roomList = data.rooms || [];
-            }).catch((err) => { this.loading = false; });
+                this.roomDataKey = dateKey;
+                this.roomLastLoadedAt = Date.now();
+            }).catch((err) => {
+            }).then(() => {
+                if (requestSeq === this.roomRequestSeq) {
+                    this.roomLoading = false;
+                    this.roomLoadingKey = '';
+                    this.loading = false;
+                }
+            });
+        },
+
+        buildBookedSlotMap(appointments) {
+            const map = {};
+            (appointments || []).forEach(function(appt) {
+                if (!appt || !appt.room || !appt.time_list) return;
+                const roomId = String(appt.room);
+                if (!map[roomId]) map[roomId] = {};
+                (appt.time_list || []).forEach(function(interval) {
+                    if (!interval || interval.length < 2) return;
+                    const start = parseInt(interval[0], 10);
+                    const end = parseInt(interval[1], 10);
+                    if (!isFinite(start) || !isFinite(end) || start >= end) return;
+                    for (let hour = start; hour < end; hour++) {
+                        map[roomId][hour] = true;
+                    }
+                });
+            });
+            return map;
+        },
+
+        isBookedSlot(bookedSlots, roomId, hour) {
+            const roomSlots = bookedSlots && bookedSlots[String(roomId)];
+            return !!(roomSlots && roomSlots[hour]);
         },
 
         findAppoint(appointments, roomId, hour) {
-            for (const appt of appointments) {
-                if (appt.room == roomId) {
-                    for (const interval of appt.time_list) {
-                        if (interval[0] == hour) return true;
-                    }
-                }
-            }
-            return false;
+            const bookedSlots = this.buildBookedSlotMap(appointments);
+            return this.isBookedSlot(bookedSlots, roomId, hour);
         },
 
         isRoomFullyBooked(room) {
