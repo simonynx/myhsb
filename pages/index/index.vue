@@ -97,6 +97,36 @@
 			</view>
 		</view>
 
+		<!-- 好友邀请落地 -->
+		<view class="invite-landing-card" v-if="showInviteLanding" @tap="handleInviteLandingTap">
+			<view class="invite-landing-icon">礼</view>
+			<view class="invite-landing-copy">
+				<text class="invite-landing-kicker">好友邀请</text>
+				<text class="invite-landing-title">{{ inviteLandingTitle }}</text>
+				<text class="invite-landing-sub">{{ inviteLandingSub }}</text>
+			</view>
+			<view class="invite-landing-side">
+				<text class="invite-landing-action">{{ inviteLandingAction }}</text>
+				<text class="invite-landing-close" @tap.stop="closeInviteLanding">✕</text>
+			</view>
+		</view>
+
+		<!-- 今日福利 -->
+		<view class="home-benefit-card" @tap="handleHomeBenefitTap">
+			<view class="benefit-copy">
+				<text class="benefit-kicker">今日福利</text>
+				<text class="benefit-title">{{ homeBenefitTitle }}</text>
+				<text class="benefit-sub">{{ homeBenefitSub }}</text>
+			</view>
+			<view class="benefit-side">
+				<view class="benefit-points">
+					<text class="benefit-points-num">{{ homeBenefitValue }}</text>
+					<text class="benefit-points-label">{{ homeBenefitLabel }}</text>
+				</view>
+				<text class="benefit-action">{{ homeBenefitAction }}</text>
+			</view>
+		</view>
+
 		<!-- ===== 场景套餐 ===== -->
 		<view class="scene-section">
 			<view class="scene-section-head">
@@ -290,7 +320,7 @@
 	export default {
 		components: { customTabBar },
 		computed: {
-			...mapState(['hasLogin', 'constance']),
+			...mapState(['hasLogin', 'constance', 'token', 'pending_invite_code']),
 			ticketPriceFen() {
 				const price = this.constance && this.constance.ticket_price_per_person;
 				return price ? parseInt(price) : 3800;
@@ -369,6 +399,58 @@
 				}
 				return this.claimableCouponCount + '张优惠券待领取';
 			},
+			showInviteLanding() {
+				return !!this.pending_invite_code && !this.inviteLandingClosed;
+			},
+			inviteLandingTitle() {
+				return this.hasLogin ? '好友邀请奖励待领取' : '好友送你一份新人礼';
+			},
+			inviteLandingSub() {
+				return this.hasLogin ? '点一下绑定邀请码，双方都能拿到奖励' : '登录后领取新人积分，后续下单也更方便';
+			},
+			inviteLandingAction() {
+				return this.hasLogin ? '领取' : '登录领';
+			},
+			homeBenefitTitle() {
+				if (!this.hasLogin) return '登录领取今日福利';
+				if (this.checkInInfo.checked_in_today) return '今日已签到';
+				if (this.checkInInfo.can_check_in) return '签到领' + this.homeCheckInPointsText;
+				return '明天继续来领';
+			},
+			homeBenefitSub() {
+				if (!this.hasLogin) return '签到积分、优惠券和会员权益一起解锁';
+				var streak = Number(this.checkInInfo.current_streak || 0);
+				if (this.checkInInfo.checked_in_today) {
+					return streak > 0 ? '已连续' + streak + '天，明天可领' + this.tomorrowCheckInPointsText : '明天继续签到攒积分';
+				}
+				if (streak > 0) return '已连续' + streak + '天，今天别断签';
+				return '每天来领一点，兑换卡券更快';
+			},
+			homeBenefitValue() {
+				if (!this.hasLogin) return '新人礼';
+				if (this.checkInInfo.checked_in_today) {
+					var earned = Number(this.checkInInfo.points_earned_today || 0);
+					return earned > 0 ? '+' + earned : '已领';
+				}
+				return this.homeCheckInPointsText;
+			},
+			homeBenefitLabel() {
+				if (!this.hasLogin) return '登录可领';
+				return this.checkInInfo.checked_in_today ? '今日到账' : '今日可领';
+			},
+			homeBenefitAction() {
+				if (!this.hasLogin) return '登录';
+				if (this.checkInInfo.can_check_in) return '签到';
+				return '看卡券';
+			},
+			homeCheckInPointsText() {
+				var points = this.checkInInfo.next_points || (this.checkInInfo.config && this.checkInInfo.config.daily_points) || 10;
+				return '+' + points + '积分';
+			},
+			tomorrowCheckInPointsText() {
+				var points = this.checkInInfo.tomorrow_points || this.checkInInfo.next_points || (this.checkInInfo.config && this.checkInInfo.config.daily_points) || 10;
+				return '+' + points + '积分';
+			},
 			reviewSummaryText() {
 				if (this.reviewAverageText) {
 					return this.reviewAverageText + ' · ' + this.reviewTotalCount + '条真实体验';
@@ -383,10 +465,18 @@
 			hasLogin(value) {
 				if (value) {
 					this.scheduleDeferredRefresh(true);
+					this.trackHomeBenefitView();
 				} else {
 					this.claimableCouponCount = 0;
 					this.claimableCouponName = '';
 					this.claimableCouponKey = '';
+					this.checkInInfo = { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 };
+				}
+			},
+			pending_invite_code(value) {
+				if (value) {
+					this.inviteLandingClosed = false;
+					this.trackInviteLandingView();
 				}
 			},
 		},
@@ -432,14 +522,22 @@
 				reviewsLastLoadedAt: 0,
 				couponsLoading: false,
 				couponsLastLoadedAt: 0,
+				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 },
+				checkInLoading: false,
+				checkInLastLoadedAt: 0,
 				bannerLoading: false,
 				bannerLastCheckedAt: 0,
 				pageViewLastTrackedAt: 0,
+				homeBenefitLastTrackedAt: 0,
+				inviteLandingClosed: false,
+				inviteLandingTrackedCode: '',
 			};
 		},
 		onShow() {
 			uni.$emit('tabBarChange', { key: 'index' });
 			this.schedulePageViewTrack();
+			this.trackHomeBenefitView();
+			this.trackInviteLandingView();
 			if (this.constance) this.loadData();
 			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
 			this.scheduleDeferredRefresh(false);
@@ -453,6 +551,8 @@
 			}
 			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
 			this.scheduleDeferredRefresh(true);
+			this.trackHomeBenefitView();
+			this.trackInviteLandingView();
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getReviewList']),
@@ -476,6 +576,7 @@
 					this._deferredRefreshTimer = null;
 					this.loadReviews();
 					if (this.hasLogin) {
+						this.loadCheckInInfo();
 						this.loadClaimableCoupons();
 						this.checkBanner();
 					}
@@ -504,6 +605,14 @@
 				if (!code) return;
 				this.setPendingInviteCode(code);
 				try { uni.setStorageSync('pending_invite_code', code); } catch (e) {}
+				this.inviteLandingClosed = false;
+				AUTH.trackEvent({
+					event: 'invite_code_captured',
+					page_path: 'pages/index/index',
+					source: 'invite_link',
+					has_invite: true
+				}).catch(function() {});
+				this.trackInviteLandingView();
 			},
 			openLocation() {
 				uni.openLocation({
@@ -538,6 +647,192 @@
 			closeCouponHint() {
 				this.couponHintClosed = true;
 				this.couponHintClosedKey = this.claimableCouponKey;
+			},
+			trackHomeBenefitView() {
+				var now = Date.now();
+				if (now - this.homeBenefitLastTrackedAt < 30000) return;
+				this.homeBenefitLastTrackedAt = now;
+				AUTH.trackEvent({
+					event: 'checkin_entry_view',
+					page_path: 'pages/index/index',
+					source: 'home_benefit',
+					has_login: !!this.hasLogin
+				}, this.token).catch(function() {});
+			},
+			trackInviteLandingView() {
+				if (!this.pending_invite_code || this.inviteLandingClosed) return;
+				if (this.inviteLandingTrackedCode === this.pending_invite_code) return;
+				this.inviteLandingTrackedCode = this.pending_invite_code;
+				AUTH.trackEvent({
+					event: 'invite_landing_view',
+					page_path: 'pages/index/index',
+					source: 'invite_link',
+					has_invite: true
+				}, this.token).catch(function() {});
+			},
+			async loadCheckInInfo(options) {
+				options = options || {};
+				if (!this.hasLogin || this.checkInLoading) return;
+				var now = Date.now();
+				if (!options.force && this.checkInLastLoadedAt && now - this.checkInLastLoadedAt < 5 * 60 * 1000) return;
+				var token = this.token || uni.getStorageSync('token');
+				if (!token) return;
+				this.checkInLoading = true;
+				try {
+					const res = await AUTH.checkInInfo(token);
+					if (res._status === 0 && res.data) {
+						this.checkInInfo = res.data;
+						this.checkInLastLoadedAt = Date.now();
+					}
+				} catch (e) {
+				} finally {
+					this.checkInLoading = false;
+				}
+			},
+			handleHomeBenefitTap() {
+				AUTH.trackEvent({
+					event: 'checkin_click',
+					page_path: 'pages/index/index',
+					source: this.hasLogin ? 'home_benefit' : 'home_benefit_guest',
+					has_login: !!this.hasLogin
+				}, this.token).catch(function() {});
+				if (!this.hasLogin) {
+					this.loginAndRegister().then(function() {
+						this.loadCheckInInfo({ force: true });
+					}.bind(this)).catch(function() {});
+					return;
+				}
+				if (this.checkInInfo.can_check_in) {
+					this.doHomeCheckIn();
+				} else {
+					this.goToVoucher();
+				}
+			},
+			async doHomeCheckIn() {
+				if (this.checkInLoading) return;
+				var token = this.token || uni.getStorageSync('token');
+				if (!token) {
+					this.loginAndRegister().catch(function() {});
+					return;
+				}
+				this.checkInLoading = true;
+				try {
+					const res = await AUTH.checkIn(token);
+					const d = res && res.data;
+					if (d && d.points_earned !== undefined) {
+						this.checkInInfo.checked_in_today = true;
+						this.checkInInfo.can_check_in = false;
+						this.checkInInfo.points_earned_today = d.points_earned;
+						AUTH.trackEvent({
+							event: 'checkin_success',
+							page_path: 'pages/index/index',
+							source: 'home_benefit'
+						}, token).catch(function() {});
+						this.checkInLoading = false;
+						await this.loadCheckInInfo({ force: true });
+						this.showCheckInSuccess(d);
+						return;
+					} else {
+						uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
+					}
+				} catch (e) {
+					uni.showToast({ title: '签到失败', icon: 'none' });
+				} finally {
+					this.checkInLoading = false;
+				}
+			},
+			showCheckInSuccess(data) {
+				data = data || {};
+				var points = Number(data.points_earned || 0);
+				var content = '本次获得 ' + points + ' 积分';
+				if (this.checkInInfo.tomorrow_points) {
+					content += '\n明天继续签到可领 +' + this.checkInInfo.tomorrow_points + ' 积分';
+				} else {
+					content += '\n连续签到还有额外奖励';
+				}
+				uni.showModal({
+					title: '签到成功',
+					content: content,
+					confirmText: '看卡券',
+					cancelText: '知道了',
+					success: function(res) {
+						if (res.confirm) {
+							uni.switchTab({ url: '/pages/voucher/voucher' });
+						}
+					}
+				});
+			},
+			closeInviteLanding() {
+				this.inviteLandingClosed = true;
+			},
+			handleInviteLandingTap() {
+				AUTH.trackEvent({
+					event: 'invite_landing_click',
+					page_path: 'pages/index/index',
+					source: 'invite_link',
+					has_invite: true,
+					has_login: !!this.hasLogin
+				}, this.token).catch(function() {});
+				if (!this.hasLogin) {
+					this.loginAndRegister().then(function() {
+						setTimeout(function() {
+							var pages = getCurrentPages();
+							var current = pages.length ? pages[pages.length - 1].route : '';
+							if (current === 'pages/index/index') {
+								this.claimPendingInviteCode();
+							}
+						}.bind(this), 600);
+					}.bind(this)).catch(function() {});
+					return;
+				}
+				this.claimPendingInviteCode();
+			},
+			async claimPendingInviteCode() {
+				var code = this.pending_invite_code;
+				if (!code) return;
+				var token = this.token || uni.getStorageSync('token');
+				if (!token) return;
+				uni.showLoading({ title: '领取中...' });
+				try {
+					const res = await AUTH.applyInviteCode(token, code);
+					uni.hideLoading();
+					const data = (res && res.data) || {};
+					if (res && res._status === 0 && data._status !== 1) {
+						this.setPendingInviteCode(null);
+						this.inviteLandingClosed = true;
+						AUTH.trackEvent({
+							event: 'invite_reward_claimed',
+							page_path: 'pages/index/index',
+							source: 'invite_link',
+							has_invite: true
+						}, token).catch(function() {});
+						var msg = data.message || '邀请奖励已到账';
+						if (data.invitee_points) msg += '\n你获得 ' + data.invitee_points + ' 积分';
+						uni.showModal({ title: '领取成功', content: msg, showCancel: false });
+						return;
+					}
+					var reason = (data && data.message) || (res && res._reason) || '邀请码暂时无法领取';
+					if (reason.indexOf('已经使用过') >= 0) {
+						this.setPendingInviteCode(null);
+						this.inviteLandingClosed = true;
+						uni.showModal({ title: '邀请已处理', content: '你的邀请关系已经绑定过啦', showCancel: false });
+						return;
+					}
+					if (reason.indexOf('无效') >= 0 || reason.indexOf('自己') >= 0) {
+						this.setPendingInviteCode(null);
+						this.inviteLandingClosed = true;
+					}
+					AUTH.trackEvent({
+						event: 'invite_reward_failed',
+						page_path: 'pages/index/index',
+						source: 'invite_link',
+						has_invite: true
+					}, token).catch(function() {});
+					uni.showToast({ title: reason, icon: 'none' });
+				} catch (e) {
+					uni.hideLoading();
+					uni.showToast({ title: '领取失败', icon: 'none' });
+				}
 			},
 			async loadClaimableCoupons(options) {
 				options = options || {};
@@ -1311,6 +1606,119 @@ page { background: #FFF8F0; }
 	font-size: 22rpx;
 	color: #C4B5A5;
 	padding: 8rpx 0 8rpx 16rpx;
+}
+
+/* ===== 首页福利入口 ===== */
+.invite-landing-card,
+.home-benefit-card {
+	margin: 16rpx 24rpx 0;
+	border-radius: 24rpx;
+	padding: 22rpx;
+	display: flex;
+	align-items: center;
+	box-shadow: 0 10rpx 28rpx rgba(92,75,58,0.08);
+	box-sizing: border-box;
+}
+.invite-landing-card {
+	background: linear-gradient(135deg, #FFF1E7 0%, #EAF7EC 100%);
+	border: 2rpx solid rgba(255,140,66,0.22);
+}
+.invite-landing-icon {
+	width: 72rpx;
+	height: 72rpx;
+	border-radius: 20rpx;
+	background: #FF8C42;
+	color: #FFF;
+	font-size: 28rpx;
+	font-weight: bold;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	margin-right: 18rpx;
+}
+.invite-landing-copy {
+	flex: 1;
+	min-width: 0;
+}
+.invite-landing-kicker,
+.benefit-kicker {
+	display: block;
+	font-size: 21rpx;
+	font-weight: bold;
+	color: #4A9A4A;
+	margin-bottom: 4rpx;
+}
+.invite-landing-title,
+.benefit-title {
+	display: block;
+	font-size: 30rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+	line-height: 1.25;
+}
+.invite-landing-sub,
+.benefit-sub {
+	display: block;
+	font-size: 22rpx;
+	color: #7C6A58;
+	line-height: 1.42;
+	margin-top: 6rpx;
+}
+.invite-landing-side,
+.benefit-side {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	flex-shrink: 0;
+	margin-left: 16rpx;
+}
+.invite-landing-action,
+.benefit-action {
+	font-size: 23rpx;
+	color: #FFF;
+	background: #FF8C42;
+	border-radius: 22rpx;
+	padding: 9rpx 18rpx;
+	font-weight: bold;
+	white-space: nowrap;
+}
+.invite-landing-close {
+	margin-top: 12rpx;
+	font-size: 22rpx;
+	color: #BFA996;
+	padding: 4rpx 8rpx;
+}
+.home-benefit-card {
+	background: #FFF;
+	border: 2rpx solid rgba(129,199,132,0.22);
+	justify-content: space-between;
+}
+.benefit-copy {
+	flex: 1;
+	min-width: 0;
+	padding-right: 16rpx;
+}
+.benefit-points {
+	min-width: 112rpx;
+	padding: 12rpx 10rpx;
+	border-radius: 18rpx;
+	background: #EAF7EC;
+	text-align: center;
+	margin-bottom: 10rpx;
+}
+.benefit-points-num {
+	display: block;
+	font-size: 28rpx;
+	font-weight: 800;
+	color: #4A9A4A;
+	line-height: 1.15;
+}
+.benefit-points-label {
+	display: block;
+	font-size: 18rpx;
+	color: #7CA67E;
+	margin-top: 4rpx;
 }
 
 /* ===== 动画 ===== */

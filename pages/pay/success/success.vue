@@ -53,6 +53,7 @@
 
 <script>
 import AUTH from '../../../utils/auth.js';
+import { mapState } from 'vuex';
 
 export default {
 	data() {
@@ -62,9 +63,11 @@ export default {
 			bonus: 0,
 			orderId: '',
 			type: 'order',
+			inviteCode: '',
 		};
 	},
 	computed: {
+		...mapState(['token', 'userInfo']),
 		amountText() {
 			if (this.type === 'exchange' && Number(this.amount || 0) <= 0) return '';
 			if (!this.amount && this.amount !== 0) return '';
@@ -113,6 +116,9 @@ export default {
 			if (this.type === 'recharge') return '充值本金和赠送余额会一起进入账户；预约时可优先使用余额支付。';
 			return '到店后出示订单即可核验；如需布置或补给，建议提前联系店员确认。';
 		},
+		sharePath() {
+			return this.inviteCode ? '/pages/index/index?invite_code=' + this.inviteCode : '/pages/index/index';
+		},
 	},
 	onLoad(options) {
 		this.amount = Number(options.amount || 0);
@@ -120,6 +126,8 @@ export default {
 		this.bonus = Number(options.bonus || 0);
 		this.orderId = options.id || '';
 		this.type = options.type || 'order';
+		this.inviteCode = this.userInfo && this.userInfo.invite_code ? this.userInfo.invite_code : '';
+		this.loadInviteCode();
 		AUTH.trackEvent({
 			event: 'payment_success',
 			page_path: 'pages/pay/success/success',
@@ -129,17 +137,29 @@ export default {
 	},
 	onShareAppMessage() {
 		AUTH.trackEvent({
-			event: 'share_home',
+			event: this.inviteCode ? 'share_invite' : 'share_home',
 			page_path: 'pages/pay/success/success',
 			share_type: 'wechat_session',
-			source: 'payment_success'
-		}).catch(function() {});
+			source: 'payment_success',
+			has_invite: !!this.inviteCode
+		}, this.token).catch(function() {});
 		return {
-			title: '我在摸鱼划水吧订好了，来一起玩',
-			path: '/pages/index/index',
+			title: this.inviteCode ? '送你一份摸鱼新人礼，周末一起来玩' : '我在摸鱼划水吧订好了，来一起玩',
+			imageUrl: this.inviteCode ? '/static/share_invite.jpg' : '/static/share_home.jpg',
+			path: this.sharePath,
 		};
 	},
 	methods: {
+		loadInviteCode() {
+			if (this.inviteCode) return;
+			var token = this.token || uni.getStorageSync('token');
+			if (!token) return;
+			AUTH.inviteInfo(token).then(function(res) {
+				if (res._status === 0 && res.data && res.data.invite_code) {
+					this.inviteCode = res.data.invite_code;
+				}
+			}.bind(this)).catch(function() {});
+		},
 		goOrder() {
 			if (this.type === 'recharge') {
 				uni.redirectTo({ url: '/pages/user/balance/balance' });

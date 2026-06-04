@@ -381,7 +381,11 @@ const store = new Vuex.Store({
         }
         // 如果有邀请码且注册时未填写（后端已处理则跳过），在此补填
         if (invite_code) {
-          await AUTH.applyInviteCode(state.token, invite_code);
+          const inviteRes = await AUTH.applyInviteCode(state.token, invite_code);
+          const inviteData = inviteRes && inviteRes.data || {};
+          if ((inviteRes && inviteRes._status === 0 && inviteData._status !== 1) || (inviteData.message || '').indexOf('已经使用过') >= 0) {
+            commit('setPendingInviteCode', null);
+          }
         }
         // 请求订阅消息
         dispatch('requestSubscribeMessage');

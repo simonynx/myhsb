@@ -577,6 +577,11 @@
 					uni.showToast({ title: '请先登录', icon: 'none' });
 					return;
 				}
+				AUTH.trackEvent({
+					event: 'checkin_click',
+					page_path: 'pages/user/user',
+					source: 'user_center'
+				}, this.token).catch(function() {});
 				if (!this.checkInInfo.can_check_in) {
 					uni.showToast({ title: '今日已签到', icon: 'none' });
 					return;
@@ -587,12 +592,37 @@
 					this.checkInInfo.checked_in_today = true;
 					this.checkInInfo.can_check_in = false;
 					this.checkInInfo.points_earned_today = d.points_earned;
-					uni.showToast({ title: d.message, icon: 'success' });
+					AUTH.trackEvent({
+						event: 'checkin_success',
+						page_path: 'pages/user/user',
+						source: 'user_center'
+					}, this.token).catch(function() {});
 					this.getUserInfo();
-					this.loadCheckInInfo();
+					await this.loadCheckInInfo();
+					this.showCheckInSuccess(d);
 				} else {
 					uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
 				}
+			},
+			showCheckInSuccess(data) {
+				data = data || {};
+				var content = '本次获得 ' + Number(data.points_earned || 0) + ' 积分';
+				if (this.checkInInfo.tomorrow_points) {
+					content += '\n明天继续签到可领 +' + this.checkInInfo.tomorrow_points + ' 积分';
+				} else {
+					content += '\n连续签到还有额外奖励';
+				}
+				uni.showModal({
+					title: '签到成功',
+					content: content,
+					confirmText: '看卡券',
+					cancelText: '知道了',
+					success: function(res) {
+						if (res.confirm) {
+							uni.switchTab({ url: '/pages/voucher/voucher' });
+						}
+					}
+				});
 			},
 
 			async loadInviteInfo() {

@@ -368,11 +368,12 @@
 				uni.showLoading({ title: '请稍候...' });
 				AUTH.applyInviteCode(this.token, code).then((res) => {
 					uni.hideLoading();
-					if (res._status === 0) {
+					const data = res && res.data || {};
+					if (res._status === 0 && data._status !== 1) {
 						uni.showToast({ title: '绑定成功，双方各获得积分', icon: 'success' });
 						this.getUserInfo();
 					} else {
-						uni.showToast({ title: res._reason || '邀请码无效', icon: 'none' });
+						uni.showToast({ title: data.message || res._reason || '邀请码无效', icon: 'none' });
 					}
 				}).catch(() => {
 					uni.hideLoading();
@@ -396,6 +397,11 @@
 				}
 			},
 			async doCheckIn() {
+				AUTH.trackEvent({
+					event: 'checkin_click',
+					page_path: 'pages/user/setting/setting',
+					source: 'setting'
+				}, this.token).catch(function() {});
 				if (!this.checkInInfo.can_check_in) {
 					uni.showToast({ title: '今日已签到', icon: 'none' });
 					return;
@@ -406,12 +412,37 @@
 					this.checkInInfo.checked_in_today = true;
 					this.checkInInfo.can_check_in = false;
 					this.checkInInfo.current_streak = (this.checkInInfo.current_streak || 0) + 1;
-					uni.showToast({ title: d.message || '签到成功', icon: 'success' });
+					AUTH.trackEvent({
+						event: 'checkin_success',
+						page_path: 'pages/user/setting/setting',
+						source: 'setting'
+					}, this.token).catch(function() {});
 					this.getUserInfo();
-					this.loadCheckInInfo();
+					await this.loadCheckInInfo();
+					this.showCheckInSuccess(d);
 				} else {
 					uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
 				}
+			},
+			showCheckInSuccess(data) {
+				data = data || {};
+				var content = '本次获得 ' + Number(data.points_earned || 0) + ' 积分';
+				if (this.checkInInfo.tomorrow_points) {
+					content += '\n明天继续签到可领 +' + this.checkInInfo.tomorrow_points + ' 积分';
+				} else {
+					content += '\n连续签到还有额外奖励';
+				}
+				uni.showModal({
+					title: '签到成功',
+					content: content,
+					confirmText: '看卡券',
+					cancelText: '知道了',
+					success: function(res) {
+						if (res.confirm) {
+							uni.switchTab({ url: '/pages/voucher/voucher' });
+						}
+					}
+				});
 			},
 
 			clearCache() {
