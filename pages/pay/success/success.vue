@@ -52,6 +52,8 @@
 </template>
 
 <script>
+import AUTH from '../../../utils/auth.js';
+
 export default {
 	data() {
 		return {
@@ -118,8 +120,20 @@ export default {
 		this.bonus = Number(options.bonus || 0);
 		this.orderId = options.id || '';
 		this.type = options.type || 'order';
+		AUTH.trackEvent({
+			event: 'payment_success',
+			page_path: 'pages/pay/success/success',
+			source: this.type,
+			amount: this.amount
+		}).catch(function() {});
 	},
 	onShareAppMessage() {
+		AUTH.trackEvent({
+			event: 'share_home',
+			page_path: 'pages/pay/success/success',
+			share_type: 'wechat_session',
+			source: 'payment_success'
+		}).catch(function() {});
 		return {
 			title: '我在摸鱼划水吧订好了，来一起玩',
 			path: '/pages/index/index',

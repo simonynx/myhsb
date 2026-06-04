@@ -29,6 +29,24 @@
         <text class="gift-message" v-if="giftMessage">“{{ giftMessage }}”</text>
       </view>
       
+      <view class="landing-card">
+        <view class="landing-title">这张票能玩什么？</view>
+        <view class="landing-grid">
+          <view class="landing-item">
+            <text class="landing-icon">🎲</text>
+            <text class="landing-text">桌游漫画</text>
+          </view>
+          <view class="landing-item">
+            <text class="landing-icon">🍵</text>
+            <text class="landing-text">茶水零食</text>
+          </view>
+          <view class="landing-item">
+            <text class="landing-icon">🎮</text>
+            <text class="landing-text">包厢可升级</text>
+          </view>
+        </view>
+      </view>
+
       <text class="card-desc" style="margin-top: 10rpx;">一键登录后，门票将直接存入您的票包</text>
       <button class="action-btn primary-btn" @click="handleLogin">一键登录领取</button>
       <button class="action-btn secondary-btn" @click="goHome">返回首页</button>
@@ -49,6 +67,8 @@
       </view>
 
       <button class="action-btn primary-btn" @click="goToMyTickets">放入票包，去查看</button>
+      <button class="action-btn secondary-btn" @click="goBuyTicket">再买一张约朋友</button>
+      <button class="action-btn secondary-btn" @click="goGroup">看看今天谁开局</button>
     </view>
 
     <!-- 领取失败 -->
@@ -90,6 +110,7 @@ export default {
 
   onShow() {
     this.statusBarHeight = PLATFORM.getStatusBarHeight();
+    this.trackGiftEvent('page_view');
     this.fetchTransferPreview();
   },
 
@@ -112,6 +133,7 @@ export default {
         }
 
         this.transferInfo = infoRes.data;
+        this.trackGiftEvent('ticket_gift_preview');
 
         // 如果状态不是 0 (待接收)，直接判定为不能接收
         if (this.transferInfo.status !== 0) {
@@ -122,12 +144,14 @@ export default {
 
         if (!this.token) {
           this.claimStatus = 'need_login';
+          this.trackGiftEvent('ticket_gift_need_login');
         } else {
           // 已登录，执行静默自动接收
           this.claimStatus = 'loading';
           const acceptRes = await AUTH.acceptTicketTransfer(this.token, { transfer_token: this.transferToken });
           if (acceptRes && acceptRes._status === 0) {
             this.claimStatus = 'success';
+            this.trackGiftEvent('ticket_gift_accept');
             uni.showToast({ title: '已存入票包', icon: 'success' });
           } else {
             this.claimStatus = 'fail';
@@ -142,6 +166,7 @@ export default {
     },
 
     handleLogin() {
+      this.trackGiftEvent('ticket_gift_login');
       uni.showLoading({ title: '登录中...' });
       this.$store.dispatch('loginAndRegister').then(() => {
         uni.hideLoading();
@@ -157,8 +182,25 @@ export default {
       uni.redirectTo({ url: '/pages/ticket/list' });
     },
 
+    goBuyTicket() {
+      uni.navigateTo({ url: '/pages/ticket/buy' });
+    },
+
+    goGroup() {
+      uni.switchTab({ url: '/pages/group/group' });
+    },
+
     goHome() {
       uni.switchTab({ url: '/pages/index/index' });
+    },
+
+    trackGiftEvent(event) {
+      AUTH.trackEvent({
+        event: event,
+        page_path: 'pages/ticket/receive',
+        source: 'ticket_transfer',
+        has_transfer: !!this.transferToken
+      }, this.token).catch(function() {});
     },
 
     parseAvatar(avatar) {
@@ -324,6 +366,46 @@ $gray: #7F8C8D;
   padding: 20rpx 40rpx;
   border-radius: 20rpx;
   border: 1px solid #FFE0E0;
+}
+
+.landing-card {
+  width: 100%;
+  background: #FFF7EF;
+  border: 2rpx solid #FFE1C8;
+  border-radius: 22rpx;
+  padding: 26rpx 24rpx;
+  box-sizing: border-box;
+  margin-bottom: 34rpx;
+}
+.landing-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: $dark;
+  text-align: center;
+  margin-bottom: 22rpx;
+}
+.landing-grid {
+  display: flex;
+  justify-content: space-between;
+}
+.landing-item {
+  width: 31%;
+  min-height: 112rpx;
+  background: #fff;
+  border-radius: 18rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.landing-icon {
+  font-size: 36rpx;
+  margin-bottom: 10rpx;
+}
+.landing-text {
+  font-size: 23rpx;
+  color: #6B5142;
+  font-weight: bold;
 }
 
 .gift-detail {

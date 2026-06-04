@@ -457,6 +457,13 @@ export default {
         transfer_token: this.shareToken,
         message: message,
       });
+      AUTH.trackEvent({
+        event: 'share_ticket_gift',
+        page_path: 'pages/ticket/list',
+        share_type: 'wechat_session',
+        source: 'ticket_transfer',
+        has_transfer: !!this.shareToken
+      }, this.token).catch(function() {});
       return {
         title: this.getGiftShareTitle(),
         path: path,

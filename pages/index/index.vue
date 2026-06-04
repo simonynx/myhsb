@@ -428,6 +428,11 @@
 		},
 		onShow() {
 			uni.$emit('tabBarChange', { key: 'index' });
+			AUTH.trackEvent({
+				event: 'page_view',
+				page_path: 'pages/index/index',
+				source: 'home'
+			}).catch(function() {});
 			this.loadData();
 			if (this.reviewsLoaded) {
 				this.loadReviews();
@@ -669,6 +674,12 @@
 					'带娃+打游戏两不误，这家店的老板太懂了',
 					'我的精神避难所，今天忍痛分享给你 🤫',
 				];
+				AUTH.trackEvent({
+					event: 'share_home',
+					page_path: 'pages/index/index',
+					share_type: 'wechat_session',
+					source: 'home'
+				}).catch(function() {});
 				return {
 					title: titles[Math.floor(Math.random() * titles.length)],
 					imageUrl: '/static/share_home.jpg',
@@ -676,12 +687,23 @@
 				};
 			},
 			onShareTimeline() {
+				AUTH.trackEvent({
+					event: 'share_timeline',
+					page_path: 'pages/index/index',
+					share_type: 'timeline',
+					source: 'home'
+				}).catch(function() {});
 				return {
 					title: '福州周末不知道去哪？来摸鱼划水吧玩一天',
 					imageUrl: '/static/share_home.jpg',
 				};
 			},
 			onAddToFavorites() {
+				AUTH.trackEvent({
+					event: 'share_favorite',
+					page_path: 'pages/index/index',
+					source: 'home'
+				}).catch(function() {});
 				return {
 					title: '先收藏，下次想玩桌游漫画主机找得到',
 					imageUrl: '/static/share_home.jpg',

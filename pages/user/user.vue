@@ -771,6 +771,13 @@
 			const path = this.inviteCode
 				? '/pages/index/index?invite_code=' + this.inviteCode
 				: '/pages/index/index';
+			AUTH.trackEvent({
+				event: 'share_invite',
+				page_path: 'pages/user/user',
+				share_type: 'wechat_session',
+				source: 'invite_card',
+				has_invite: !!this.inviteCode
+			}, this.token).catch(function() {});
 			return {
 				title: '我在摸鱼划水吧等你，一起来玩还有奖励！',
 				imageUrl: this.shareImagePath || '/static/share_invite.jpg',
@@ -778,6 +785,13 @@
 			};
 		},
 		onShareTimeline() {
+			AUTH.trackEvent({
+				event: 'share_invite',
+				page_path: 'pages/user/user',
+				share_type: 'timeline',
+				source: 'invite_card',
+				has_invite: !!this.inviteCode
+			}, this.token).catch(function() {});
 			return {
 				title: '还在996？快来摸鱼划水吧充电回血',
 				imageUrl: this.shareImagePath || '/static/share_invite.jpg',
@@ -787,6 +801,11 @@
 			};
 		},
 		onAddToFavorites() {
+			AUTH.trackEvent({
+				event: 'share_favorite',
+				page_path: 'pages/user/user',
+				source: 'user_center'
+			}, this.token).catch(function() {});
 			return {
 				title: '摸鱼划水吧 — 福州最舒服的线下娱乐空间',
 				imageUrl: '/static/share_home.jpg',

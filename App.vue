@@ -6,9 +6,31 @@
 		mapActions,
 		mapState,
 	} from 'vuex';
+	import AUTH from './utils/auth.js';
 	export default {
 		methods: {
 			...mapActions(['loginAndRegister']),
+			trackMarketingEvent(event, options, extra) {
+				try {
+					var PLATFORM = require('./common/platform.js');
+					var query = PLATFORM.getLaunchQuery(options || {});
+					var payload = {
+						event: event,
+						platform: PLATFORM.getPlatform(),
+						page_path: (options && options.path) || '',
+						scene: options && options.scene ? String(options.scene) : '',
+						source: query.source || query.utm_source || query.from || '',
+						share_type: query.share_type || '',
+						has_invite: !!query.invite_code,
+						has_transfer: !!(query.transfer_token || query.ticket_transfer_token)
+					};
+					extra = extra || {};
+					Object.keys(extra).forEach(function(key) {
+						payload[key] = extra[key];
+					});
+					AUTH.trackEvent(payload).catch(function() {});
+				} catch (e) {}
+			},
 			handleSharedTicketLaunch(options) {
 				try {
 					var PLATFORM = require('./common/platform.js');
@@ -84,9 +106,11 @@
 				} catch (e) {
 					console.log('解析扫码场景失败', e);
 				}
+				this.trackMarketingEvent('launch', options, { platform: platform });
 			},
 		onShow: function(options) {
 			this.handleSharedTicketLaunch(options);
+			this.trackMarketingEvent('app_show', options || {});
 			console.log('App Show')
 		},
 		onHide: function() {

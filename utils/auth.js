@@ -343,6 +343,12 @@ function getConstance(token) {
   return request('/config/', 'GET', null, token);
 }
 
+function trackEvent(data, token) {
+  data = data || {};
+  data.platform = data.platform || PLATFORM.getPlatform();
+  return request('/analytics/track/', 'POST', data, token);
+}
+
 function setPayPassword(password, token) {
   var data = { password: password };
   return request('/users/reset_paypwd/', 'POST', data, token);
@@ -531,6 +537,7 @@ var httpRequest = {
   receiveCoupon: receiveCoupon,
   grantCoupon: grantCoupon,
   getCouponCampaigns: getCouponCampaigns,
+  trackEvent: trackEvent,
   uploadFile: uploadFile,
   parseAvatarUrl: parseAvatarUrl,
   // 每日签到

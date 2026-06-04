@@ -398,6 +398,11 @@ export default {
 				this.buying = false;
 				if (res._status === 0) {
 					uni.showToast({ title: '购买成功', icon: 'success' });
+					AUTH.trackEvent({
+						event: 'payment_success',
+						page_path: 'pages/user/subscription/buy',
+						source: 'subscription_balance'
+					}, this.token).catch(function() {});
 					this.getUserInfo(true).catch(function() {});
 					setTimeout(() => {
 						uni.redirectTo({ url: '/pages/user/subscription/my' });
@@ -438,6 +443,11 @@ export default {
 				
 				PLATFORM.requestPayment(payment).then(() => {
 					uni.showToast({ title: '购买成功', icon: 'success' });
+					AUTH.trackEvent({
+						event: 'payment_success',
+						page_path: 'pages/user/subscription/buy',
+						source: 'subscription_wechat'
+					}, this.token).catch(function() {});
 					this.getUserInfo(true).catch(function() {});
 					setTimeout(() => {
 						uni.redirectTo({ url: '/pages/user/subscription/my' });
