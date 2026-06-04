@@ -9,7 +9,7 @@
 	import AUTH from './utils/auth.js';
 	export default {
 		methods: {
-			...mapActions(['loginAndRegister']),
+			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getUserInfo']),
 			trackMarketingEvent(event, options, extra) {
 				try {
 					var PLATFORM = require('./common/platform.js');
@@ -25,10 +25,14 @@
 						has_transfer: !!(query.transfer_token || query.ticket_transfer_token)
 					};
 					extra = extra || {};
+					var delay = extra._delay_ms || 1500;
+					delete extra._delay_ms;
 					Object.keys(extra).forEach(function(key) {
 						payload[key] = extra[key];
 					});
-					AUTH.trackEvent(payload).catch(function() {});
+					setTimeout(function() {
+						AUTH.trackEvent(payload).catch(function() {});
+					}, delay);
 				} catch (e) {}
 			},
 			handleSharedTicketLaunch(options) {
@@ -72,18 +76,19 @@
 		},
 			onLaunch: function(options) {
 				// 微信审核要求：打开小程序不强制登录，让用户先浏览
-				// 但如果有本地缓存的 token，先验证是否有效，有效再恢复登录态
+				// 配置是公开数据，先独立加载；登录态等 token 验证成功后再恢复
+				this._launchedAt = Date.now();
 				var platform = 'weixin';
 				// #ifdef MP-TOUTIAO
 				platform = 'toutiao';
 				// #endif
+				this.getConstanceInfo().catch(function() {});
 				try {
 					var token = uni.getStorageSync('token');
 					if (token) {
 						this.$store.commit('setToken', token);
-						this.$store.commit('login', platform);
-						this.$store.dispatch('getUserInfo', true).then(() => {
-							this.$store.dispatch('getConstanceInfo');
+						this.getUserInfo(true).then(() => {
+							this.$store.commit('login', platform);
 						}).catch(() => {
 							// token 已过期，静默清除登录态
 							this.$store.commit('logout');
@@ -106,15 +111,17 @@
 				} catch (e) {
 					console.log('解析扫码场景失败', e);
 				}
-				this.trackMarketingEvent('launch', options, { platform: platform });
+				this.trackMarketingEvent('launch', options, { platform: platform, _delay_ms: 2000 });
 			},
 		onShow: function(options) {
 			this.handleSharedTicketLaunch(options);
-			this.trackMarketingEvent('app_show', options || {});
-			console.log('App Show')
+			var now = Date.now();
+			if (now - (this._launchedAt || 0) > 3000 && now - (this._lastAppShowTrackAt || 0) > 30000) {
+				this._lastAppShowTrackAt = now;
+				this.trackMarketingEvent('app_show', options || {}, { _delay_ms: 2000 });
+			}
 		},
 		onHide: function() {
-			console.log('App Hide')
 		},
 	}
 </script>

@@ -5,11 +5,15 @@ import PLATFORM from '../common/platform.js';
 
 Vue.use(Vuex);
 
+let constanceRequest = null;
+const CONSTANCE_CACHE_MAX_AGE = 30 * 1000;
+
 const store = new Vuex.Store({
   state: {
     hasLogin: false,
     userInfo: null,
     constance: null,
+    constanceLoadedAt: 0,
     isUniverifyLogin: false,
     loginProvider: '',
     token: null,
@@ -41,8 +45,12 @@ const store = new Vuex.Store({
     },
     logout(state) {
       state.hasLogin = false;
+      state.loginProvider = '';
+      state.isUniverifyLogin = false;
       state.openid = null;
       state.token = null;
+      state.userInfo = null;
+      state.subscribeAuthorized = false;
       try { uni.removeStorageSync('token'); } catch(e) {}
     },
     setUserInfo(state, payload) {
@@ -50,6 +58,7 @@ const store = new Vuex.Store({
     },
     setConstanceInfo(state, payload) {
       state.constance = payload;
+      state.constanceLoadedAt = Date.now();
     },
     updateUserInfo(state, userInfo) {
       if (!state.userInfo) state.userInfo = {};
@@ -291,15 +300,29 @@ const store = new Vuex.Store({
     /**
      * 获取配置信息
      */
-    getConstanceInfo: function({ state, commit }) {
-      return AUTH.getConstance(state.token || null).then((res) => {
+    getConstanceInfo: function({ state, commit }, options) {
+      options = options || {};
+      var now = Date.now();
+      var maxAge = options.maxAge === undefined ? CONSTANCE_CACHE_MAX_AGE : Number(options.maxAge || 0);
+      if (!options.force && state.constance && state.constanceLoadedAt && now - state.constanceLoadedAt < maxAge) {
+        return Promise.resolve({ _status: 0, data: state.constance });
+      }
+      if (!options.force && constanceRequest) {
+        return constanceRequest;
+      }
+      constanceRequest = AUTH.getConstance(null).then((res) => {
         if (!res || res._status !== 0) return;
         commit('setConstanceInfo', res.data);
         AUTH.setSubscribeTemplateConfig(res.data);
         return res;
       }).catch((err) => {
         console.error('获取配置信息失败:', err);
+        return null;
       });
+      constanceRequest.then(function() {
+        constanceRequest = null;
+      });
+      return constanceRequest;
     },
 
     /**

@@ -377,10 +377,12 @@
 			},
 		},
 		watch: {
-			constance(value) { this.loadData(); },
+			constance(value) {
+				if (value) this.loadData();
+			},
 			hasLogin(value) {
 				if (value) {
-					this.loadClaimableCoupons();
+					this.scheduleDeferredRefresh(true);
 				} else {
 					this.claimableCouponCount = 0;
 					this.claimableCouponName = '';
@@ -424,38 +426,61 @@
 				claimableCouponName: '',
 				claimableCouponKey: '',
 				storeNoticeVisible: false,
+				homeDataLoaded: false,
+				homeDataKey: '',
+				reviewsLoading: false,
+				reviewsLastLoadedAt: 0,
+				couponsLoading: false,
+				couponsLastLoadedAt: 0,
+				bannerLoading: false,
+				bannerLastCheckedAt: 0,
+				pageViewLastTrackedAt: 0,
 			};
 		},
 		onShow() {
 			uni.$emit('tabBarChange', { key: 'index' });
-			AUTH.trackEvent({
-				event: 'page_view',
-				page_path: 'pages/index/index',
-				source: 'home'
-			}).catch(function() {});
-			this.loadData();
-			if (this.reviewsLoaded) {
-				this.loadReviews();
-			}
+			this.schedulePageViewTrack();
+			if (this.constance) this.loadData();
 			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
-			this.loadClaimableCoupons();
-			if (this.hasLogin) this.checkBanner();
+			this.scheduleDeferredRefresh(false);
 		},
 		onLoad(options) {
 			this.captureInviteCode(options);
 			if (!this.constance) {
-				this.getConstanceInfo().then(() => {
-					this.loadData();
-				}).catch(() => {});
+				this.getConstanceInfo().catch(() => {});
 			} else {
 				this.loadData();
 			}
-			this.loadReviews();
-			this.loadClaimableCoupons();
+			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
+			this.scheduleDeferredRefresh(true);
 		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getReviewList']),
 			...mapMutations(['setPendingInviteCode']),
+			schedulePageViewTrack() {
+				var now = Date.now();
+				if (now - this.pageViewLastTrackedAt < 30000) return;
+				this.pageViewLastTrackedAt = now;
+				setTimeout(function() {
+					AUTH.trackEvent({
+						event: 'page_view',
+						page_path: 'pages/index/index',
+						source: 'home'
+					}).catch(function() {});
+				}, 1200);
+			},
+			scheduleDeferredRefresh(initial) {
+				if (this._deferredRefreshTimer) return;
+				var delay = initial ? 800 : 500;
+				this._deferredRefreshTimer = setTimeout(function() {
+					this._deferredRefreshTimer = null;
+					this.loadReviews();
+					if (this.hasLogin) {
+						this.loadClaimableCoupons();
+						this.checkBanner();
+					}
+				}.bind(this), delay);
+			},
 			captureInviteCode(options) {
 				var code = options && options.invite_code ? options.invite_code : '';
 				if (!code && options && options.scene) {
@@ -514,10 +539,16 @@
 				this.couponHintClosed = true;
 				this.couponHintClosedKey = this.claimableCouponKey;
 			},
-			async loadClaimableCoupons() {
+			async loadClaimableCoupons(options) {
+				options = options || {};
 				if (!this.hasLogin) {
 					this.claimableCouponCount = 0;
 					this.claimableCouponName = '';
+					return;
+				}
+				if (this.couponsLoading) return;
+				var now = Date.now();
+				if (!options.force && this.couponsLastLoadedAt && now - this.couponsLastLoadedAt < 5 * 60 * 1000) {
 					return;
 				}
 				var token = uni.getStorageSync('token');
@@ -526,6 +557,7 @@
 					this.claimableCouponName = '';
 					return;
 				}
+				this.couponsLoading = true;
 				try {
 					const res = await AUTH.getCouponList(token);
 					if (res._status === 0 && res.data) {
@@ -535,6 +567,7 @@
 						this.claimableCouponName = list.length > 0 ? list[0].name : '';
 						this.claimableCouponKey = key;
 						if (list.length > 0 && this.couponHintClosedKey !== key) this.couponHintClosed = false;
+						this.couponsLastLoadedAt = Date.now();
 					} else {
 						this.claimableCouponCount = 0;
 						this.claimableCouponName = '';
@@ -544,6 +577,8 @@
 					this.claimableCouponCount = 0;
 					this.claimableCouponName = '';
 					this.claimableCouponKey = '';
+				} finally {
+					this.couponsLoading = false;
 				}
 			},
 			handleSceneTap(scene) {
@@ -583,28 +618,45 @@
 			},
 			async loadData() {
 				if (!this.constance) {
-					console.log('constance 还未加载，等待...');
 					return;
 				}
+				var sources = [
+					this.constance.home_page_image0,
+					this.constance.home_page_image1,
+					this.constance.home_page_image2,
+					this.constance.home_page_image3
+				].filter(function(src) { return !!src; });
+				var dataKey = sources.join('|');
+				if (this.homeDataLoaded && this.homeDataKey === dataKey) return;
 				this.carouselList = [];
-				var baseUrl = 'http://moyuhuashui.oss-cn-shenzhen.aliyuncs.com/';
+				var baseUrl = 'https://moyuhuashui.oss-cn-shenzhen.aliyuncs.com/';
 				var addPrefix = function(src) {
 					if (!src) return '';
+					if (src.indexOf('http://moyuhuashui.oss-cn-shenzhen.aliyuncs.com/') === 0) {
+						return src.replace('http://moyuhuashui.oss-cn-shenzhen.aliyuncs.com/', baseUrl);
+					}
 					if (src.indexOf('http') === 0) return src;
 					return baseUrl + src;
 				};
-				if (this.constance.home_page_image0) this.carouselList.push(addPrefix(this.constance.home_page_image0));
-				if (this.constance.home_page_image1) this.carouselList.push(addPrefix(this.constance.home_page_image1));
-				if (this.constance.home_page_image2) this.carouselList.push(addPrefix(this.constance.home_page_image2));
-				if (this.constance.home_page_image3) this.carouselList.push(addPrefix(this.constance.home_page_image3));
+				for (var i = 0; i < sources.length; i++) {
+					this.carouselList.push(addPrefix(sources[i]));
+				}
 				this.swiperLength = this.carouselList.length;
-				console.log('轮播图加载完成:', this.carouselList);
+				this.homeDataLoaded = true;
+				this.homeDataKey = dataKey;
 			},
-			async loadReviews() {
+			async loadReviews(options) {
+				options = options || {};
+				if (this.reviewsLoading) return;
+				var now = Date.now();
+				if (!options.force && this.reviewsLoaded && this.reviewsLastLoadedAt && now - this.reviewsLastLoadedAt < 5 * 60 * 1000) {
+					return;
+				}
+				this.reviewsLoading = true;
 				try {
 					var list = await this.getReviewList();
-					console.log('评价列表:', list);
 					this.reviewsLoaded = true;
+					this.reviewsLastLoadedAt = Date.now();
 					if (!list || list.length === 0) {
 						this.reviews = [];
 						this.reviewTotalCount = 0;
@@ -632,6 +684,8 @@
 					this.reviews = [];
 					this.reviewTotalCount = 0;
 					this.reviewAverageText = '';
+				} finally {
+					this.reviewsLoading = false;
 				}
 			},
 			prepareReviewItem(raw) {
@@ -715,7 +769,12 @@
 			},
 			checkBanner() {
 				if (!this.hasLogin) return;
+				if (this.bannerLoading) return;
+				var checkedAt = Date.now();
+				if (this.bannerLastCheckedAt && checkedAt - this.bannerLastCheckedAt < 5 * 60 * 1000) return;
+				this.bannerLoading = true;
 				AUTH.activeBanners().then(res => {
+					this.bannerLastCheckedAt = Date.now();
 					if (res._status !== 0 || !res.data || res.data.length === 0) return;
 					const banner = res.data[0];
 					const key = 'banner_shown_' + banner.id;
@@ -724,7 +783,10 @@
 					if (last && now - last < 24 * 60 * 60 * 1000) return;
 					this.activeBanner = banner;
 					uni.setStorageSync(key, now);
-				});
+				}).catch(function() {
+				}).then(function() {
+					this.bannerLoading = false;
+				}.bind(this));
 			},
 			closeBanner() {
 				this.activeBanner = null;
