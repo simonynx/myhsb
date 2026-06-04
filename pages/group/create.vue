@@ -4,7 +4,7 @@
         <view class="custom-header">
             <view class="header-safe">
                 <text class="header-back" @click="goBack">←</text>
-                <text class="header-title">🎮 发起拼团</text>
+                <text class="header-title">🎮 发起组局</text>
                 <view class="header-spacer"></view>
             </view>
         </view>
@@ -82,7 +82,8 @@
                         <text>48小时</text>
                     </view>
                 </view>
-                <text v-if="maxExpireHours < 12" class="expire-warning error">⏰ 预约时间太近了（距开始不足12小时），请直接预约或选择更晚时段</text>
+                <text v-if="isTimeTooClose" class="expire-warning error">⏰ 距离开始不足2小时，请直接预约或选择更晚时段</text>
+                <text v-else-if="maxExpireHours < 12" class="expire-warning warn">⏰ 临近开局，报名会在开始前2小时截止</text>
                 <text v-else-if="maxExpireHours < 24" class="expire-warning warn">⏰ 距离预约开始还有约 {{ maxExpireHours }} 小时，24/48小时选项暂不可用</text>
                 <text v-else-if="maxExpireHours < 48" class="expire-warning info">ℹ️ 距离预约开始还有约 {{ maxExpireHours }} 小时，48小时选项暂不可用</text>
             </view>
@@ -90,7 +91,7 @@
 
         <!-- 费用计算（全员共享部分） -->
         <view class="cost-card">
-            <view class="cost-title">🧮 费用计算（全员共享）</view>
+            <view class="cost-title">🧮 组局费用估算</view>
 
             <view class="cost-formula">
                 <view class="formula-line">
@@ -107,12 +108,12 @@
 
             <!-- 拼团折扣（全员共享） -->
             <view class="cost-row" v-if="groupDiscountAmount > 0">
-                <text class="cost-label">拼团折扣（{{ groupDiscountPercent }}折）</text>
+                <text class="cost-label">组局折扣（{{ groupDiscountPercent }}折）</text>
                 <text class="cost-value discount">-¥{{ (groupDiscountAmount / 100).toFixed(2) }}</text>
             </view>
 
             <view class="cost-row total">
-                <text class="cost-label">基础总价（拼团折扣后）</text>
+                <text class="cost-label">组局总价（折扣后）</text>
                 <text class="cost-value">¥{{ baseCostYuan }}</text>
             </view>
 
@@ -183,7 +184,7 @@
             <!-- 付款提示 -->
             <view class="balance-hint">
                 <text class="balance-icon">🔒</text>
-                <text class="balance-text">发起和加入都先报名不付款；满员后临时锁房 15 分钟，请所有成员在详情页完成付款</text>
+                <text class="balance-text">先报名不付款；满员后临时锁房 15 分钟，请所有成员在详情页完成付款</text>
             </view>
 
             <view class="setting-item vertical">
@@ -203,11 +204,11 @@
 
         <!-- 规则提示卡片 -->
         <view class="rule-card">
-            <view class="rule-title">📋 拼团规则</view>
+            <view class="rule-title">📋 组局规则</view>
             <view class="rule-list">
                 <view class="rule-item">
                     <text class="rule-dot">1</text>
-                    <text class="rule-text">拼团有效期 <text class="rule-bold">{{ expireHours }} 小时</text>，超时自动结束</text>
+                    <text class="rule-text">报名截止：<text class="rule-bold">{{ expireDisplayText }}</text>，超时自动结束</text>
                 </view>
                 <view class="rule-item">
                     <text class="rule-dot">2</text>
@@ -241,10 +242,10 @@
                 <text class="bottom-label">满员后发起人支付</text>
                 <text class="bottom-price">¥{{ actualInitiatorPaidYuan }}</text>
             </view>
-            <view class="submit-btn" :class="maxExpireHours < 12 || submitting ? 'disabled' : ''" @click="handleSubmit">
-                <text v-if="maxExpireHours < 12">⏰ 时间太近了</text>
+            <view class="submit-btn" :class="isTimeTooClose || submitting ? 'disabled' : ''" @click="handleSubmit">
+                <text v-if="isTimeTooClose">⏰ 时间太近了</text>
                 <text v-else-if="submitting">创建中...</text>
-                <text v-else>🚀 报名发起</text>
+                <text v-else>🚀 发起组局</text>
             </view>
         </view>
 
@@ -284,7 +285,7 @@
                     </view>
                     <view class="modal-row">
                         <text class="modal-label">有效期</text>
-                        <text class="modal-value">{{ expireHours }} 小时</text>
+                        <text class="modal-value">{{ expireDisplayText }}</text>
                     </view>
                 </view>
                 <view class="modal-footer">
@@ -316,7 +317,7 @@ export default {
             duration: 1,
             pricePerHour: 0,
             pricePerPersonRef: 0,
-            maxMembers: 4,
+            maxMembers: 2,
             initiatorInputYuan: '0.00',
             note: '',
             initiatorManuallyChanged: false,
@@ -329,6 +330,8 @@ export default {
             showConfirmModal: false,
             showAdvanced: false,
             submitting: false,
+            nowTimestamp: Date.now(),
+            expireTicker: null,
         };
     },
 
@@ -410,15 +413,26 @@ export default {
             const balance = this.userInfo && this.userInfo.account_balance;
             return (balance || 0) >= this.actualInitiatorPaidFen;
         },
+        maxExpireMs() {
+            if (!this.date || !this.beginTime) return 48 * 3600 * 1000;
+            const dateText = String(this.date).replace(/-/g, '/');
+            const apt = new Date(dateText + ' ' + this.beginTime).getTime();
+            const buffer = 2 * 3600 * 1000; // 2小时缓冲
+            if (!apt || isNaN(apt)) return 0;
+            return apt - buffer - this.nowTimestamp;
+        },
+        isTimeTooClose() {
+            return this.maxExpireMs <= 0;
+        },
         // 过期时间不能超过预约前 2 小时
         maxExpireHours() {
-            if (!this.date || !this.beginTime) return 48;
-            const now = Date.now();
-            const apt = new Date(this.date + ' ' + this.beginTime).getTime();
-            const buffer = 2 * 3600 * 1000; // 2小时缓冲
-            const maxMs = apt - buffer - now;
-            if (maxMs <= 0) return 0; // 已超时
-            return Math.floor(maxMs / (3600 * 1000));
+            if (this.maxExpireMs <= 0) return 0;
+            return Math.floor(this.maxExpireMs / (3600 * 1000));
+        },
+        expireDisplayText() {
+            if (this.isTimeTooClose) return '已过报名截止';
+            if (this.maxExpireHours < this.expireHours) return '开始前2小时截止';
+            return this.expireHours + ' 小时';
         },
         expire12Class() {
             return (this.expireHours === 12 ? 'active ' : '') + (this.maxExpireHours < 12 ? 'disabled' : '');
@@ -481,16 +495,37 @@ export default {
         // 默认发起人承担份额 = 基础人均（均摊）
         const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
         this.initiatorInputYuan = (Math.ceil(total / this.maxMembers) / 100).toFixed(2);
+        this.trackCreateView(options || {});
+        this.startExpireTicker();
     },
 
     onShow() {
         // 刷新余额
+        this.nowTimestamp = Date.now();
         this.loadConfigAndCoupons();
+    },
+
+    onUnload() {
+        this.clearExpireTicker();
     },
 
     methods: {
         goBack() {
             uni.navigateBack();
+        },
+
+        startExpireTicker() {
+            this.clearExpireTicker();
+            this.expireTicker = setInterval(() => {
+                this.nowTimestamp = Date.now();
+            }, 30000);
+        },
+
+        clearExpireTicker() {
+            if (this.expireTicker) {
+                clearInterval(this.expireTicker);
+                this.expireTicker = null;
+            }
         },
 
         loadConfigAndCoupons() {
@@ -536,10 +571,29 @@ export default {
             uni.showToast({ title: '已恢复默认均摊', icon: 'none' });
         },
 
+        trackGroupEvent(event, extra) {
+            const data = Object.assign({
+                event: event,
+                page_path: 'pages/group/create',
+                source: 'group_create',
+                room_id: this.roomId,
+                max_members: this.maxMembers,
+                date: this.date,
+                begin_time: this.beginTime,
+            }, extra || {});
+            AUTH.trackEvent(data, this.token).catch(() => {});
+        },
+
+        trackCreateView(options) {
+            this.trackGroupEvent('group_create_view', {
+                source: options.source || 'appointment',
+            });
+        },
+
         handleSubmit() {
             if (this.submitting) return;
-            if (this.maxExpireHours < 12) {
-                uni.showToast({ title: '预约时间太近了，请直接预约或选择更晚时段', icon: 'none' });
+            if (this.isTimeTooClose) {
+                uni.showToast({ title: '距离开始不足2小时，请直接预约或选择更晚时段', icon: 'none' });
                 return;
             }
             if (this.maxMembers < 2 || this.maxMembers > 20) {
@@ -571,6 +625,11 @@ export default {
                 expire_hours: this.expireHours,
             };
 
+            this.trackGroupEvent('group_create_submit', {
+                price_per_person: this.memberPriceFen,
+                expire_hours: this.expireHours,
+            });
+
             // 显示自定义支付确认弹窗
             this.showConfirmModal = true;
             this._pendingSubmitData = data;
@@ -595,15 +654,20 @@ export default {
             }).then(res => {
                 uni.hideLoading();
                 if (res && res._status === 0 && res.data) {
+                    this.trackGroupEvent('group_create_success', {
+                        group_id: res.data.object_id,
+                    });
                     this.handleCreateSuccess(res.data);
                 } else {
                     var msg = (res && res._reason) || '创建失败';
+                    this.trackGroupEvent('group_create_failed', { reason: msg });
                     this.submitting = false;
                     uni.showToast({ title: msg, icon: 'none' });
                 }
             }).catch(() => {
                 uni.hideLoading();
                 this.submitting = false;
+                this.trackGroupEvent('group_create_failed', { reason: 'request_failed' });
                 uni.showToast({ title: '创建失败', icon: 'none' });
             });
         },
@@ -611,7 +675,7 @@ export default {
         handleCreateSuccess(groupData) {
             const subsidyHint = groupData && groupData._subsidy_hint;
             const goDetail = () => {
-                uni.showToast({ title: '拼团创建成功', icon: 'success' });
+                uni.showToast({ title: '组局创建成功', icon: 'success' });
                 setTimeout(() => {
                     uni.redirectTo({ url: '/pages/group/detail?id=' + groupData.object_id });
                 }, 800);

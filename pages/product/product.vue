@@ -285,7 +285,7 @@
                     </view>
                     <view class="pf-btns">
                         <view class="pf-btn group" :class="specSelected.length ? '' : 'disabled'" @tap="specSelected.length && handleCreateGroup()">
-                            <text>发起拼团</text>
+                            <text>找搭子</text>
                         </view>
                         <view class="pf-btn book" :class="specSelected.length ? '' : 'disabled'" @tap="specSelected.length && handleDirectBook()">
                             <text>直接预约</text>
@@ -298,7 +298,7 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { mapActions, mapState } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import times from '@/components/pretty-times/pretty-times.vue';
 
@@ -433,6 +433,8 @@ export default {
     },
 
     methods: {
+        ...mapActions(['loginAndRegister']),
+
         buildSharePayload() {
             const roomId = this.room && this.room.object_id ? this.room.object_id : '';
             const date = this.currentSelectDate || this.roomDate || '';
@@ -758,6 +760,12 @@ export default {
         },
 
         handleCreateGroup() {
+            if (!this.hasLogin) {
+                uni.showModal({ title: '提示', content: '请先登录再发起组局', success: (res) => {
+                    if (res.confirm) this.loginAndRegister();
+                }});
+                return;
+            }
             const times = this.$refs.timesComponent && this.$refs.timesComponent.getSelection();
             if (!times || !times.length) {
                 uni.showToast({ title: '请先选择预约时段', icon: 'none' });
@@ -770,6 +778,14 @@ export default {
             const room = this.room;
             const duration = Math.max(1, parseInt(endTime.split(':')[0]) - parseInt(beginTime.split(':')[0]));
             const timeList = times.map(t => t.item[0].split(' ')[1].substring(0, 5) + '~' + t.item[1].split(' ')[1].substring(0, 5));
+            AUTH.trackEvent({
+                event: 'group_create_entry_click',
+                page_path: 'pages/product/product',
+                source: 'product_panel',
+                room_id: room.object_id,
+                date: this.currentSelectDate,
+                begin_time: beginTime,
+            }, this.token).catch(() => {});
             const query = 'room_id=' + room.object_id
                 + '&room_name=' + encodeURIComponent(room.name || '')
                 + '&room_image=' + encodeURIComponent(room.image1 || '')
@@ -779,7 +795,8 @@ export default {
                 + '&duration=' + duration
                 + '&price_per_person=' + (room.price_per_person || 0)
                 + '&price_per_hour=' + (room.price_per_hour || 0)
-                + '&time_list=' + encodeURIComponent(JSON.stringify(timeList));
+                + '&time_list=' + encodeURIComponent(JSON.stringify(timeList))
+                + '&source=product_panel';
             uni.navigateTo({ url: '/pages/group/create?' + query });
         },
 

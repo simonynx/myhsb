@@ -170,7 +170,7 @@
 		{
 			"path": "pages/group/group",
 			"style": {
-				"navigationBarTitleText": "拼团广场",
+				"navigationBarTitleText": "组局广场",
 				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white",
 				"enablePullDownRefresh": true,
@@ -180,7 +180,7 @@
 		{
 			"path": "pages/group/detail",
 			"style": {
-				"navigationBarTitleText": "拼团详情",
+				"navigationBarTitleText": "组局详情",
 				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
@@ -188,7 +188,7 @@
 		{
 			"path": "pages/group/my",
 			"style": {
-				"navigationBarTitleText": "我的拼团",
+				"navigationBarTitleText": "我的组局",
 				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}
@@ -288,7 +288,7 @@
 				"pagePath": "pages/group/group",
 				"iconPath": "static/tab-my.png",
 				"selectedIconPath": "static/tab-my-current.png",
-				"text": "拼团"
+				"text": "组局"
 			},
 			{
 				"pagePath": "pages/user/user",

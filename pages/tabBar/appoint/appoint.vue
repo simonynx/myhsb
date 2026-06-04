@@ -194,7 +194,7 @@
                     </view>
                     <view class="pf-btns">
                         <view :class="groupButtonClass" @click="specSelected.length && handleCreateGroup()">
-                            <text>发起拼团</text>
+                            <text>找搭子</text>
                         </view>
                         <view :class="bookButtonClass" @click="specSelected.length && handleDirectBook()">
                             <text>直接预约</text>
@@ -241,7 +241,7 @@ export default {
     },
 
     computed: {
-        ...mapState(['hasLogin', 'token', 'userInfo']),
+        ...mapState(['hasLogin', 'token', 'userInfo', 'constance']),
         currentHour() { return new Date().getHours(); },
         selectedDayInfo() {
             return this.weekDays[this.selectedDayIndex] || {};
@@ -255,14 +255,18 @@ export default {
         selectedDurationHours() {
             return this.specSelected && this.specSelected.length ? this.specSelected.length : 0;
         },
+        groupDiscountPercent() {
+            const value = this.constance && parseInt(this.constance.group_discount_percent);
+            return value && value > 0 ? value : 100;
+        },
         groupValueText() {
             if (!this.currentSelectItem || !this.selectedDurationHours) return '';
             const hourCost = (this.currentSelectItem.price_per_hour || 0) * this.selectedDurationHours;
-            const personCost = (this.currentSelectItem.price_per_person || 0) * 4;
-            const total = hourCost + personCost;
-            if (!total) return '发起拼团，凑齐后自动锁房';
-            const perPerson = Math.ceil(total / 4 / 100);
-            return '拼团约人均 ¥' + perPerson + ' 起，凑齐后自动锁房';
+            const personCost = (this.currentSelectItem.price_per_person || 0) * 2;
+            const total = Math.ceil((hourCost + personCost) * this.groupDiscountPercent / 100);
+            if (!total) return '发起2人局，满员后自动锁房';
+            const perPerson = Math.ceil(total / 2 / 100);
+            return '2人局约人均 ¥' + perPerson + ' 起，满员锁房';
         },
     },
     onLoad() {
@@ -529,7 +533,7 @@ export default {
 
         handleCreateGroup() {
             if (!this.hasLogin) {
-                uni.showModal({ title: '提示', content: '请先登录再发起拼团', success: (res) => {
+                uni.showModal({ title: '提示', content: '请先登录再发起组局', success: (res) => {
                     if (res.confirm) this.loginAndRegister();
                 }});
                 return;
@@ -546,6 +550,14 @@ export default {
             const room = this.currentSelectItem;
             const duration = Math.max(1, parseInt(endTime.split(':')[0]) - parseInt(beginTime.split(':')[0]));
             const timeList = times.map(t => t.item[0].split(' ')[1].substring(0, 5) + '~' + t.item[1].split(' ')[1].substring(0, 5));
+            AUTH.trackEvent({
+                event: 'group_create_entry_click',
+                page_path: 'pages/tabBar/appoint/appoint',
+                source: 'appointment_panel',
+                room_id: room.object_id,
+                date: this.currentSelectDate,
+                begin_time: beginTime,
+            }, this.token).catch(() => {});
             const query = 'room_id=' + room.object_id
                 + '&room_name=' + encodeURIComponent(room.name || '')
                 + '&room_image=' + encodeURIComponent(room.image1 || '')
@@ -555,7 +567,8 @@ export default {
                 + '&duration=' + duration
                 + '&price_per_person=' + (room.price_per_person || 0)
                 + '&price_per_hour=' + (room.price_per_hour || 0)
-                + '&time_list=' + encodeURIComponent(JSON.stringify(timeList));
+                + '&time_list=' + encodeURIComponent(JSON.stringify(timeList))
+                + '&source=appointment_panel';
             uni.navigateTo({ url: '/pages/group/create?' + query });
         },
 

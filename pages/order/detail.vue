@@ -94,7 +94,7 @@
 			<view class="weui-cells" v-if="orderData.type==1">
 				<view class="pingtuanList">
 					<view>
-						<view class="fs28 cr333 pingtuantop">拼团信息</view>
+						<view class="fs28 cr333 pingtuantop">组局信息</view>
 					</view>
 					<view v-if="status !=1 && orderData.groupLog.remaining_number!=0&& orderData.group_status==1">
 						<view class="fs28 cr333 pingtuantop">
@@ -106,16 +106,16 @@
 					    </view>
 					</view>
 					<view class="fs28 cr333 yiman" v-if="orderData.groupLog.remaining_number==0 && (status==2|| status==3||status==4||status==5)">
-						<text class="iconfont icon-xuanze" style="color: #ff6600;padding-right: 10rpx;"></text><text>恭喜您，拼团成功</text>
+						<text class="iconfont icon-xuanze" style="color: #ff6600;padding-right: 10rpx;"></text><text>恭喜您，组局成功</text>
 					</view>
 					<view class="fs28 cr333 yiman" v-if="orderData.group_status==3">
-						<text class="iconfont icon-guanbi1" style="color: #ff6600;padding-right: 10rpx;"></text><text>抱歉，拼团失败</text>
+						<text class="iconfont icon-guanbi1" style="color: #ff6600;padding-right: 10rpx;"></text><text>抱歉，组局失败</text>
 					</view>
 					<view class="fs28 cr333 yiman" v-if="orderData.group_status==4">
-						<text class="iconfont icon-guanbi1" style="color: #ff6600;padding-right: 10rpx;"></text><text>拼团已取消</text>
+						<text class="iconfont icon-guanbi1" style="color: #ff6600;padding-right: 10rpx;"></text><text>组局已取消</text>
 					</view>
 					<view>
-						<view class="fs28 cr333 yiman"  v-if="orderData.groupLog.remaining_number!=0 && status==1">支付订单即可邀请好友参团</view>
+						<view class="fs28 cr333 yiman"  v-if="orderData.groupLog.remaining_number!=0 && status==1">支付订单即可邀请好友加入</view>
 					</view>
 					<view class="pintuanItem">
 						<view v-for="(item,index) in orderData.member">
@@ -132,14 +132,14 @@
 							</view>
 						</view>
 						<view class="fs28 cr333 pintuanTip" v-if="orderData.groupLog.remaining_number>0&& orderData.group_status==1">
-						      还差<text style="color: #FF0000;">{{orderData.groupLog.remaining_number}}</text>人拼团成功
+						      还差<text style="color: #FF0000;">{{orderData.groupLog.remaining_number}}</text>人组局成功
 						</view>
 					</view>
-					<!-- <view class="fs28 cr333 yiman"  v-if="orderData.groupLog.remaining_number==0 && status==2"><text class="iconfont icon-xuanze" style="color: #FF6600;"></text>拼团成功</view> -->
+					<!-- <view class="fs28 cr333 yiman"  v-if="orderData.groupLog.remaining_number==0 && status==2"><text class="iconfont icon-xuanze" style="color: #FF6600;"></text>组局成功</view> -->
 				</view>
-				<view class="bottom-pintuan" v-if="orderData.groupLog.remaining_number!=0 && (status==2)"><button class="theme-btn shareBtn" open-type="share">邀请好友参团</button></view>
+				<view class="bottom-pintuan" v-if="orderData.groupLog.remaining_number!=0 && (status==2)"><button class="theme-btn shareBtn" open-type="share">邀请好友加入</button></view>
 				<!-- <view style="padding-bottom: 20rpx;">
-					<view class="fs28 cr333 yiman"  v-if="orderData.groupLog.remaining_number!=0 && status==1">订单未支付，支付成功即可邀请好友参团</view>
+					<view class="fs28 cr333 yiman"  v-if="orderData.groupLog.remaining_number!=0 && status==1">订单未支付，支付成功即可邀请好友加入</view>
 				</view> -->
 			</view>
 

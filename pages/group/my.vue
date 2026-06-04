@@ -27,7 +27,7 @@
             </view>
         </view>
 
-        <!-- 拼团列表 -->
+        <!-- 组局列表 -->
         <view class="group-list">
             <view
                 class="group-card"
@@ -96,10 +96,10 @@
                     <text class="empty-icon">{{ activeTab === 'initiated' ? '🌱' : '🌻' }}</text>
                     <view class="empty-ring"></view>
                 </view>
-                <text class="empty-title">{{ activeTab === 'initiated' ? '还没有发起过拼团' : '还没有加入过拼团' }}</text>
-                <text class="empty-sub">去拼团广场逛逛，和小伙伴一起约起来吧～</text>
+                <text class="empty-title">{{ activeTab === 'initiated' ? '还没有发起过组局' : '还没有加入过组局' }}</text>
+                <text class="empty-sub">去组局广场逛逛，和小伙伴一起约起来吧～</text>
                 <view class="empty-btn" @click="goGroup">
-                    <text>🎮 去拼团广场</text>
+                    <text>🎮 去组局广场</text>
                 </view>
             </view>
         </view>
@@ -140,7 +140,7 @@ export default {
                     this.joinedList = this.normalizeGroupList(res.data.joined || []);
                 }
             } catch (e) {
-                console.error('加载我的拼团失败', e);
+                console.error('加载我的组局失败', e);
             }
         },
         goDetail(id) {
@@ -150,7 +150,7 @@ export default {
             uni.switchTab({ url: '/pages/group/group' });
         },
         statusText(status) {
-            const map = { pending: '旧版待支付', open: '拼团中', payment_pending: '待付款', full: '已满员', success: '已完成', refunding: '退款中', cancelled: '已取消' };
+            const map = { pending: '旧版待支付', open: '组局中', payment_pending: '待付款', full: '已满员', success: '已完成', refunding: '退款中', cancelled: '已取消' };
             return map[status] || status;
         },
         normalizeGroupList(list) {
@@ -282,7 +282,7 @@ export default {
     transition: color 0.2s;
 }
 
-/* 拼团列表 */
+/* 组局列表 */
 .group-list {
     padding: 0 30rpx 40rpx;
 }

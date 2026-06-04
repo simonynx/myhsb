@@ -113,7 +113,7 @@
                     <text class="cost-value">¥{{ (group.room_person_price / 100).toFixed(2) }} × {{ group.max_members }}人</text>
                 </view>
                 <view class="cost-row discount" v-if="group.group_discount_amount">
-                    <text class="cost-label">拼团折扣</text>
+                    <text class="cost-label">组局折扣</text>
                     <text class="cost-value discount-val">-¥{{ (group.group_discount_amount / 100).toFixed(2) }}</text>
                 </view>
                 <view class="cost-divider"></view>
@@ -190,11 +190,11 @@
                         <view class="progress-fill" :style="'width:' + progressWidth"></view>
                     </view>
                     <text class="progress-text" v-if="group.status === 'payment_pending'">🔒 已临时锁房，请团友尽快付款</text>
-                    <text class="progress-text" v-else-if="group.status === 'success'">🎉 成团成功！</text>
+                    <text class="progress-text" v-else-if="group.status === 'success'">🎉 组局成功！</text>
                     <text class="progress-text" v-else-if="group.status === 'refunding'">↩️ 付款期已失效，退款处理中</text>
-                    <text class="progress-text" v-else-if="group.status === 'cancelled'">🍂 拼团已结束</text>
-                    <text class="progress-text" v-else-if="remainingCount > 0">🌱 还差 {{ remainingCount }} 人成团</text>
-                    <text class="progress-text" v-else-if="refundingMemberCount > 0">↩️ 有成员退款处理中，暂不成团</text>
+                    <text class="progress-text" v-else-if="group.status === 'cancelled'">🍂 组局已结束</text>
+                    <text class="progress-text" v-else-if="remainingCount > 0">🌱 还差 {{ remainingCount }} 人成局</text>
+                    <text class="progress-text" v-else-if="refundingMemberCount > 0">↩️ 有成员退款处理中，暂不成局</text>
                     <text class="progress-text" v-else>🌻 已满员</text>
                 </view>
             </view>
@@ -255,13 +255,13 @@
                 <text>{{ actionLoading ? '处理中...' : '💳 去付款' }}</text>
             </view>
             <view class="action-btn warn" v-else-if="isInitiator && group.status === 'open'" @click="handleCancel">
-                <text>{{ actionLoading ? '处理中...' : '🚫 解散拼团' }}</text>
+                <text>{{ actionLoading ? '处理中...' : '🚫 解散组局' }}</text>
             </view>
             <view class="action-btn warn" v-else-if="isMember && group.status === 'open'" @click="handleLeave">
-                <text>{{ actionLoading ? '处理中...' : '退出拼团' }}</text>
+                <text>{{ actionLoading ? '处理中...' : '退出组局' }}</text>
             </view>
             <view class="action-btn primary" v-else-if="canJoin" @click="handleJoin">
-                <text>{{ actionLoading ? '处理中...' : '🎮 加入拼团' }}</text>
+                <text>{{ actionLoading ? '处理中...' : '🎮 加入组局' }}</text>
             </view>
             <view class="action-btn disabled" v-else>
                 <text>{{ disabledActionText }}</text>
@@ -285,6 +285,8 @@ export default {
             countdownTimer: null,
             countdownText: '',
             actionLoading: false,
+            entrySource: '',
+            detailTrackedKey: '',
         };
     },
 
@@ -372,7 +374,7 @@ export default {
             return map[this.group.status] || '🔖';
         },
         countdownLabel() {
-            return this.group.status === 'payment_pending' ? '付款倒计时' : '拼团截止倒计时';
+            return this.group.status === 'payment_pending' ? '付款倒计时' : '组局截止倒计时';
         },
         groupStatusClass() {
             return this.group.status || '';
@@ -391,6 +393,7 @@ export default {
 
     onLoad(options) {
         this.groupId = options.id || '';
+        this.entrySource = options.source || '';
         if (this.groupId) {
             this.loadDetail();
         }
@@ -421,20 +424,27 @@ export default {
 
         let title = '';
         if (this.group.status === 'payment_pending') {
-            title = `🔒「${room.name || '拼团'}」已满员，请团友尽快付款锁定预约`;
+            title = `🔒「${room.name || '组局'}」已满员，请团友尽快付款锁定预约`;
         } else if (remain <= 0) {
-            title = `${timeEmoji}「${room.name || '拼团'}」已满员！来看看还有啥好玩的~`;
+            title = `${timeEmoji}「${room.name || '组局'}」已满员！来看看还有啥好玩的~`;
         } else if (remain === 1) {
-            title = `🔥 最后1个名额！「${room.name || '拼团'}」${this.group.date} ${this.group.begin_time}~${this.group.end_time} · 人均¥${priceStr}`;
+            title = `🔥 最后1个名额！「${room.name || '组局'}」${this.group.date} ${this.group.begin_time}~${this.group.end_time} · 人均¥${priceStr}`;
         } else if (remain === 2) {
-            title = `🎮 就差2人了！「${room.name || '拼团'}」${this.group.date} ${this.group.begin_time}~${this.group.end_time} · 人均¥${priceStr}`;
+            title = `🎮 就差2人了！「${room.name || '组局'}」${this.group.date} ${this.group.begin_time}~${this.group.end_time} · 人均¥${priceStr}`;
         } else {
-            title = `🎮 一起开黑！「${room.name || '拼团'}」${this.group.date} ${this.group.begin_time}~${this.group.end_time} · 人均¥${priceStr} · 还差${remain}人`;
+            title = `🎮 一起开局！「${room.name || '组局'}」${this.group.date} ${this.group.begin_time}~${this.group.end_time} · 人均¥${priceStr} · 还差${remain}人`;
         }
+
+        this.trackGroupEvent('group_share', {
+            source: 'group_detail',
+            share_type: 'group_detail',
+            remaining_count: remain,
+            status: this.group.status,
+        });
 
         return {
             title,
-            path: '/pages/group/detail?id=' + this.groupId,
+            path: '/pages/group/detail?id=' + this.groupId + '&source=group_detail_share',
             imageUrl: room.image1 || '/static/logo_small.jpg',
         };
     },
@@ -446,6 +456,7 @@ export default {
                 this.loading = false;
                 if (res && res._status === 0 && res.data) {
                     this.group = this.normalizeGroup(res.data);
+                    this.trackDetailView();
                     this.startCountdown();
                 } else {
                     uni.showToast({ title: (res && res._reason) || '加载失败', icon: 'none' });
@@ -463,8 +474,29 @@ export default {
             }
         },
         statusText(status) {
-            const map = { pending: '旧版待支付', open: '拼团中', payment_pending: '待付款', full: '已满员', success: '已完成', refunding: '退款中', cancelled: '已取消' };
+            const map = { pending: '旧版待支付', open: '组局中', payment_pending: '待付款', full: '已满员', success: '已完成', refunding: '退款中', cancelled: '已取消' };
             return map[status] || status;
+        },
+
+        trackGroupEvent(event, extra) {
+            const data = Object.assign({
+                event: event,
+                page_path: 'pages/group/detail',
+                source: this.entrySource || 'group_detail',
+                group_id: this.groupId,
+            }, extra || {});
+            AUTH.trackEvent(data, this.token).catch(() => {});
+        },
+
+        trackDetailView() {
+            const key = this.groupId + ':' + (this.group.status || '');
+            if (this.detailTrackedKey === key) return;
+            this.detailTrackedKey = key;
+            this.trackGroupEvent('group_detail_view', {
+                status: this.group.status,
+                remaining_count: this.remainingCount,
+                max_members: this.group.max_members,
+            });
         },
 
         normalizeGroup(group) {
@@ -524,7 +556,7 @@ export default {
             if (!this.token) {
                 uni.showModal({
                     title: '需要登录',
-                    content: '加入拼团需要先登录，是否前往登录？',
+                    content: '加入组局需要先登录，是否前往登录？',
                     success: (res) => {
                         if (res.confirm) {
                             uni.switchTab({ url: '/pages/user/user' });
@@ -533,8 +565,12 @@ export default {
                 });
                 return;
             }
+            this.trackGroupEvent('group_join_click', {
+                remaining_count: this.remainingCount,
+                status: this.group.status,
+            });
             uni.showModal({
-                title: '加入拼团',
+                title: '加入组局',
                 content: '先报名加入，不立即付款；满员后 15 分钟内付款，全部付完才正式预约。是否确认加入？',
                 success: (res) => {
                     if (res.confirm) {
@@ -545,6 +581,9 @@ export default {
                         }).then(res => {
                             uni.hideLoading();
                             if (res && res._status === 0) {
+                                this.trackGroupEvent('group_join_success', {
+                                    payment_pending: !!(res.data && res.data.payment_pending),
+                                });
                                 this.actionLoading = false;
                                 const title = res.data && res.data.payment_pending ? '已满员，去付款' : '加入成功';
                                 uni.showToast({ title: title, icon: 'success' });
@@ -552,11 +591,13 @@ export default {
                             } else {
                                 this.actionLoading = false;
                                 var msg = (res && res._reason) || '加入失败';
+                                this.trackGroupEvent('group_join_failed', { reason: msg });
                                 uni.showToast({ title: msg, icon: 'none' });
                             }
                         }).catch(() => {
                             uni.hideLoading();
                             this.actionLoading = false;
+                            this.trackGroupEvent('group_join_failed', { reason: 'request_failed' });
                             uni.showToast({ title: '加入失败', icon: 'none' });
                         });
                     }
@@ -578,6 +619,9 @@ export default {
                 });
                 return;
             }
+            this.trackGroupEvent('group_pay_click', {
+                status: this.group.status,
+            });
             this.actionLoading = true;
             uni.showLoading({ title: '生成订单...' });
             AUTH.requestSubscribeMessage('group').catch(() => false).then(() => {
@@ -590,16 +634,22 @@ export default {
                     } else {
                         this.actionLoading = false;
                         this.group = this.normalizeGroup(res.data);
+                        this.trackGroupEvent('group_pay_success', {
+                            status: this.group.status,
+                            pay_type: 'balance',
+                        });
                         uni.showToast({ title: this.group.status === 'success' ? '预约成功' : '付款成功', icon: 'success' });
                         this.startCountdown();
                     }
                 } else {
                     this.actionLoading = false;
+                    this.trackGroupEvent('group_pay_failed', { reason: (res && res._reason) || 'pay_failed' });
                     uni.showToast({ title: (res && res._reason) || '付款失败', icon: 'none' });
                 }
             }).catch(() => {
                 uni.hideLoading();
                 this.actionLoading = false;
+                this.trackGroupEvent('group_pay_failed', { reason: 'request_failed' });
                 uni.showToast({ title: '付款失败', icon: 'none' });
             });
         },
@@ -618,8 +668,10 @@ export default {
                 var msg = err && err.errMsg ? err.errMsg : '支付失败';
                 if (msg.indexOf('cancel') >= 0) {
                     AUTH.cancelOrder(this.token, { order_number: payload.order_number }).catch(() => {});
+                    this.trackGroupEvent('group_pay_failed', { reason: 'cancelled' });
                     uni.showToast({ title: '支付已取消', icon: 'none' });
                 } else {
+                    this.trackGroupEvent('group_pay_failed', { reason: msg });
                     uni.showToast({ title: msg, icon: 'none' });
                 }
             });
@@ -644,6 +696,10 @@ export default {
                     }
                     if (this.currentUserPaid || this.group.status === 'success') {
                         this.actionLoading = false;
+                        this.trackGroupEvent('group_pay_success', {
+                            status: this.group.status,
+                            pay_type: 'wechat',
+                        });
                         uni.showToast({ title: this.group.status === 'success' ? '预约成功' : '付款成功', icon: 'success' });
                         this.startCountdown();
                         return;
@@ -666,7 +722,7 @@ export default {
         handleLeave() {
             if (this.actionLoading) return;
             uni.showModal({
-                title: '退出拼团',
+                title: '退出组局',
                 content: '退出后会释放当前名额，是否确认？',
                 success: (res) => {
                     if (res.confirm) {
@@ -694,7 +750,7 @@ export default {
         handleCancel() {
             if (this.actionLoading) return;
             uni.showModal({
-                title: '解散拼团',
+                title: '解散组局',
                 content: '解散后当前报名会结束，尚未付款无需退款，是否确认解散？',
                 success: (res) => {
                     if (res.confirm) {

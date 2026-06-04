@@ -63,7 +63,7 @@
             </view>
         </view>
 
-        <!-- 拼团列表 -->
+        <!-- 组局列表 -->
         <view class="group-list">
             <view
                 class="group-card"
@@ -142,17 +142,17 @@
                 <text class="empty-icon">🎮</text>
                 <text class="empty-title">{{ emptyTitle }}</text>
                 <text class="empty-sub">{{ emptySub }}</text>
-                <view class="empty-btn" @click="goAppoint">
-                    <text>发起拼团，喊朋友 →</text>
+                <view class="empty-btn" @click="goAppoint('empty')">
+                    <text>发起2人局 →</text>
                 </view>
             </view>
 
-            <view class="starter-card" v-if="visibleGroupList.length > 0 && !loading" @click="goAppoint">
+            <view class="starter-card" v-if="visibleGroupList.length > 0 && !loading" @click="goAppoint('starter')">
                 <view class="starter-copy">
                     <text class="starter-title">没看到合适的局？</text>
-                    <text class="starter-sub">选个包厢和时间，朋友或新玩家都能加入。</text>
+                    <text class="starter-sub">默认2人成局，朋友或新玩家都能加入。</text>
                 </view>
-                <text class="starter-action">发起拼团 →</text>
+                <text class="starter-action">发起组局 →</text>
             </view>
         </view>
 
@@ -184,15 +184,22 @@ export default {
             loading: false,
             pendingShareGroup: null,
             groupRequestSeq: 0,
+            squareViewLastTrackedAt: 0,
+            emptyTrackedKey: '',
         };
     },
 
     onShareAppMessage() {
         const group = this.pendingShareGroup;
         this.pendingShareGroup = null;
+        this.trackGroupEvent('group_share', {
+            source: group ? 'group_square_card' : 'group_square',
+            group_id: group && group.object_id,
+            share_type: group ? 'group_card' : 'group_square',
+        });
         if (!group) {
             return {
-                title: '🎮 摸鱼划水吧 · 找人一起开局',
+                title: '🎮 摸鱼划水吧 · 找搭子一起开局',
                 path: '/pages/group/group',
                 imageUrl: '/static/logo_small.jpg',
             };
@@ -206,14 +213,14 @@ export default {
             return this.weekDays[this.selectedDayIndex] ? this.weekDays[this.selectedDayIndex].date : '';
         },
         emptyTitle() {
-            if (this.visibleGroupList.length === 0 && this.rawGroupList.length > 0) return '这个筛选下暂无拼团';
-            if (!this.currentDate) return '暂无拼团';
+            if (this.visibleGroupList.length === 0 && this.rawGroupList.length > 0) return '这个筛选下暂无组局';
+            if (!this.currentDate) return '暂无组局';
             const day = this.weekDays[this.selectedDayIndex] || {};
-            return (day.week || '') + '暂无拼团';
+            return (day.week || '') + '暂无组局';
         },
         emptySub() {
             if (this.visibleGroupList.length === 0 && this.rawGroupList.length > 0) return '换个筛选看看，或者自己发起一个新局。';
-            return this.currentDate ? '这一天还没有人发起拼团，你来当第一个！' : '暂时没人缺队友，发起一个邀请朋友吧';
+            return this.currentDate ? '默认2人成局，临时想玩也可以先喊一个搭子。' : '暂时没人缺队友，发起一个2人局更容易成。';
         },
         visibleGroupList() {
             if (this.activeQuickFilter === 'almost') {
@@ -255,11 +262,11 @@ export default {
         },
         groupSummaryText() {
             if (this.openGroupCount > 0) return this.openGroupCount + '个局正在等人';
-            return '今天可以从你开始';
+            return '今天从2人局开始';
         },
         groupSummarySub() {
             if (this.lowestPriceText) return '人均' + this.lowestPriceText + '，先报名满员后再付款';
-            return '发起一个局，朋友和新玩家都能加入';
+            return '默认2人成局，先报名满员后再付款';
         },
         quickFilters() {
             const items = [
@@ -288,6 +295,7 @@ export default {
 
     onShow() {
         uni.$emit('tabBarChange', { key: 'group' });
+        this.trackSquareView();
         this.ensureWeekDays();
         if (this.weekDays.length > 0) {
             this.fetchGroupList();
@@ -341,6 +349,9 @@ export default {
 
         selectQuickFilter(key) {
             this.activeQuickFilter = key || 'all';
+            this.$nextTick(() => {
+                this.trackEmptyViewIfNeeded();
+            });
         },
 
         fetchGroupList() {
@@ -364,7 +375,7 @@ export default {
                         const label = this.formatDateLabel(g.date);
                         g.dateLabel = label;
                         g.dateShort = this.formatShortDate(g.date);
-                        g.roomName = room.name || '拼团房间';
+                        g.roomName = room.name || '组局房间';
                         g.roomImage = room.image1 || '/static/logo_small.jpg';
                         g.initiatorName = initiator.nickname || '玩家';
                         g.initiatorAvatar = initiator.avatar || '/static/logo_small.jpg';
@@ -424,15 +435,18 @@ export default {
                     list.sort(this.compareGroups);
                     this.rawGroupList = list;
                     this.groupList = list;
+                    this.trackEmptyViewIfNeeded();
                 } else {
                     this.rawGroupList = [];
                     this.groupList = [];
+                    this.trackEmptyViewIfNeeded();
                 }
             }).catch(() => {
                 if (requestSeq !== this.groupRequestSeq) return;
                 this.loading = false;
                 this.rawGroupList = [];
                 this.groupList = [];
+                this.trackEmptyViewIfNeeded();
             });
         },
 
@@ -466,7 +480,7 @@ export default {
         },
 
         statusText(status) {
-            const map = { open: '拼团中', payment_pending: '待付款', full: '已满员', success: '已完成', cancelled: '已取消' };
+            const map = { open: '组局中', payment_pending: '待付款', full: '已满员', success: '已完成', cancelled: '已取消' };
             return map[status] || status;
         },
 
@@ -507,7 +521,11 @@ export default {
         },
 
         goDetail(id) {
-            uni.navigateTo({ url: '/pages/group/detail?id=' + id });
+            this.trackGroupEvent('group_detail_click', {
+                source: 'group_square_click',
+                group_id: id,
+            });
+            uni.navigateTo({ url: '/pages/group/detail?id=' + id + '&source=group_square' });
         },
 
         setShareGroup(group) {
@@ -531,23 +549,55 @@ export default {
             // 根据剩余人数选择不同的社交裂变文案
             let title = '';
             if (remain <= 0) {
-                title = `${timeEmoji}「${room.name || '拼团'}」已满员，来看看还有没有新局`;
+                title = `${timeEmoji}「${room.name || '组局'}」已满员，来看看还有没有新局`;
             } else if (remain === 1) {
-                title = `🔥 缺1人开局！${group.date} ${group.begin_time}「${room.name || '拼团'}」人均¥${priceStr}`;
+                title = `🔥 缺1人开局！${group.date} ${group.begin_time}「${room.name || '组局'}」人均¥${priceStr}`;
             } else if (remain === 2) {
                 title = `🎮 还差2人，${group.date} ${group.begin_time} 一起开局吗？人均¥${priceStr}`;
             } else {
-                title = `🎮 「${room.name || '拼团'}」缺${remain}人，${group.date} ${group.begin_time} 一起玩`;
+                title = `🎮 「${room.name || '组局'}」缺${remain}人，${group.date} ${group.begin_time} 一起玩`;
             }
 
             return {
                 title,
-                path: '/pages/group/detail?id=' + group.object_id,
+                path: '/pages/group/detail?id=' + group.object_id + '&source=group_square_share',
                 imageUrl: room.image1 || '/static/logo_small.jpg',
             };
         },
 
-        goAppoint() {
+        trackGroupEvent(event, extra) {
+            const data = Object.assign({
+                event: event,
+                page_path: 'pages/group/group',
+                source: 'group_square',
+            }, extra || {});
+            AUTH.trackEvent(data, this.token).catch(() => {});
+        },
+
+        trackSquareView() {
+            const now = Date.now();
+            if (now - this.squareViewLastTrackedAt < 30000) return;
+            this.squareViewLastTrackedAt = now;
+            this.trackGroupEvent('group_square_view', {
+                date: this.currentDate || 'all',
+            });
+        },
+
+        trackEmptyViewIfNeeded() {
+            if (this.loading || this.visibleGroupList.length > 0) return;
+            const key = (this.currentDate || 'all') + ':' + this.activeQuickFilter;
+            if (this.emptyTrackedKey === key) return;
+            this.emptyTrackedKey = key;
+            this.trackGroupEvent('group_square_empty_view', {
+                date: this.currentDate || 'all',
+                filter: this.activeQuickFilter,
+            });
+        },
+
+        goAppoint(source) {
+            this.trackGroupEvent('group_create_entry_click', {
+                source: source === 'starter' ? 'group_square_starter' : 'group_square_empty',
+            });
             uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
         },
     },

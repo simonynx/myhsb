@@ -263,7 +263,7 @@
 			</view>
 			<view class="menu-item" @tap="hasLogin ? goGroup() : handleLogin()">
 				<text class="menu-icon">👥</text>
-				<text class="menu-text">我的拼团</text>
+				<text class="menu-text">我的组局</text>
 				<text class="menu-arrow">→</text>
 			</view>
 			<view class="menu-item" @tap="hasLogin ? navTo('/pages/ticket/list') : handleLogin()">

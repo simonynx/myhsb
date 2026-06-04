@@ -36,7 +36,7 @@
 				</view>
 			</view>
 
-			<!-- 拼团 -->
+			<!-- 组局 -->
 			<view
 				class="tab-item"
 				:class="{ active: current === 'group' }"
@@ -47,7 +47,7 @@
 						<text class="svg-path" :class="{ filled: current === 'group' }">{{ current === 'group' ? '👥' : '👤' }}</text>
 					</text>
 				</view>
-				<text class="tab-label" :class="{ active: current === 'group' }">拼团</text>
+				<text class="tab-label" :class="{ active: current === 'group' }">组局</text>
 			</view>
 
 			<!-- 我的 -->
@@ -89,7 +89,7 @@ export default {
 				{ key: 'index', name: '首页', path: '/pages/index/index' },
 				{ key: 'voucher', name: '卡券', path: '/pages/voucher/voucher' },
 				{ key: 'appoint', name: '预约', path: '/pages/tabBar/appoint/appoint' },
-				{ key: 'group', name: '拼团', path: '/pages/group/group' },
+				{ key: 'group', name: '组局', path: '/pages/group/group' },
 				{ key: 'user', name: '我的', path: '/pages/user/user' },
 			],
 		};
