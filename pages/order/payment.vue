@@ -641,7 +641,13 @@ export default {
         goSuccess() {
             const amount = (this.order && this.order.pay_amount) || 0;
             const id = (this.order && this.order.object_id) || '';
-            const type = this.order && this.order.order_type === 5 ? 'exchange' : 'order';
+            const orderType = Number(this.order && this.order.order_type);
+            let type = 'order';
+            if (orderType === 5) {
+                type = 'exchange';
+            } else if (orderType === 6) {
+                type = 'ticket';
+            }
             uni.redirectTo({
                 url: '/pages/pay/success/success?amount=' + amount + '&id=' + encodeURIComponent(id) + '&type=' + type
             });

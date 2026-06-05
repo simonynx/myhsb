@@ -287,6 +287,10 @@ export default {
             actionLoading: false,
             entrySource: '',
             detailTrackedKey: '',
+            detailRequestSeq: 0,
+            detailLoading: false,
+            detailLoaded: false,
+            detailLastLoadedAt: 0,
         };
     },
 
@@ -395,7 +399,7 @@ export default {
         this.groupId = options.id || '';
         this.entrySource = options.source || '';
         if (this.groupId) {
-            this.loadDetail();
+            this.loadDetail({ force: true });
         }
     },
 
@@ -450,10 +454,24 @@ export default {
     },
 
     methods: {
-        loadDetail() {
-            this.loading = true;
-            AUTH.getGroupDetail(this.token, this.groupId).then(res => {
+        loadDetail(options) {
+            options = options || {};
+            const force = !!options.force;
+            const now = Date.now();
+            if (!force && this.detailLoading) return Promise.resolve();
+            if (!force && this.detailLoaded && now - this.detailLastLoadedAt < 1000) return Promise.resolve();
+
+            const requestSeq = ++this.detailRequestSeq;
+            this.detailLoading = true;
+            if (!this.group.object_id) {
+                this.loading = true;
+            }
+            return AUTH.getGroupDetail(this.token, this.groupId).then(res => {
+                if (requestSeq !== this.detailRequestSeq) return;
+                this.detailLoading = false;
                 this.loading = false;
+                this.detailLoaded = true;
+                this.detailLastLoadedAt = Date.now();
                 if (res && res._status === 0 && res.data) {
                     this.group = this.normalizeGroup(res.data);
                     this.trackDetailView();
@@ -462,6 +480,8 @@ export default {
                     uni.showToast({ title: (res && res._reason) || '加载失败', icon: 'none' });
                 }
             }).catch(() => {
+                if (requestSeq !== this.detailRequestSeq) return;
+                this.detailLoading = false;
                 this.loading = false;
                 uni.showToast({ title: '加载失败', icon: 'none' });
             });
@@ -585,9 +605,26 @@ export default {
                                     payment_pending: !!(res.data && res.data.payment_pending),
                                 });
                                 this.actionLoading = false;
-                                const title = res.data && res.data.payment_pending ? '已满员，去付款' : '加入成功';
-                                uni.showToast({ title: title, icon: 'success' });
-                                this.loadDetail();
+                                if (res.data && res.data.payment_pending) {
+                                    this.group = this.normalizeGroup(res.data);
+                                    this.startCountdown();
+                                    uni.showModal({
+                                        title: '已满员待付款',
+                                        content: '房间已临时锁定 15 分钟。现在完成付款，全部团友付完后才会正式预约。',
+                                        confirmText: '去付款',
+                                        cancelText: '稍后',
+                                        success: (modalRes) => {
+                                            if (modalRes.confirm) {
+                                                this.handlePay();
+                                            } else {
+                                                this.loadDetail({ force: true });
+                                            }
+                                        }
+                                    });
+                                } else {
+                                    uni.showToast({ title: '加入成功', icon: 'success' });
+                                    this.loadDetail({ force: true });
+                                }
                             } else {
                                 this.actionLoading = false;
                                 var msg = (res && res._reason) || '加入失败';
@@ -689,7 +726,7 @@ export default {
                             content: refundText,
                             showCancel: false,
                             success: () => {
-                                this.loadDetail();
+                                this.loadDetail({ force: true });
                             }
                         });
                         return;
@@ -707,7 +744,7 @@ export default {
                 }
                 if (times >= 5) {
                     this.actionLoading = false;
-                    this.loadDetail();
+                    this.loadDetail({ force: true });
                     return;
                 }
                 setTimeout(() => {
@@ -715,7 +752,7 @@ export default {
                 }, 800);
             }).catch(() => {
                 this.actionLoading = false;
-                this.loadDetail();
+                this.loadDetail({ force: true });
             });
         },
 
@@ -733,7 +770,7 @@ export default {
                             this.actionLoading = false;
                             if (res && res._status === 0) {
                                 uni.showToast({ title: '已退出', icon: 'success' });
-                                this.loadDetail();
+                                this.loadDetail({ force: true });
                             } else {
                                 uni.showToast({ title: (res && res._reason) || '退出失败', icon: 'none' });
                             }

@@ -161,8 +161,11 @@
 
     <!-- 底部购买提示 -->
     <view class="bottom-hint" v-if="tickets.length > 0">
-      <text>需要更多门票？</text>
-      <text class="bottom-link" @click="goToBuy">去购买 →</text>
+      <text>需要更多门票或约朋友？</text>
+      <view class="bottom-actions">
+        <text class="bottom-link" @click="goToBuy">去购买</text>
+        <text class="bottom-link" @click="goToGroupSquare">找人组局 →</text>
+      </view>
     </view>
 
     <!-- 加载中 -->
@@ -311,6 +314,15 @@ export default {
 
     goToBuy() {
       uni.switchTab({ url: '/pages/index/index' });
+    },
+
+    goToGroupSquare() {
+      AUTH.trackEvent({
+        event: 'ticket_list_group_click',
+        page_path: 'pages/ticket/list',
+        source: 'ticket_list'
+      }, this.token).catch(function() {});
+      uni.switchTab({ url: '/pages/group/group' });
     },
 
     goToOrderDetail(item) {
@@ -798,10 +810,22 @@ page { background: $bg; }
   padding-bottom: 60rpx;
   font-size: 26rpx;
   color: $gray;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  .bottom-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20rpx;
+  }
   .bottom-link {
     color: $primary;
     font-weight: bold;
-    margin-left: 10rpx;
+    background: #FFF3E8;
+    border-radius: 24rpx;
+    padding: 10rpx 22rpx;
   }
 }
 

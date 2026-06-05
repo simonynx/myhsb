@@ -38,6 +38,23 @@
       </view>
     </view>
 
+    <!-- 社交提示 -->
+    <view class="social-nudge-card">
+      <view class="social-nudge-copy">
+        <text class="social-nudge-kicker">一个人也能来，多人更好玩</text>
+        <text class="social-nudge-title">想先找搭子再买票？</text>
+        <text class="social-nudge-desc">可以去组局广场看看有没有人差位；也可以买多张票，付款后在票包里送好友。</text>
+      </view>
+      <view class="social-nudge-actions">
+        <view class="social-nudge-btn primary" @click="goGroupSquareFromTicket">
+          <text>找人一起玩</text>
+        </view>
+        <view class="social-nudge-btn secondary" @click="prepareGiftTicket">
+          <text>买2张送好友</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 费用明细 -->
     <view class="price-section">
       <view class="section-title">费用明细</view>
@@ -630,6 +647,30 @@ export default {
       uni.navigateTo({ url: '/pages/user/subscription/buy?target_type=1&amount=' + amount });
     },
 
+    goGroupSquareFromTicket() {
+      AUTH.trackEvent({
+        event: 'ticket_buy_group_click',
+        page_path: 'pages/ticket/buy',
+        source: 'ticket_buy',
+        ticket_count: this.ticketCount
+      }, this.token).catch(function() {});
+      uni.switchTab({ url: '/pages/group/group' });
+    },
+
+    prepareGiftTicket() {
+      const bumped = this.ticketCount < 2;
+      if (this.ticketCount < 2) {
+        this.ticketCount = 2;
+      }
+      AUTH.trackEvent({
+        event: 'ticket_buy_gift_prepare',
+        page_path: 'pages/ticket/buy',
+        source: 'ticket_buy',
+        ticket_count: this.ticketCount
+      }, this.token).catch(function() {});
+      uni.showToast({ title: bumped ? '已选2张，支付后可在票包送好友' : '支付后可在票包送好友', icon: 'none' });
+    },
+
     incPeople() {
       if (this.ticketCount < 10) this.ticketCount++;
     },
@@ -904,6 +945,65 @@ page {
     border-top: 1rpx solid $light-gray;
     .total-label { font-size: 28rpx; color: $gray; }
     .total-value { font-size: 32rpx; font-weight: bold; color: $primary; }
+  }
+}
+
+// 社交提示
+.social-nudge-card {
+  margin: 0 24rpx 20rpx;
+  padding: 26rpx;
+  background: linear-gradient(135deg, #EAF7EC 0%, #FFF8F0 60%, #FFE8D0 100%);
+  border-radius: 24rpx;
+  border: 2rpx solid rgba(129,199,132,0.24);
+  box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06);
+}
+.social-nudge-copy {
+  display: flex;
+  flex-direction: column;
+}
+.social-nudge-kicker {
+  font-size: 22rpx;
+  color: #4A9A4A;
+  font-weight: bold;
+  margin-bottom: 6rpx;
+}
+.social-nudge-title {
+  font-size: 31rpx;
+  color: $dark;
+  font-weight: bold;
+  line-height: 1.25;
+}
+.social-nudge-desc {
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  line-height: 1.45;
+  color: #7C6A58;
+}
+.social-nudge-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+.social-nudge-btn {
+  flex: 1;
+  height: 68rpx;
+  border-radius: 34rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 25rpx;
+  font-weight: bold;
+  box-sizing: border-box;
+
+  &.primary {
+    color: #fff;
+    background: #81C784;
+  }
+
+  &.secondary {
+    color: $primary;
+    background: #FFF3E8;
+    border: 2rpx solid rgba(255,140,66,0.2);
   }
 }
 

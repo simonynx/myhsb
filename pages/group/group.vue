@@ -51,6 +51,14 @@
             </view>
         </view>
 
+        <view class="payment-alert" v-if="myPendingGroups.length > 0" @click="goPendingPayment">
+            <view class="payment-alert-main">
+                <text class="payment-alert-title">有组局待你付款</text>
+                <text class="payment-alert-sub">{{ pendingPaymentText }}</text>
+            </view>
+            <text class="payment-alert-action">去付款 →</text>
+        </view>
+
         <!-- 快捷筛选 -->
         <view class="quick-filter" v-if="!loading && rawGroupList.length > 0">
             <view
@@ -184,6 +192,8 @@ export default {
             loading: false,
             pendingShareGroup: null,
             groupRequestSeq: 0,
+            myPendingRequestSeq: 0,
+            myPendingGroups: [],
             squareViewLastTrackedAt: 0,
             emptyTrackedKey: '',
         };
@@ -208,7 +218,7 @@ export default {
     },
 
     computed: {
-        ...mapState(['token']),
+        ...mapState(['token', 'userInfo']),
         currentDate() {
             return this.weekDays[this.selectedDayIndex] ? this.weekDays[this.selectedDayIndex].date : '';
         },
@@ -283,6 +293,16 @@ export default {
                 };
             });
         },
+        pendingPaymentText() {
+            const first = this.myPendingGroups[0] || {};
+            const room = first.room || {};
+            const deadline = first.payment_deadline || first.expire_at || '';
+            const deadlineText = deadline ? this.formatDeadline(deadline) : '请尽快完成付款';
+            if (this.myPendingGroups.length > 1) {
+                return `${this.myPendingGroups.length} 个组局待付款，最近截止 ${deadlineText}`;
+            }
+            return `${room.name || '组局'} ${first.date || ''} ${first.begin_time || ''}，${deadlineText}`;
+        },
     },
 
     created() {
@@ -300,10 +320,14 @@ export default {
         if (this.weekDays.length > 0) {
             this.fetchGroupList();
         }
+        this.fetchMyPendingGroups();
     },
 
     onPullDownRefresh() {
-        this.fetchGroupList().finally(() => uni.stopPullDownRefresh());
+        Promise.all([
+            this.fetchGroupList(),
+            this.fetchMyPendingGroups(),
+        ]).finally(() => uni.stopPullDownRefresh());
     },
 
     methods: {
@@ -450,6 +474,64 @@ export default {
             });
         },
 
+        fetchMyPendingGroups() {
+            if (!this.token || !this.userInfo || !this.userInfo.object_id) {
+                this.myPendingGroups = [];
+                return Promise.resolve();
+            }
+            const requestSeq = ++this.myPendingRequestSeq;
+            return AUTH.myGroups(this.token).then(res => {
+                if (requestSeq !== this.myPendingRequestSeq) return;
+                if (!res || res._status !== 0 || !res.data) {
+                    this.myPendingGroups = [];
+                    return;
+                }
+                const allGroups = [].concat(res.data.initiated || [], res.data.joined || []);
+                const seen = {};
+                const pending = [];
+                allGroups.forEach(group => {
+                    if (!group || !group.object_id || seen[group.object_id]) return;
+                    seen[group.object_id] = true;
+                    if (this.isMyPaymentPending(group)) {
+                        pending.push(group);
+                    }
+                });
+                pending.sort((a, b) => {
+                    return (toTimestamp(a.payment_deadline || a.expire_at) || 9999999999999) -
+                        (toTimestamp(b.payment_deadline || b.expire_at) || 9999999999999);
+                });
+                this.myPendingGroups = pending;
+            }).catch(() => {
+                this.myPendingGroups = [];
+            });
+        },
+
+        isMyPaymentPending(group) {
+            if (!this.userInfo || group.status !== 'payment_pending') return false;
+            const uid = String(this.userInfo.object_id || '');
+            const initiator = group.initiator || {};
+            if (uid && String(initiator.object_id || '') === uid) {
+                return group.initiator_payment_status !== 'paid';
+            }
+            const members = group.members || [];
+            const member = members.find(item => String(item.user_id || '') === uid);
+            if (!member) return false;
+            return !(member.status === 'paid' || member.paid_at);
+        },
+
+        formatDeadline(value) {
+            const ts = toTimestamp(value);
+            if (!ts) return '请尽快完成付款';
+            const diff = ts - Date.now();
+            if (diff <= 0) return '即将截止';
+            const min = Math.ceil(diff / 60000);
+            if (min <= 1) return '1 分钟内截止';
+            if (min < 60) return `${min} 分钟内截止`;
+            const h = Math.floor(min / 60);
+            const m = min % 60;
+            return m ? `${h}小时${m}分钟内截止` : `${h}小时内截止`;
+        },
+
         formatDateLabel(dateStr) {
             if (!dateStr) return '';
             const today = new Date();
@@ -526,6 +608,17 @@ export default {
                 group_id: id,
             });
             uni.navigateTo({ url: '/pages/group/detail?id=' + id + '&source=group_square' });
+        },
+
+        goPendingPayment() {
+            const group = this.myPendingGroups[0];
+            if (!group || !group.object_id) return;
+            this.trackGroupEvent('group_pay_click', {
+                source: 'group_square_pending_alert',
+                group_id: group.object_id,
+                status: group.status,
+            });
+            uni.navigateTo({ url: '/pages/group/detail?id=' + group.object_id + '&source=group_square_pending_alert' });
         },
 
         setShareGroup(group) {
@@ -864,6 +957,46 @@ $cream: #FFF8F0;
     font-size: 18rpx;
     color: $gray;
     margin-top: 8rpx;
+}
+
+.payment-alert {
+    margin: 0 30rpx 18rpx;
+    padding: 22rpx 24rpx;
+    border-radius: 24rpx;
+    background: linear-gradient(135deg, #FFE8D6, #E8F7FF);
+    border: 2rpx solid rgba(255, 140, 66, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18rpx;
+    box-shadow: 0 6rpx 20rpx rgba(255, 140, 66, 0.08);
+}
+.payment-alert-main {
+    flex: 1;
+    min-width: 0;
+}
+.payment-alert-title {
+    display: block;
+    font-size: 29rpx;
+    line-height: 1.25;
+    color: $dark;
+    font-weight: bold;
+    margin-bottom: 8rpx;
+}
+.payment-alert-sub {
+    display: block;
+    font-size: 23rpx;
+    line-height: 1.4;
+    color: #7C6A58;
+}
+.payment-alert-action {
+    flex-shrink: 0;
+    font-size: 24rpx;
+    color: #fff;
+    background: #FF8C42;
+    border-radius: 24rpx;
+    padding: 12rpx 18rpx;
+    font-weight: bold;
 }
 
 // 快捷筛选

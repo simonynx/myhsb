@@ -170,8 +170,8 @@
 		<view class="social-space-card" @tap="goToGroupSquare">
 			<view class="social-copy">
 				<text class="social-kicker">第三空间</text>
-				<text class="social-title">今天店里有什么局？</text>
-				<text class="social-desc">看看谁在约桌游、主机和包厢，差人就一起开局。</text>
+				<text class="social-title">今天有没有人差位？</text>
+				<text class="social-desc">先看包厢/主机组局；只玩大厅的话，买票后也能在票包送好友。</text>
 			</view>
 			<view class="social-side">
 				<text class="social-badge">找队友</text>

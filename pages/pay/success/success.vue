@@ -21,9 +21,9 @@
 					<text class="action-icon">{{ primaryIcon }}</text>
 					<text class="action-text">{{ primaryText }}</text>
 				</view>
-				<view class="action-item primary-soft" @click="goBookAgain">
-					<text class="action-icon">📅</text>
-					<text class="action-text">再约一场</text>
+				<view class="action-item primary-soft" @click="goSecondaryAction">
+					<text class="action-icon">{{ secondaryIcon }}</text>
+					<text class="action-text">{{ secondaryText }}</text>
 				</view>
 				<view class="action-item" @click="goVoucher">
 					<text class="action-icon">🎟️</text>
@@ -81,6 +81,7 @@ export default {
 		subtitle() {
 			if (this.type === 'exchange') return '兑换记录已生成，到店出示订单即可使用';
 			if (this.type === 'recharge') return '余额已经到账，下一次预约可以直接抵扣';
+			if (this.type === 'ticket') return '门票已放入票包，可以自己用，也可以转赠好友一起约';
 			return '订单已确认，期待你到店玩得开心';
 		},
 		amountLabel() {
@@ -98,22 +99,35 @@ export default {
 		},
 		nextSubtitle() {
 			if (this.type === 'recharge') return '查看余额、预约房间，把这次充值用得更值';
+			if (this.type === 'ticket') return '查看票包、送朋友，或看看组局广场有没有人差位';
 			return '查看订单、领券签到，下次再来更省心';
 		},
 		primaryIcon() {
 			if (this.type === 'recharge') return '💎';
+			if (this.type === 'ticket') return '🎫';
 			return '📋';
 		},
 		primaryText() {
 			if (this.type === 'recharge') return '查看余额';
+			if (this.type === 'ticket') return '查看票包';
 			return '查看订单';
+		},
+		secondaryIcon() {
+			if (this.type === 'ticket') return '👥';
+			return '📅';
+		},
+		secondaryText() {
+			if (this.type === 'ticket') return '找人组局';
+			return '再约一场';
 		},
 		tipTitle() {
 			if (this.type === 'recharge') return '余额小提示';
+			if (this.type === 'ticket') return '门票小提示';
 			return '到店小提示';
 		},
 		tipText() {
 			if (this.type === 'recharge') return '充值本金和赠送余额会一起进入账户；预约时可优先使用余额支付。';
+			if (this.type === 'ticket') return '门票未核销且未过期可退；想约朋友时，可在票包里把未使用门票转赠出去。';
 			return '到店后出示订单即可核验；如需布置或补给，建议提前联系店员确认。';
 		},
 		sharePath() {
@@ -136,6 +150,20 @@ export default {
 		}).catch(function() {});
 	},
 	onShareAppMessage() {
+		if (this.type === 'ticket') {
+			AUTH.trackEvent({
+				event: 'ticket_success_share',
+				page_path: 'pages/pay/success/success',
+				share_type: 'wechat_session',
+				source: 'ticket_payment_success',
+				has_invite: !!this.inviteCode
+			}, this.token).catch(function() {});
+			return {
+				title: this.inviteCode ? '我买好摸鱼门票了，送你一份新人礼一起去玩' : '我买好摸鱼门票了，一起去玩桌游',
+				imageUrl: '/static/share_home.jpg',
+				path: this.sharePath,
+			};
+		}
 		AUTH.trackEvent({
 			event: this.inviteCode ? 'share_invite' : 'share_home',
 			page_path: 'pages/pay/success/success',
@@ -165,13 +193,31 @@ export default {
 				uni.redirectTo({ url: '/pages/user/balance/balance' });
 				return;
 			}
+			if (this.type === 'ticket') {
+				AUTH.trackEvent({
+					event: 'ticket_success_ticket_click',
+					page_path: 'pages/pay/success/success',
+					source: 'ticket_payment_success'
+				}, this.token).catch(function() {});
+				uni.redirectTo({ url: '/pages/ticket/list' });
+				return;
+			}
 			const url = this.orderId ? '/pages/order/order?state=0&id=' + this.orderId : '/pages/order/order?state=0';
 			uni.redirectTo({ url });
 		},
 		goVoucher() {
 			uni.switchTab({ url: '/pages/voucher/voucher' });
 		},
-		goBookAgain() {
+		goSecondaryAction() {
+			if (this.type === 'ticket') {
+				AUTH.trackEvent({
+					event: 'ticket_success_group_click',
+					page_path: 'pages/pay/success/success',
+					source: 'ticket_payment_success'
+				}, this.token).catch(function() {});
+				uni.switchTab({ url: '/pages/group/group' });
+				return;
+			}
 			uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
 		},
 		goCheckIn() {
