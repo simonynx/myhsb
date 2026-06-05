@@ -86,8 +86,17 @@
 				<text class="retention-note">回访奖励</text>
 			</view>
 			<view class="retention-grid">
-				<view class="retention-card check" @tap="doCheckIn">
-					<text class="retention-icon">签</text>
+				<view :class="retentionCheckCardClass" @tap="doCheckIn">
+					<view class="retention-dice">
+						<view class="mini-dice-face">
+							<view
+								v-for="dot in checkInDiceDots"
+								:key="dot.key"
+								:class="dot.className"
+							></view>
+						</view>
+						<text class="mini-dice-label">{{ checkInDiceLabel }}</text>
+					</view>
 					<view class="retention-copy">
 						<text class="retention-card-title">{{ checkInActionTitle }}</text>
 						<text class="retention-card-sub">{{ checkInActionSub }}</text>
@@ -105,6 +114,23 @@
 					<view class="retention-copy">
 						<text class="retention-card-title">{{ orderActionTitle }}</text>
 						<text class="retention-card-sub">{{ orderActionSub }}</text>
+					</view>
+				</view>
+			</view>
+			<view class="checkin-board">
+				<view class="checkin-board-head">
+					<text class="checkin-board-title">7日棋盘</text>
+					<text class="checkin-board-sub">{{ checkInBoardSummary }}</text>
+				</view>
+				<view class="checkin-board-track">
+					<view
+						v-for="step in checkInBoardSteps"
+						:key="step.day"
+						:class="step.className"
+					>
+						<text class="board-step-icon">{{ step.icon }}</text>
+						<text class="board-step-day">{{ step.dayText }}</text>
+						<text class="board-step-reward" v-if="step.rewardText">{{ step.rewardText }}</text>
 					</view>
 				</view>
 			</view>
@@ -390,13 +416,84 @@
 				return '+' + points + '积分';
 			},
 			checkInActionTitle() {
-				if (this.checkInInfo.checked_in_today) return '今日已签到';
-				if (this.checkInInfo.can_check_in) return this.checkInPointsText;
+				if (this.checkInInfo.checked_in_today) return '今日已投骰';
+				if (this.checkInInfo.can_check_in) return '投骰' + this.checkInPointsText;
 				return '明天继续';
 			},
 			checkInActionSub() {
-				if (this.checkInInfo.current_streak > 0) return '已连续' + this.checkInInfo.current_streak + '天';
-				return this.checkInInfo.can_check_in ? '签到攒积分' : '保持回访';
+				if (this.checkInInfo.current_streak > 0) return '棋盘第' + this.checkInBoardCurrentDay + '格 · 连续' + this.checkInInfo.current_streak + '天';
+				return this.checkInInfo.can_check_in ? '投骰点亮棋盘' : '保持回访';
+			},
+			retentionCheckCardClass() {
+				var names = ['retention-card', 'check'];
+				if (this.checkInInfo.checked_in_today) names.push('done');
+				if (this.checkInLoading) names.push('loading');
+				return names.join(' ');
+			},
+			checkInDiceNumber() {
+				var streak = Number(this.checkInInfo.current_streak || 0);
+				var points = Number(this.checkInInfo.points_earned_today || this.checkInInfo.next_points || 0);
+				if (this.checkInInfo.can_check_in) streak += 1;
+				return this.getCheckInDiceNumber(streak, points);
+			},
+			checkInDiceDots() {
+				return this.buildDiceDots(this.checkInDiceNumber, 'mini-dice-dot ');
+			},
+			checkInDiceLabel() {
+				if (this.checkInLoading) return '投骰中';
+				if (this.checkInInfo.checked_in_today) return this.checkInDiceNumber + '点';
+				if (this.checkInInfo.can_check_in) return '可投';
+				return '明日';
+			},
+			checkInBoardCompletedDay() {
+				var raw = Number(this.checkInInfo.current_streak || 0);
+				if (raw <= 0) return 0;
+				if (!this.checkInInfo.checked_in_today && raw % 7 === 0) return 0;
+				return this.getBoardDay(raw);
+			},
+			checkInBoardCurrentDay() {
+				var raw = Number(this.checkInInfo.current_streak || 0);
+				if (this.checkInInfo.checked_in_today) return this.getBoardDay(raw);
+				return this.getBoardDay(raw + 1);
+			},
+			checkInMilestoneMap() {
+				var map = {};
+				var milestones = (this.checkInInfo.config && this.checkInInfo.config.milestones) || [];
+				milestones.forEach(function(item) {
+					var day = Number(item.days || 0);
+					if (day >= 1 && day <= 7) {
+						map[day] = Number(item.bonus_points || 0);
+					}
+				});
+				return map;
+			},
+			checkInBoardSteps() {
+				var steps = [];
+				var completedDay = this.checkInBoardCompletedDay;
+				var currentDay = this.checkInBoardCurrentDay;
+				var milestoneMap = this.checkInMilestoneMap;
+				for (var day = 1; day <= 7; day += 1) {
+					var isDone = completedDay > 0 && day <= completedDay;
+					var isCurrent = day === currentDay;
+					var reward = milestoneMap[day] || 0;
+					var classes = ['board-step'];
+					if (isDone) classes.push('done');
+					if (isCurrent) classes.push('current');
+					if (reward > 0) classes.push('reward');
+					steps.push({
+						day: day,
+						dayText: day + '天',
+						rewardText: reward > 0 ? '+' + reward : '',
+						icon: isDone ? '✓' : (isCurrent ? '今' : (reward > 0 ? '箱' : '点')),
+						className: classes.join(' ')
+					});
+				}
+				return steps;
+			},
+			checkInBoardSummary() {
+				var streak = Number(this.checkInInfo.current_streak || 0);
+				if (this.checkInInfo.checked_in_today) return '已点亮本轮第' + this.checkInBoardCurrentDay + '格，连续' + streak + '天';
+				return '今日投骰后点亮第' + this.checkInBoardCurrentDay + '格';
 			},
 			couponActionTitle() {
 				if (this.claimableCouponCount > 0) return '可领' + this.claimableCouponCount + '张券';
@@ -494,6 +591,7 @@
 			return {
 				orderCounts: { waitPay: 0, waitUse: 0 },
 				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 },
+				checkInLoading: false,
 				inviteInfo: {},
 				memberConfig: [],
 				claimableCouponCount: 0,
@@ -565,6 +663,35 @@
 					uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
 				}
 			},
+			getBoardDay(rawDay) {
+				rawDay = Number(rawDay || 0);
+				if (rawDay <= 0) return 1;
+				var day = rawDay % 7;
+				return day === 0 ? 7 : day;
+			},
+			getCheckInDiceNumber(streak, points) {
+				var seed = Number(streak || 0) + Number(points || 0);
+				if (!seed || seed < 1) seed = 1;
+				return ((seed - 1) % 6) + 1;
+			},
+			buildDiceDots(number, prefix) {
+				var map = {
+					1: ['center'],
+					2: ['top-left', 'bottom-right'],
+					3: ['top-left', 'center', 'bottom-right'],
+					4: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+					5: ['top-left', 'top-right', 'center', 'bottom-left', 'bottom-right'],
+					6: ['top-left', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-right']
+				};
+				var positions = map[number] || map[1];
+				prefix = prefix || 'dice-dot ';
+				return positions.map(function(pos, idx) {
+					return {
+						key: 'dot' + idx,
+						className: prefix + pos
+					};
+				});
+			},
 			async loadCheckInInfo() {
 				if (!this.hasLogin) return;
 				const res = await AUTH.checkInInfo(this.token);
@@ -577,6 +704,7 @@
 					uni.showToast({ title: '请先登录', icon: 'none' });
 					return;
 				}
+				if (this.checkInLoading) return;
 				AUTH.trackEvent({
 					event: 'checkin_click',
 					page_path: 'pages/user/user',
@@ -586,34 +714,47 @@
 					uni.showToast({ title: '今日已签到', icon: 'none' });
 					return;
 				}
-				const res = await AUTH.checkIn(this.token);
-				const d = res.data;
-				if (d && d.points_earned !== undefined) {
-					this.checkInInfo.checked_in_today = true;
-					this.checkInInfo.can_check_in = false;
-					this.checkInInfo.points_earned_today = d.points_earned;
-					AUTH.trackEvent({
-						event: 'checkin_success',
-						page_path: 'pages/user/user',
-						source: 'user_center'
-					}, this.token).catch(function() {});
-					this.getUserInfo();
-					await this.loadCheckInInfo();
-					this.showCheckInSuccess(d);
-				} else {
-					uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
+				this.checkInLoading = true;
+				try {
+					const res = await AUTH.checkIn(this.token);
+					const d = res.data;
+					if (d && d.points_earned !== undefined) {
+						this.checkInInfo.checked_in_today = true;
+						this.checkInInfo.can_check_in = false;
+						this.checkInInfo.points_earned_today = d.points_earned;
+						AUTH.trackEvent({
+							event: 'checkin_success',
+							page_path: 'pages/user/user',
+							source: 'user_center'
+						}, this.token).catch(function() {});
+						this.getUserInfo();
+						await this.loadCheckInInfo();
+						this.showCheckInSuccess(d);
+					} else {
+						uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
+					}
+				} catch (e) {
+					uni.showToast({ title: '签到失败', icon: 'none' });
+				} finally {
+					this.checkInLoading = false;
 				}
 			},
 			showCheckInSuccess(data) {
 				data = data || {};
-				var content = '本次获得 ' + Number(data.points_earned || 0) + ' 积分';
+				var points = Number(data.points_earned || 0);
+				var streak = Number(this.checkInInfo.current_streak || 0);
+				var dice = this.getCheckInDiceNumber(streak, points);
+				var content = '你投出了 ' + dice + ' 点，本次获得 +' + points + ' 积分';
+				if (streak > 0) {
+					content += '\n棋盘进度：第' + this.checkInBoardCurrentDay + '格，连续' + streak + '天';
+				}
 				if (this.checkInInfo.tomorrow_points) {
 					content += '\n明天继续签到可领 +' + this.checkInInfo.tomorrow_points + ' 积分';
 				} else {
 					content += '\n连续签到还有额外奖励';
 				}
 				uni.showModal({
-					title: '签到成功',
+					title: '投骰成功',
 					content: content,
 					confirmText: '看卡券',
 					cancelText: '知道了',
@@ -1567,6 +1708,10 @@ page {
 	border: 1rpx solid rgba(240, 230, 216, 0.7);
 }
 .retention-card.check { background: #FFF5EE; }
+.retention-card.check.done { background: #F4FBF0; }
+.retention-card.check.loading .mini-dice-face {
+	animation: mini-dice-roll 0.52s ease-in-out infinite;
+}
 .retention-card.coupon { background: #FFF8E7; }
 .retention-card.order { background: #EEF8F1; }
 .retention-icon {
@@ -1580,6 +1725,50 @@ page {
 	color: #FF8C42;
 	font-size: 22rpx;
 	font-weight: bold;
+}
+.retention-dice {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8rpx;
+}
+.mini-dice-face {
+	position: relative;
+	width: 44rpx;
+	height: 44rpx;
+	border-radius: 12rpx;
+	background: #FFF;
+	border: 2rpx solid #5C4B3A;
+	box-shadow: 0 5rpx 0 rgba(92,75,58,0.12), inset 0 -4rpx 0 rgba(92,75,58,0.06);
+	box-sizing: border-box;
+	flex-shrink: 0;
+}
+.retention-card.check.done .mini-dice-face {
+	border-color: #4A9A4A;
+	box-shadow: 0 5rpx 0 rgba(74,154,74,0.15), inset 0 -4rpx 0 rgba(74,154,74,0.08);
+}
+.mini-dice-dot {
+	position: absolute;
+	width: 7rpx;
+	height: 7rpx;
+	border-radius: 999rpx;
+	background: #5C4B3A;
+}
+.retention-card.check.done .mini-dice-dot {
+	background: #4A9A4A;
+}
+.mini-dice-dot.top-left { left: 9rpx; top: 9rpx; }
+.mini-dice-dot.top-right { right: 9rpx; top: 9rpx; }
+.mini-dice-dot.middle-left { left: 9rpx; top: 19rpx; }
+.mini-dice-dot.middle-right { right: 9rpx; top: 19rpx; }
+.mini-dice-dot.center { left: 19rpx; top: 19rpx; }
+.mini-dice-dot.bottom-left { left: 9rpx; bottom: 9rpx; }
+.mini-dice-dot.bottom-right { right: 9rpx; bottom: 9rpx; }
+.mini-dice-label {
+	font-size: 19rpx;
+	font-weight: bold;
+	color: #FF8C42;
+	white-space: nowrap;
 }
 .retention-copy {
 	min-width: 0;
@@ -1597,6 +1786,85 @@ page {
 	color: #8C7B6B;
 	line-height: 1.35;
 	margin-top: 6rpx;
+}
+.checkin-board {
+	margin-top: 18rpx;
+	padding: 18rpx 14rpx 16rpx;
+	border-radius: 18rpx;
+	background: #FFFDF8;
+	border: 1rpx solid rgba(240, 230, 216, 0.8);
+}
+.checkin-board-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14rpx;
+	margin-bottom: 14rpx;
+}
+.checkin-board-title {
+	font-size: 24rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+	flex-shrink: 0;
+}
+.checkin-board-sub {
+	font-size: 20rpx;
+	color: #9B8A78;
+	text-align: right;
+	line-height: 1.3;
+}
+.checkin-board-track {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 8rpx;
+}
+.board-step {
+	min-width: 0;
+	min-height: 86rpx;
+	border-radius: 16rpx;
+	background: #F7F1E8;
+	border: 1rpx solid rgba(92,75,58,0.08);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 6rpx 2rpx;
+	box-sizing: border-box;
+}
+.board-step.done {
+	background: #EAF7EC;
+	border-color: rgba(74,154,74,0.18);
+}
+.board-step.current {
+	border-color: #FF8C42;
+	box-shadow: 0 6rpx 16rpx rgba(255,140,66,0.14);
+}
+.board-step.reward {
+	background: #FFF5E5;
+}
+.board-step.reward.done {
+	background: #F4FBF0;
+}
+.board-step-icon {
+	font-size: 20rpx;
+	font-weight: bold;
+	color: #FF8C42;
+	line-height: 1.1;
+}
+.board-step.done .board-step-icon {
+	color: #4A9A4A;
+}
+.board-step-day {
+	font-size: 18rpx;
+	color: #6B5B4B;
+	line-height: 1.2;
+	margin-top: 5rpx;
+}
+.board-step-reward {
+	font-size: 17rpx;
+	color: #FF8C42;
+	line-height: 1.15;
+	margin-top: 3rpx;
 }
 .retention-rewards {
 	display: flex;
@@ -1617,6 +1885,12 @@ page {
 	background: #FFF5EE;
 	padding: 4rpx 10rpx;
 	border-radius: 18rpx;
+}
+
+@keyframes mini-dice-roll {
+	0% { transform: rotate(0deg) scale(1); }
+	50% { transform: rotate(10deg) scale(1.06); }
+	100% { transform: rotate(0deg) scale(1); }
 }
 
 /* ===== 游客权益引导 ===== */

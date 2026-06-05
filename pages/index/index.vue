@@ -112,16 +112,22 @@
 		</view>
 
 		<!-- 今日福利 -->
-		<view class="home-benefit-card" @tap="handleHomeBenefitTap">
+		<view :class="homeBenefitCardClass" @tap="handleHomeBenefitTap">
 			<view class="benefit-copy">
-				<text class="benefit-kicker">今日福利</text>
+				<text class="benefit-kicker">{{ homeBenefitKicker }}</text>
 				<text class="benefit-title">{{ homeBenefitTitle }}</text>
 				<text class="benefit-sub">{{ homeBenefitSub }}</text>
 			</view>
 			<view class="benefit-side">
-				<view class="benefit-points">
-					<text class="benefit-points-num">{{ homeBenefitValue }}</text>
-					<text class="benefit-points-label">{{ homeBenefitLabel }}</text>
+				<view :class="homeBenefitDiceClass">
+					<view class="dice-face">
+						<view
+							v-for="dot in homeDiceDots"
+							:key="dot.key"
+							:class="dot.className"
+						></view>
+					</view>
+					<text class="dice-label">{{ homeDiceLabel }}</text>
 				</view>
 				<text class="benefit-action">{{ homeBenefitAction }}</text>
 			</view>
@@ -411,37 +417,59 @@
 			inviteLandingAction() {
 				return this.hasLogin ? '领取' : '登录领';
 			},
+			homeBenefitKicker() {
+				if (!this.hasLogin) return '新手投骰';
+				if (this.checkInInfo.checked_in_today) return '骰子已落定';
+				if (this.checkInInfo.can_check_in) return '今日投骰';
+				return '回访奖励';
+			},
+			homeBenefitCardClass() {
+				var names = ['home-benefit-card'];
+				if (this.checkInInfo.checked_in_today) names.push('checked');
+				if (this.checkInRolling) names.push('loading');
+				return names.join(' ');
+			},
 			homeBenefitTitle() {
-				if (!this.hasLogin) return '登录领取今日福利';
-				if (this.checkInInfo.checked_in_today) return '今日已签到';
-				if (this.checkInInfo.can_check_in) return '签到领' + this.homeCheckInPointsText;
+				if (!this.hasLogin) return '登录解锁今日投骰';
+				if (this.checkInInfo.checked_in_today) return '今日已投骰';
+				if (this.checkInInfo.can_check_in) return '投骰领' + this.homeCheckInPointsText;
 				return '明天继续来领';
 			},
 			homeBenefitSub() {
-				if (!this.hasLogin) return '签到积分、优惠券和会员权益一起解锁';
+				if (!this.hasLogin) return '登录后点亮每日棋盘，积分和优惠券一起攒';
 				var streak = Number(this.checkInInfo.current_streak || 0);
 				if (this.checkInInfo.checked_in_today) {
-					return streak > 0 ? '已连续' + streak + '天，明天可领' + this.tomorrowCheckInPointsText : '明天继续签到攒积分';
+					return streak > 0 ? '已连续' + streak + '天，明天可领' + this.tomorrowCheckInPointsText : '明天继续投骰攒积分';
 				}
-				if (streak > 0) return '已连续' + streak + '天，今天别断签';
-				return '每天来领一点，兑换卡券更快';
-			},
-			homeBenefitValue() {
-				if (!this.hasLogin) return '新人礼';
-				if (this.checkInInfo.checked_in_today) {
-					var earned = Number(this.checkInInfo.points_earned_today || 0);
-					return earned > 0 ? '+' + earned : '已领';
-				}
-				return this.homeCheckInPointsText;
-			},
-			homeBenefitLabel() {
-				if (!this.hasLogin) return '登录可领';
-				return this.checkInInfo.checked_in_today ? '今日到账' : '今日可领';
+				if (streak > 0) return '已连续' + streak + '天，今天别让棋子停下';
+				return '每天投一次，兑换卡券更快';
 			},
 			homeBenefitAction() {
 				if (!this.hasLogin) return '登录';
-				if (this.checkInInfo.can_check_in) return '签到';
+				if (this.checkInInfo.can_check_in) return '投骰';
 				return '看卡券';
+			},
+			homeBenefitDiceClass() {
+				var names = ['benefit-dice'];
+				if (this.checkInRolling) names.push('rolling');
+				if (this.checkInInfo.checked_in_today) names.push('done');
+				return names.join(' ');
+			},
+			homeDiceLabel() {
+				if (this.checkInRolling) return '投骰中';
+				if (!this.hasLogin) return '新手骰';
+				if (this.checkInInfo.checked_in_today) return '已投' + this.homeDiceNumber + '点';
+				if (this.checkInInfo.can_check_in) return '今日可投';
+				return '明日再投';
+			},
+			homeDiceNumber() {
+				var streak = Number(this.checkInInfo.current_streak || 0);
+				var points = Number(this.checkInInfo.points_earned_today || this.checkInInfo.next_points || 0);
+				if (this.checkInInfo.can_check_in) streak += 1;
+				return this.getCheckInDiceNumber(streak, points);
+			},
+			homeDiceDots() {
+				return this.buildDiceDots(this.homeDiceNumber);
 			},
 			homeCheckInPointsText() {
 				var points = this.checkInInfo.next_points || (this.checkInInfo.config && this.checkInInfo.config.daily_points) || 10;
@@ -525,6 +553,7 @@
 				couponsLastLoadedAt: 0,
 				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 },
 				checkInLoading: false,
+				checkInRolling: false,
 				checkInLastLoadedAt: 0,
 				bannerLoading: false,
 				bannerLastCheckedAt: 0,
@@ -681,6 +710,28 @@
 					has_invite: true
 				}, this.token).catch(function() {});
 			},
+			getCheckInDiceNumber(streak, points) {
+				var seed = Number(streak || 0) + Number(points || 0);
+				if (!seed || seed < 1) seed = 1;
+				return ((seed - 1) % 6) + 1;
+			},
+			buildDiceDots(number) {
+				var map = {
+					1: ['center'],
+					2: ['top-left', 'bottom-right'],
+					3: ['top-left', 'center', 'bottom-right'],
+					4: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+					5: ['top-left', 'top-right', 'center', 'bottom-left', 'bottom-right'],
+					6: ['top-left', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-right']
+				};
+				var positions = map[number] || map[1];
+				return positions.map(function(pos, idx) {
+					return {
+						key: 'dot' + idx,
+						className: 'dice-dot ' + pos
+					};
+				});
+			},
 			async loadCheckInInfo(options) {
 				options = options || {};
 				if (!this.hasLogin || this.checkInLoading) return;
@@ -720,13 +771,14 @@
 				}
 			},
 			async doHomeCheckIn() {
-				if (this.checkInLoading) return;
+				if (this.checkInLoading || this.checkInRolling) return;
 				var token = this.token || uni.getStorageSync('token');
 				if (!token) {
 					this.loginAndRegister().catch(function() {});
 					return;
 				}
 				this.checkInLoading = true;
+				this.checkInRolling = true;
 				try {
 					const res = await AUTH.checkIn(token);
 					const d = res && res.data;
@@ -750,19 +802,25 @@
 					uni.showToast({ title: '签到失败', icon: 'none' });
 				} finally {
 					this.checkInLoading = false;
+					this.checkInRolling = false;
 				}
 			},
 			showCheckInSuccess(data) {
 				data = data || {};
 				var points = Number(data.points_earned || 0);
-				var content = '本次获得 ' + points + ' 积分';
+				var streak = Number(this.checkInInfo.current_streak || 0);
+				var dice = this.getCheckInDiceNumber(streak, points);
+				var content = '你投出了 ' + dice + ' 点，本次获得 +' + points + ' 积分';
+				if (streak > 0) {
+					content += '\n棋盘进度：第' + streak + '格';
+				}
 				if (this.checkInInfo.tomorrow_points) {
 					content += '\n明天继续签到可领 +' + this.checkInInfo.tomorrow_points + ' 积分';
 				} else {
 					content += '\n连续签到还有额外奖励';
 				}
 				uni.showModal({
-					title: '签到成功',
+					title: '投骰成功',
 					content: content,
 					confirmText: '看卡券',
 					cancelText: '知道了',
@@ -1705,33 +1763,69 @@ page { background: #FFF8F0; }
 	border: 2rpx solid rgba(129,199,132,0.22);
 	justify-content: space-between;
 }
+.home-benefit-card.checked {
+	background: #FBFFF7;
+	border-color: rgba(74,154,74,0.26);
+}
 .benefit-copy {
 	flex: 1;
 	min-width: 0;
 	padding-right: 16rpx;
 }
-.benefit-points {
-	min-width: 112rpx;
-	padding: 12rpx 10rpx;
-	border-radius: 18rpx;
-	background: #EAF7EC;
+.benefit-dice {
+	min-width: 118rpx;
 	text-align: center;
 	margin-bottom: 10rpx;
 }
-.benefit-points-num {
-	display: block;
-	font-size: 28rpx;
-	font-weight: 800;
-	color: #4A9A4A;
-	line-height: 1.15;
+.dice-face {
+	position: relative;
+	width: 76rpx;
+	height: 76rpx;
+	margin: 0 auto;
+	border-radius: 18rpx;
+	background: #FFF;
+	border: 3rpx solid #5C4B3A;
+	box-shadow: 0 8rpx 0 rgba(92,75,58,0.12), inset 0 -6rpx 0 rgba(92,75,58,0.06);
+	box-sizing: border-box;
 }
-.benefit-points-label {
+.benefit-dice.done .dice-face {
+	border-color: #4A9A4A;
+	box-shadow: 0 8rpx 0 rgba(74,154,74,0.16), inset 0 -6rpx 0 rgba(74,154,74,0.08);
+}
+.benefit-dice.rolling .dice-face {
+	animation: dice-roll 0.52s ease-in-out infinite;
+}
+.dice-dot {
+	position: absolute;
+	width: 12rpx;
+	height: 12rpx;
+	border-radius: 999rpx;
+	background: #5C4B3A;
+}
+.benefit-dice.done .dice-dot {
+	background: #4A9A4A;
+}
+.dice-dot.top-left { left: 17rpx; top: 17rpx; }
+.dice-dot.top-right { right: 17rpx; top: 17rpx; }
+.dice-dot.middle-left { left: 17rpx; top: 34rpx; }
+.dice-dot.middle-right { right: 17rpx; top: 34rpx; }
+.dice-dot.center { left: 35rpx; top: 35rpx; }
+.dice-dot.bottom-left { left: 17rpx; bottom: 17rpx; }
+.dice-dot.bottom-right { right: 17rpx; bottom: 17rpx; }
+.dice-label {
 	display: block;
-	font-size: 18rpx;
-	color: #7CA67E;
-	margin-top: 4rpx;
+	font-size: 19rpx;
+	font-weight: bold;
+	color: #4A9A4A;
+	margin-top: 9rpx;
+	line-height: 1.2;
 }
 
 /* ===== 动画 ===== */
 @keyframes popup-in { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes dice-roll {
+	0% { transform: rotate(0deg) scale(1); }
+	50% { transform: rotate(10deg) scale(1.06); }
+	100% { transform: rotate(0deg) scale(1); }
+}
 </style>
