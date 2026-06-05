@@ -81,7 +81,7 @@
                 @click="goDetail(group.object_id)"
             >
                 <view class="card-header">
-                    <image class="room-img" :src="group.roomImage" mode="aspectFill" />
+                    <image class="room-img" :src="group.roomImage" mode="aspectFill" lazy-load />
                     <view class="room-info">
                         <view class="room-name-row">
                             <text class="room-name">{{ group.roomName }}</text>
@@ -98,7 +98,7 @@
 
                 <view class="card-body">
                     <view class="initiator">
-                        <image class="initiator-avatar" :src="group.initiatorAvatar" mode="aspectFill" />
+                        <image class="initiator-avatar" :src="group.initiatorAvatar" mode="aspectFill" lazy-load />
                         <text class="initiator-name">{{ group.initiatorName }}</text>
                         <text class="initiator-label">发起</text>
                     </view>
@@ -109,6 +109,7 @@
                             class="member-avatar"
                             :src="m.avatar"
                             mode="aspectFill"
+                            lazy-load
                         />
                         <view class="member-more" v-if="(group.members || []).length > 3">
                             <text>+{{ group.members.length - 3 }}</text>
@@ -192,8 +193,15 @@ export default {
             loading: false,
             pendingShareGroup: null,
             groupRequestSeq: 0,
+            groupLoadingKey: '',
+            groupDataKey: '',
+            groupLastLoadedAt: 0,
             myPendingRequestSeq: 0,
             myPendingGroups: [],
+            myPendingLoading: false,
+            myPendingDataKey: '',
+            myPendingLastLoadedAt: 0,
+            pendingFetchTimer: null,
             squareViewLastTrackedAt: 0,
             emptyTrackedKey: '',
         };
@@ -318,15 +326,23 @@ export default {
         this.trackSquareView();
         this.ensureWeekDays();
         if (this.weekDays.length > 0) {
-            this.fetchGroupList();
+            this.fetchGroupList({ background: true });
         }
-        this.fetchMyPendingGroups();
+        this.schedulePendingGroupsFetch();
+    },
+
+    onHide() {
+        this.clearPendingGroupsTimer();
+    },
+
+    onUnload() {
+        this.clearPendingGroupsTimer();
     },
 
     onPullDownRefresh() {
         Promise.all([
-            this.fetchGroupList(),
-            this.fetchMyPendingGroups(),
+            this.fetchGroupList({ force: true, initial: !this.groupList.length }),
+            this.fetchMyPendingGroups({ force: true }),
         ]).finally(() => uni.stopPullDownRefresh());
     },
 
@@ -368,7 +384,7 @@ export default {
             this.selectedDayIndex = index;
             this.activeQuickFilter = 'all';
             this.updateDatePillClasses();
-            this.fetchGroupList();
+            this.fetchGroupList({ force: true, initial: true });
         },
 
         selectQuickFilter(key) {
@@ -378,10 +394,20 @@ export default {
             });
         },
 
-        fetchGroupList() {
+        fetchGroupList(options) {
+            options = options || {};
             // 拼团大厅公开，无需登录即可浏览
+            const dataKey = this.currentDate || 'all';
+            const now = Date.now();
+            if (this.groupLoadingKey === dataKey) return Promise.resolve();
+            if (!options.force && this.groupDataKey === dataKey && now - this.groupLastLoadedAt < 20 * 1000) {
+                this.trackEmptyViewIfNeeded();
+                return Promise.resolve();
+            }
             const requestSeq = ++this.groupRequestSeq;
-            this.loading = true;
+            this.groupLoadingKey = dataKey;
+            const shouldShowLoading = options.initial || !this.groupList.length || !options.background;
+            if (shouldShowLoading) this.loading = true;
             const params = {};
             if (this.currentDate) {
                 params.date = this.currentDate;
@@ -389,6 +415,7 @@ export default {
             return AUTH.getGroupList(this.token || null, params).then(res => {
                 if (requestSeq !== this.groupRequestSeq) return;
                 this.loading = false;
+                this.groupLoadingKey = '';
                 if (res && res._status === 0) {
                     const data = res.data || {};
                     let list = data.list || res.data || [];
@@ -459,27 +486,57 @@ export default {
                     list.sort(this.compareGroups);
                     this.rawGroupList = list;
                     this.groupList = list;
+                    this.groupDataKey = dataKey;
+                    this.groupLastLoadedAt = Date.now();
                     this.trackEmptyViewIfNeeded();
                 } else {
-                    this.rawGroupList = [];
-                    this.groupList = [];
+                    if (!this.groupList.length) {
+                        this.rawGroupList = [];
+                        this.groupList = [];
+                    }
                     this.trackEmptyViewIfNeeded();
                 }
             }).catch(() => {
                 if (requestSeq !== this.groupRequestSeq) return;
                 this.loading = false;
-                this.rawGroupList = [];
-                this.groupList = [];
+                this.groupLoadingKey = '';
+                if (!this.groupList.length) {
+                    this.rawGroupList = [];
+                    this.groupList = [];
+                }
                 this.trackEmptyViewIfNeeded();
             });
         },
 
-        fetchMyPendingGroups() {
+        schedulePendingGroupsFetch() {
+            this.clearPendingGroupsTimer();
+            this.pendingFetchTimer = setTimeout(() => {
+                this.pendingFetchTimer = null;
+                this.fetchMyPendingGroups({ background: true });
+            }, 180);
+        },
+
+        clearPendingGroupsTimer() {
+            if (!this.pendingFetchTimer) return;
+            clearTimeout(this.pendingFetchTimer);
+            this.pendingFetchTimer = null;
+        },
+
+        fetchMyPendingGroups(options) {
+            options = options || {};
             if (!this.token || !this.userInfo || !this.userInfo.object_id) {
                 this.myPendingGroups = [];
                 return Promise.resolve();
             }
+            const dataKey = String(this.userInfo.object_id || '');
+            const now = Date.now();
+            if (this.myPendingLoading && this.myPendingDataKey === dataKey) return Promise.resolve();
+            if (!options.force && this.myPendingDataKey === dataKey && now - this.myPendingLastLoadedAt < 20 * 1000) {
+                return Promise.resolve();
+            }
             const requestSeq = ++this.myPendingRequestSeq;
+            this.myPendingLoading = true;
+            this.myPendingDataKey = dataKey;
             return AUTH.myGroups(this.token).then(res => {
                 if (requestSeq !== this.myPendingRequestSeq) return;
                 if (!res || res._status !== 0 || !res.data) {
@@ -501,8 +558,13 @@ export default {
                         (toTimestamp(b.payment_deadline || b.expire_at) || 9999999999999);
                 });
                 this.myPendingGroups = pending;
+                this.myPendingLastLoadedAt = Date.now();
             }).catch(() => {
                 this.myPendingGroups = [];
+            }).then(() => {
+                if (requestSeq === this.myPendingRequestSeq) {
+                    this.myPendingLoading = false;
+                }
             });
         },
 
@@ -688,9 +750,16 @@ export default {
         },
 
         goAppoint(source) {
+            const entrySource = source === 'starter' ? 'group_square_starter' : 'group_square_empty';
             this.trackGroupEvent('group_create_entry_click', {
-                source: source === 'starter' ? 'group_square_starter' : 'group_square_empty',
+                source: entrySource,
             });
+            try {
+                uni.setStorageSync('group_create_intent', {
+                    source: entrySource,
+                    created_at: Date.now(),
+                });
+            } catch (e) {}
             uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
         },
     },

@@ -56,6 +56,14 @@
             </view>
         </view>
 
+        <view class="group-intent-card" v-if="groupIntentVisible && !loading">
+            <view class="group-intent-copy">
+                <text class="group-intent-title">准备发起组局</text>
+                <text class="group-intent-sub">选一个包厢和时段后，在底部弹窗点“找搭子”即可发布。</text>
+            </view>
+            <view class="group-intent-close" @click="closeGroupIntent">知道了</view>
+        </view>
+
         <view class="room-list" v-if="!loading">
             <view class="list-header">
                 <text class="list-count">共 {{ roomList.length }} 个包厢</text>
@@ -131,7 +139,7 @@
                             :class="room.isFullyBooked ? 'disabled' : 'ready'"
                             @click.stop="handleAppointButtonClick(idx)"
                         >
-                            <text>{{ room.isFullyBooked ? '已满' : '立即预约' }}</text>
+                            <text>{{ room.isFullyBooked ? '已满' : (groupIntentVisible ? '选时段组局' : '立即预约') }}</text>
                         </view>
                     </view>
                 </view>
@@ -237,6 +245,8 @@ export default {
             roomDataKey: '',
             roomLastLoadedAt: 0,
             roomRequestSeq: 0,
+            groupIntentVisible: false,
+            groupIntentSource: '',
         };
     },
 
@@ -268,6 +278,9 @@ export default {
             const perPerson = Math.ceil(total / 2 / 100);
             return '2人局约人均 ¥' + perPerson + ' 起，满员锁房';
         },
+        appointmentEntrySource() {
+            return this.groupIntentSource || 'appointment_panel';
+        },
     },
     onLoad() {
         this.buildWeekDays();
@@ -276,6 +289,7 @@ export default {
 
     onShow() {
         uni.$emit('tabBarChange', { key: 'appoint' });
+        this.loadGroupCreateIntent();
         // 房间列表无需登录即可浏览
         if (this.weekDays && this.weekDays.length > 0) {
             this.fetchRoomList();
@@ -287,6 +301,31 @@ export default {
 
     methods: {
         ...mapActions(['loginAndRegister', 'getUserInfo']),
+
+        loadGroupCreateIntent() {
+            let intent = null;
+            try {
+                intent = uni.getStorageSync('group_create_intent');
+            } catch (e) {}
+            if (!intent || !intent.created_at || Date.now() - intent.created_at > 5 * 60 * 1000) {
+                this.groupIntentVisible = false;
+                this.groupIntentSource = '';
+                try { uni.removeStorageSync('group_create_intent'); } catch (e) {}
+                return;
+            }
+            this.groupIntentVisible = true;
+            this.groupIntentSource = intent.source || 'group_square';
+        },
+
+        closeGroupIntent() {
+            this.clearGroupCreateIntent();
+        },
+
+        clearGroupCreateIntent() {
+            this.groupIntentVisible = false;
+            this.groupIntentSource = '';
+            try { uni.removeStorageSync('group_create_intent'); } catch (e) {}
+        },
 
         // 时间补零辅助：确保小时是两位数
         _padHour(h) {
@@ -553,7 +592,7 @@ export default {
             AUTH.trackEvent({
                 event: 'group_create_entry_click',
                 page_path: 'pages/tabBar/appoint/appoint',
-                source: 'appointment_panel',
+                source: this.appointmentEntrySource,
                 room_id: room.object_id,
                 date: this.currentSelectDate,
                 begin_time: beginTime,
@@ -568,7 +607,8 @@ export default {
                 + '&price_per_person=' + (room.price_per_person || 0)
                 + '&price_per_hour=' + (room.price_per_hour || 0)
                 + '&time_list=' + encodeURIComponent(JSON.stringify(timeList))
-                + '&source=appointment_panel';
+                + '&source=' + encodeURIComponent(this.appointmentEntrySource);
+            this.clearGroupCreateIntent();
             uni.navigateTo({ url: '/pages/group/create?' + query });
         },
 
@@ -1118,6 +1158,45 @@ page {
         &.booked { background: #FFEBEE; border: 1rpx solid rgba(229,57,53,0.1); }
         &.past { background: #F5F5F5; }
     }
+}
+
+.group-intent-card {
+    margin: 0 24rpx 20rpx;
+    padding: 22rpx 24rpx;
+    background: linear-gradient(135deg, #FFF8E1 0%, #FFF4E8 55%, #EAF7EC 100%);
+    border: 2rpx solid rgba(232,120,74,0.16);
+    border-radius: 22rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18rpx;
+    box-shadow: 0 4rpx 16rpx rgba(160,120,80,0.06);
+}
+.group-intent-copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+}
+.group-intent-title {
+    font-size: 28rpx;
+    color: $dark;
+    font-weight: bold;
+}
+.group-intent-sub {
+    font-size: 23rpx;
+    color: #7C6A58;
+    line-height: 1.45;
+}
+.group-intent-close {
+    flex-shrink: 0;
+    color: $primary;
+    font-size: 24rpx;
+    font-weight: bold;
+    background: #FFF3E8;
+    border-radius: 24rpx;
+    padding: 10rpx 18rpx;
 }
 // 底部提示
 .bottom-tip {
