@@ -348,10 +348,64 @@ function getConstance(token) {
   return request('/config/', 'GET', null, token);
 }
 
+var TRACK_EVENT_DEDUPE_PREFIX = 'track_event_dedupe_';
+var trackEventDedupeMemory = {};
+
+function getTrackEventDedupeAt(key) {
+  if (!key) return 0;
+  if (trackEventDedupeMemory[key]) return trackEventDedupeMemory[key];
+  try {
+    var value = uni.getStorageSync(TRACK_EVENT_DEDUPE_PREFIX + key);
+    return Number(value || 0);
+  } catch (e) {
+    return 0;
+  }
+}
+
+function setTrackEventDedupeAt(key, value) {
+  if (!key) return;
+  trackEventDedupeMemory[key] = value;
+  try {
+    uni.setStorageSync(TRACK_EVENT_DEDUPE_PREFIX + key, value);
+  } catch (e) {}
+}
+
+function clearTrackEventDedupeAt(key) {
+  if (!key) return;
+  delete trackEventDedupeMemory[key];
+  try {
+    uni.removeStorageSync(TRACK_EVENT_DEDUPE_PREFIX + key);
+  } catch (e) {}
+}
+
+function buildTrackEventPayload(data) {
+  var payload = {};
+  Object.keys(data || {}).forEach(function(key) {
+    if (key.indexOf('_dedupe_') === 0) return;
+    payload[key] = data[key];
+  });
+  return payload;
+}
+
 function trackEvent(data, token) {
   data = data || {};
-  data.platform = data.platform || PLATFORM.getPlatform();
-  return request('/analytics/track/', 'POST', data, token);
+  var dedupeKey = data._dedupe_key ? String(data._dedupe_key).slice(0, 120) : '';
+  var dedupeTtl = Number(data._dedupe_ttl_ms || 0);
+  if (dedupeKey && dedupeTtl > 0) {
+    var now = Date.now();
+    var lastTrackedAt = getTrackEventDedupeAt(dedupeKey);
+    if (lastTrackedAt && now - lastTrackedAt < dedupeTtl) {
+      return Promise.resolve({ _status: 0, data: { deduped: true } });
+    }
+    setTrackEventDedupeAt(dedupeKey, now);
+  }
+
+  var payload = buildTrackEventPayload(data);
+  payload.platform = payload.platform || PLATFORM.getPlatform();
+  return request('/analytics/track/', 'POST', payload, token).catch(function(err) {
+    if (dedupeKey) clearTrackEventDedupeAt(dedupeKey);
+    return Promise.reject(err);
+  });
 }
 
 function setPayPassword(password, token) {

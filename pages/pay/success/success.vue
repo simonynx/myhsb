@@ -142,12 +142,18 @@ export default {
 		this.type = options.type || 'order';
 		this.inviteCode = this.userInfo && this.userInfo.invite_code ? this.userInfo.invite_code : '';
 		this.loadInviteCode();
-		AUTH.trackEvent({
+		var paymentTrackData = {
 			event: 'payment_success',
 			page_path: 'pages/pay/success/success',
 			source: this.type,
 			amount: this.amount
-		}).catch(function() {});
+		};
+		if (this.orderId) {
+			paymentTrackData.order_id = this.orderId;
+			paymentTrackData._dedupe_key = 'payment_success:' + this.type + ':' + this.orderId;
+			paymentTrackData._dedupe_ttl_ms = 24 * 60 * 60 * 1000;
+		}
+		AUTH.trackEvent(paymentTrackData).catch(function() {});
 	},
 	onShareAppMessage() {
 		if (this.type === 'ticket') {

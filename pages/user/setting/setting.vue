@@ -24,8 +24,9 @@
 					<text class="checkin-streak" v-else>今日未签到</text>
 				</view>
 			</view>
-			<view class="checkin-btn" :class="checkInInfo.can_check_in ? 'can' : 'done'" @click="doCheckIn">
-				<text v-if="checkInInfo.checked_in_today">已签到 ✓</text>
+			<view class="checkin-btn" :class="checkInButtonClass" @click="doCheckIn">
+				<text v-if="checkInLoading">签到中...</text>
+				<text v-else-if="checkInInfo.checked_in_today">已签到 ✓</text>
 				<text v-else-if="checkInInfo.can_check_in">签到 +{{ checkInInfo.next_points || (checkInInfo.config && checkInInfo.config.daily_points) || '?' }}积分</text>
 				<text v-else>明日再来</text>
 			</view>
@@ -207,6 +208,11 @@
 					};
 				});
 			},
+			checkInButtonClass() {
+				var names = [this.checkInInfo.can_check_in ? 'can' : 'done'];
+				if (this.checkInLoading) names.push('loading');
+				return names.join(' ');
+			},
 		},
 		data() {
 			return {
@@ -223,6 +229,7 @@
 					invite_code: '',
 				},
 				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, config: {} },
+				checkInLoading: false,
 				tagList: ['PS5', 'Switch', '桌游', '剧本杀', '漫画', '亲子阅读'],
 				selectedTags: [],
 			};
@@ -397,31 +404,43 @@
 				}
 			},
 			async doCheckIn() {
+				if (this.checkInLoading) return;
+				if (!this.checkInInfo.can_check_in) {
+					uni.showToast({ title: '今日已签到', icon: 'none' });
+					return;
+				}
+				this.checkInLoading = true;
 				AUTH.trackEvent({
 					event: 'checkin_click',
 					page_path: 'pages/user/setting/setting',
 					source: 'setting'
 				}, this.token).catch(function() {});
-				if (!this.checkInInfo.can_check_in) {
-					uni.showToast({ title: '今日已签到', icon: 'none' });
-					return;
-				}
-				const res = await AUTH.checkIn(this.token);
-				const d = res.data;
-				if (d && d.points_earned !== undefined) {
-					this.checkInInfo.checked_in_today = true;
-					this.checkInInfo.can_check_in = false;
-					this.checkInInfo.current_streak = (this.checkInInfo.current_streak || 0) + 1;
-					AUTH.trackEvent({
-						event: 'checkin_success',
-						page_path: 'pages/user/setting/setting',
-						source: 'setting'
-					}, this.token).catch(function() {});
-					this.getUserInfo();
-					await this.loadCheckInInfo();
-					this.showCheckInSuccess(d);
-				} else {
-					uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
+				try {
+					const res = await AUTH.checkIn(this.token);
+					const d = res.data;
+					if (d && d.points_earned !== undefined) {
+						this.checkInInfo.checked_in_today = true;
+						this.checkInInfo.can_check_in = false;
+						this.checkInInfo.current_streak = (this.checkInInfo.current_streak || 0) + 1;
+						var now = new Date();
+						var todayKey = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
+						AUTH.trackEvent({
+							event: 'checkin_success',
+							page_path: 'pages/user/setting/setting',
+							source: 'setting',
+							_dedupe_key: 'checkin_success:setting:' + todayKey,
+							_dedupe_ttl_ms: 20 * 60 * 60 * 1000
+						}, this.token).catch(function() {});
+						this.getUserInfo();
+						await this.loadCheckInInfo();
+						this.showCheckInSuccess(d);
+					} else {
+						uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
+					}
+				} catch (e) {
+					uni.showToast({ title: '签到失败', icon: 'none' });
+				} finally {
+					this.checkInLoading = false;
 				}
 			},
 			showCheckInSuccess(data) {
@@ -606,6 +625,10 @@
 			&.done {
 				background: #F0F0F0;
 				color: #999;
+			}
+			&.loading {
+				opacity: 0.72;
+				transform: none;
 			}
 		}
 	}

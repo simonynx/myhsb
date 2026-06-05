@@ -95,6 +95,7 @@ export default {
       errorMsg: '',
       transferInfo: {},
       giftMessage: '',
+      transferPreviewLoading: false,
     };
   },
 
@@ -110,20 +111,26 @@ export default {
 
   onShow() {
     this.statusBarHeight = PLATFORM.getStatusBarHeight();
-    this.trackGiftEvent('page_view');
+    this.trackGiftEvent('page_view', {
+      _dedupe_key: 'ticket_receive_page_view:' + (this.transferToken || 'unknown'),
+      _dedupe_ttl_ms: 30 * 1000,
+    });
     this.fetchTransferPreview();
   },
 
   methods: {
     async fetchTransferPreview() {
+      if (this.transferPreviewLoading) return;
+      this.transferPreviewLoading = true;
       this.claimStatus = 'loading';
-      if (!this.transferToken) {
-        this.claimStatus = 'fail';
-        this.errorMsg = '无效的转赠链接';
-        return;
-      }
 
       try {
+        if (!this.transferToken) {
+          this.claimStatus = 'fail';
+          this.errorMsg = '无效的转赠链接';
+          return;
+        }
+
         // 先获取转赠详情 (允许匿名获取)
         const infoRes = await AUTH.getTransferInfo(this.token || '', this.transferToken);
         if (!infoRes || infoRes._status !== 0) {
@@ -133,7 +140,10 @@ export default {
         }
 
         this.transferInfo = infoRes.data;
-        this.trackGiftEvent('ticket_gift_preview');
+        this.trackGiftEvent('ticket_gift_preview', {
+          _dedupe_key: 'ticket_gift_preview:' + this.transferToken,
+          _dedupe_ttl_ms: 30 * 60 * 1000,
+        });
 
         // 如果状态不是 0 (待接收)，直接判定为不能接收
         if (this.transferInfo.status !== 0) {
@@ -144,14 +154,20 @@ export default {
 
         if (!this.token) {
           this.claimStatus = 'need_login';
-          this.trackGiftEvent('ticket_gift_need_login');
+          this.trackGiftEvent('ticket_gift_need_login', {
+            _dedupe_key: 'ticket_gift_need_login:' + this.transferToken,
+            _dedupe_ttl_ms: 30 * 60 * 1000,
+          });
         } else {
           // 已登录，执行静默自动接收
           this.claimStatus = 'loading';
           const acceptRes = await AUTH.acceptTicketTransfer(this.token, { transfer_token: this.transferToken });
           if (acceptRes && acceptRes._status === 0) {
             this.claimStatus = 'success';
-            this.trackGiftEvent('ticket_gift_accept');
+            this.trackGiftEvent('ticket_gift_accept', {
+              _dedupe_key: 'ticket_gift_accept:' + this.transferToken,
+              _dedupe_ttl_ms: 24 * 60 * 60 * 1000,
+            });
             uni.showToast({ title: '已存入票包', icon: 'success' });
           } else {
             this.claimStatus = 'fail';
@@ -162,11 +178,16 @@ export default {
         console.error('fetchTransferPreview error:', e);
         this.claimStatus = 'fail';
         this.errorMsg = '获取信息接口调用异常';
+      } finally {
+        this.transferPreviewLoading = false;
       }
     },
 
     handleLogin() {
-      this.trackGiftEvent('ticket_gift_login');
+      this.trackGiftEvent('ticket_gift_login', {
+        _dedupe_key: 'ticket_gift_login:' + (this.transferToken || 'unknown'),
+        _dedupe_ttl_ms: 10 * 1000,
+      });
       uni.showLoading({ title: '登录中...' });
       this.$store.dispatch('loginAndRegister').then(() => {
         uni.hideLoading();
@@ -194,13 +215,13 @@ export default {
       uni.switchTab({ url: '/pages/index/index' });
     },
 
-    trackGiftEvent(event) {
-      AUTH.trackEvent({
+    trackGiftEvent(event, extra) {
+      AUTH.trackEvent(Object.assign({
         event: event,
         page_path: 'pages/ticket/receive',
         source: 'ticket_transfer',
         has_transfer: !!this.transferToken
-      }, this.token).catch(function() {});
+      }, extra || {}), this.token).catch(function() {});
     },
 
     parseAvatar(avatar) {

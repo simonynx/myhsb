@@ -593,6 +593,7 @@
 				checkInLastLoadedAt: 0,
 				bannerLoading: false,
 				bannerLastCheckedAt: 0,
+				bannerActionTrackedAt: {},
 				pageViewLastTrackedAt: 0,
 				homeBenefitLastTrackedAt: 0,
 				inviteLandingClosed: false,
@@ -788,6 +789,7 @@
 				}
 			},
 			handleHomeBenefitTap() {
+				if (this.checkInLoading || this.checkInRolling) return;
 				AUTH.trackEvent({
 					event: 'checkin_click',
 					page_path: 'pages/index/index',
@@ -1169,6 +1171,12 @@
 			},
 			recordBannerAction(banner, action) {
 				if (!banner || !banner.id) return;
+				var actionKey = banner.id + ':' + action;
+				var now = Date.now();
+				if (action !== 'show' && this.bannerActionTrackedAt[actionKey] && now - this.bannerActionTrackedAt[actionKey] < 1500) {
+					return;
+				}
+				this.bannerActionTrackedAt[actionKey] = now;
 				AUTH.recordBanner(banner.id, action).catch(function() {});
 			},
 			getBannerStorageKey(banner, type) {

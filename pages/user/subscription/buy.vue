@@ -401,7 +401,10 @@ export default {
 					AUTH.trackEvent({
 						event: 'payment_success',
 						page_path: 'pages/user/subscription/buy',
-						source: 'subscription_balance'
+						source: 'subscription_balance',
+						order_number: orderNumber,
+						_dedupe_key: 'payment_success:subscription:' + orderNumber,
+						_dedupe_ttl_ms: 24 * 60 * 60 * 1000
 					}, this.token).catch(function() {});
 					this.getUserInfo(true).catch(function() {});
 					setTimeout(() => {
@@ -446,7 +449,10 @@ export default {
 					AUTH.trackEvent({
 						event: 'payment_success',
 						page_path: 'pages/user/subscription/buy',
-						source: 'subscription_wechat'
+						source: 'subscription_wechat',
+						order_number: orderNumber,
+						_dedupe_key: 'payment_success:subscription:' + orderNumber,
+						_dedupe_ttl_ms: 24 * 60 * 60 * 1000
 					}, this.token).catch(function() {});
 					this.getUserInfo(true).catch(function() {});
 					setTimeout(() => {
