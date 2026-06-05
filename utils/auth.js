@@ -283,6 +283,11 @@ function activeBanners() {
   return request('/banner/active_banners/', 'GET');
 }
 
+function recordBanner(bannerId, action) {
+  var data = { banner_id: bannerId, action: action };
+  return request('/banner/record/', 'POST', data);
+}
+
 function purchaseGoods(goodsId, token) {
   var data = { goods_id: goodsId };
   return request('/goods/purchase/', 'POST', data, token);
@@ -537,6 +542,7 @@ var httpRequest = {
   receiveCoupon: receiveCoupon,
   grantCoupon: grantCoupon,
   getCouponCampaigns: getCouponCampaigns,
+  recordBanner: recordBanner,
   trackEvent: trackEvent,
   uploadFile: uploadFile,
   parseAvatarUrl: parseAvatarUrl,

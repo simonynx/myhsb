@@ -1,14 +1,28 @@
 <template>
 	<view class="page-wrapper">
 		<!-- 营销弹窗 -->
-		<view class="banner-popup" v-if="activeBanner" @click="closeBanner">
-			<view class="banner-panel" @click.stop="goBannerLink">
-				<image class="banner-img" :src="activeBanner.image_url" mode="aspectFill" />
-				<view class="banner-info" v-if="activeBanner.title">
+		<view class="banner-popup" v-if="activeBanner" @tap="closeBanner">
+			<view :class="bannerPanelClass" @tap.stop>
+				<image
+					class="banner-img"
+					v-if="activeBanner.image_url"
+					:src="activeBanner.image_url"
+					mode="aspectFill"
+					@tap="goBannerLink"
+				/>
+				<view class="banner-text-hero" v-else @tap="goBannerLink">
+					<view class="banner-text-icon">{{ activeBanner.icon || '活' }}</view>
+					<text class="banner-text-tag">{{ activeBanner.tag || '店内活动' }}</text>
+				</view>
+				<view class="banner-info">
 					<text class="banner-title">{{ activeBanner.title }}</text>
 					<text class="banner-sub" v-if="activeBanner.subtitle">{{ activeBanner.subtitle }}</text>
 				</view>
-				<view class="banner-close" @click.stop="closeBanner">
+				<view class="banner-actions">
+					<view class="banner-secondary" @tap.stop="closeBanner">稍后</view>
+					<view class="banner-primary" @tap.stop="goBannerLink">{{ activeBanner.cta_text || '去看看' }}</view>
+				</view>
+				<view class="banner-close" @tap.stop="closeBanner">
 					<text>✕</text>
 				</view>
 			</view>
@@ -94,6 +108,22 @@
 			<view class="coupon-hint-right">
 				<text class="coupon-hint-action">去领取</text>
 				<text class="coupon-hint-close" @tap.stop="closeCouponHint">✕</text>
+			</view>
+		</view>
+
+		<!-- 活动情报卡 -->
+		<view class="activity-card" v-if="activityCard" @tap="goActivityCard">
+			<view class="activity-icon">{{ activityCard.icon || '活' }}</view>
+			<view class="activity-copy">
+				<view class="activity-line">
+					<text class="activity-tag">{{ activityCard.tag || '店内活动' }}</text>
+					<text class="activity-title">{{ activityCard.title }}</text>
+				</view>
+				<text class="activity-sub" v-if="activityCard.subtitle">{{ activityCard.subtitle }}</text>
+			</view>
+			<view class="activity-side">
+				<text class="activity-action">{{ activityCard.cta_text || '去看看' }}</text>
+				<text class="activity-close" @tap.stop="closeActivityCard">✕</text>
 			</view>
 		</view>
 
@@ -399,6 +429,11 @@
 			showCouponHint() {
 				return this.hasLogin && !this.showInviteLanding && !this.couponHintClosed && this.claimableCouponCount > 0;
 			},
+			bannerPanelClass() {
+				var names = ['banner-panel'];
+				if (!this.activeBanner || !this.activeBanner.image_url) names.push('text-only');
+				return names.join(' ');
+			},
 			claimableCouponTitle() {
 				if (this.claimableCouponName) {
 					return this.claimableCouponName;
@@ -513,6 +548,7 @@
 			return {
 				swiperCurrent: 0,
 				activeBanner: null,
+				activityCard: null,
 				swiperLength: 0,
 				carouselList: [],
 				addressData: {
@@ -608,10 +644,10 @@
 				this._deferredRefreshTimer = setTimeout(function() {
 					this._deferredRefreshTimer = null;
 					this.loadReviews();
+					this.checkBanner();
 					if (this.hasLogin) {
 						this.loadCheckInInfo();
 						this.loadClaimableCoupons();
-						this.checkBanner();
 					}
 				}.bind(this), delay);
 			},
@@ -1131,8 +1167,50 @@
 				this.collectionHintClosed = true;
 				uni.setStorageSync('collection_hint_closed', true);
 			},
+			recordBannerAction(banner, action) {
+				if (!banner || !banner.id) return;
+				AUTH.recordBanner(banner.id, action).catch(function() {});
+			},
+			getBannerStorageKey(banner, type) {
+				if (!banner || !banner.id) return '';
+				return 'activity_' + type + '_' + banner.id;
+			},
+			findActivityBanner(list, withImage) {
+				list = list || [];
+				for (var i = 0; i < list.length; i++) {
+					var item = list[i];
+					if (!item) continue;
+					if (withImage && item.image_url) return item;
+					if (!withImage && !item.image_url) return item;
+				}
+				return null;
+			},
+			isTabBarPath(url) {
+				var path = String(url || '').split('?')[0].replace(/^\//, '');
+				return [
+					'pages/index/index',
+					'pages/voucher/voucher',
+					'pages/tabBar/appoint/appoint',
+					'pages/group/group',
+					'pages/user/user'
+				].indexOf(path) >= 0;
+			},
+			openActivityTarget(banner) {
+				if (!banner) return;
+				var value = banner.link_value || '';
+				if (banner.link_type === 'page' && value) {
+					var url = value.charAt(0) === '/' ? value : '/' + value;
+					var baseUrl = url.split('?')[0];
+					if (this.isTabBarPath(baseUrl)) {
+						uni.switchTab({ url: baseUrl });
+					} else {
+						uni.navigateTo({ url: url });
+					}
+				} else if (banner.link_type === 'webview' && value) {
+					uni.showToast({ title: '外链活动请联系客服查看', icon: 'none' });
+				}
+			},
 			checkBanner() {
-				if (!this.hasLogin) return;
 				if (this.bannerLoading) return;
 				var checkedAt = Date.now();
 				if (this.bannerLastCheckedAt && checkedAt - this.bannerLastCheckedAt < 5 * 60 * 1000) return;
@@ -1140,30 +1218,57 @@
 				AUTH.activeBanners().then(res => {
 					this.bannerLastCheckedAt = Date.now();
 					if (res._status !== 0 || !res.data || res.data.length === 0) return;
-					const banner = res.data[0];
-					const key = 'banner_shown_' + banner.id;
-					const last = uni.getStorageSync(key);
-					const now = Date.now();
-					if (last && now - last < 24 * 60 * 60 * 1000) return;
-					this.activeBanner = banner;
-					uni.setStorageSync(key, now);
+					var list = res.data || [];
+					var now = Date.now();
+					var card = this.findActivityBanner(list, false);
+					if (card) {
+						var cardKey = this.getBannerStorageKey(card, 'card_closed');
+						var cardClosedAt = uni.getStorageSync(cardKey);
+						if (!cardClosedAt || now - cardClosedAt >= 12 * 60 * 60 * 1000) {
+							if (!this.activityCard || this.activityCard.id !== card.id) {
+								this.activityCard = card;
+								this.recordBannerAction(card, 'show');
+							}
+						}
+					}
+
+					var popup = this.findActivityBanner(list, true);
+					if (!popup || this.activeBanner || this.showInviteLanding || this.storeNoticeVisible) return;
+					var popupKey = this.getBannerStorageKey(popup, 'popup_shown');
+					var popupShownAt = uni.getStorageSync(popupKey);
+					if (popupShownAt && now - popupShownAt < 24 * 60 * 60 * 1000) return;
+					this.activeBanner = popup;
+					uni.setStorageSync(popupKey, now);
+					this.recordBannerAction(popup, 'show');
 				}).catch(function() {
 				}).then(function() {
 					this.bannerLoading = false;
 				}.bind(this));
 			},
-			closeBanner() {
+			closeBanner(options) {
+				var skipRecord = options && options.skipRecord === true;
+				if (!skipRecord) this.recordBannerAction(this.activeBanner, 'close');
 				this.activeBanner = null;
 			},
 			goBannerLink() {
 				if (!this.activeBanner) return;
-				const b = this.activeBanner;
-				if (b.link_type === 'page' && b.link_value) {
-					uni.navigateTo({ url: b.link_value });
-				} else if (b.link_type === 'webview' && b.link_value) {
-					uni.navigateTo({ url: '/pages/webview/webview?url=' + encodeURIComponent(b.link_value) });
-				}
-				this.closeBanner();
+				var b = this.activeBanner;
+				this.recordBannerAction(b, 'click');
+				this.openActivityTarget(b);
+				this.closeBanner({ skipRecord: true });
+			},
+			closeActivityCard() {
+				if (!this.activityCard) return;
+				this.recordBannerAction(this.activityCard, 'close');
+				var key = this.getBannerStorageKey(this.activityCard, 'card_closed');
+				if (key) uni.setStorageSync(key, Date.now());
+				this.activityCard = null;
+			},
+			goActivityCard() {
+				if (!this.activityCard) return;
+				var card = this.activityCard;
+				this.recordBannerAction(card, 'click');
+				this.openActivityTarget(card);
 			},
 		}
 	}
@@ -1582,11 +1687,21 @@ page { background: #FFF8F0; }
 /* ===== 营销弹窗 ===== */
 .banner-popup { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 40rpx; }
 .banner-panel { background: #FFF; border-radius: 28rpx; overflow: hidden; width: 100%; max-width: 600rpx; position: relative; animation: popup-in 0.3s ease; box-shadow: 0 16rpx 48rpx rgba(0,0,0,0.15); }
+.banner-panel.text-only { padding-top: 32rpx; }
 .banner-img { width: 100%; height: 400rpx; }
+.banner-text-hero { display: flex; flex-direction: column; align-items: center; padding: 8rpx 30rpx 0; }
+.banner-text-icon { width: 96rpx; height: 96rpx; border-radius: 28rpx; background: #FFF3E8; color: #FF8C42; font-size: 34rpx; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+.banner-text-tag { margin-top: 14rpx; font-size: 22rpx; color: #4A9A4A; background: #EAF7EC; padding: 6rpx 16rpx; border-radius: 18rpx; font-weight: bold; }
 .banner-info { padding: 24rpx; }
 .banner-title { display: block; font-size: 30rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 8rpx; }
-.banner-sub { display: block; font-size: 22rpx; color: #A08B7A; }
+.banner-sub { display: block; font-size: 22rpx; color: #A08B7A; line-height: 1.45; }
+.banner-actions { display: flex; gap: 16rpx; padding: 0 24rpx 26rpx; }
+.banner-secondary,
+.banner-primary { flex: 1; height: 72rpx; border-radius: 36rpx; display: flex; align-items: center; justify-content: center; font-size: 26rpx; font-weight: bold; }
+.banner-secondary { color: #8C7B6B; background: #F7F1E8; }
+.banner-primary { color: #FFF; background: #FF8C42; }
 .banner-close { position: absolute; top: 16rpx; right: 16rpx; width: 56rpx; height: 56rpx; background: rgba(0,0,0,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FFF; font-size: 28rpx; }
+.banner-panel.text-only .banner-close { background: #F7F1E8; color: #8C7B6B; }
 
 /* ===== 入店须知弹层 ===== */
 .notice-popup { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.44); z-index: 10010; display: flex; align-items: center; justify-content: center; padding: 44rpx; }
@@ -1675,6 +1790,91 @@ page { background: #FFF8F0; }
 	font-size: 22rpx;
 	color: #C4B5A5;
 	padding: 8rpx 0 8rpx 16rpx;
+}
+
+/* ===== 活动情报卡 ===== */
+.activity-card {
+	margin: 16rpx 24rpx 0;
+	border-radius: 22rpx;
+	padding: 20rpx 22rpx;
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	background: #FFFDF8;
+	border: 2rpx solid rgba(255,140,66,0.16);
+	box-shadow: 0 10rpx 28rpx rgba(92,75,58,0.07);
+	box-sizing: border-box;
+}
+.activity-icon {
+	width: 68rpx;
+	height: 68rpx;
+	border-radius: 20rpx;
+	background: #FFF3E8;
+	color: #FF8C42;
+	font-size: 26rpx;
+	font-weight: bold;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+.activity-copy {
+	flex: 1;
+	min-width: 0;
+}
+.activity-line {
+	display: flex;
+	align-items: center;
+	gap: 10rpx;
+	min-width: 0;
+}
+.activity-tag {
+	flex-shrink: 0;
+	font-size: 19rpx;
+	color: #4A9A4A;
+	background: #EAF7EC;
+	border-radius: 16rpx;
+	padding: 4rpx 10rpx;
+	font-weight: bold;
+}
+.activity-title {
+	font-size: 27rpx;
+	font-weight: bold;
+	color: #5C4B3A;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.activity-sub {
+	display: block;
+	font-size: 22rpx;
+	color: #8C7B6B;
+	line-height: 1.35;
+	margin-top: 7rpx;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.activity-side {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	flex-shrink: 0;
+}
+.activity-action {
+	font-size: 22rpx;
+	color: #FFF;
+	background: #FF8C42;
+	border-radius: 20rpx;
+	padding: 8rpx 16rpx;
+	font-weight: bold;
+	white-space: nowrap;
+}
+.activity-close {
+	margin-top: 10rpx;
+	font-size: 22rpx;
+	color: #C4B5A5;
+	padding: 4rpx 8rpx;
 }
 
 /* ===== 首页福利入口 ===== */
