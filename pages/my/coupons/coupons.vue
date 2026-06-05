@@ -100,10 +100,10 @@
 								<text class="right-expire">{{ item.validText }}</text>
 								<button
 									class="right-btn"
-									:disabled="receivingCouponId === item.campaign_id"
+									:disabled="!isCouponClaimable(item) || receivingCouponId === item.campaign_id"
 									@tap.stop="receiveCoupon(item)"
 								>
-									{{ receivingCouponId === item.campaign_id ? '领取中' : '领券' }}
+									{{ getCouponButtonText(item) }}
 								</button>
 							</view>
 						</view>
@@ -159,7 +159,7 @@
 							<text class="right-desc">{{ item.descText }}</text>
 							<view class="right-footer">
 								<text :class="item.expireClass">{{ item.expireText }}</text>
-								<view class="use-btn" v-if="item.status === 0" @tap="goUseCoupon">去使用</view>
+								<view class="use-btn" v-if="item.status === 0" @tap="goUseCoupon(item)">去使用</view>
 							</view>
 						</view>
 						<!-- 状态水印 -->
@@ -268,8 +268,8 @@
 					if (res._status === 0) {
 						var list = res.data || [];
 						var claimable = list.filter(function(item) {
-							return !item.user_received && item.remaining_count !== 0;
-						});
+							return this.isCouponClaimable(item);
+						}.bind(this));
 						this.availableList = claimable.map(function(item) {
 							return this.prepareCoupon(item);
 						}.bind(this));
@@ -325,32 +325,95 @@
 				} catch (e) {}
 			},
 			async receiveCoupon(item) {
-				if (item.remaining_count === 0) return;
+				if (!this.isCouponClaimable(item)) return;
 				if (this.receivingCouponId) return;
 				this.receivingCouponId = item.campaign_id;
+				this.trackCouponEvent('coupon_receive_click', item);
 				uni.showLoading({ title: '领取中...' });
 				try {
 					var res = await AUTH.receiveCoupon(this.token, item.campaign_id);
 					uni.hideLoading();
 					if (res._status === 0) {
-						uni.showToast({ title: '领取成功', icon: 'success' });
-						this.availableList = this.availableList.filter(function(c) {
-							return c.campaign_id !== item.campaign_id;
-						});
-						this.tabs[0].count = Math.max(0, this.availableList.length);
-						this.updateTabCounts();
+						this.trackCouponEvent('coupon_receive_success', item);
+						await this.loadAvailable();
+						await this.updateTabCounts();
+						this.showCouponSuccessActions(item, res.data || {});
 					} else {
+						this.trackCouponEvent('coupon_receive_failed', item, { reason: res._reason || '领取失败' });
 						uni.showToast({ title: res._reason || '领取失败', icon: 'none' });
 					}
 				} catch (e) {
 					uni.hideLoading();
+					this.trackCouponEvent('coupon_receive_failed', item, { reason: 'request_failed' });
 					uni.showToast({ title: '领取失败', icon: 'none' });
 				} finally {
 					this.receivingCouponId = '';
 				}
 			},
-			goUseCoupon() {
-				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+			isCouponClaimable(item) {
+				if (!item) return false;
+				if (item.can_receive === false) return false;
+				if (item.user_received) return false;
+				return item.remaining_count !== 0;
+			},
+			getCouponButtonText(item) {
+				if (this.receivingCouponId === item.campaign_id) return '领取中';
+				if (!this.isCouponClaimable(item)) return item.receive_status_text || (item.remaining_count === 0 ? '已领完' : '已领取');
+				return '领券';
+			},
+			trackCouponEvent(event, item, extra) {
+				var data = Object.assign({
+					event: event,
+					page_path: 'pages/my/coupons/coupons',
+					source: 'my_coupons',
+					campaign_id: item && item.campaign_id,
+					coupon_id: item && item.object_id,
+					coupon_type: item && item.coupon_type,
+				}, extra || {});
+				AUTH.trackEvent(data, this.token).catch(function() {});
+			},
+			showCouponSuccessActions(item, data) {
+				var name = (data && data.coupon_name) || (item && item.name) || '优惠券';
+				var couponType = (data && data.coupon_type) || (item && item.coupon_type);
+				if (couponType === 'gift') {
+					uni.showModal({
+						title: '领取成功',
+						content: name + ' 已领取，奖励已到账。',
+						confirmText: '知道了',
+						showCancel: false
+					});
+					return;
+				}
+				uni.showModal({
+					title: '领取成功',
+					content: name + ' 已放入你的券包，下单时会自动展示可用券。',
+					confirmText: '去使用',
+					cancelText: '继续领',
+					success: function(modalRes) {
+						if (modalRes.confirm) {
+							this.openCouponUseSheet(item, 'receive_success');
+						}
+					}.bind(this)
+				});
+			},
+			goUseCoupon(item) {
+				this.openCouponUseSheet(item, 'my_coupon_use');
+			},
+			openCouponUseSheet(item, source) {
+				this.trackCouponEvent('coupon_use_entry_click', item, { entry_source: source || 'my_coupons' });
+				uni.showActionSheet({
+					itemList: ['预约包厢', '买大厅票', '查看我的券'],
+					success: function(res) {
+						if (res.tapIndex === 0) {
+							uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+						} else if (res.tapIndex === 1) {
+							uni.navigateTo({ url: '/pages/ticket/buy' });
+						} else if (res.tapIndex === 2) {
+							this.tabIndex = 1;
+							this.loadMyCoupons();
+						}
+					}.bind(this)
+				});
 			},
 			prepareCoupon(item) {
 				var coupon = Object.assign({}, item);

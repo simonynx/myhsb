@@ -645,7 +645,14 @@
 				if (num > 10) num = 10;
 				uni.navigateTo({ url: '/pages/ticket/buy?count=' + num });
 			},
-			goToVoucher() {
+			goToVoucher(source) {
+				if (typeof source !== 'string') source = 'home_coupon_hint';
+				AUTH.trackEvent({
+					event: 'coupon_hint_click',
+					page_path: 'pages/index/index',
+					source: source || 'home_coupon_hint',
+					claimable_count: this.claimableCouponCount
+				}, this.token).catch(function() {});
 				uni.switchTab({ url: '/pages/voucher/voucher' });
 			},
 			closeCouponHint() {
@@ -860,7 +867,7 @@
 				try {
 					const res = await AUTH.getCouponList(token);
 					if (res._status === 0 && res.data) {
-						const list = res.data.filter(item => !item.user_received && item.remaining_count !== 0);
+						const list = res.data.filter(item => item.can_receive !== false && !item.user_received && item.remaining_count !== 0);
 						const key = list.map(item => item.campaign_id).join(',');
 						this.claimableCouponCount = list.length;
 						this.claimableCouponName = list.length > 0 ? list[0].name : '';
@@ -887,7 +894,7 @@
 				} else if (scene.action === 'reserve') {
 					this.goToReserve();
 				} else if (scene.action === 'voucher') {
-					this.goToVoucher();
+					this.goToVoucher('home_scene');
 				} else if (scene.action === 'location') {
 					this.openLocation();
 				}
@@ -895,7 +902,7 @@
 			handleUpsellTap(item) {
 				if (!item) return;
 				if (item.action === 'voucher') {
-					this.goToVoucher();
+					this.goToVoucher('home_upsell');
 				} else if (item.action === 'reserve') {
 					this.goToReserve();
 				}

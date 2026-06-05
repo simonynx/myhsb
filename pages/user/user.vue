@@ -686,7 +686,7 @@
 					const availableRes = await AUTH.getCouponList(this.token);
 					if (availableRes._status === 0 && availableRes.data) {
 						this.claimableCouponCount = availableRes.data.filter(function(item) {
-							return !item.user_received && item.remaining_count !== 0;
+							return item.can_receive !== false && !item.user_received && item.remaining_count !== 0;
 						}).length;
 					}
 				} catch (e) {
