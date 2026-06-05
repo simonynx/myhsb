@@ -387,6 +387,7 @@
 					}
 					// 兼容后端可能返回 { payment: {...} } 或 { wxpay: {...} } 的嵌套结构
 					var payment = wxpayData.payment || wxpayData.wxpay || wxpayData;
+					var rechargeOrderNumber = wxpayData.order_number || payment.order_number || payment.out_trade_no || '';
 					// 使用跨平台支付封装
 					var PLATFORM = require('../../../common/platform.js');
 					var platform = PLATFORM.getPlatform();
@@ -413,7 +414,7 @@
 					}
 					PLATFORM.requestPayment(payment).then(() => {
 						uni.hideLoading();
-						this.goRechargeSuccess(amountFen);
+						this.goRechargeSuccess(amountFen, rechargeOrderNumber);
 					}).catch((err) => {
 						uni.hideLoading();
 						this.depositing = false;
@@ -434,12 +435,15 @@
 					uni.showToast({ title: '充值失败', icon: 'none' });
 				});
 			},
-			goRechargeSuccess(amountFen) {
+			goRechargeSuccess(amountFen, orderNumber) {
 				var presentFen = this.selectedTierPresent * 100;
 				var url = '/pages/pay/success/success?amount=' + amountFen
 					+ '&type=recharge'
 					+ '&present=' + presentFen
 					+ '&bonus=' + this.selectedTierBonus;
+				if (orderNumber) {
+					url += '&id=' + encodeURIComponent(orderNumber);
+				}
 				this.getUserInfo(true).catch(function() {}).then(function() {
 					uni.redirectTo({ url: url });
 				});
