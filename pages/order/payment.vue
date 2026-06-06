@@ -102,7 +102,9 @@
                         <view class="coupon-check" v-if="!selectedCoupon">✓</view>
                     </view>
                 </view>
-                <view class="coupon-tip" v-if="selectedCoupon">已选：{{ selectedCoupon.name }}，优惠 {{ couponDiscountText }}</view>
+                <view class="coupon-tip" v-if="selectedCoupon">
+                    已选：{{ selectedCoupon.name }}<text v-if="couponDiscountText">，优惠 {{ couponDiscountText }}</text>
+                </view>
             </view>
             <view class="coupon-section" v-else-if="isOfflinePending">
                 <view class="section-title">使用优惠券</view>
@@ -396,8 +398,9 @@ export default {
 
         couponDiscountText() {
             if (!this.selectedCoupon) return '';
-            const discount = COUPON.calcCouponDiscount(this.selectedCoupon, this.couponBaseAmount);
-            return '-' + (discount / 100).toFixed(2) + '元';
+            const serverDiscount = Number(this.orderCouponDiscount || 0);
+            if (serverDiscount <= 0) return '';
+            return '-' + (serverDiscount / 100).toFixed(2) + '元';
         },
     },
 
@@ -528,12 +531,13 @@ export default {
                 const claimableList = claimableRes && claimableRes._status === 0 ? (claimableRes.data || []) : [];
                 this.claimableCoupons = claimableList
                     .filter(this.isCouponClaimable)
-                    .filter(function(item) { return item.coupon_type !== 'gift'; })
                     .map(this.normalizeClaimableCoupon);
                 // 如果订单已有券，选中它
                 const couponId = (this.order && this.order.goodsInfo && (this.order.goodsInfo._coupon_id || this.order.goodsInfo.coupon_id));
                 if (couponId) {
                     this.selectedCoupon = this.myCoupons.find(c => c.object_id === couponId) || null;
+                } else {
+                    this.selectedCoupon = null;
                 }
             } catch (e) {
                 console.log('load coupons error:', e);
@@ -562,12 +566,17 @@ export default {
 
         async selectCoupon(coupon) {
             if (this.updatingCoupon) return;
+            const requestedCouponId = coupon && coupon.object_id ? String(coupon.object_id) : null;
+            if (coupon && !requestedCouponId) {
+                uni.showToast({ title: '优惠券信息异常，请重新领取', icon: 'none' });
+                return;
+            }
             this.updatingCoupon = true;
             try {
                 uni.showLoading({ title: '更新中...' });
                 const res = await AUTH.updateOrderCoupon(this.token, {
                     order_number: this.order.order_number,
-                    coupon_id: coupon ? coupon.object_id : null,
+                    coupon_id: requestedCouponId,
                 });
                 uni.hideLoading();
                 if (!res) return;
@@ -579,21 +588,37 @@ export default {
                 if (!isFinite(nextPayAmount)) {
                     throw new Error('更新优惠券失败');
                 }
-                const goodsInfo = Object.assign({}, this.order.goodsInfo || {});
-                goodsInfo._coupon_id = payload.coupon_id;
-                goodsInfo.coupon_id = payload.coupon_id;
-                goodsInfo._coupon_discount = payload.coupon_discount || 0;
+                const appliedCouponId = payload.coupon_id ? String(payload.coupon_id) : null;
+                const appliedCouponDiscount = Number(payload.coupon_discount || 0);
+                if (requestedCouponId && !appliedCouponId) {
+                    throw new Error('优惠券未生效，请重新选择');
+                }
+                const confirmedCoupon = appliedCouponId
+                    ? (this.myCoupons.find(c => String(c.object_id) === appliedCouponId) ||
+                        (coupon && String(coupon.object_id) === appliedCouponId ? coupon : null))
+                    : null;
+                const payloadOrder = payload.order || {};
+                const payloadGoodsInfo = payload.goods_info || payloadOrder.goods_info || null;
+                const goodsInfo = Object.assign({}, payloadGoodsInfo || this.order.goodsInfo || {});
+                goodsInfo._coupon_id = appliedCouponId;
+                goodsInfo.coupon_id = appliedCouponId;
+                goodsInfo._coupon_discount = appliedCouponDiscount;
+                goodsInfo._discount_amount = appliedCouponDiscount;
                 if (goodsInfo.pricing) {
                     goodsInfo.pricing = Object.assign({}, goodsInfo.pricing, {
-                        coupon_discount: payload.coupon_discount || 0,
+                        coupon_discount: appliedCouponDiscount,
                         final_amount: nextPayAmount,
                     });
                 }
-                this.order = Object.assign({}, this.order, {
+                const nextOrder = Object.assign({}, this.order, payloadOrder, {
                     pay_amount: nextPayAmount,
                     goodsInfo: goodsInfo,
                 });
-                this.selectedCoupon = coupon;
+                if (!nextOrder.goods_info) {
+                    nextOrder.goods_info = goodsInfo;
+                }
+                this.order = nextOrder;
+                this.selectedCoupon = confirmedCoupon;
                 this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
                 if (nextPayAmount === 0) {
                     this.payMethod = 'balance';
@@ -601,7 +626,9 @@ export default {
                 this.$forceUpdate();
             } catch (e) {
                 uni.hideLoading();
-                uni.showToast({ title: (e && e.message) || '更新优惠券失败', icon: 'none' });
+                const errorData = e && e.data ? e.data : null;
+                const msg = (e && e.message) || (errorData && errorData._reason) || '更新优惠券失败';
+                uni.showToast({ title: msg, icon: 'none' });
             } finally {
                 this.updatingCoupon = false;
             }
