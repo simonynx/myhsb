@@ -579,21 +579,23 @@ export default {
                 if (!isFinite(nextPayAmount)) {
                     throw new Error('更新优惠券失败');
                 }
-                this.$set(this.order, 'pay_amount', nextPayAmount);
-                const goodsInfo = this.order.goodsInfo || {};
-                if (!this.order.goodsInfo) {
-                    this.$set(this.order, 'goodsInfo', goodsInfo);
-                }
-                this.$set(goodsInfo, '_coupon_id', payload.coupon_id);
-                this.$set(goodsInfo, 'coupon_id', payload.coupon_id);
-                this.$set(goodsInfo, '_coupon_discount', payload.coupon_discount || 0);
+                const goodsInfo = Object.assign({}, this.order.goodsInfo || {});
+                goodsInfo._coupon_id = payload.coupon_id;
+                goodsInfo.coupon_id = payload.coupon_id;
+                goodsInfo._coupon_discount = payload.coupon_discount || 0;
                 if (goodsInfo.pricing) {
-                    this.$set(goodsInfo.pricing, 'coupon_discount', payload.coupon_discount || 0);
-                    this.$set(goodsInfo.pricing, 'final_amount', nextPayAmount);
+                    goodsInfo.pricing = Object.assign({}, goodsInfo.pricing, {
+                        coupon_discount: payload.coupon_discount || 0,
+                        final_amount: nextPayAmount,
+                    });
                 }
+                this.order = Object.assign({}, this.order, {
+                    pay_amount: nextPayAmount,
+                    goodsInfo: goodsInfo,
+                });
                 this.selectedCoupon = coupon;
                 this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
-                if (this.order.pay_amount === 0) {
+                if (nextPayAmount === 0) {
                     this.payMethod = 'balance';
                 }
                 this.$forceUpdate();
