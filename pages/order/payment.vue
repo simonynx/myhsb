@@ -22,7 +22,7 @@
                 <view class="amount-label">需支付</view>
                 <view class="amount-price">
                     <text class="yuan">¥</text>
-                    <text class="price">{{ (order.pay_amount / 100).toFixed(2) }}</text>
+                    <text class="price">{{ formatMoney(order.pay_amount) }}</text>
                 </view>
                 <view class="order-no">订单号 {{ order.order_number }}</view>
                 <view class="order-info" v-if="order.order_type === 4">
@@ -150,7 +150,7 @@
                             </view>
                             <view class="method-desc" v-else>
                                 可用余额 ¥{{ (safeUserInfo.account_balance / 100).toFixed(2) }}
-                                <text class="insufficient-tip">（还差 ¥{{ (balanceShortfall / 100).toFixed(2) }}）</text>
+                                <text class="insufficient-tip">（还差 ¥{{ formatMoney(balanceShortfall) }}）</text>
                             </view>
                         </view>
                     </view>
@@ -176,7 +176,7 @@
             <view class="bottom-bar">
                 <view class="bottom-info">
                     <text class="bottom-label">实付款</text>
-                    <text class="bottom-price">¥{{ (order.pay_amount / 100).toFixed(2) }}</text>
+                    <text class="bottom-price">¥{{ formatMoney(order.pay_amount) }}</text>
                 </view>
                 <view class="pay-btn" :class="paying ? 'disabled' : ''" @click="doPay">
                     <text v-if="!paying">确认支付</text>
@@ -228,7 +228,7 @@ export default {
                 var goodsInfo = this.order.goodsInfo || {};
                 if (!goodsInfo.can_use_balance) return false;
             }
-            return (this.safeUserInfo.account_balance || 0) >= this.order.pay_amount;
+            return (this.safeUserInfo.account_balance || 0) >= (this.order.pay_amount || 0);
         },
 
         balanceShortfall() {
@@ -238,7 +238,7 @@ export default {
 
         balanceDeductText() {
             if (!this.canUseBalance || !this.order) return '';
-            return `可抵扣 ¥${(this.order.pay_amount / 100).toFixed(2)}`;
+            return `可抵扣 ¥${this.formatMoney(this.order.pay_amount)}`;
         },
 
         isRechargeOrder() {
@@ -372,7 +372,7 @@ export default {
         couponBaseAmount() {
             if (!this.order) return 0;
             const amountAfterMember = this.orderBaseAmount + this.orderAddonsTotal - this.orderMemberDiscount;
-            return amountAfterMember > 0 ? amountAfterMember : this.order.pay_amount;
+            return amountAfterMember > 0 ? amountAfterMember : (this.order.pay_amount || 0);
         },
 
         availableCoupons() {
@@ -571,6 +571,9 @@ export default {
                 });
                 uni.hideLoading();
                 if (!res) return;
+                if (res._status !== undefined && res._status !== 0) {
+                    throw new Error(res._reason || '更新优惠券失败');
+                }
                 const payload = res.data || {};
                 const nextPayAmount = Number(payload.pay_amount);
                 if (!isFinite(nextPayAmount)) {
@@ -584,7 +587,6 @@ export default {
                 this.$set(goodsInfo, '_coupon_id', payload.coupon_id);
                 this.$set(goodsInfo, 'coupon_id', payload.coupon_id);
                 this.$set(goodsInfo, '_coupon_discount', payload.coupon_discount || 0);
-                this.$set(goodsInfo, 'use_points', payload.points_used || 0);
                 if (goodsInfo.pricing) {
                     this.$set(goodsInfo.pricing, 'coupon_discount', payload.coupon_discount || 0);
                     this.$set(goodsInfo.pricing, 'final_amount', nextPayAmount);
@@ -636,7 +638,7 @@ export default {
                 // 余额不足时引导充值
                 uni.showModal({
                     title: '余额不足',
-                    content: `当前余额还差 ¥${(this.balanceShortfall / 100).toFixed(2)}，是否去充值？`,
+                    content: `当前余额还差 ¥${this.formatMoney(this.balanceShortfall)}，是否去充值？`,
                     confirmText: '去充值',
                     cancelText: '取消',
                     success: (res) => {
@@ -652,8 +654,8 @@ export default {
         
         doPay() {
             if (this.paying) return;
-            // pay_amount 为 0 时（余额/积分已全覆盖），强制走余额支付
-            const isZeroPay = this.order && this.order.pay_amount === 0 && !this.isRechargeOrder;
+            // pay_amount 为 0 时，强制走余额支付完成订单。
+            const isZeroPay = this.order && Number(this.order.pay_amount || 0) === 0 && !this.isRechargeOrder;
             if (this.payMethod === 'balance' || isZeroPay) {
                 // 余额足够时直接扣款
                 this.paying = true;
