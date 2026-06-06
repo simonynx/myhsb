@@ -107,6 +107,13 @@
             <view class="coupon-section" v-else-if="isOfflinePending">
                 <view class="section-title">使用优惠券</view>
                 <view class="coupon-loading" v-if="!couponsLoaded">加载中...</view>
+                <view class="coupon-receive-link" v-else-if="showCouponReceiveLink" @click="goReceiveCoupons">
+                    <view>
+                        <text class="receive-title">有可领取优惠券</text>
+                        <text class="receive-sub">领取后返回支付页使用</text>
+                    </view>
+                    <text class="receive-action">去领取</text>
+                </view>
                 <view class="coupon-empty" v-else>暂无可用优惠券</view>
             </view>
 
@@ -201,6 +208,7 @@ export default {
             interval: null,
             // 优惠券相关
             myCoupons: [],
+            claimableCoupons: [],
             selectedCoupon: null,
             couponsLoaded: false,
             updatingCoupon: false,
@@ -369,7 +377,21 @@ export default {
 
         availableCoupons() {
             if (!this.order) return [];
-            return COUPON.getAvailableCoupons(this.myCoupons, this.couponBaseAmount);
+            return COUPON.getAvailableCoupons(this.myCoupons, this.couponBaseAmount).sort(function(a, b) {
+                return (Number(b.discount) || 0) - (Number(a.discount) || 0);
+            });
+        },
+
+        claimableAvailableCoupons() {
+            if (!this.order) return [];
+            return COUPON.getAvailableCoupons(this.claimableCoupons, this.couponBaseAmount);
+        },
+
+        showCouponReceiveLink() {
+            return this.isOfflinePending &&
+                this.couponsLoaded &&
+                this.availableCoupons.length === 0 &&
+                this.claimableAvailableCoupons.length > 0;
         },
 
         couponDiscountText() {
@@ -402,6 +424,12 @@ export default {
 
     onUnload() {
         if (this.interval) clearInterval(this.interval);
+    },
+
+    onShow() {
+        if (this.isOfflinePending && this.token && this.couponsLoaded) {
+            this.loadMyCoupons();
+        }
     },
 
     methods: {
@@ -487,14 +515,23 @@ export default {
 
         async loadMyCoupons() {
             if (!this.token) return;
+            this.couponsLoaded = false;
             try {
-                const res = await AUTH.getMyCoupons(this.token, 0);
-                const coupons = res && res._status === 0 ? (res.data || []) : (Array.isArray(res) ? res : []);
-                if (coupons.length > 0) {
-                    this.myCoupons = COUPON.normalizeCoupons(coupons);
-                }
+                const results = await Promise.all([
+                    AUTH.getMyCoupons(this.token, 0),
+                    AUTH.getCouponList(this.token).catch(function() { return null; })
+                ]);
+                const ownedRes = results[0];
+                const claimableRes = results[1];
+                const coupons = ownedRes && ownedRes._status === 0 ? (ownedRes.data || []) : (Array.isArray(ownedRes) ? ownedRes : []);
+                this.myCoupons = COUPON.normalizeCoupons(coupons);
+                const claimableList = claimableRes && claimableRes._status === 0 ? (claimableRes.data || []) : [];
+                this.claimableCoupons = claimableList
+                    .filter(this.isCouponClaimable)
+                    .filter(function(item) { return item.coupon_type !== 'gift'; })
+                    .map(this.normalizeClaimableCoupon);
                 // 如果订单已有券，选中它
-                const couponId = (this.order && this.order.goodsInfo && this.order.goodsInfo._coupon_id);
+                const couponId = (this.order && this.order.goodsInfo && (this.order.goodsInfo._coupon_id || this.order.goodsInfo.coupon_id));
                 if (couponId) {
                     this.selectedCoupon = this.myCoupons.find(c => c.object_id === couponId) || null;
                 }
@@ -503,6 +540,24 @@ export default {
             } finally {
                 this.couponsLoaded = true;
             }
+        },
+
+        isCouponClaimable(item) {
+            if (!item) return false;
+            if (item.can_receive === false) return false;
+            if (item.user_received) return false;
+            return item.remaining_count !== 0;
+        },
+
+        normalizeClaimableCoupon(item) {
+            const normalized = COUPON.normalizeCoupon(Object.assign({}, item, {
+                object_id: 'campaign-' + item.campaign_id,
+                status: 0,
+                is_valid: true,
+            }));
+            normalized.template_id = item.object_id;
+            normalized.campaign_id = item.campaign_id;
+            return normalized;
         },
 
         async selectCoupon(coupon) {
@@ -516,25 +571,40 @@ export default {
                 });
                 uni.hideLoading();
                 if (!res) return;
-                // 更新订单应付金额
-                this.order.pay_amount = res.data.pay_amount;
-                // 更新goodsInfo中的优惠券信息
-                if (this.order.goodsInfo) {
-                    this.order.goodsInfo._coupon_id = res.data.coupon_id;
-                    this.order.goodsInfo._coupon_discount = res.data.coupon_discount;
-                    this.order.goodsInfo.use_points = res.data.points_used;
+                const payload = res.data || {};
+                const nextPayAmount = Number(payload.pay_amount);
+                if (!isFinite(nextPayAmount)) {
+                    throw new Error('更新优惠券失败');
+                }
+                this.$set(this.order, 'pay_amount', nextPayAmount);
+                const goodsInfo = this.order.goodsInfo || {};
+                if (!this.order.goodsInfo) {
+                    this.$set(this.order, 'goodsInfo', goodsInfo);
+                }
+                this.$set(goodsInfo, '_coupon_id', payload.coupon_id);
+                this.$set(goodsInfo, 'coupon_id', payload.coupon_id);
+                this.$set(goodsInfo, '_coupon_discount', payload.coupon_discount || 0);
+                this.$set(goodsInfo, 'use_points', payload.points_used || 0);
+                if (goodsInfo.pricing) {
+                    this.$set(goodsInfo.pricing, 'coupon_discount', payload.coupon_discount || 0);
+                    this.$set(goodsInfo.pricing, 'final_amount', nextPayAmount);
                 }
                 this.selectedCoupon = coupon;
-                // 重新计算支付方式
+                this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
                 if (this.order.pay_amount === 0) {
                     this.payMethod = 'balance';
                 }
+                this.$forceUpdate();
             } catch (e) {
                 uni.hideLoading();
                 uni.showToast({ title: (e && e.message) || '更新优惠券失败', icon: 'none' });
             } finally {
                 this.updatingCoupon = false;
             }
+        },
+
+        goReceiveCoupons() {
+            uni.navigateTo({ url: '/pages/my/coupons/coupons?tab=available' });
         },
 
         startCountdown() {
@@ -952,6 +1022,39 @@ page {
         color: $gray;
         font-size: 26rpx;
         padding: 20rpx 0;
+    }
+
+    .coupon-receive-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 22rpx 24rpx;
+        border: 2rpx dashed #FFD4C4;
+        border-radius: 16rpx;
+        background: #FFF8F5;
+
+        .receive-title,
+        .receive-sub {
+            display: block;
+        }
+
+        .receive-title {
+            font-size: 26rpx;
+            color: $dark;
+            font-weight: 600;
+        }
+
+        .receive-sub {
+            margin-top: 6rpx;
+            font-size: 22rpx;
+            color: $gray;
+        }
+
+        .receive-action {
+            color: $primary;
+            font-size: 26rpx;
+            font-weight: 600;
+        }
     }
 }
 
