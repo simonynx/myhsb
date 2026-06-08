@@ -55,6 +55,9 @@ const store = new Vuex.Store({
     },
     setUserInfo(state, payload) {
       state.userInfo = payload;
+      if (payload && payload.subscribe_authorized !== undefined) {
+        state.subscribeAuthorized = !!payload.subscribe_authorized;
+      }
     },
     setConstanceInfo(state, payload) {
       state.constance = payload;
@@ -205,9 +208,6 @@ const store = new Vuex.Store({
           return state.openid;
         }
 
-        // Step 6: 静默请求订阅消息权限（不强制，抖音自动跳过）
-        dispatch('requestSubscribeMessage');
-
         return state.openid;
 
       } catch (error) {
@@ -224,13 +224,31 @@ const store = new Vuex.Store({
     /**
      * 请求订阅消息权限（预约成功通知）
      */
-    requestSubscribeMessage: async function({ commit }) {
+    requestSubscribeMessage: async function({ commit, state, dispatch }, options) {
+      options = options || {};
       try {
         const authorized = await AUTH.requestSubscribeMessage();
-        commit('setSubscribeAuthorized', authorized);
+        var canPersist = !!(state.token && state.userInfo && state.userInfo.object_id);
+        if (authorized) {
+          commit('setSubscribeAuthorized', true);
+          commit('updateUserInfo', { subscribe_authorized: true });
+        } else if (!state.subscribeAuthorized) {
+          commit('setSubscribeAuthorized', false);
+          commit('updateUserInfo', { subscribe_authorized: false });
+        }
+        if (authorized && options.persist !== false && canPersist) {
+          dispatch('requestUpdateUserInfo').catch(function(err) {
+            console.log('保存订阅消息授权状态失败:', err);
+          });
+        }
         console.log('订阅消息授权状态:', authorized);
+        return authorized;
       } catch (error) {
-        commit('setSubscribeAuthorized', false);
+        if (!state.subscribeAuthorized) {
+          commit('setSubscribeAuthorized', false);
+          commit('updateUserInfo', { subscribe_authorized: false });
+        }
+        return false;
       }
     },
 
@@ -259,6 +277,9 @@ const store = new Vuex.Store({
           return;
         }
         commit('setUserInfo', res.data);
+        if (res.data && res.data.subscribe_authorized !== undefined) {
+          commit('setSubscribeAuthorized', !!res.data.subscribe_authorized);
+        }
         return res;
       }).catch((err) => {
         console.error('获取用户信息失败:', err);
@@ -288,6 +309,9 @@ const store = new Vuex.Store({
           return Promise.reject(res._reason || '更新远程用户信息失败');
         }
         commit('setUserInfo', res.data);
+        if (res.data && res.data.subscribe_authorized !== undefined) {
+          commit('setSubscribeAuthorized', !!res.data.subscribe_authorized);
+        }
         return res;
       }).catch((err) => {
         var reason = (err && err._reason) || err || '更新远程用户信息失败';
@@ -357,10 +381,14 @@ const store = new Vuex.Store({
     /**
      * 完成欢迎页初始化（新用户填写资料）
      */
-    completeOnboarding: async function({ state, commit, dispatch }, { nickname, avatar, phone, gender, birthday, invite_code }) {
+    completeOnboarding: async function({ state, commit, dispatch }, { nickname, avatar, phone, gender, birthday, invite_code, subscribe_authorized }) {
       try {
+        if (subscribe_authorized !== undefined) {
+          commit('setSubscribeAuthorized', !!subscribe_authorized);
+          commit('updateUserInfo', { subscribe_authorized: !!subscribe_authorized });
+        }
         // 更新用户资料
-        if (nickname || avatar || phone || gender !== undefined || birthday !== undefined) {
+        if (nickname || avatar || phone || gender !== undefined || birthday !== undefined || subscribe_authorized !== undefined) {
           await AUTH.setUserProflie(
             state.token,
             phone || state.userInfo.phone || '',
@@ -369,7 +397,7 @@ const store = new Vuex.Store({
             gender !== undefined ? gender : state.userInfo.gender,
             birthday || state.userInfo.birthday || '',
             (state.userInfo.tags || ''),
-            state.userInfo.subscribe_authorized
+            subscribe_authorized !== undefined ? !!subscribe_authorized : state.userInfo.subscribe_authorized
           ).then(function(res) {
             if (!res || res._status !== 0) {
               return Promise.reject((res && res._reason) || '更新远程用户信息失败');
@@ -377,7 +405,7 @@ const store = new Vuex.Store({
             return res;
           });
           // 同步更新本地 userInfo
-          commit('updateUserInfo', { nickname, avatar, phone, gender, birthday });
+          commit('updateUserInfo', { nickname, avatar, phone, gender, birthday, subscribe_authorized });
         }
         // 如果有邀请码且注册时未填写（后端已处理则跳过），在此补填
         if (invite_code) {
@@ -387,8 +415,6 @@ const store = new Vuex.Store({
             commit('setPendingInviteCode', null);
           }
         }
-        // 请求订阅消息
-        dispatch('requestSubscribeMessage');
         return true;
       } catch (error) {
         console.error('完成初始化失败:', error);

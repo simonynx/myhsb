@@ -588,11 +588,10 @@ export default {
                 if (!isFinite(nextPayAmount)) {
                     throw new Error('更新优惠券失败');
                 }
-                const appliedCouponId = payload.coupon_id ? String(payload.coupon_id) : null;
                 const appliedCouponDiscount = Number(payload.coupon_discount || 0);
-                if (requestedCouponId && !appliedCouponId) {
-                    throw new Error('优惠券未生效，请重新选择');
-                }
+                const appliedCouponId = payload.coupon_id
+                    ? String(payload.coupon_id)
+                    : requestedCouponId;
                 const confirmedCoupon = appliedCouponId
                     ? (this.myCoupons.find(c => String(c.object_id) === appliedCouponId) ||
                         (coupon && String(coupon.object_id) === appliedCouponId ? coupon : null))

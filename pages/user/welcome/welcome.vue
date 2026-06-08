@@ -205,6 +205,7 @@ export default {
 				avatar: this.avatar,
 				phone: this.phone,
 				invite_code: this.inviteCode,
+				subscribe_authorized: this.subscribeEnabled,
 			}).then(() => {
 				uni.hideLoading();
 				uni.navigateBack();
