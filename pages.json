@@ -104,6 +104,14 @@
 			}
 		},
 		{
+			"path": "pages/help/device",
+			"style": {
+				"navigationBarTitleText": "设备帮助",
+				"navigationBarBackgroundColor": "#FF8C42",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/pay/success/success",
 			"style": {
 				"navigationBarTitleText": "",

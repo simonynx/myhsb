@@ -322,6 +322,14 @@
 				</view>
 				<text class="menu-arrow">→</text>
 			</view>
+			<view class="menu-item" @tap="navTo('/pages/help/device')">
+				<text class="menu-icon">🛠️</text>
+				<text class="menu-text">设备帮助</text>
+				<view class="menu-tip">
+					<text class="tip-text">包间教程</text>
+				</view>
+				<text class="menu-arrow">→</text>
+			</view>
 			<view class="menu-item" @tap="hasLogin ? navTo('/pages/user/setting/setting') : handleLogin()">
 				<text class="menu-icon">⚙️</text>
 				<text class="menu-text">设置</text>
