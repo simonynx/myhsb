@@ -51,15 +51,34 @@
             <view class="section-title" @click="toggleAddons">
                 <view class="addon-title-main">
                     <text class="addon-title-text">🎁 升级体验（可选）</text>
-                    <text class="addon-title-sub">布置、补给等提前加选，到店更省心</text>
+                    <text class="addon-title-sub">{{ addonTitleSub }}</text>
                 </view>
                 <view class="title-right">
                     <text class="addon-summary" v-if="selectedAddons.length > 0">已选{{ selectedAddons.length }}项 +¥{{ addonsPrice }}</text>
                     <text class="addon-arrow">{{ addonsOpen ? '▼' : '▶' }}</text>
                 </view>
             </view>
+            <view
+                class="addon-recommend-strip"
+                v-if="addonsOpen && primaryAddonRecommendation"
+                @click.stop="toggleAddon(primaryAddonRecommendation.addon)"
+            >
+                <view class="recommend-main">
+                    <view class="recommend-title-row">
+                        <text class="recommend-badge">{{ primaryAddonRecommendation.tag }}</text>
+                        <text class="recommend-title">{{ primaryAddonRecommendation.title }}</text>
+                    </view>
+                    <text class="recommend-desc">{{ primaryAddonRecommendation.reason }}</text>
+                </view>
+                <view class="recommend-side">
+                    <text class="recommend-price">+¥{{ formatAddonPrice(primaryAddonRecommendation.addon.price) }}</text>
+                    <text class="recommend-action" :class="primaryAddonRecommendation.selected ? 'selected' : ''">
+                        {{ primaryAddonRecommendation.selected ? '已加选' : '加选' }}
+                    </text>
+                </view>
+            </view>
             <scroll-view class="addon-packages" scroll-x v-if="addonsOpen && addonPackages.length > 0">
-                <view class="package-label">推荐加选</view>
+                <view class="package-label">组合推荐</view>
                 <view
                     class="addon-package"
                     v-for="pkg in addonPackages"
@@ -84,8 +103,11 @@
                 >
                     <text class="addon-icon">{{ a.icon || '🎁' }}</text>
                     <view class="addon-info">
-                        <text class="addon-name">{{ formatAddonName(a.name) }}</text>
-                        <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
+                        <view class="addon-name-row">
+                            <text class="addon-name">{{ formatAddonName(a.name) }}</text>
+                            <text class="addon-recommend-tag" v-if="a.recommendTag">{{ a.recommendTag }}</text>
+                        </view>
+                        <text class="addon-desc" v-if="a.recommendReason || a.description">{{ a.recommendReason || a.description }}</text>
                     </view>
                     <text class="addon-price">¥{{ formatAddonPrice(a.price) }}</text>
                     <view class="addon-check" :class="a.selectedClass">
@@ -509,6 +531,93 @@ export default {
             return (this.addonsPriceFen / 100).toFixed(2);
         },
 
+        addonTitleSub() {
+            if (this.numOfPeople >= 4) {
+                return '当前' + this.numOfPeople + '人，建议提前加小食或补给，到店不用中途加单';
+            }
+            return '当前' + this.numOfPeople + '人，补给包更适合小局，布置类按需要加选';
+        },
+
+        addonRecommendationMap() {
+            const map = {};
+            const drinkSupply = this.findAddonByAnyKeywords(['饮品零食', '饮品', '零食补给'], ['生日']);
+            const partyFood = this.findAddonByAnyKeywords(['多人小食', '小食盘'], ['生日']);
+            const birthdaySupply = this.findAddonByAnyKeywords(['生日补给'], []);
+            const birthdayDecor = this.findAddonByAllKeywords(['生日', '布置']);
+            const atmosphereDecor = this.findAddonByAnyKeywords(['氛围布置', '气球', '桌花'], ['生日']);
+            const peopleCount = Number(this.numOfPeople || 0);
+
+            const put = (addon, config) => {
+                if (!addon || !addon.object_id) return;
+                const old = map[addon.object_id];
+                if (!old || config.priority > old.priority) {
+                    map[addon.object_id] = config;
+                }
+            };
+
+            if (peopleCount >= 4) {
+                put(partyFood, {
+                    priority: 100,
+                    tag: peopleCount + '人推荐',
+                    title: '多人小食盘',
+                    reason: '当前' + peopleCount + '人，先备共享小食，减少中途出包间加单。'
+                });
+                put(drinkSupply, {
+                    priority: 80,
+                    tag: '饮品补给',
+                    title: '饮品零食补给',
+                    reason: '多人局容易边玩边吃，饮品零食提前备好更省心。'
+                });
+            } else {
+                put(drinkSupply, {
+                    priority: 100,
+                    tag: '小局推荐',
+                    title: '饮品零食补给',
+                    reason: '适合2-3人休闲小局，饮品和零食一次备好。'
+                });
+                put(partyFood, {
+                    priority: 70,
+                    tag: '多人可选',
+                    title: '多人小食盘',
+                    reason: '如果会待得久或边玩边吃，可以提前加选小食盘。'
+                });
+            }
+
+            put(birthdaySupply, {
+                priority: 60,
+                tag: '庆生推荐',
+                title: '生日补给包',
+                reason: '适合生日和庆祝场景，布置和补给一次解决。'
+            });
+            put(birthdayDecor, {
+                priority: 55,
+                tag: '庆生布置',
+                title: '生日布置',
+                reason: '提前加选，到店前布置好，适合朋友生日小聚。'
+            });
+            put(atmosphereDecor, {
+                priority: 45,
+                tag: '拍照氛围',
+                title: '氛围布置',
+                reason: '适合约会、庆祝、拍照打卡，建议提前预约。'
+            });
+
+            return map;
+        },
+
+        primaryAddonRecommendation() {
+            const items = this.displayRoomAddons.filter(a => a.recommendPriority > 0);
+            if (!items.length) return null;
+            const addon = items[0];
+            return {
+                addon: addon,
+                tag: addon.recommendTag,
+                title: addon.recommendTitle || this.formatAddonName(addon.name),
+                reason: addon.recommendReason,
+                selected: addon.selected
+            };
+        },
+
         addonPackages() {
             const packages = [];
 
@@ -540,12 +649,23 @@ export default {
         },
 
         displayRoomAddons() {
+            const recommendationMap = this.addonRecommendationMap;
             return this.roomAddons.map(a => {
                 const selected = this.isAddonSelected(a);
+                const recommendation = recommendationMap[a.object_id] || {};
                 return Object.assign({}, a, {
                     selected: selected,
                     selectedClass: selected ? 'checked' : '',
+                    recommendPriority: recommendation.priority || 0,
+                    recommendTag: recommendation.tag || '',
+                    recommendTitle: recommendation.title || '',
+                    recommendReason: recommendation.reason || '',
                 });
+            }).sort((a, b) => {
+                if (b.recommendPriority !== a.recommendPriority) {
+                    return b.recommendPriority - a.recommendPriority;
+                }
+                return 0;
             });
         },
 
@@ -1667,7 +1787,25 @@ page {
             .addon-icon { font-size: 40rpx; margin-right: 16rpx; }
             .addon-info {
                 flex: 1;
+                min-width: 0;
+                .addon-name-row {
+                    display: flex;
+                    align-items: center;
+                    flex-wrap: wrap;
+                    gap: 10rpx;
+                }
                 .addon-name { font-size: 28rpx; color: $dark; font-weight: 500; }
+                .addon-recommend-tag {
+                    display: inline-flex;
+                    align-items: center;
+                    height: 32rpx;
+                    padding: 0 10rpx;
+                    border-radius: 999rpx;
+                    background: #EAF7F1;
+                    color: #15945F;
+                    font-size: 20rpx;
+                    font-weight: bold;
+                }
                 .addon-desc { font-size: 22rpx; color: $gray; margin-top: 4rpx; }
             }
             .addon-price { font-size: 28rpx; color: $primary; font-weight: bold; margin-right: 16rpx; }
@@ -1685,6 +1823,84 @@ page {
                     border-color: $primary;
                     color: #fff;
                 }
+            }
+        }
+    }
+
+    .addon-recommend-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18rpx;
+        margin-top: 22rpx;
+        padding: 22rpx;
+        border-radius: 18rpx;
+        background: linear-gradient(135deg, #FFF8F2 0%, #F3FAF6 100%);
+        border: 2rpx solid #FFE1C7;
+        box-sizing: border-box;
+        &:active { opacity: 0.86; }
+
+        .recommend-main {
+            flex: 1;
+            min-width: 0;
+        }
+        .recommend-title-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10rpx;
+        }
+        .recommend-badge {
+            display: inline-flex;
+            align-items: center;
+            height: 34rpx;
+            padding: 0 12rpx;
+            border-radius: 999rpx;
+            background: $primary;
+            color: #fff;
+            font-size: 20rpx;
+            font-weight: bold;
+        }
+        .recommend-title {
+            font-size: 28rpx;
+            color: $dark;
+            font-weight: bold;
+        }
+        .recommend-desc {
+            display: block;
+            margin-top: 8rpx;
+            font-size: 23rpx;
+            line-height: 1.4;
+            color: #6B625A;
+        }
+        .recommend-side {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            flex-shrink: 0;
+            gap: 10rpx;
+        }
+        .recommend-price {
+            font-size: 28rpx;
+            color: $primary;
+            font-weight: bold;
+        }
+        .recommend-action {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 82rpx;
+            height: 42rpx;
+            padding: 0 14rpx;
+            border-radius: 999rpx;
+            background: #263238;
+            color: #fff;
+            font-size: 22rpx;
+            font-weight: bold;
+            box-sizing: border-box;
+            &.selected {
+                background: #EAF7F1;
+                color: #15945F;
             }
         }
     }
