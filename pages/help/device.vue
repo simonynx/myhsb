@@ -318,7 +318,7 @@
 		align-items: flex-end;
 		gap: 24rpx;
 		padding: 44rpx 28rpx 36rpx;
-		background: linear-gradient(135deg, #263238 0%, #37474F 100%);
+		background: linear-gradient(135deg, #263238 0%, #304047 58%, #3B4A4F 100%);
 		color: #FFFFFF;
 	}
 
