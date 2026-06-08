@@ -58,60 +58,57 @@
                     <text class="addon-arrow">{{ addonsOpen ? '▼' : '▶' }}</text>
                 </view>
             </view>
-            <view
-                class="addon-recommend-strip"
-                v-if="addonsOpen && primaryAddonRecommendation"
-                @click.stop="toggleAddon(primaryAddonRecommendation.addon)"
-            >
-                <view class="recommend-main">
-                    <view class="recommend-title-row">
-                        <text class="recommend-badge">{{ primaryAddonRecommendation.tag }}</text>
-                        <text class="recommend-title">{{ primaryAddonRecommendation.title }}</text>
-                    </view>
-                    <text class="recommend-desc">{{ primaryAddonRecommendation.reason }}</text>
-                </view>
-                <view class="recommend-side">
-                    <text class="recommend-price">+¥{{ formatAddonPrice(primaryAddonRecommendation.addon.price) }}</text>
-                    <text class="recommend-action" :class="primaryAddonRecommendation.selected ? 'selected' : ''">
-                        {{ primaryAddonRecommendation.selected ? '已加选' : '加选' }}
-                    </text>
-                </view>
-            </view>
-            <scroll-view class="addon-packages" scroll-x v-if="addonsOpen && addonPackages.length > 0">
-                <view class="package-label">组合推荐</view>
+            <view class="addon-content" v-if="addonsOpen">
                 <view
-                    class="addon-package"
-                    v-for="pkg in addonPackages"
-                    :key="pkg.key"
-                    :class="pkg.selectedClass"
-                    @click="toggleAddonPackage(pkg)"
+                    class="addon-recommend-card"
+                    v-if="primaryAddonRecommendation"
+                    @click.stop="toggleAddon(primaryAddonRecommendation.addon)"
                 >
-                    <view class="package-top">
-                        <text class="package-title">{{ pkg.title }}</text>
-                        <text class="package-price">+¥{{ formatAddonPrice(pkg.total) }}</text>
+                    <view class="recommend-icon-wrap">
+                        <text class="recommend-icon">{{ primaryAddonRecommendation.addon.icon || '🎁' }}</text>
                     </view>
-                    <text class="package-desc">{{ pkg.desc }}</text>
-                    <text class="package-items">{{ pkg.itemText }}</text>
-                </view>
-            </scroll-view>
-            <view class="addon-list" v-if="addonsOpen">
-                <view
-                    class="addon-item"
-                    v-for="a in displayRoomAddons"
-                    :key="a.object_id"
-                    @click="toggleAddon(a)"
-                >
-                    <text class="addon-icon">{{ a.icon || '🎁' }}</text>
-                    <view class="addon-info">
-                        <view class="addon-name-row">
-                            <text class="addon-name">{{ formatAddonName(a.name) }}</text>
-                            <text class="addon-recommend-tag" v-if="a.recommendTag">{{ a.recommendTag }}</text>
+                    <view class="recommend-main">
+                        <view class="recommend-title-row">
+                            <text class="recommend-badge">{{ primaryAddonRecommendation.tag }}</text>
+                            <text class="recommend-title">{{ primaryAddonRecommendation.title }}</text>
                         </view>
-                        <text class="addon-desc" v-if="a.recommendReason || a.description">{{ a.recommendReason || a.description }}</text>
+                        <text class="recommend-desc">{{ primaryAddonRecommendation.reason }}</text>
                     </view>
-                    <text class="addon-price">¥{{ formatAddonPrice(a.price) }}</text>
-                    <view class="addon-check" :class="a.selectedClass">
-                        <text v-if="a.selected">✓</text>
+                    <view class="recommend-side">
+                        <text class="recommend-price">+¥{{ formatAddonPrice(primaryAddonRecommendation.addon.price) }}</text>
+                        <text class="recommend-action" :class="primaryAddonRecommendation.selected ? 'selected' : ''">
+                            {{ primaryAddonRecommendation.selected ? '已加选' : '加选' }}
+                        </text>
+                    </view>
+                </view>
+
+                <view class="addon-groups" v-if="addonGroups.length > 0">
+                    <view class="addon-group" v-for="group in addonGroups" :key="group.key">
+                        <view class="addon-group-head">
+                            <text class="addon-group-title">{{ group.title }}</text>
+                            <text class="addon-group-desc">{{ group.desc }}</text>
+                        </view>
+                        <view
+                            class="addon-item"
+                            v-for="a in group.items"
+                            :key="a.object_id"
+                            @click="toggleAddon(a)"
+                        >
+                            <text class="addon-icon">{{ a.icon || '🎁' }}</text>
+                            <view class="addon-info">
+                                <view class="addon-name-row">
+                                    <text class="addon-name">{{ formatAddonName(a.name) }}</text>
+                                    <text class="addon-recommend-tag" v-if="a.recommendTag">{{ a.recommendTag }}</text>
+                                </view>
+                                <text class="addon-desc" v-if="a.recommendReason || a.description">{{ a.recommendReason || a.description }}</text>
+                            </view>
+                            <view class="addon-action">
+                                <text class="addon-price">¥{{ formatAddonPrice(a.price) }}</text>
+                                <view class="addon-check" :class="a.selectedClass">
+                                    <text v-if="a.selected">✓</text>
+                                </view>
+                            </view>
+                        </view>
                     </view>
                 </view>
             </view>
@@ -618,36 +615,6 @@ export default {
             };
         },
 
-        addonPackages() {
-            const packages = [];
-
-            const birthdayDecor = this.findAddonByAllKeywords(['生日', '布置']);
-            const partyFood = this.findAddonByAnyKeywords(['多人小食', '小食盘'], ['生日']);
-            const drinkSupply = this.findAddonByAnyKeywords(['饮品零食', '饮品', '零食补给'], ['生日']);
-
-            if (birthdayDecor && partyFood) {
-                packages.push(this.buildAddonPackage(
-                    'birthday_combo',
-                    '生日小聚',
-                    '布置加小食，适合给朋友一个轻松庆生局',
-                    [birthdayDecor, partyFood]
-                ));
-            }
-
-            if (partyFood && drinkSupply) {
-                packages.push(this.buildAddonPackage(
-                    'party_supply_combo',
-                    '多人补给',
-                    '饮品零食和小食盘一起备好，适合4人以上朋友局',
-                    [drinkSupply, partyFood]
-                ));
-            }
-            for (let i = 0; i < packages.length; i++) {
-                packages[i].selectedClass = this.isAddonPackageSelected(packages[i]) ? 'selected' : '';
-            }
-            return packages;
-        },
-
         displayRoomAddons() {
             const recommendationMap = this.addonRecommendationMap;
             return this.roomAddons.map(a => {
@@ -667,6 +634,45 @@ export default {
                 }
                 return 0;
             });
+        },
+
+        addonGroups() {
+            const primaryId = this.primaryAddonRecommendation && this.primaryAddonRecommendation.addon
+                ? this.primaryAddonRecommendation.addon.object_id
+                : '';
+            const groups = [
+                {
+                    key: 'supply',
+                    title: '补给小食',
+                    desc: '饮品、零食、小食，适合边玩边吃',
+                    items: [],
+                },
+                {
+                    key: 'decor',
+                    title: '生日布置',
+                    desc: '生日、庆祝、拍照氛围，建议提前预约',
+                    items: [],
+                },
+                {
+                    key: 'other',
+                    title: '其他可选',
+                    desc: '按需要加选',
+                    items: [],
+                },
+            ];
+            const groupMap = {
+                supply: groups[0],
+                decor: groups[1],
+                other: groups[2],
+            };
+
+            for (let i = 0; i < this.displayRoomAddons.length; i++) {
+                const addon = this.displayRoomAddons[i];
+                if (addon.object_id === primaryId) continue;
+                groupMap[this.getAddonGroupKey(addon)].items.push(addon);
+            }
+
+            return groups.filter(group => group.items.length > 0);
         },
 
         originalPriceFen() {
@@ -1270,32 +1276,15 @@ export default {
             return this.selectedAddons.some(a => a.object_id === addon.object_id);
         },
 
-        isAddonPackageSelected(pkg) {
-            return pkg.items.every(a => this.isAddonSelected(a));
-        },
-
-        toggleAddonPackage(pkg) {
-            const selected = this.isAddonPackageSelected(pkg);
-            for (let i = 0; i < pkg.items.length; i++) {
-                const addon = pkg.items[i];
-                const idx = this.selectedAddons.findIndex(a => a.object_id === addon.object_id);
-                if (selected && idx >= 0) {
-                    this.selectedAddons.splice(idx, 1);
-                } else if (!selected && idx < 0) {
-                    this.selectedAddons.push(addon);
-                }
+        getAddonGroupKey(addon) {
+            const text = String(addon.name || '') + String(addon.description || '');
+            if (text.indexOf('生日') >= 0 || text.indexOf('布置') >= 0 || text.indexOf('氛围') >= 0 || text.indexOf('气球') >= 0 || text.indexOf('桌花') >= 0) {
+                return 'decor';
             }
-        },
-
-        buildAddonPackage(key, title, desc, items) {
-            return {
-                key: key,
-                title: title,
-                desc: desc,
-                items: items,
-                total: items.reduce((sum, a) => sum + (a.price || 0), 0),
-                itemText: items.map(a => this.formatAddonName(a.name)).join(' + ')
-            };
+            if (text.indexOf('饮品') >= 0 || text.indexOf('零食') >= 0 || text.indexOf('小食') >= 0 || text.indexOf('补给') >= 0) {
+                return 'supply';
+            }
+            return 'other';
         },
 
         findAddonByAllKeywords(include, exclude) {
@@ -1774,207 +1763,212 @@ page {
         }
     }
 
-    .addon-list {
-        margin-top: 20rpx;
-        .addon-item {
-            display: flex;
-            align-items: center;
-            padding: 16rpx 0;
-            border-bottom: 1rpx solid $light-gray;
-            &:last-child { border-bottom: none; }
-            &:active { background: #FAFAFA; }
+    .addon-content {
+        margin-top: 22rpx;
+    }
 
-            .addon-icon { font-size: 40rpx; margin-right: 16rpx; }
-            .addon-info {
-                flex: 1;
-                min-width: 0;
-                .addon-name-row {
-                    display: flex;
-                    align-items: center;
-                    flex-wrap: wrap;
-                    gap: 10rpx;
-                }
-                .addon-name { font-size: 28rpx; color: $dark; font-weight: 500; }
-                .addon-recommend-tag {
-                    display: inline-flex;
-                    align-items: center;
-                    height: 32rpx;
-                    padding: 0 10rpx;
-                    border-radius: 999rpx;
-                    background: #EAF7F1;
-                    color: #15945F;
-                    font-size: 20rpx;
-                    font-weight: bold;
-                }
-                .addon-desc { font-size: 22rpx; color: $gray; margin-top: 4rpx; }
-            }
-            .addon-price { font-size: 28rpx; color: $primary; font-weight: bold; margin-right: 16rpx; }
-            .addon-check {
-                width: 40rpx;
-                height: 40rpx;
-                border-radius: 50%;
-                border: 2rpx solid #DDD;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                transition: all 0.2s;
-                &.checked {
-                    background: $primary;
-                    border-color: $primary;
-                    color: #fff;
-                }
-            }
+    .addon-recommend-card {
+        display: flex;
+        align-items: center;
+        gap: 18rpx;
+        padding: 20rpx 0 22rpx;
+        border-bottom: 1rpx solid #F0E6D8;
+        &:active { opacity: 0.86; }
+    }
+
+    .recommend-icon-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 62rpx;
+        height: 62rpx;
+        border-radius: 16rpx;
+        background: #FFF1E8;
+        flex-shrink: 0;
+    }
+
+    .recommend-icon {
+        font-size: 34rpx;
+    }
+
+    .recommend-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .recommend-title-row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10rpx;
+    }
+
+    .recommend-badge,
+    .addon-recommend-tag {
+        display: inline-flex;
+        align-items: center;
+        height: 32rpx;
+        padding: 0 10rpx;
+        border-radius: 999rpx;
+        background: #EAF7F1;
+        color: #15945F;
+        font-size: 20rpx;
+        font-weight: bold;
+    }
+
+    .recommend-badge {
+        background: $primary;
+        color: #fff;
+    }
+
+    .recommend-title {
+        font-size: 29rpx;
+        color: $dark;
+        font-weight: bold;
+        line-height: 1.25;
+    }
+
+    .recommend-desc {
+        display: block;
+        margin-top: 8rpx;
+        font-size: 23rpx;
+        line-height: 1.4;
+        color: #7A6A58;
+    }
+
+    .recommend-side {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        flex-shrink: 0;
+        gap: 10rpx;
+    }
+
+    .recommend-price {
+        font-size: 28rpx;
+        color: $primary;
+        font-weight: bold;
+    }
+
+    .recommend-action {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 82rpx;
+        height: 42rpx;
+        padding: 0 14rpx;
+        border-radius: 999rpx;
+        background: #263238;
+        color: #fff;
+        font-size: 22rpx;
+        font-weight: bold;
+        box-sizing: border-box;
+        &.selected {
+            background: #EAF7F1;
+            color: #15945F;
         }
     }
 
-    .addon-recommend-strip {
+    .addon-groups {
+        margin-top: 20rpx;
+    }
+
+    .addon-group {
+        margin-top: 22rpx;
+        &:first-child { margin-top: 0; }
+    }
+
+    .addon-group-head {
+        margin-bottom: 8rpx;
+    }
+
+    .addon-group-title {
+        display: block;
+        font-size: 25rpx;
+        color: $dark;
+        font-weight: bold;
+        line-height: 1.3;
+    }
+
+    .addon-group-desc {
+        display: block;
+        margin-top: 4rpx;
+        font-size: 21rpx;
+        color: #9A8A7B;
+        line-height: 1.35;
+    }
+
+    .addon-item {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 18rpx;
-        margin-top: 22rpx;
-        padding: 22rpx;
-        border-radius: 18rpx;
-        background: linear-gradient(135deg, #FFF8F2 0%, #F3FAF6 100%);
-        border: 2rpx solid #FFE1C7;
-        box-sizing: border-box;
-        &:active { opacity: 0.86; }
+        padding: 18rpx 0;
+        border-bottom: 1rpx solid $light-gray;
+        &:last-child { border-bottom: none; }
+        &:active { background: #FAFAFA; }
 
-        .recommend-main {
+        .addon-icon {
+            width: 46rpx;
+            font-size: 36rpx;
+            margin-right: 14rpx;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .addon-info {
             flex: 1;
             min-width: 0;
         }
-        .recommend-title-row {
+
+        .addon-name-row {
             display: flex;
             align-items: center;
             flex-wrap: wrap;
             gap: 10rpx;
         }
-        .recommend-badge {
-            display: inline-flex;
-            align-items: center;
-            height: 34rpx;
-            padding: 0 12rpx;
-            border-radius: 999rpx;
-            background: $primary;
-            color: #fff;
-            font-size: 20rpx;
-            font-weight: bold;
-        }
-        .recommend-title {
-            font-size: 28rpx;
+
+        .addon-name {
+            font-size: 27rpx;
             color: $dark;
-            font-weight: bold;
+            font-weight: 500;
+            line-height: 1.35;
         }
-        .recommend-desc {
+
+        .addon-desc {
             display: block;
-            margin-top: 8rpx;
-            font-size: 23rpx;
-            line-height: 1.4;
-            color: #6B625A;
+            font-size: 22rpx;
+            color: $gray;
+            margin-top: 5rpx;
+            line-height: 1.38;
         }
-        .recommend-side {
+
+        .addon-action {
             display: flex;
-            flex-direction: column;
-            align-items: flex-end;
+            align-items: center;
             flex-shrink: 0;
-            gap: 10rpx;
+            margin-left: 16rpx;
         }
-        .recommend-price {
+
+        .addon-price {
             font-size: 28rpx;
             color: $primary;
             font-weight: bold;
+            margin-right: 14rpx;
         }
-        .recommend-action {
+
+        .addon-check {
+            width: 38rpx;
+            height: 38rpx;
+            border-radius: 50%;
+            border: 2rpx solid #DDD;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-width: 82rpx;
-            height: 42rpx;
-            padding: 0 14rpx;
-            border-radius: 999rpx;
-            background: #263238;
-            color: #fff;
-            font-size: 22rpx;
-            font-weight: bold;
-            box-sizing: border-box;
-            &.selected {
-                background: #EAF7F1;
-                color: #15945F;
+            transition: all 0.2s;
+            &.checked {
+                background: $primary;
+                border-color: $primary;
+                color: #fff;
             }
-        }
-    }
-
-    .addon-packages {
-        white-space: nowrap;
-        margin-top: 22rpx;
-        padding-bottom: 4rpx;
-    }
-
-    .package-label {
-        display: inline-flex;
-        align-items: center;
-        height: 42rpx;
-        padding: 0 18rpx;
-        margin-right: 12rpx;
-        border-radius: 22rpx;
-        background: #FFF1E8;
-        color: $primary;
-        font-size: 22rpx;
-        font-weight: bold;
-        vertical-align: top;
-    }
-
-    .addon-package {
-        display: inline-block;
-        width: 270rpx;
-        padding: 18rpx;
-        margin-right: 16rpx;
-        border-radius: 18rpx;
-        background: #FFF8F4;
-        border: 2rpx solid #FFE0D2;
-        white-space: normal;
-        vertical-align: top;
-
-        &.selected {
-            background: #FFF1E8;
-            border-color: $primary;
-        }
-
-        .package-top {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12rpx;
-            margin-bottom: 8rpx;
-        }
-
-        .package-title {
-            font-size: 26rpx;
-            color: $dark;
-            font-weight: bold;
-        }
-
-        .package-price {
-            font-size: 24rpx;
-            color: $primary;
-            font-weight: bold;
-            flex-shrink: 0;
-        }
-
-        .package-desc {
-            display: block;
-            font-size: 22rpx;
-            line-height: 1.35;
-            color: #7A6A58;
-            margin-bottom: 8rpx;
-        }
-
-        .package-items {
-            display: block;
-            font-size: 20rpx;
-            line-height: 1.35;
-            color: $gray;
         }
     }
 
