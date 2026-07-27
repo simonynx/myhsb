@@ -60,6 +60,14 @@
 			</view>
 		</view>
 
+		<view class="purchase-state" :class="purchaseStateClass">
+			<view class="purchase-state-copy">
+				<text class="purchase-state-title">{{ purchaseStateTitle }}</text>
+				<text class="purchase-state-desc">{{ purchaseStateDescription }}</text>
+			</view>
+			<view class="purchase-state-action" v-if="showEarnPointsAction" @tap="goEarnPoints">去签到</view>
+		</view>
+
 		<!-- 费用明细 -->
 		<view class="price-card">
 			<view class="price-title">费用明细</view>
@@ -75,7 +83,7 @@
 					<text class="row-value" :class="!pointsEnough ? 'short' : ''">{{ safeUserInfo.points || 0 }} 积分</text>
 				</view>
 				<view class="hint-row" v-if="!pointsEnough">
-					<text class="hint-text">积分不足，可通过签到或到店消费继续累积。</text>
+					<text class="hint-text">还差 {{ pointsShortfall }} 积分，签到或到店消费后即可兑换。</text>
 				</view>
 			</block>
 
@@ -94,7 +102,7 @@
 					<text class="row-value" :class="!pointsEnough ? 'short' : ''">{{ safeUserInfo.points || 0 }} 积分</text>
 				</view>
 				<view class="hint-row" v-if="!pointsEnough">
-					<text class="hint-text">积分不足，可通过签到或到店消费继续累积。</text>
+					<text class="hint-text">还差 {{ pointsShortfall }} 积分，攒够后可用积分加现金购买。</text>
 				</view>
 				<view class="price-row final">
 					<text class="row-label">实付金额</text>
@@ -160,10 +168,7 @@
 				:class="submitDisabled ? 'disabled' : ''"
 				@click="handleSubmit"
 			>
-				<text v-if="(currentGoods.max_buy_per_user || 0) > 0 && userBoughtCount >= currentGoods.max_buy_per_user">🔒 已达上限</text>
-				<text v-else-if="currentGoods.exchange_type === 2">立即兑换</text>
-				<text v-else-if="useBalance && balanceEnough">💰 余额支付</text>
-				<text v-else>确认订单</text>
+				<text>{{ submitButtonText }}</text>
 			</view>
 		</view>
 	</view>
@@ -177,7 +182,7 @@ export default {
 	computed: {
 		...mapState(['hasLogin', 'userInfo', 'token', 'constance']),
 		safeUserInfo() {
-			return this.userInfo || { points: 0, account_balance: 0, points_config: {} };
+			return this.userInfo || { points: 0, account_balance: 0, member_level: 0, points_config: {} };
 		},
 		actualPrice() {
 			if (!this.currentGoods) return '0.00';
@@ -208,6 +213,55 @@ export default {
 				return (this.safeUserInfo.points || 0) >= (this.currentGoods.points_price || 0);
 			}
 			return true;
+		},
+		pointsShortfall() {
+			if (!this.currentGoods) return 0;
+			return Math.max(0, Number(this.currentGoods.points_price || 0) - Number(this.safeUserInfo.points || 0));
+		},
+		memberLevelEnough() {
+			if (!this.currentGoods) return true;
+			return Number(this.safeUserInfo.member_level || 0) >= Number(this.currentGoods.member_level_required || 0);
+		},
+		soldOut() {
+			return !!this.currentGoods && Number(this.currentGoods.stock) === 0;
+		},
+		limitReached() {
+			if (!this.currentGoods) return false;
+			return Number(this.currentGoods.max_buy_per_user || 0) > 0 && this.userBoughtCount >= Number(this.currentGoods.max_buy_per_user);
+		},
+		purchaseStateTitle() {
+			if (this.soldOut) return '本期已售罄';
+			if (this.limitReached) return '本期限购已达上限';
+			if (!this.memberLevelEnough) return '会员等级暂未达到';
+			if (!this.pointsEnough) return '还差 ' + this.pointsShortfall + ' 积分';
+			if (this.currentGoods && this.currentGoods.exchange_type === 2) return '当前积分足够，立即可兑';
+			if (this.currentGoods && this.currentGoods.exchange_type === 3) return '积分足够，可按组合价购买';
+			return '当前可购买';
+		},
+		purchaseStateDescription() {
+			if (this.soldOut) return '库存补充后可再次购买，请稍后再来看看';
+			if (this.limitReached) return '本周期购买次数已经用完';
+			if (!this.memberLevelEnough) return '需 ' + this.getMemberLevelName(this.currentGoods.member_level_required) + ' 及以上';
+			if (!this.pointsEnough) return '签到和到店消费都能继续累积积分';
+			if (this.currentGoods && this.currentGoods.exchange_type === 2) return '兑换后可在订单列表查看和到店使用';
+			if (this.currentGoods && this.currentGoods.exchange_type === 3) return '需 ' + Number(this.currentGoods.points_price || 0) + ' 积分 + ¥' + this.actualPrice;
+			return this.canUseBalance ? '支持余额或微信支付' : '确认后进入支付页';
+		},
+		purchaseStateClass() {
+			if (this.submitDisabled) return 'blocked';
+			return 'ready';
+		},
+		showEarnPointsAction() {
+			return !this.pointsEnough && !this.soldOut && !this.limitReached && this.memberLevelEnough;
+		},
+		submitButtonText() {
+			if (this.soldOut) return '已售罄';
+			if (this.limitReached) return '已达上限';
+			if (!this.memberLevelEnough) return '等级不足';
+			if (!this.pointsEnough) return '还差 ' + this.pointsShortfall + ' 积分';
+			if (this.currentGoods && this.currentGoods.exchange_type === 2) return '立即兑换';
+			if (this.useBalance && this.balanceEnough) return '余额支付';
+			return '确认订单';
 		},
 		balanceEnough() {
 			if (!this.currentGoods || this.currentGoods.exchange_type !== 1) return false;
@@ -240,8 +294,9 @@ export default {
 		},
 		submitDisabled() {
 			if (!this.currentGoods) return true;
+			if (this.soldOut || !this.memberLevelEnough) return true;
 			// 限购预拦截
-			if ((this.currentGoods.max_buy_per_user || 0) > 0 && this.userBoughtCount >= this.currentGoods.max_buy_per_user) {
+			if (this.limitReached) {
 				return true;
 			}
 			// 纯积分或混合商品：积分不足则禁用
@@ -273,11 +328,21 @@ export default {
 			uni.showToast({ title: '商品数据异常', icon: 'none' });
 		}
 	},
+	onShow() {
+		if (this.token) {
+			this.getUserInfo(true).catch(() => {});
+		}
+	},
 	methods: {
 		...mapActions(['loginAndRegister', 'getUserInfo']),
 
 		goBack() {
 			uni.navigateBack();
+		},
+
+		goEarnPoints() {
+			uni.setStorageSync('voucherInitialTab', 'points');
+			uni.switchTab({ url: '/pages/user/user' });
 		},
 
 		toggleBalance() {
@@ -313,6 +378,18 @@ export default {
 			}
 			let goods = this.currentGoods;
 			if (!goods) return;
+			if (this.soldOut) {
+				uni.showToast({ title: '商品已售罄', icon: 'none' });
+				return;
+			}
+			if (this.limitReached) {
+				uni.showToast({ title: '本期限购数量已用完', icon: 'none' });
+				return;
+			}
+			if (!this.memberLevelEnough) {
+				uni.showToast({ title: '会员等级不足', icon: 'none' });
+				return;
+			}
 			if (goods.validity_period_start && goods.validity_period_end) {
 				var startDate = new Date(goods.validity_period_start);
 				var endDate = new Date(goods.validity_period_end);
@@ -552,6 +629,34 @@ page {
 		transform: rotate(-20deg);
 		opacity: 0.5;
 		z-index: 3;
+	}
+}
+
+.purchase-state {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20rpx;
+	margin: 0 24rpx 20rpx;
+	padding: 22rpx 24rpx;
+	background: #FFF;
+	border: 2rpx solid rgba(160, 120, 80, 0.12);
+	border-radius: 14rpx;
+	box-shadow: 0 8rpx 22rpx rgba(160, 120, 80, 0.06);
+	&.ready { border-left: 8rpx solid #66A96B; }
+	&.blocked { border-left: 8rpx solid $primary; }
+	.purchase-state-copy { min-width: 0; display: flex; flex: 1; flex-direction: column; gap: 6rpx; }
+	.purchase-state-title { font-size: 28rpx; color: $text; font-weight: bold; }
+	.purchase-state-desc { font-size: 22rpx; color: $text-light; line-height: 1.45; }
+	.purchase-state-action {
+		padding: 12rpx 22rpx;
+		border-radius: 8rpx;
+		background: #FFF3E6;
+		border: 2rpx solid rgba(255,140,66,0.28);
+		font-size: 23rpx;
+		color: $primary;
+		font-weight: bold;
+		white-space: nowrap;
 	}
 }
 .tag-row {

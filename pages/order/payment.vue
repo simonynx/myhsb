@@ -119,6 +119,36 @@
                 <view class="coupon-empty" v-else>暂无可用优惠券</view>
             </view>
 
+            <view class="points-section" v-if="isOfflinePending">
+                <view class="points-heading">
+                    <text class="section-title">积分抵扣</text>
+                    <text class="points-balance">可用 {{ availablePoints }} 积分</text>
+                </view>
+                <view v-if="canUseOfflinePoints">
+                    <view class="points-quick-use">
+                        <view class="points-quick-copy">
+                            <text class="points-quick-title">{{ pointsSummaryText }}</text>
+                            <text class="points-quick-detail">{{ maxUsablePoints }} 积分最多抵 ¥{{ maxPointsMoney }}</text>
+                        </view>
+                        <view class="points-button" @click="useMaxPoints">一键抵扣</view>
+                    </view>
+                    <view class="points-controls">
+                        <input
+                            class="points-input"
+                            type="number"
+                            v-model="pointsInput"
+                            :placeholder="'输入 ' + pointsStep + ' 的整数倍积分'"
+                        />
+                        <view class="points-button secondary" @click="applyPoints">按此抵扣</view>
+                        <view class="points-clear" v-if="appliedPoints > 0" @click="clearPoints">不使用</view>
+                    </view>
+                </view>
+                <view class="points-tip" v-if="canUseOfflinePoints">
+                    {{ pointsRuleText }}<text v-if="appliedPoints > 0">，本次已抵 ¥{{ formatMoney(orderPointsDeducted) }}</text>
+                </view>
+                <view class="points-tip disabled" v-else>{{ pointsUnavailableText }}</view>
+            </view>
+
             <!-- 支付方式 -->
             <view class="pay-section">
                 <view class="section-title">选择支付方式</view>
@@ -214,6 +244,7 @@ export default {
             selectedCoupon: null,
             couponsLoaded: false,
             updatingCoupon: false,
+            pointsInput: '',
         };
     },
 
@@ -402,6 +433,67 @@ export default {
             if (serverDiscount <= 0) return '';
             return '-' + (serverDiscount / 100).toFixed(2) + '元';
         },
+
+        pointsConfig() {
+            const config = this.safeUserInfo.points_config || {};
+            return {
+                min: Math.max(1, Number(config.points_min_use) || 100),
+                max: Math.max(1, Number(config.points_max_use) || 10000),
+                step: Math.max(1, Number(config.points_step) || 100),
+                toFen: Math.max(1, Number(config.points_to_fen) || 1),
+            };
+        },
+
+        availablePoints() {
+            return Math.max(0, Number(this.safeUserInfo.points) || 0);
+        },
+
+        pointsStep() {
+            return this.pointsConfig.step;
+        },
+
+        appliedPoints() {
+            const goodsInfo = this.orderGoodsInfo || {};
+            const context = goodsInfo.context || {};
+            const explicitPoints = Number(context.use_points || goodsInfo.use_points || goodsInfo.points_used || 0);
+            if (explicitPoints > 0) return explicitPoints;
+            const deducted = Number(this.orderPointsDeducted || 0);
+            return deducted > 0 ? Math.floor(deducted / this.pointsConfig.toFen) : 0;
+        },
+
+        maxUsablePoints() {
+            if (!this.isOfflinePending) return 0;
+            const amountBeforePoints = Math.max(0, Number(this.order.pay_amount || 0) + Number(this.orderPointsDeducted || 0));
+            const byAmount = Math.floor(amountBeforePoints / this.pointsConfig.toFen);
+            const capped = Math.min(this.availablePoints, this.pointsConfig.max, byAmount);
+            return Math.floor(capped / this.pointsConfig.step) * this.pointsConfig.step;
+        },
+
+        maxPointsMoney() {
+            return (this.maxUsablePoints * this.pointsConfig.toFen / 100).toFixed(2);
+        },
+
+        canUseOfflinePoints() {
+            return this.maxUsablePoints >= this.pointsConfig.min;
+        },
+
+        pointsRuleText() {
+            const yuan = (this.pointsConfig.toFen / 100).toFixed(2);
+            return this.pointsConfig.min + ' 积分起用，每 ' + this.pointsConfig.step + ' 积分递增，1 积分抵 ¥' + yuan;
+        },
+
+        pointsSummaryText() {
+            if (this.appliedPoints > 0) return '已为你抵扣 ¥' + this.formatMoney(this.orderPointsDeducted);
+            return '本单最多可抵 ¥' + this.maxPointsMoney;
+        },
+
+        pointsUnavailableText() {
+            if (this.availablePoints < this.pointsConfig.min) {
+                return '再攒 ' + (this.pointsConfig.min - this.availablePoints) + ' 积分即可抵扣';
+            }
+            const minAmount = (this.pointsConfig.min * this.pointsConfig.toFen / 100).toFixed(2);
+            return '本单满 ¥' + minAmount + ' 可使用积分抵扣';
+        },
     },
 
     onLoad(options) {
@@ -462,9 +554,12 @@ export default {
 
         initPayment(options) {
             this.normalizeOrderGoodsInfo(this.order);
+            this.syncPointsInput();
             this.entry = (options && options.entry) || '1';
             if (this.token && !this.userInfo) {
-                this.getUserInfo(true).catch(function() {});
+                this.getUserInfo(true).then(() => {
+                    this.$nextTick(() => this.syncPointsInput());
+                }).catch(function() {});
             }
             this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
             this.startCountdown();
@@ -539,6 +634,7 @@ export default {
                 } else {
                     this.selectedCoupon = null;
                 }
+                this.syncPointsInput();
             } catch (e) {
                 console.log('load coupons error:', e);
             } finally {
@@ -571,24 +667,101 @@ export default {
                 uni.showToast({ title: '优惠券信息异常，请重新领取', icon: 'none' });
                 return;
             }
+            return this.updateOfflinePricing(requestedCouponId, this.appliedPoints, coupon);
+        },
+
+        syncPointsInput() {
+            this.pointsInput = this.appliedPoints > 0 ? String(this.appliedPoints) : '';
+        },
+
+        getSelectedCouponId() {
+            return this.selectedCoupon && this.selectedCoupon.object_id
+                ? String(this.selectedCoupon.object_id)
+                : null;
+        },
+
+        trackPointsDeduction(event, source, points) {
+            AUTH.trackEvent({
+                event: event,
+                page_path: 'pages/order/payment',
+                source: source,
+                order_number: this.order && this.order.order_number,
+                use_points: Number(points) || 0,
+            }, this.token).catch(function() {});
+        },
+
+        async applyPoints(source) {
+            if (!this.isOfflinePending || this.updatingCoupon) return;
+            const trackingSource = typeof source === 'string' ? source : 'offline_payment_custom';
+            const rawValue = String(this.pointsInput || '').trim();
+            const requestedPoints = rawValue ? Number(rawValue) : 0;
+            if (!Number.isInteger(requestedPoints) || requestedPoints < 0) {
+                uni.showToast({ title: '请输入非负整数积分', icon: 'none' });
+                return;
+            }
+            if (requestedPoints > 0) {
+                if (requestedPoints < this.pointsConfig.min) {
+                    uni.showToast({ title: this.pointsConfig.min + ' 积分起用', icon: 'none' });
+                    return;
+                }
+                if (requestedPoints % this.pointsConfig.step !== 0) {
+                    uni.showToast({ title: '积分需为 ' + this.pointsConfig.step + ' 的整数倍', icon: 'none' });
+                    return;
+                }
+                if (requestedPoints > this.maxUsablePoints) {
+                    uni.showToast({ title: '本单最多可使用 ' + this.maxUsablePoints + ' 积分', icon: 'none' });
+                    return;
+                }
+            }
+            const updated = await this.updateOfflinePricing(
+                this.getSelectedCouponId(),
+                requestedPoints,
+                this.selectedCoupon
+            );
+            if (updated) {
+                this.trackPointsDeduction(
+                    requestedPoints > 0 ? 'points_deduction_applied' : 'points_deduction_removed',
+                    trackingSource,
+                    requestedPoints
+                );
+            }
+            return updated;
+        },
+
+        useMaxPoints() {
+            if (!this.canUseOfflinePoints) return;
+            this.pointsInput = String(this.maxUsablePoints);
+            return this.applyPoints('offline_payment_max');
+        },
+
+        clearPoints() {
+            this.pointsInput = '';
+            return this.applyPoints('offline_payment_clear');
+        },
+
+        async updateOfflinePricing(requestedCouponId, requestedPoints, coupon) {
+            if (this.updatingCoupon || !this.isOfflinePending) return false;
             this.updatingCoupon = true;
             try {
                 uni.showLoading({ title: '更新中...' });
                 const res = await AUTH.updateOrderCoupon(this.token, {
                     order_number: this.order.order_number,
                     coupon_id: requestedCouponId,
+                    use_points: requestedPoints,
                 });
                 uni.hideLoading();
-                if (!res) return;
+                if (!res) return false;
                 if (res._status !== undefined && res._status !== 0) {
-                    throw new Error(res._reason || '更新优惠券失败');
+                    throw new Error(res._reason || '更新优惠失败');
                 }
                 const payload = res.data || {};
                 const nextPayAmount = Number(payload.pay_amount);
                 if (!isFinite(nextPayAmount)) {
-                    throw new Error('更新优惠券失败');
+                    throw new Error('更新优惠失败');
                 }
                 const appliedCouponDiscount = Number(payload.coupon_discount || 0);
+                const appliedPoints = Number(payload.use_points || 0);
+                const appliedPointsDeducted = Number(payload.points_deducted || 0);
                 const appliedCouponId = payload.coupon_id
                     ? String(payload.coupon_id)
                     : requestedCouponId;
@@ -603,9 +776,16 @@ export default {
                 goodsInfo.coupon_id = appliedCouponId;
                 goodsInfo._coupon_discount = appliedCouponDiscount;
                 goodsInfo._discount_amount = appliedCouponDiscount;
+                goodsInfo.use_points = appliedPoints;
+                goodsInfo.points_used = appliedPoints;
+                goodsInfo._points_deducted = appliedPointsDeducted;
+                goodsInfo.context = Object.assign({}, goodsInfo.context || {}, {
+                    use_points: appliedPoints,
+                });
                 if (goodsInfo.pricing) {
                     goodsInfo.pricing = Object.assign({}, goodsInfo.pricing, {
                         coupon_discount: appliedCouponDiscount,
+                        points_deducted: appliedPointsDeducted,
                         final_amount: nextPayAmount,
                     });
                 }
@@ -618,16 +798,19 @@ export default {
                 }
                 this.order = nextOrder;
                 this.selectedCoupon = confirmedCoupon;
+                this.pointsInput = appliedPoints > 0 ? String(appliedPoints) : '';
                 this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
                 if (nextPayAmount === 0) {
                     this.payMethod = 'balance';
                 }
                 this.$forceUpdate();
+                return true;
             } catch (e) {
                 uni.hideLoading();
                 const errorData = e && e.data ? e.data : null;
-                const msg = (e && e.message) || (errorData && errorData._reason) || '更新优惠券失败';
+                const msg = (e && e.message) || (errorData && errorData._reason) || '更新优惠失败';
                 uni.showToast({ title: msg, icon: 'none' });
+                return false;
             } finally {
                 this.updatingCoupon = false;
             }
@@ -681,7 +864,18 @@ export default {
         },
         
         doPay() {
-            if (this.paying) return;
+            if (this.paying || this.updatingCoupon) {
+                if (this.updatingCoupon) {
+                    uni.showToast({ title: '优惠金额更新中，请稍候', icon: 'none' });
+                }
+                return;
+            }
+            const pendingPoints = String(this.pointsInput || '').trim();
+            const enteredPoints = pendingPoints ? Number(pendingPoints) : 0;
+            if (this.isOfflinePending && enteredPoints !== this.appliedPoints) {
+                uni.showToast({ title: '请先应用积分抵扣', icon: 'none' });
+                return;
+            }
             // pay_amount 为 0 时，强制走余额支付完成订单。
             const isZeroPay = this.order && Number(this.order.pay_amount || 0) === 0 && !this.isRechargeOrder;
             if (this.payMethod === 'balance' || isZeroPay) {
@@ -1084,6 +1278,123 @@ page {
             color: $primary;
             font-size: 26rpx;
             font-weight: 600;
+        }
+    }
+}
+
+.points-section {
+    margin: 20rpx;
+    background: #fff;
+    border-radius: 20rpx;
+    padding: 30rpx;
+
+    .points-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20rpx;
+    }
+
+    .section-title {
+        font-size: 28rpx;
+        font-weight: bold;
+        color: $dark;
+    }
+
+    .points-balance {
+        font-size: 24rpx;
+        color: #B26A00;
+        background: #FFF7E6;
+        padding: 6rpx 14rpx;
+        border-radius: 8rpx;
+    }
+
+    .points-controls {
+        display: flex;
+        align-items: center;
+        gap: 12rpx;
+        margin-top: 14rpx;
+    }
+
+    .points-quick-use {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20rpx;
+        padding: 18rpx 20rpx;
+        border: 2rpx solid #FFE0A8;
+        border-radius: 12rpx;
+        background: #FFF9EC;
+    }
+
+    .points-quick-copy {
+        min-width: 0;
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 5rpx;
+    }
+
+    .points-quick-title {
+        font-size: 26rpx;
+        font-weight: bold;
+        color: #8A5A10;
+    }
+
+    .points-quick-detail {
+        font-size: 22rpx;
+        color: #B27B2C;
+    }
+
+    .points-input {
+        flex: 1;
+        min-width: 0;
+        height: 70rpx;
+        box-sizing: border-box;
+        padding: 0 18rpx;
+        border: 2rpx solid #FFD9A8;
+        border-radius: 10rpx;
+        font-size: 28rpx;
+        color: $dark;
+        background: #FFFDF8;
+    }
+
+    .points-button,
+    .points-clear {
+        height: 70rpx;
+        box-sizing: border-box;
+        padding: 0 20rpx;
+        border-radius: 10rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24rpx;
+        white-space: nowrap;
+    }
+
+    .points-button {
+        background: #FF9F1A;
+        color: #fff;
+
+        &.secondary {
+            background: #FFF3D9;
+            color: #A65F00;
+        }
+    }
+
+    .points-clear {
+        color: $gray;
+        padding-right: 0;
+    }
+
+    .points-tip {
+        margin-top: 14rpx;
+        font-size: 22rpx;
+        color: #8A5A10;
+        line-height: 1.5;
+
+        &.disabled {
+            color: $gray;
         }
     }
 }

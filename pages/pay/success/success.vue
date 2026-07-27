@@ -26,8 +26,8 @@
 					<text class="action-text">{{ secondaryText }}</text>
 				</view>
 				<view class="action-item" @click="goVoucher">
-					<text class="action-icon">🎟️</text>
-					<text class="action-text">领券攒积分</text>
+					<text class="action-icon">🌟</text>
+					<text class="action-text">积分换好礼</text>
 				</view>
 				<view class="action-item" @click="goCheckIn">
 					<text class="action-icon">⭐</text>
@@ -212,6 +212,13 @@ export default {
 			uni.redirectTo({ url });
 		},
 		goVoucher() {
+			AUTH.trackEvent({
+				event: 'points_mall_entry_click',
+				page_path: 'pages/pay/success/success',
+				source: 'payment_success',
+				order_type: this.type,
+			}, this.token).catch(function() {});
+			uni.setStorageSync('voucherInitialTab', 'points');
 			uni.switchTab({ url: '/pages/voucher/voucher' });
 		},
 		goSecondaryAction() {

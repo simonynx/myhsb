@@ -194,11 +194,11 @@
                 </view>
 
                 <!-- 积分兑换 -->
-                <view class="price-row points-row" v-if="safeUserInfo.points > 0">
+                <view class="price-row points-row" v-if="canUsePoints">
                     <view class="points-header">
                         <view class="points-info">
                             <text class="tag">积分</text>
-                            <text class="points-balance">当前 {{ safeUserInfo.points }} 积分</text>
+                            <text class="points-balance">当前 {{ safeUserInfo.points }} 积分，最多抵 ¥{{ maxPointsConvertMoney }}</text>
                         </view>
                         <switch
                             color="#FFCC33"
@@ -225,7 +225,7 @@
                             />
                         </view>
                         <view class="points-result">
-                            <text class="result-points">已选 {{ pointsToUse }} 积分</text>
+                            <text class="result-points">{{ pointsUsageLabel }}</text>
                             <text class="result-money">-¥{{ pointsConvertMoney }}</text>
                         </view>
                     </view>
@@ -235,7 +235,7 @@
                 <view class="price-row points-zero-row" v-else>
                     <text class="row-label">
                         <text class="tag">积分</text>
-                        当前0积分,消费预约可获取积分
+                        {{ pointsUnavailableText }}
                     </text>
                 </view>
 
@@ -388,7 +388,7 @@
                         <view class="subscription-card"
                             v-for="sub in slotView.items"
                             :key="sub.view_key"
-                            :class="isSubscriptionSelected(slotView.key, sub) ? 'selected' : ''"
+                            :class="sub.selectedClass"
                             @click.stop="selectSubscriptionForSlot(slotView.key, sub)"
                         >
                             <view class="subscription-meter" :class="slotView.meterClass">
@@ -401,7 +401,7 @@
                             <view class="subscription-info">
                                 <view class="subscription-head">
                                     <text class="subscription-name">{{ sub.card_template.name }}</text>
-                                    <text class="subscription-picked" v-if="isSubscriptionSelected(slotView.key, sub)">已选</text>
+                                    <text class="subscription-picked" v-if="sub.selected">已选</text>
                                 </view>
                                 <view class="subscription-tags">
                                     <text class="subscription-tag strong">{{ sub.primary_tag }}</text>
@@ -411,12 +411,12 @@
                                 <view class="subscription-meta">
                                     使用后剩 {{ sub.remaining_after_use }}{{ slotView.unit }} · 有效期至 {{ sub.formatted_expire }}
                                 </view>
-                                <view class="subscription-check" v-if="isSubscriptionSelected(slotView.key, sub)">✓</view>
+                                <view class="subscription-check" v-if="sub.selected">✓</view>
                             </view>
                         </view>
-                        <view class="no-coupon" :class="!getSelectedSubscription(slotView.key) ? 'no-coupon-active' : ''" @click.stop="selectSubscriptionForSlot(slotView.key, null)">
+                        <view class="no-coupon" :class="slotView.noCouponClass" @click.stop="selectSubscriptionForSlot(slotView.key, null)">
                             <text class="no-coupon-text">{{ slotView.noUseText }}</text>
-                            <view class="coupon-check" v-if="!getSelectedSubscription(slotView.key)">✓</view>
+                            <view class="coupon-check" v-if="slotView.noCouponSelected">✓</view>
                         </view>
                     </view>
                     <view class="picker-actions" v-if="availableSubscriptionCount > 0">
@@ -734,7 +734,18 @@ export default {
         },
 
         subscriptionSlotViews() {
-            return SUBSCRIPTION.buildSlotViews(this.subscriptionContext);
+            const selectedBySlot = this.selectedSubscriptionBySlot;
+            return SUBSCRIPTION.buildSlotViews(this.subscriptionContext).map(slotView => {
+                const selected = SUBSCRIPTION.getSelected(selectedBySlot, slotView.key);
+                return Object.assign({}, slotView, {
+                    noCouponClass: selected ? '' : 'no-coupon-active',
+                    noCouponSelected: !selected,
+                    items: slotView.items.map(sub => Object.assign({}, sub, {
+                        selected: SUBSCRIPTION.isSelected(selectedBySlot, slotView.key, sub),
+                        selectedClass: SUBSCRIPTION.isSelected(selectedBySlot, slotView.key, sub) ? 'selected' : '',
+                    })),
+                });
+            });
         },
 
         availableSubscriptionCount() {
@@ -838,6 +849,20 @@ export default {
 
         pointsConvertMoney() {
             return (this.pointsToUse * this.pointsToFen / 100).toFixed(2);
+        },
+        maxPointsConvertMoney() {
+            return (this.maxUsablePoints * this.pointsToFen / 100).toFixed(2);
+        },
+        pointsUsageLabel() {
+            return '已选 ' + this.pointsToUse + ' 积分';
+        },
+        pointsUnavailableText() {
+            const points = Number(this.safeUserInfo.points || 0);
+            if (points <= 0) return '当前0积分，消费预约可获取积分';
+            if (points < this.pointsMinUse) return '再攒 ' + (this.pointsMinUse - points) + ' 积分即可抵扣';
+            const minAmount = (this.pointsMinUse * this.pointsToFen / 100).toFixed(2);
+            if (this.maxUsablePoints < this.pointsMinUse) return '本单满 ¥' + minAmount + ' 可使用积分抵扣';
+            return '当前积分暂不可用';
         },
 
         // 积分抵扣后剩余(分)

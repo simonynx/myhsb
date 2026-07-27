@@ -6,23 +6,23 @@
 			<view class="cloud cloud-2">☁️</view>
 			<view class="leaf leaf-1">🍃</view>
 			<view class="leaf leaf-2">🌿</view>
-			<text class="header-title">卡券小店</text>
-			<text class="header-sub">先领券，再预约更划算</text>
+			<text class="header-title">卡券商城</text>
+			<text class="header-sub">积分能花、消费能抵，常来更划算</text>
 		</view>
 
 		<!-- 主 Tab -->
 		<view class="main-tabs">
 			<view
 				class="main-tab"
-				v-for="(tab, idx) in mainTabs"
-				:key="idx"
-				:class="mainTab === idx ? 'active' : ''"
-				@click="switchMainTab(idx)"
+				v-for="tab in mainTabs"
+				:key="tab.value"
+				:class="mainTab === tab.value ? 'active' : ''"
+				@click="switchMainTab(tab.value)"
 			>
 				<text class="tab-emoji">{{ tab.emoji }}</text>
 				<text class="tab-name">{{ tab.name }}</text>
 				<view class="tab-dot" v-if="tab.badge > 0">{{ tab.badge }}</view>
-				<view class="tab-underline" v-if="mainTab === idx"></view>
+				<view class="tab-underline" v-if="mainTab === tab.value"></view>
 			</view>
 		</view>
 
@@ -96,6 +96,13 @@
 
 		<!-- ========== Tab 1: 小店 ========== -->
 		<scroll-view class="scroll-area" scroll-y v-if="mainTab === 1">
+			<view class="shop-intro">
+				<view>
+					<text class="shop-intro-title">好物直购</text>
+					<text class="shop-intro-sub">现金商品集中在这里，积分加购请到积分好礼</text>
+				</view>
+				<text class="shop-intro-count">{{ filteredGoods.length }} 件</text>
+			</view>
 			<!-- 手绘风子分类 -->
 			<view class="category-pills">
 				<view
@@ -114,21 +121,20 @@
 			<view class="goods-grid" v-if="filteredGoods.length > 0">
 				<view
 					class="goods-card"
-					v-for="(g, idx) in filteredGoods"
-					:key="idx"
+					v-for="g in filteredGoods"
+					:key="g.object_id"
+					:class="g.lockedClass"
 					@click="handleGoodsClick(g)"
 				>
 					<view class="goods-img-wrap">
 						<text class="goods-emoji">{{ getGoodsEmoji(g) }}</text>
-						<view class="goods-tag" v-if="g.exchange_type === 3">
-							<text>🌟 积分加购</text>
-						</view>
 						<view class="corner-leaf leaf-tl">🌿</view>
 						<view class="corner-leaf leaf-br">🍃</view>
 					</view>
 					<view class="goods-body">
 						<text class="goods-name">{{ g.name }}</text>
 						<text class="goods-desc" v-if="g.description">{{ g.description }}</text>
+						<text class="points-status sold-out" v-if="g.purchaseStatusText">{{ g.purchaseStatusText }}</text>
 						<view class="limit-badge" v-if="g.max_buy_per_user > 0">
 							<text v-if="g.max_buy_period === 'month' && (g.user_bought_count || 0) > 0">🔔 本月已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
 							<text v-else-if="g.max_buy_period === 'month'">🔔 每月限购{{ g.max_buy_per_user }}张</text>
@@ -143,10 +149,9 @@
 							<view class="goods-price">
 								<text class="price-sym">¥</text>
 								<text class="price-num">{{ formatPrice(g.price) }}</text>
-								<text class="price-points" v-if="g.points_price">+{{ g.points_price }}积分</text>
 							</view>
-							<view class="goods-buy-btn" @tap.stop="handleGoodsClick(g)">
-								<text>{{ g.exchange_type === 3 ? '加购' : '购买' }}</text>
+							<view class="goods-buy-btn" :class="g.buyBtnClass" @tap.stop="handleGoodsClick(g)">
+								<text>{{ g.actionText }}</text>
 							</view>
 						</view>
 					</view>
@@ -200,7 +205,7 @@
 					:key="card.object_id"
 					@tap="buyCard(card)"
 				>
-					<view class="sub-card-left" :class="getSubscriptionTargetType(card) === 2 ? 'room' : (isMonthlySubscription(card) ? 'monthly' : 'times')">
+					<view class="sub-card-left" :class="card.subscriptionVisualClass">
 						<text class="sub-card-type">{{ getSubscriptionBadge(card) }}</text>
 						<view class="sub-card-val-row">
 							<text class="sub-card-limit">{{ card.total_limit }}</text>
@@ -258,17 +263,43 @@
 						</view>
 					</view>
 					<view class="points-right">
-						<text class="points-tip">签到和到店消费都能攒\n可兑换卡券和小商品</text>
+						<text class="points-tip">{{ pointsMallSummary }}</text>
+						<text class="points-value" v-if="pointsValueText">{{ pointsValueText }}</text>
+						<view class="points-earn-btn" @tap="goEarnPoints">去签到</view>
 					</view>
+				</view>
+				<view class="points-progress" v-if="nearestPointsGoods && pointsRedeemableCount === 0">
+					<view class="points-progress-bar">
+						<view class="points-progress-fill" :style="pointsProgressStyle"></view>
+					</view>
+					<text class="points-progress-text">{{ pointsProgressText }}</text>
 				</view>
 			</view>
 
-			<!-- 积分商品网格 -->
-			<view class="goods-grid" v-if="pointsGoods.length > 0">
+			<view class="points-filter-bar" v-if="pointsGoods.length > 0">
 				<view
-					class="goods-card"
-					v-for="(g, idx) in pointsGoods"
-					:key="idx"
+					class="points-filter"
+					v-for="filter in pointsFilters"
+					:key="filter.value"
+					:class="pointsFilter === filter.value ? 'active' : ''"
+					@tap="setPointsFilter(filter.value)"
+				>
+					<text>{{ filter.name }}</text>
+					<text class="points-filter-count" v-if="filter.count > 0">{{ filter.count }}</text>
+				</view>
+			</view>
+
+			<view class="points-section-heading" v-if="pointsGoods.length > 0">
+				<text class="points-section-title">{{ pointsSectionTitle }}</text>
+				<text class="points-section-count">{{ filteredPointsGoods.length }} 件</text>
+			</view>
+
+			<!-- 积分商品列表 -->
+			<view class="points-goods-list" v-if="filteredPointsGoods.length > 0">
+				<view
+					class="goods-card points-goods-card"
+					v-for="g in filteredPointsGoods"
+					:key="g.object_id"
 					:class="g.lockedClass"
 					@click="handlePointsGoodsClick(g)"
 				>
@@ -278,7 +309,7 @@
 							<text>🌟 纯积分</text>
 						</view>
 						<view class="goods-tag mixed" v-else-if="g.exchange_type === 3">
-							<text>🌟 混合</text>
+							<text>🌟 积分加购</text>
 						</view>
 						<view class="lock-mask" v-if="g.locked">
 							<text class="lock-icon">🔮</text>
@@ -290,6 +321,7 @@
 					<view class="goods-body">
 						<text class="goods-name">{{ g.name }}</text>
 						<text class="goods-desc" v-if="g.description">{{ g.description }}</text>
+						<text class="points-status" :class="g.pointsStatusClass" v-if="g.pointsStatusText">{{ g.pointsStatusText }}</text>
 						<view class="limit-badge" v-if="g.max_buy_per_user > 0">
 							<text v-if="g.max_buy_period === 'month' && (g.user_bought_count || 0) > 0">🔔 本月已购{{ g.user_bought_count || 0 }}/{{ g.max_buy_per_user }}张</text>
 							<text v-else-if="g.max_buy_period === 'month'">🔔 每月限购{{ g.max_buy_per_user }}张</text>
@@ -307,11 +339,20 @@
 								<text class="p-unit">积分</text>
 								<text class="cash-plus" v-if="g.exchange_type === 3">+¥{{ formatPrice(g.price) }}</text>
 							</view>
-							<view class="goods-buy-btn" :class="g.buyBtnClass" @tap.stop="handlePointsGoodsClick(g)">
-								<text>{{ g.locked ? '🔒' : '兑换' }}</text>
+							<view class="goods-buy-btn" :class="g.buyBtnClass" @tap.stop="handlePointsGoodsAction(g)">
+								<text>{{ g.actionText }}</text>
 							</view>
 						</view>
 					</view>
+				</view>
+			</view>
+
+			<view class="empty-box compact" v-else-if="pointsGoods.length > 0">
+				<text class="empty-icon">✨</text>
+				<text class="empty-text">{{ pointsFilterEmptyText }}</text>
+				<view class="empty-actions">
+					<view class="empty-action" @tap="setPointsFilter('all')">查看全部</view>
+					<view class="empty-action primary" @tap="goEarnPoints">去攒积分</view>
 				</view>
 			</view>
 
@@ -345,7 +386,9 @@ export default {
 			return this.couponList.filter(item => this.isCouponClaimable(item));
 		},
 		filteredGoods() {
-			const nonRecharge = this.goodsList.filter(g => g.goods_type !== 1 && (g.exchange_type === 1 || g.exchange_type === 3));
+			const nonRecharge = this.goodsList
+				.filter(g => g.goods_type !== 1 && g.exchange_type === 1)
+				.map(g => this.buildCashGoodsCard(g));
 			if (this.subTab === 0) {
 				return nonRecharge;
 			}
@@ -353,14 +396,76 @@ export default {
 			return nonRecharge.filter(g => g.goods_type === typeMap[this.subTab]);
 		},
 		pointsGoods() {
-			return this.goodsList.filter(g => g.goods_type !== 1 && g.exchange_type === 2).map(g => {
-				const locked = this.isLocked(g);
-				return Object.assign({}, g, {
-					locked: locked,
-					lockedClass: locked ? 'locked' : '',
-					buyBtnClass: locked ? 'disabled' : '',
+			const currentPoints = Number(this.safeUserInfo.points || 0);
+			return this.goodsList
+				.filter(g => g.goods_type !== 1 && (g.exchange_type === 2 || g.exchange_type === 3))
+				.map(g => this.buildPointsGoodsCard(g, currentPoints))
+				.sort((a, b) => {
+					if (a.canExchange !== b.canExchange) return a.canExchange ? -1 : 1;
+					if (a.soldOut !== b.soldOut) return a.soldOut ? 1 : -1;
+					if (a.locked !== b.locked) return a.locked ? 1 : -1;
+					if (a.pointsShortfall !== b.pointsShortfall) return a.pointsShortfall - b.pointsShortfall;
+					if (a.exchange_type !== b.exchange_type) return a.exchange_type - b.exchange_type;
+					return Number(a.points_price || 0) - Number(b.points_price || 0);
 				});
-			});
+		},
+		pointsRedeemableCount() {
+			return this.pointsGoods.filter(g => g.canExchange).length;
+		},
+		nearestPointsGoods() {
+			return this.pointsGoods.find(g => !g.locked && !g.soldOut && !g.limitReached) || null;
+		},
+		pointsProgressStyle() {
+			if (!this.nearestPointsGoods) return 'width: 0%;';
+			const need = Math.max(1, Number(this.nearestPointsGoods.points_price || 0));
+			const current = Math.max(0, Number(this.safeUserInfo.points || 0));
+			const percent = Math.max(4, Math.min(100, Math.round(current * 100 / need)));
+			return 'width: ' + percent + '%;';
+		},
+		pointsProgressText() {
+			if (!this.nearestPointsGoods) return '';
+			return '最近可兑「' + this.nearestPointsGoods.name + '」，还差 ' + this.nearestPointsGoods.pointsShortfall + ' 积分';
+		},
+		pointsFilters() {
+			return [
+				{ name: '全部', value: 'all', count: this.pointsGoods.length },
+				{ name: '现在能换', value: 'ready', count: this.pointsRedeemableCount },
+				{ name: '纯积分', value: 'points', count: this.pointsGoods.filter(g => g.exchange_type === 2).length },
+				{ name: '积分加购', value: 'mixed', count: this.pointsGoods.filter(g => g.exchange_type === 3).length },
+			];
+		},
+		filteredPointsGoods() {
+			if (this.pointsFilter === 'ready') return this.pointsGoods.filter(g => g.canExchange);
+			if (this.pointsFilter === 'points') return this.pointsGoods.filter(g => g.exchange_type === 2);
+			if (this.pointsFilter === 'mixed') return this.pointsGoods.filter(g => g.exchange_type === 3);
+			return this.pointsGoods;
+		},
+		pointsSectionTitle() {
+			const names = {
+				all: '为你推荐',
+				ready: '现在就能兑换',
+				points: '不花现金的好礼',
+				mixed: '积分加购专区',
+			};
+			return names[this.pointsFilter] || names.all;
+		},
+		pointsFilterEmptyText() {
+			if (this.pointsFilter === 'ready') return '当前还没有能直接兑换的商品';
+			if (this.pointsFilter === 'points') return '暂无纯积分商品';
+			if (this.pointsFilter === 'mixed') return '暂无积分加购商品';
+			return '暂无符合条件的商品';
+		},
+		pointsMallSummary() {
+			if (this.pointsRedeemableCount > 0) return '现在可兑换 ' + this.pointsRedeemableCount + ' 件好礼';
+			const nearest = this.nearestPointsGoods;
+			if (nearest && nearest.pointsShortfall > 0) return '距「' + nearest.name + '」还差 ' + nearest.pointsShortfall + ' 积分';
+			return '签到和到店消费都能攒积分';
+		},
+		pointsValueText() {
+			const points = Number(this.safeUserInfo.points || 0);
+			const pointsToFen = Number((this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_to_fen) || 1);
+			if (points <= 0 || pointsToFen <= 0) return '';
+			return '积分约值 ¥' + (points * pointsToFen / 100).toFixed(2);
 		},
 		subscriptionTargetTabs() {
 			const tabs = [
@@ -370,20 +475,25 @@ export default {
 			return tabs.filter(tab => this.subscriptionCards.some(card => this.getSubscriptionTargetType(card) === tab.value));
 		},
 		displaySubscriptionCards() {
-			if (!this.subscriptionTargetType) return this.subscriptionCards;
-			return this.subscriptionCards.filter(card => this.getSubscriptionTargetType(card) === this.subscriptionTargetType);
+			const cards = this.subscriptionTargetType
+				? this.subscriptionCards.filter(card => this.getSubscriptionTargetType(card) === this.subscriptionTargetType)
+				: this.subscriptionCards;
+			return cards.map(card => Object.assign({}, card, {
+				subscriptionVisualClass: this.getSubscriptionVisualClass(card),
+			}));
 		},
 	},
 	data() {
 		return {
-			mainTab: 0,
+			mainTab: 3,
 			subTab: 0,
+			pointsFilter: 'all',
 			subscriptionTargetType: 0,
 			mainTabs: [
-				{ name: '领券', emoji: '🎟️', badge: 0 },
-				{ name: '小店', emoji: '🏠', badge: 0 },
-				{ name: '次卡/月卡', emoji: '🎁', badge: 0 },
-				{ name: '积分兑换', emoji: '🌟', badge: 0 },
+				{ name: '积分好礼', emoji: '🌟', badge: 0, value: 3 },
+				{ name: '领券', emoji: '🎟️', badge: 0, value: 0 },
+				{ name: '次卡/月卡', emoji: '🎁', badge: 0, value: 2 },
+				{ name: '好物', emoji: '🏠', badge: 0, value: 1 },
 			],
 			subTabs: [
 				{ name: '全部', emoji: '🏠' },
@@ -403,10 +513,16 @@ export default {
 	onShow() {
 		uni.$emit('tabBarChange', { key: 'voucher' });
 		this.applyInitialTab();
-		this.loadAll();
+		this.refreshMall();
 	},
 	methods: {
-		...mapActions(['loginAndRegister']),
+		...mapActions(['loginAndRegister', 'getUserInfo']),
+		async refreshMall() {
+			if (this.token) {
+				await this.getUserInfo(true).catch(() => {});
+			}
+			await this.loadAll();
+		},
 		applyInitialTab() {
 			var initialTab = uni.getStorageSync('voucherInitialTab');
 			if (!initialTab) return;
@@ -432,7 +548,7 @@ export default {
 				if (res._status === 0) {
 					this.couponList = res.data || [];
 					const unused = this.couponList.filter(i => this.isCouponClaimable(i));
-					this.mainTabs[0].badge = unused.length;
+					this.setMainTabBadge(0, unused.length);
 				}
 			} catch (e) {}
 		},
@@ -441,6 +557,7 @@ export default {
 				const res = await AUTH.getGoodsList(this.token);
 				if (res._status === 0) {
 					this.goodsList = res.data && res.data.goods || [];
+					this.setMainTabBadge(3, this.pointsRedeemableCount);
 				}
 			} catch (e) {}
 		},
@@ -463,6 +580,27 @@ export default {
 			} else if (idx === 2) {
 				this.loadSubscriptionCards();
 			}
+		},
+		setMainTabBadge(value, badge) {
+			const tab = this.mainTabs.find(item => item.value === value);
+			if (tab) tab.badge = Number(badge) || 0;
+		},
+		setPointsFilter(value) {
+			this.pointsFilter = value;
+			AUTH.trackEvent({
+				event: 'points_mall_filter_click',
+				page_path: 'pages/voucher/voucher',
+				source: 'points_mall',
+				filter: value,
+			}, this.token).catch(() => {});
+		},
+		goEarnPoints() {
+			AUTH.trackEvent({
+				event: 'points_mall_earn_click',
+				page_path: 'pages/voucher/voucher',
+				source: 'points_mall',
+			}, this.token).catch(() => {});
+			uni.switchTab({ url: '/pages/user/user' });
 		},
 		goCoupons() {
 			if (!this.hasLogin) {
@@ -493,6 +631,10 @@ export default {
 		},
 		isMonthlySubscription(card) {
 			return card && this.getSubscriptionTargetType(card) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 16;
+		},
+		getSubscriptionVisualClass(card) {
+			if (this.getSubscriptionTargetType(card) === 2) return 'room';
+			return this.isMonthlySubscription(card) ? 'monthly' : 'times';
 		},
 		getSubscriptionBadge(card) {
 			if (!card) return '卡包';
@@ -534,17 +676,15 @@ export default {
 			return '省 ¥' + text;
 		},
 		selectInitialTab() {
-			if (this.hasAutoSelectedTab || this.mainTab !== 0) return;
-			if (this.claimableCoupons.length > 0) {
-				this.hasAutoSelectedTab = true;
-				return;
-			}
-			if (this.filteredGoods.length > 0) {
-				this.mainTab = 1;
+			if (this.hasAutoSelectedTab) return;
+			if (this.pointsGoods.length > 0) {
+				this.mainTab = 3;
+			} else if (this.claimableCoupons.length > 0) {
+				this.mainTab = 0;
 			} else if (this.subscriptionCards.length > 0) {
 				this.mainTab = 2;
-			} else if (this.pointsGoods.length > 0) {
-				this.mainTab = 3;
+			} else if (this.filteredGoods.length > 0) {
+				this.mainTab = 1;
 			}
 			this.hasAutoSelectedTab = true;
 		},
@@ -662,15 +802,42 @@ export default {
 		},
 
 		handleGoodsClick(g) {
+			if (g.soldOut) {
+				uni.showToast({ title: '这件商品已售罄', icon: 'none' });
+				return;
+			}
+			if (g.limitReached) {
+				uni.showToast({ title: '本期限购数量已用完', icon: 'none' });
+				return;
+			}
+			if (g.locked) {
+				uni.showToast({ title: '会员等级不足，暂不能购买', icon: 'none' });
+				return;
+			}
 			uni.navigateTo({ url: '/pages/voucher/detail?data=' + encodeURIComponent(JSON.stringify(g)) });
 		},
 
 		handlePointsGoodsClick(g) {
+			if (g.soldOut) {
+				uni.showToast({ title: '这件商品已经兑完了', icon: 'none' });
+				return;
+			}
+			if (g.limitReached) {
+				uni.showToast({ title: '本期限购数量已用完', icon: 'none' });
+				return;
+			}
 			if (this.isLocked(g)) {
 				uni.showToast({ title: '会员等级不足，无法兑换', icon: 'none' });
 				return;
 			}
 			uni.navigateTo({ url: '/pages/voucher/detail?data=' + encodeURIComponent(JSON.stringify(g)) });
+		},
+		handlePointsGoodsAction(g) {
+			if (g.pointsShortfall > 0 && !g.locked && !g.soldOut && !g.limitReached) {
+				uni.switchTab({ url: '/pages/user/user' });
+				return;
+			}
+			this.handlePointsGoodsClick(g);
 		},
 
 		getGoodsEmoji(g) {
@@ -687,6 +854,90 @@ export default {
 		isLocked(g) {
 			const memberLevel = this.safeUserInfo.member_level || 0;
 			return (g.member_level_required || 0) > memberLevel;
+		},
+
+		buildPointsGoodsCard(g, currentPoints) {
+			const locked = this.isLocked(g);
+			const soldOut = Number(g.stock) === 0;
+			const limitReached = Number(g.max_buy_per_user || 0) > 0 && Number(g.user_bought_count || 0) >= Number(g.max_buy_per_user);
+			const pointsShortfall = Math.max(0, Number(g.points_price || 0) - currentPoints);
+			const canExchange = !locked && !soldOut && !limitReached && pointsShortfall === 0;
+			let pointsStatusText = '';
+			let pointsStatusClass = '';
+			let actionText = '立即兑换';
+			let buyBtnClass = '';
+			if (soldOut) {
+				pointsStatusText = '本期已兑完';
+				pointsStatusClass = 'sold-out';
+				actionText = '已兑完';
+				buyBtnClass = 'disabled';
+			} else if (limitReached) {
+				pointsStatusText = '本期限购已达上限';
+				pointsStatusClass = 'sold-out';
+				actionText = '已达上限';
+				buyBtnClass = 'disabled';
+			} else if (locked) {
+				pointsStatusText = '需 ' + this.getMemberLevelName(g.member_level_required) + ' 及以上';
+				pointsStatusClass = 'shortfall';
+				actionText = '等级不足';
+				buyBtnClass = 'disabled';
+			} else if (pointsShortfall > 0) {
+				pointsStatusText = '还差 ' + pointsShortfall + ' 积分';
+				pointsStatusClass = 'shortfall';
+				actionText = '去攒积分';
+				buyBtnClass = 'subtle';
+			} else {
+				pointsStatusText = '现在就能兑换';
+				pointsStatusClass = 'ready';
+			}
+			return Object.assign({}, g, {
+				locked: locked,
+				soldOut: soldOut,
+				limitReached: limitReached,
+				canExchange: canExchange,
+				pointsShortfall: pointsShortfall,
+				pointsStatusText: pointsStatusText,
+				pointsStatusClass: pointsStatusClass,
+				actionText: actionText,
+				lockedClass: locked || soldOut || limitReached ? 'locked' : '',
+				buyBtnClass: buyBtnClass,
+			});
+		},
+
+		buildCashGoodsCard(g) {
+			const locked = this.isLocked(g);
+			const soldOut = Number(g.stock) === 0;
+			const limitReached = Number(g.max_buy_per_user || 0) > 0 && Number(g.user_bought_count || 0) >= Number(g.max_buy_per_user);
+			let purchaseStatusText = '';
+			let buyBtnClass = '';
+			let actionText = '购买';
+			if (soldOut) {
+				purchaseStatusText = '本期已售罄';
+				actionText = '已售罄';
+				buyBtnClass = 'disabled';
+			} else if (limitReached) {
+				purchaseStatusText = '本期限购已达上限';
+				actionText = '已达上限';
+				buyBtnClass = 'disabled';
+			} else if (locked) {
+				purchaseStatusText = '需 ' + this.getMemberLevelName(g.member_level_required) + ' 及以上';
+				actionText = '等级不足';
+				buyBtnClass = 'disabled';
+			}
+			return Object.assign({}, g, {
+				locked: locked,
+				soldOut: soldOut,
+				limitReached: limitReached,
+				purchaseStatusText: purchaseStatusText,
+				actionText: actionText,
+				lockedClass: locked || soldOut || limitReached ? 'locked' : '',
+				buyBtnClass: buyBtnClass,
+			});
+		},
+
+		getMemberLevelName(level) {
+			const names = ['魔法学徒', '霜银法师', '烈金大魔导士', '超位大导师'];
+			return names[Number(level) || 0] || ('Lv.' + level);
 		},
 
 		formatPrice(price) {
@@ -857,6 +1108,20 @@ page, .page {
 	overflow: hidden;
 }
 
+.shop-intro {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 20rpx 24rpx 0;
+	padding: 20rpx 22rpx;
+	background: #FFF;
+	border: 2rpx solid rgba(160, 120, 80, 0.12);
+	border-radius: 14rpx;
+	.shop-intro-title { display: block; font-size: 28rpx; font-weight: bold; color: $bark; }
+	.shop-intro-sub { display: block; margin-top: 5rpx; font-size: 21rpx; color: $bark-light; }
+	.shop-intro-count { font-size: 22rpx; color: $wood; font-weight: bold; white-space: nowrap; }
+}
+
 /* ===== 森林 Banner ===== */
 .forest-banner {
 	display: flex;
@@ -1010,6 +1275,12 @@ page, .page {
 	grid-template-columns: 1fr 1fr;
 	gap: 20rpx;
 }
+.points-goods-list {
+	padding: 0 24rpx 20rpx;
+	display: flex;
+	flex-direction: column;
+	gap: 16rpx;
+}
 .goods-card {
 	background: #FFF;
 	border-radius: 22rpx 26rpx 20rpx 28rpx / 26rpx 22rpx 28rpx 24rpx;
@@ -1084,6 +1355,15 @@ page, .page {
 			white-space: nowrap;
 			text-overflow: ellipsis;
 		}
+		.points-status {
+			display: block;
+			margin-top: 8rpx;
+			font-size: 21rpx;
+			font-weight: bold;
+			&.ready { color: $forest; }
+			&.shortfall { color: $wood; }
+			&.sold-out { color: $bark-light; }
+		}
 		.goods-footer {
 			display: flex;
 			align-items: center;
@@ -1106,8 +1386,25 @@ page, .page {
 					background: #D0C8C0;
 					box-shadow: none;
 				}
+				&.subtle {
+					background: #FFF3E8;
+					border: 2rpx solid rgba(232, 120, 74, 0.32);
+					box-shadow: none;
+					text { color: $wood; }
+				}
 			}
 		}
+	}
+	&.points-goods-card {
+		display: grid;
+		grid-template-columns: 210rpx minmax(0, 1fr);
+		border-radius: 14rpx;
+		.goods-img-wrap { height: 100%; min-height: 220rpx; }
+		.goods-body { display: flex; flex-direction: column; justify-content: center; padding: 20rpx; min-width: 0; }
+		.goods-body .goods-name { font-size: 30rpx; }
+		.goods-body .goods-desc { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.45; }
+		.goods-body .goods-footer { margin-top: 16rpx; }
+		.goods-body .goods-footer .goods-buy-btn { min-width: 126rpx; text-align: center; box-sizing: border-box; }
 	}
 }
 
@@ -1155,8 +1452,64 @@ page, .page {
 		.points-num { font-size: 48rpx; font-weight: bold; color: $bark; }
 	}
 	.points-right {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 6rpx;
 		.points-tip { font-size: 22rpx; color: $bark-light; text-align: right; line-height: 1.5; }
+		.points-value { font-size: 20rpx; color: $wood; font-weight: bold; }
+		.points-earn-btn {
+			padding: 7rpx 18rpx;
+			background: #FFF;
+			border: 2rpx solid rgba(232,120,74,0.28);
+			border-radius: 8rpx;
+			font-size: 21rpx;
+			color: $wood;
+			font-weight: bold;
+		}
 	}
+	.points-progress {
+		position: relative;
+		z-index: 2;
+		margin-top: 20rpx;
+		padding-top: 18rpx;
+		border-top: 2rpx solid rgba(160, 120, 80, 0.1);
+	}
+	.points-progress-bar { height: 10rpx; background: rgba(255,255,255,0.7); border-radius: 5rpx; overflow: hidden; }
+	.points-progress-fill { height: 100%; background: linear-gradient(90deg, #FFB84D, $wood); border-radius: 5rpx; }
+	.points-progress-text { display: block; margin-top: 10rpx; font-size: 21rpx; color: $bark-light; }
+}
+
+.points-filter-bar {
+	display: flex;
+	gap: 10rpx;
+	padding: 2rpx 24rpx 14rpx;
+	overflow: hidden;
+}
+.points-filter {
+	min-width: 0;
+	flex: 1;
+	height: 62rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5rpx;
+	background: #FFF;
+	border: 2rpx solid $cream-dark;
+	border-radius: 8rpx;
+	font-size: 21rpx;
+	color: $bark-light;
+	white-space: nowrap;
+	&.active { background: $bark; border-color: $bark; color: #FFF; font-weight: bold; }
+	.points-filter-count { font-size: 18rpx; opacity: 0.75; }
+}
+.points-section-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10rpx 24rpx 16rpx;
+	.points-section-title { font-size: 30rpx; color: $bark; font-weight: bold; }
+	.points-section-count { font-size: 22rpx; color: $bark-light; }
 }
 
 @keyframes twinkle {
@@ -1216,6 +1569,7 @@ page, .page {
 		}
 	}
 }
+.empty-box.compact { padding-top: 70rpx; }
 @keyframes btnPop {
 	0%   { transform: scale(1); }
 	30%  { transform: scale(0.9); }

@@ -111,7 +111,7 @@
           <view class="points-header">
             <view class="points-info">
               <text class="tag">积分</text>
-              <text class="points-balance">当前 {{ safeUserInfo.points }} 积分</text>
+              <text class="points-balance">当前 {{ safeUserInfo.points }} 积分，最多抵 ¥{{ maxPointsConvertMoney }}</text>
             </view>
             <switch
               color="#FFCC33"
@@ -138,17 +138,17 @@
               />
             </view>
             <view class="points-result">
-              <text class="result-points">已选 {{ pointsToUse }} 积分</text>
+              <text class="result-points">{{ pointsUsageLabel }}</text>
               <text class="result-money">-¥{{ pointsConvertMoney }}</text>
             </view>
           </view>
         </view>
 
         <!-- 无积分时提示 -->
-        <view class="price-row points-zero-row" v-else-if="safeUserInfo.points === 0">
+        <view class="price-row points-zero-row" v-else>
           <text class="row-label">
             <text class="tag">积分</text>
-            当前0积分，消费预约可获取积分
+            {{ pointsUnavailableText }}
           </text>
         </view>
 
@@ -489,6 +489,20 @@ export default {
     },
     pointsConvertMoney() {
       return (this.pointsToUse * this.pointsToFen / 100).toFixed(2);
+    },
+    maxPointsConvertMoney() {
+      return (this.maxUsablePoints * this.pointsToFen / 100).toFixed(2);
+    },
+    pointsUsageLabel() {
+      return '已选 ' + this.pointsToUse + ' 积分';
+    },
+    pointsUnavailableText() {
+      const points = Number(this.safeUserInfo.points || 0);
+      if (points <= 0) return '当前0积分，消费预约可获取积分';
+      if (points < this.pointsMinUse) return '再攒 ' + (this.pointsMinUse - points) + ' 积分即可抵扣';
+      const minAmount = (this.pointsMinUse * this.pointsToFen / 100).toFixed(2);
+      if (this.maxUsablePoints < this.pointsMinUse) return '本单满 ¥' + minAmount + ' 可使用积分抵扣';
+      return '当前积分暂不可用';
     },
     afterPointsPriceFen() {
       if (!this.usePoints) return this.afterMemberPriceFen;
