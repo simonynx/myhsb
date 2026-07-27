@@ -757,6 +757,7 @@ export default {
         },
 
         subscriptionSummaryText() {
+            if (this.availableSubscriptionCount === 0) return '独立包厢常约可用小时卡';
             return SUBSCRIPTION.getSummaryText(this.subscriptionContext);
         },
 
@@ -964,6 +965,11 @@ export default {
     },
 
     onLoad(option) {
+        this._subscriptionPurchasedHandler = () => {
+            this.loadMySubscriptions();
+            setTimeout(() => this.loadMySubscriptions(), 1200);
+        };
+        uni.$on('subscriptionPurchased', this._subscriptionPurchasedHandler);
         const roomData = this.$store.state.currentRoom || {};
         const selectItem = this.$store.state.currentSelectItem || {};
         this.currentProduct = Object.keys(selectItem).length ? selectItem : roomData;
@@ -995,6 +1001,12 @@ export default {
         this.loadMyCoupons();
         this.loadMySubscriptions();
         this.loadRoomAddons();
+    },
+
+    onUnload() {
+        if (this._subscriptionPurchasedHandler) {
+            uni.$off('subscriptionPurchased', this._subscriptionPurchasedHandler);
+        }
     },
 
     methods: {
@@ -1102,8 +1114,13 @@ export default {
         },
 
         goBuySubscription() {
-            const amount = Math.ceil(this.originalPriceFen / 100);
-            uni.navigateTo({ url: '/pages/user/subscription/buy?target_type=2&amount=' + amount });
+            const amount = Math.ceil(this.roomPriceFen / 100);
+            AUTH.trackEvent({
+                event: 'subscription_entry_click',
+                page_path: 'pages/order/createOrder',
+                source: 'room_checkout'
+            }, this.token).catch(function() {});
+            uni.navigateTo({ url: '/pages/user/subscription/buy?source=room_checkout&target_type=2&amount=' + amount });
         },
 
         // 打开优惠券选择面板

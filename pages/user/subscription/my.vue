@@ -3,7 +3,7 @@
 		<!-- 自定义导航栏（避免和背景重合） -->
 		<view class="custom-nav">
 			<text class="nav-title">我的卡包</text>
-			<text class="back-btn" @tap="goBack">✕</text>
+			<text class="back-btn" @tap="goBack">‹</text>
 		</view>
 		<view class="nav-placeholder"></view>
 
@@ -34,19 +34,18 @@
 			
 			<view v-else class="card-list">
 				<view 
-					class="card-item" 
+					:class="sub.cardClass"
 					v-for="sub in list" 
 					:key="sub.object_id"
-					:class="[getCardClass(sub), getBgClass(sub)]"
 				>
 					<!-- 装饰水波纹 -->
 					<view class="card-wave"></view>
 
 					<view class="card-header">
 						<view class="card-type-tag">
-							{{ getCardBadge(sub.card_template) }}
+							{{ sub.badgeText }}
 						</view>
-						<text class="card-status-name">{{ getStatusText(sub) }}</text>
+						<text class="card-status-name">{{ sub.statusText }}</text>
 					</view>
 					
 					<view class="card-body">
@@ -54,22 +53,22 @@
 						
 						<view class="limit-section">
 							<text class="limit-num">{{ sub.remaining_limit }}</text>
-							<text class="limit-unit">{{ getCardUnit(sub.card_template) }}</text>
+							<text class="limit-unit">{{ sub.unitText }}</text>
 							<text class="limit-label">剩余额度</text>
 							<view class="usage-bar-wrap" v-if="sub.total_limit > 0">
 								<view class="usage-bar">
-									<view class="usage-fill" :style="{ width: sub.used_percent + '%' }"></view>
+									<view class="usage-fill" :style="sub.usageBarStyle"></view>
 								</view>
-								<text class="usage-text">已用 {{ sub.used_limit }}/{{ sub.total_limit }}{{ getCardUnit(sub.card_template) }}</text>
+								<text class="usage-text">已用 {{ sub.used_limit }}/{{ sub.total_limit }}{{ sub.unitText }}</text>
 							</view>
 						</view>
 					</view>
 					
 					<view class="card-footer">
 						<view class="footer-desc">
-							<text class="desc-line">可抵扣：{{ getCardUsageText(sub.card_template) }}</text>
+							<text class="desc-line">可抵扣：{{ sub.usageText }}</text>
 							<text class="desc-line" v-if="sub.target_type_num === 2">
-								包厢限制：{{ sub.room_names_limit }}
+								适用空间：{{ sub.room_names_limit }}
 							</text>
 						</view>
 						<view class="expire-wrap">
@@ -134,7 +133,13 @@ export default {
 							total_limit: Number(sub.card_template.total_limit) || 0,
 							used_limit: Math.max(0, (Number(sub.card_template.total_limit) || 0) - (Number(sub.remaining_limit) || 0)),
 							used_percent: this.calcUsedPercent(sub),
-							expire_warning: this.getExpireWarning(sub)
+							expire_warning: this.getExpireWarning(sub),
+							usageBarStyle: 'width: ' + this.calcUsedPercent(sub) + '%;',
+							badgeText: this.getCardBadge(sub.card_template),
+							unitText: this.getCardUnit(sub.card_template),
+							usageText: this.getCardUsageText(sub.card_template),
+							statusText: this.getStatusText(sub),
+							cardClass: 'card-item ' + this.getCardClass(sub) + ' ' + this.getBgClass(sub)
 						});
 					});
 				} else {
@@ -158,7 +163,12 @@ export default {
 			}
 		},
 		goBuy() {
-			uni.navigateTo({ url: '/pages/user/subscription/buy' });
+			AUTH.trackEvent({
+				event: 'subscription_entry_click',
+				page_path: 'pages/user/subscription/my',
+				source: 'my_cards'
+			}, this.token).catch(function() {});
+			uni.navigateTo({ url: '/pages/user/subscription/buy?source=my_cards' });
 		},
 		isMonthlyCard(template) {
 			return template && SUBSCRIPTION.getCardTargetType(template) === 1 && Number(template.validity_days) <= 31 && Number(template.total_limit) >= 16;
@@ -197,12 +207,11 @@ export default {
 			return 'expired';
 		},
 		getBgClass(sub) {
-			// 根据卡种配置动态给不同的精美渐变色
 			if (sub.status !== 1) return 'grey-bg';
 			if (sub.target_type_num === 2) {
-				return 'purple-bg'; // 包厢卡紫色渐变
+				return 'room-bg';
 			}
-			return 'orange-bg'; // 大厅门票卡橙色渐变
+			return 'hall-bg';
 		},
 		getStatusText(sub) {
 			if (sub.status === 1) return '正常使用中';
@@ -322,10 +331,10 @@ page {
 	}
 	.go-buy-btn {
 		display: inline-block;
-		background: linear-gradient(135deg, #FFB74D, #FF8C42);
+		background: #E8784A;
 		color: #FFF;
 		padding: 20rpx 48rpx;
-		border-radius: 999rpx;
+		border-radius: 12rpx;
 		font-size: 28rpx;
 		font-weight: bold;
 		box-shadow: 0 6rpx 20rpx rgba(255, 140, 66, 0.2);
@@ -342,7 +351,7 @@ page {
 
 .card-item {
 	position: relative;
-	border-radius: 32rpx;
+	border-radius: 16rpx;
 	padding: 36rpx 32rpx;
 	color: #FFF;
 	box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.05);
@@ -350,16 +359,16 @@ page {
 	box-sizing: border-box;
 	
 	/* 背景渐变色 */
-	&.orange-bg {
-		background: linear-gradient(135deg, #FFA726, #F57C00);
+	&.hall-bg {
+		background: #D87547;
 		box-shadow: 0 10rpx 30rpx rgba(245, 124, 0, 0.22);
 	}
-	&.purple-bg {
-		background: linear-gradient(135deg, #AB47BC, #7B1FA2);
-		box-shadow: 0 10rpx 30rpx rgba(123, 31, 162, 0.22);
+	&.room-bg {
+		background: #397267;
+		box-shadow: 0 10rpx 30rpx rgba(38, 91, 81, 0.2);
 	}
 	&.grey-bg {
-		background: linear-gradient(135deg, #B0BEC5, #78909C);
+		background: #7B8B90;
 		box-shadow: 0 10rpx 30rpx rgba(120, 144, 156, 0.15);
 	}
 	
@@ -507,10 +516,10 @@ page {
 	z-index: 100;
 }
 .buy-more-btn {
-	background: linear-gradient(135deg, #FFB74D, #FF8C42);
+	background: #E8784A;
 	color: #FFF;
 	padding: 24rpx 0;
-	border-radius: 999rpx;
+	border-radius: 12rpx;
 	text-align: center;
 	box-shadow: 0 6rpx 20rpx rgba(255, 140, 66, 0.25);
 	

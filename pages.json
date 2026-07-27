@@ -238,7 +238,7 @@
 		{
 			"path": "pages/user/subscription/buy",
 			"style": {
-				"navigationBarTitleText": "特惠卡包超市",
+				"navigationBarTitleText": "常客省钱卡",
 				"navigationBarBackgroundColor": "#FF8C42",
 				"navigationBarTextStyle": "white"
 			}

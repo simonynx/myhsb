@@ -314,11 +314,11 @@
 				</view>
 				<text class="menu-arrow">→</text>
 			</view>
-			<view class="menu-item" @tap="hasLogin ? navTo('/pages/user/subscription/buy') : handleLogin()">
-				<text class="menu-icon">🎁</text>
-				<text class="menu-text">次卡/月卡超市</text>
+			<view class="menu-item" @tap="goSubscriptionMall">
+				<text class="menu-icon">💳</text>
+				<text class="menu-text">常客省钱卡</text>
 				<view class="menu-tip">
-					<text class="tip-text">特惠卡包</text>
+					<text class="tip-text">可先浏览</text>
 				</view>
 				<text class="menu-arrow">→</text>
 			</view>
@@ -661,6 +661,14 @@
 			goPointsCenter() {
 				uni.setStorageSync('voucherInitialTab', 'points');
 				uni.switchTab({ url: '/pages/voucher/voucher' });
+			},
+			goSubscriptionMall() {
+				AUTH.trackEvent({
+					event: 'subscription_entry_click',
+					page_path: 'pages/user/user',
+					source: 'user_center'
+				}, this.token).catch(function() {});
+				uni.navigateTo({ url: '/pages/user/subscription/buy?source=user_center' });
 			},
 			goRetentionOrder() {
 				if (this.orderCounts.waitPay > 0) {

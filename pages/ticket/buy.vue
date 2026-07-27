@@ -79,7 +79,7 @@
             <text class="tag" :class="selectedSubscription ? 'tag-active' : 'tag-gray'">卡包</text>
             <block v-if="selectedSubscription">{{ selectedSubscription.card_template.name }}</block>
             <block v-else-if="usableSubscriptions.length > 0">{{ usableSubscriptions.length }}张可用</block>
-            <block v-else>购卡更省</block>
+            <block v-else>{{ subscriptionUpsellText }}</block>
           </text>
           <view class="coupon-right">
             <text class="coupon-value" v-if="selectedSubscription">-¥{{ (subscriptionDiscountAmountFen / 100).toFixed(2) }}</text>
@@ -422,6 +422,10 @@ export default {
       });
     },
 
+    subscriptionUpsellText() {
+      return this.ticketCount >= 3 ? '多人同单可用，购卡更省' : '常来可买次卡';
+    },
+
     subscriptionDeductedCount() {
       if (!this.selectedSubscription) return 0;
       const rule = SUBSCRIPTION.getUsageRule(this.selectedSubscription.card_template || {}, SUBSCRIPTION.SLOT_TICKET) || {};
@@ -581,6 +585,11 @@ export default {
   },
 
   async onLoad(options) {
+    this._subscriptionPurchasedHandler = () => {
+      this.loadMySubscriptions();
+      setTimeout(() => this.loadMySubscriptions(), 1200);
+    };
+    uni.$on('subscriptionPurchased', this._subscriptionPurchasedHandler);
     if (options && options.count) {
       const count = parseInt(options.count);
       if (count >= 1 && count <= 10) {
@@ -604,6 +613,12 @@ export default {
     }
     this.loadMyCoupons();
     this.loadMySubscriptions();
+  },
+
+  onUnload() {
+    if (this._subscriptionPurchasedHandler) {
+      uni.$off('subscriptionPurchased', this._subscriptionPurchasedHandler);
+    }
   },
 
   methods: {
@@ -658,7 +673,12 @@ export default {
 
     goBuySubscription() {
       const amount = Math.ceil(this.basePriceFen / 100);
-      uni.navigateTo({ url: '/pages/user/subscription/buy?target_type=1&amount=' + amount });
+      AUTH.trackEvent({
+        event: 'subscription_entry_click',
+        page_path: 'pages/ticket/buy',
+        source: 'ticket_checkout'
+      }, this.token).catch(function() {});
+      uni.navigateTo({ url: '/pages/user/subscription/buy?source=ticket_checkout&target_type=1&amount=' + amount });
     },
 
     goGroupSquareFromTicket() {

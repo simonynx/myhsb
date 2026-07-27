@@ -179,6 +179,10 @@
 				</view>
 				<text class="banner-arrow">›</text>
 			</view>
+			<view class="subscription-value-note">
+				<text class="value-note-title">{{ subscriptionValueTitle }}</text>
+				<text class="value-note-sub">{{ subscriptionValueText }}</text>
+			</view>
 
 			<!-- 列表 -->
 			<view class="section-header">
@@ -206,30 +210,32 @@
 					@tap="buyCard(card)"
 				>
 					<view class="sub-card-left" :class="card.subscriptionVisualClass">
-						<text class="sub-card-type">{{ getSubscriptionBadge(card) }}</text>
+						<text class="sub-card-type">{{ card.badgeText }}</text>
 						<view class="sub-card-val-row">
 							<text class="sub-card-limit">{{ card.total_limit }}</text>
-							<text class="sub-card-unit">{{ getSubscriptionUnit(card) }}</text>
+							<text class="sub-card-unit">{{ card.unitText }}</text>
 						</view>
 					</view>
 					<view class="sub-card-right">
 						<view class="sub-card-name-row">
 							<text class="sub-card-name">{{ card.name }}</text>
-							<text class="sub-card-recommend" v-if="isRecommendedSubscription(card)">推荐</text>
+							<text class="sub-card-recommend" v-if="card.recommendLabel">{{ card.recommendLabel }}</text>
 						</view>
+						<text class="sub-card-selling">{{ card.sellingPoint }}</text>
 						<view class="sub-card-benefits">
-							<text class="sub-card-benefit">{{ getSubscriptionUnitPriceText(card) }}</text>
-							<text class="sub-card-save" v-if="getSubscriptionSaveText(card)">{{ getSubscriptionSaveText(card) }}</text>
+							<text class="sub-card-benefit">{{ card.unitPriceText }}</text>
+							<text class="sub-card-save" v-if="card.saveText">{{ card.saveText }}</text>
 						</view>
 						<view class="sub-card-info">
-							<text class="info-line">· 可抵扣: {{ getSubscriptionUsageText(card) }}</text>
+							<text class="info-line">· 可抵扣: {{ card.usageText }}</text>
+							<text class="info-line" v-if="card.roomScopeText">· 适用空间: {{ card.roomScopeText }}</text>
 							<text class="info-line">· 有效期: {{ card.validity_days }}天</text>
 						</view>
 						<view class="sub-card-footer">
 							<view class="sub-card-price">
 								<text class="symbol">¥</text>
-								<text class="price">{{ (card.price / 100).toFixed(0) }}</text>
-								<text class="orig" v-if="card.original_price">¥{{ (card.original_price / 100).toFixed(0) }}</text>
+								<text class="price">{{ card.priceText }}</text>
+								<text class="orig" v-if="card.originalPriceText">¥{{ card.originalPriceText }}</text>
 							</view>
 							<view class="buy-btn">立即购卡</view>
 						</view>
@@ -469,30 +475,35 @@ export default {
 		},
 		subscriptionTargetTabs() {
 			const tabs = [
-				{ name: '大厅卡', desc: '抵门票/本人入场', value: 1 },
-				{ name: '包厢卡', desc: '抵小时', value: 2 },
+				{ name: '大厅卡', desc: '同行也能用', value: 1 },
+				{ name: '包厢卡', desc: '抵独立包厢房费', value: 2 },
 			];
 			return tabs.filter(tab => this.subscriptionCards.some(card => this.getSubscriptionTargetType(card) === tab.value));
+		},
+		subscriptionValueTitle() {
+			return this.subscriptionTargetType === 2 ? '包厢卡只卖真实省下的钱' : '大厅卡可以和朋友一起用';
+		},
+		subscriptionValueText() {
+			if (this.subscriptionTargetType === 2) return '仅抵包厢小时费，适用空间会逐一标明；低价卡座不混在原价里计算优惠。';
+			return '同一订单可抵多张大厅票，3人同行也能一次使用3次额度。';
 		},
 		displaySubscriptionCards() {
 			const cards = this.subscriptionTargetType
 				? this.subscriptionCards.filter(card => this.getSubscriptionTargetType(card) === this.subscriptionTargetType)
 				: this.subscriptionCards;
-			return cards.map(card => Object.assign({}, card, {
-				subscriptionVisualClass: this.getSubscriptionVisualClass(card),
-			}));
+			return cards.map(card => this.buildSubscriptionCardView(card, cards));
 		},
 	},
 	data() {
 		return {
-			mainTab: 3,
+			mainTab: 2,
 			subTab: 0,
 			pointsFilter: 'all',
 			subscriptionTargetType: 0,
 			mainTabs: [
+				{ name: '省钱卡', emoji: '💳', badge: 0, value: 2 },
 				{ name: '积分好礼', emoji: '🌟', badge: 0, value: 3 },
 				{ name: '领券', emoji: '🎟️', badge: 0, value: 0 },
-				{ name: '次卡/月卡', emoji: '🎁', badge: 0, value: 2 },
 				{ name: '好物', emoji: '🏠', badge: 0, value: 1 },
 			],
 			subTabs: [
@@ -507,6 +518,7 @@ export default {
 			subscriptionCards: [],
 			hasAutoSelectedTab: false,
 			receivingCouponId: '',
+			subscriptionViewLastTrackedAt: 0,
 			goodsEmojis: ['🍿', '🍰', '🧋', '🍟', '🍪', '🎈', '🌸', '🕯️', '🎂', '🎊', '🎲', '🎯', '🃏', '🧩', '🎁', '🧸', '📿', '🔮'],
 		};
 	},
@@ -535,6 +547,9 @@ export default {
 				this.hasAutoSelectedTab = true;
 			} else if (initialTab === 'coupon') {
 				this.mainTab = 0;
+				this.hasAutoSelectedTab = true;
+			} else if (initialTab === 'subscription') {
+				this.mainTab = 2;
 				this.hasAutoSelectedTab = true;
 			}
 		},
@@ -569,6 +584,7 @@ export default {
 					if (!this.subscriptionTargetType && this.subscriptionCards.length > 0) {
 						this.subscriptionTargetType = this.getSubscriptionTargetType(this.subscriptionCards[0]) || 0;
 					}
+					this.trackSubscriptionMallView();
 				}
 			} catch (e) {}
 		},
@@ -621,10 +637,37 @@ export default {
 			uni.navigateTo({ url: '/pages/user/subscription/my' });
 		},
 		buyCard(card) {
-			uni.navigateTo({ url: '/pages/user/subscription/buy?card_id=' + card.object_id });
+			AUTH.trackEvent({
+				event: 'subscription_card_click',
+				page_path: 'pages/voucher/voucher',
+				source: 'voucher_mall',
+				card_id: card.object_id,
+				item_key: card.analyticsKey,
+				target_type: this.getSubscriptionTargetType(card)
+			}, this.token).catch(function() {});
+			uni.navigateTo({ url: '/pages/user/subscription/buy?source=voucher_mall&card_id=' + card.object_id });
 		},
 		switchSubscriptionTarget(targetType) {
 			this.subscriptionTargetType = targetType;
+			AUTH.trackEvent({
+				event: 'subscription_target_switch',
+				page_path: 'pages/voucher/voucher',
+				source: 'voucher_mall',
+				target_type: targetType
+			}, this.token).catch(function() {});
+		},
+		trackSubscriptionMallView() {
+			if (this.mainTab !== 2 || this.subscriptionCards.length === 0) return;
+			const now = Date.now();
+			if (now - this.subscriptionViewLastTrackedAt < 30000) return;
+			this.subscriptionViewLastTrackedAt = now;
+			AUTH.trackEvent({
+				event: 'subscription_mall_view',
+				page_path: 'pages/voucher/voucher',
+				source: 'voucher_mall',
+				card_count: this.subscriptionCards.length,
+				target_type: this.subscriptionTargetType || 0
+			}, this.token).catch(function() {});
 		},
 		getSubscriptionTargetType(card) {
 			return SUBSCRIPTION.getCardTargetType(card);
@@ -648,13 +691,22 @@ export default {
 			if (!card) return '';
 			return SUBSCRIPTION.getCardUsageText(card);
 		},
-		isRecommendedSubscription(card) {
-			if (!card) return false;
+		getSubscriptionRecommendationLabel(card, cards) {
+			if (!card) return '';
 			const targetType = this.getSubscriptionTargetType(card);
 			const totalLimit = Number(card.total_limit);
-			if (targetType === 1) return totalLimit === 10;
-			if (targetType === 2) return totalLimit === 20;
-			return false;
+			if (targetType === 1) {
+				if (totalLimit === 3) return '轻量入门';
+				if (totalLimit === 10) return '常客推荐';
+				if (totalLimit >= 16) return '多人更省';
+			}
+			if (targetType === 2) {
+				const roomCards = (cards || []).filter(item => this.getSubscriptionTargetType(item) === 2);
+				const minLimit = roomCards.reduce((min, item) => Math.min(min, Number(item.total_limit) || 9999), 9999);
+				if (totalLimit === minLimit) return '低门槛体验';
+				if (totalLimit === 20) return '固定小队推荐';
+			}
+			return '';
 		},
 		getSubscriptionUnitPriceText(card) {
 			if (!card || !card.total_limit) return '';
@@ -675,14 +727,57 @@ export default {
 			const text = save % 1 === 0 ? save.toFixed(0) : save.toFixed(1);
 			return '省 ¥' + text;
 		},
+		getSubscriptionSellingPoint(card) {
+			const targetType = this.getSubscriptionTargetType(card);
+			const totalLimit = Number(card && card.total_limit) || 0;
+			if (targetType === 2) {
+				if (totalLimit <= 4) return '先小额体验，确认常来再升级';
+				if (totalLimit <= 10) return '常约独立包厢，单次房费更低';
+				if (totalLimit <= 20) return '固定小队多次组局更合适';
+				return '适合社群活动和长期固定组局';
+			}
+			if (totalLimit <= 3) return '3人同行也能在一单内抵完';
+			if (totalLimit <= 10) return '一张卡可在同一订单抵多张门票';
+			return '高频到店或固定小队，单次最省';
+		},
+		getSubscriptionRoomScopeText(card) {
+			if (this.getSubscriptionTargetType(card) !== 2) return '';
+			const rooms = Array.isArray(card.usable_rooms) ? card.usable_rooms : [];
+			if (rooms.length === 0) return '全部预约空间';
+			return rooms.map(room => room && room.name || '').filter(Boolean).join('、');
+		},
+		getSubscriptionAnalyticsKey(card) {
+			const prefix = this.getSubscriptionTargetType(card) === 2 ? 'room' : 'hall';
+			return prefix + '_' + (Number(card && card.total_limit) || 0);
+		},
+		formatSubscriptionPrice(fen) {
+			const amount = (Number(fen) || 0) / 100;
+			return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
+		},
+		buildSubscriptionCardView(card, cards) {
+			return Object.assign({}, card, {
+				subscriptionVisualClass: this.getSubscriptionVisualClass(card),
+				badgeText: this.getSubscriptionBadge(card),
+				unitText: this.getSubscriptionUnit(card),
+				recommendLabel: this.getSubscriptionRecommendationLabel(card, cards),
+				sellingPoint: this.getSubscriptionSellingPoint(card),
+				unitPriceText: this.getSubscriptionUnitPriceText(card),
+				saveText: this.getSubscriptionSaveText(card),
+				usageText: this.getSubscriptionUsageText(card),
+				roomScopeText: this.getSubscriptionRoomScopeText(card),
+				analyticsKey: this.getSubscriptionAnalyticsKey(card),
+				priceText: this.formatSubscriptionPrice(card.price),
+				originalPriceText: Number(card.original_price) > Number(card.price) ? this.formatSubscriptionPrice(card.original_price) : ''
+			});
+		},
 		selectInitialTab() {
 			if (this.hasAutoSelectedTab) return;
-			if (this.pointsGoods.length > 0) {
+			if (this.subscriptionCards.length > 0) {
+				this.mainTab = 2;
+			} else if (this.pointsGoods.length > 0) {
 				this.mainTab = 3;
 			} else if (this.claimableCoupons.length > 0) {
 				this.mainTab = 0;
-			} else if (this.subscriptionCards.length > 0) {
-				this.mainTab = 2;
 			} else if (this.filteredGoods.length > 0) {
 				this.mainTab = 1;
 			}
@@ -1591,6 +1686,26 @@ page, .page {
 }
 
 /* ===== 次卡月卡特惠卡包样式 ===== */
+.subscription-value-note {
+	margin: 0 24rpx 18rpx;
+	padding: 20rpx 22rpx;
+	background: #F0F7F5;
+	border-left: 6rpx solid #397267;
+	border-radius: 8rpx;
+	.value-note-title {
+		display: block;
+		font-size: 27rpx;
+		font-weight: bold;
+		color: #315F56;
+	}
+	.value-note-sub {
+		display: block;
+		margin-top: 6rpx;
+		font-size: 22rpx;
+		line-height: 1.5;
+		color: #5F756F;
+	}
+}
 .subscription-tabs {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1633,7 +1748,7 @@ page, .page {
 .sub-card-item {
 	display: flex;
 	background: #FFF;
-	border-radius: 22rpx 26rpx 24rpx 20rpx / 24rpx 22rpx 26rpx 20rpx;
+	border-radius: 14rpx;
 	overflow: hidden;
 	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.08), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
 	border: 2rpx solid rgba(160, 120, 80, 0.12);
@@ -1710,6 +1825,12 @@ page, .page {
 			padding: 3rpx 10rpx;
 			border-radius: 6rpx;
 			font-weight: bold;
+		}
+		.sub-card-selling {
+			display: block;
+			font-size: 22rpx;
+			line-height: 1.45;
+			color: #65584C;
 		}
 		.sub-card-benefits {
 			display: flex;

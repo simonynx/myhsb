@@ -1,22 +1,16 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 顶部装饰 -->
-		<view class="header-deco">
-			<text class="deco-leaf">🍃</text>
-			<text class="deco-cloud">☁️</text>
-			<text class="deco-star">✨</text>
-		</view>
-
 		<!-- 账户余额预览 -->
 		<view class="balance-card">
 			<view class="balance-left">
-				<text class="balance-label">账户余额</text>
-				<view class="balance-amount">
+				<text class="balance-label">{{ hasLogin ? '账户余额' : '先看卡，确认购买时再登录' }}</text>
+				<view class="balance-amount" v-if="hasLogin">
 					<text class="yuan">¥</text>
 					<text class="num">{{ balanceText }}</text>
 				</view>
+				<text class="guest-balance" v-else>常来几次，就别每次都按原价</text>
 			</view>
-			<view class="balance-right" @tap="navToMyCards">
+			<view class="balance-right" @tap="navToMyCards" v-if="hasLogin">
 				<text class="my-cards-btn">我的卡包 ➔</text>
 			</view>
 		</view>
@@ -24,8 +18,10 @@
 		<!-- 购卡列表 -->
 		<view class="section">
 			<view class="section-header">
-				<text class="section-emoji">🎫</text>
-				<text class="section-title">常来更省的次卡/月卡</text>
+				<view>
+					<text class="section-title">选择适合你的省钱卡</text>
+					<text class="section-subtitle">{{ sectionSummary }}</text>
+				</view>
 			</view>
 
 			<view class="target-tabs" v-if="targetTabs.length > 1">
@@ -51,71 +47,70 @@
 			
 			<view v-else class="card-list">
 				<view 
-					class="card-item" 
+					:class="card.itemClass"
 					v-for="(card) in displayCards"
 					:key="card.object_id"
-					:class="selectedCardId === card.object_id ? 'active' : ''"
 					@tap="selectCard(card)"
 				>
-					<view class="card-tag" :class="getCardTargetType(card) === 2 ? 'room' : (isMonthlyCard(card) ? 'monthly' : 'times')">
-						{{ getCardBadge(card) }}
+					<view :class="card.tagClass">
+						{{ card.badgeText }}
 					</view>
 					
 					<view class="card-body">
 						<view class="card-title-row">
 							<view class="card-name-wrap">
 								<text class="card-name">{{ card.name }}</text>
-								<text class="recommend-label" v-if="isRecommendedCard(card)">推荐</text>
+								<text class="recommend-label" v-if="card.recommendLabel">{{ card.recommendLabel }}</text>
 							</view>
 							<view class="card-prices">
 								<text class="price-symbol">¥</text>
-								<text class="price-val">{{ (card.price / 100).toFixed(0) }}</text>
-								<text class="orig-price" v-if="card.original_price">¥{{ (card.original_price / 100).toFixed(0) }}</text>
+								<text class="price-val">{{ card.priceText }}</text>
+								<text class="orig-price" v-if="card.originalPriceText">¥{{ card.originalPriceText }}</text>
 							</view>
 						</view>
+						<text class="card-selling-point">{{ card.sellingPoint }}</text>
 						<view class="card-benefits">
-							<text class="benefit-pill" v-if="getCardUnitPriceText(card)">{{ getCardUnitPriceText(card) }}</text>
-							<text class="benefit-save" v-if="getCardSaveText(card)">{{ getCardSaveText(card) }}</text>
+							<text class="benefit-pill" v-if="card.unitPriceText">{{ card.unitPriceText }}</text>
+							<text class="benefit-save" v-if="card.saveText">{{ card.saveText }}</text>
 						</view>
 						
 						<view class="card-details">
 							<view class="detail-item">
 								<text class="detail-dot">•</text>
 								<text class="detail-text">
-									包含额度：<text class="highlight">{{ card.total_limit }}{{ getCardUnit(card) }}</text>
+									包含额度：<text class="highlight">{{ card.limitText }}</text>
 								</text>
 							</view>
 							<view class="detail-item">
 								<text class="detail-dot">•</text>
 								<text class="detail-text">
-									可抵扣：<text class="highlight">{{ getCardUsageText(card) }}</text>
+									可抵扣：<text class="highlight">{{ card.usageText }}</text>
 								</text>
 							</view>
-							<view class="detail-item" v-if="card.usable_rooms && card.usable_rooms.length > 0">
+							<view class="detail-item" v-if="card.roomScopeText">
 								<text class="detail-dot">•</text>
-								<text class="detail-text">
-									适用包间：<text class="room-tag" v-for="r in card.usable_rooms" :key="r.object_id">{{ r.name }}</text>
-								</text>
-							</view>
-							<view class="detail-item" v-else-if="getCardTargetType(card) === 2">
-								<text class="detail-dot">•</text>
-								<text class="detail-text">适用包间：<text class="highlight">所有包间通用</text></text>
+								<text class="detail-text">适用空间：<text class="highlight">{{ card.roomScopeText }}</text></text>
 							</view>
 							<view class="detail-item">
 								<text class="detail-dot">•</text>
-								<text class="detail-text">有效期：<text class="highlight">{{ card.validity_days }} 天</text> (自购买起算)</text>
+								<text class="detail-text">有效期：<text class="highlight">{{ card.validityText }}</text></text>
 							</view>
 						</view>
 					</view>
 				</view>
+			</view>
+			<view class="selection-tip" v-if="!selectedCard">
+				<text>低门槛卡适合先试，确定常来后再选更大额度</text>
 			</view>
 		</view>
 
 		<!-- 支付方式 -->
 		<view class="section" v-if="selectedCard">
 			<view class="section-header">
-				<text class="section-emoji">💳</text>
-				<text class="section-title">选择支付方式</text>
+				<view>
+					<text class="section-title">支付方式</text>
+					<text class="section-subtitle">购买后立即生效，有效期从购买当天开始</text>
+				</view>
 			</view>
 			<view class="pay-list">
 				<!-- 微信支付 -->
@@ -150,12 +145,12 @@
 				<view class="sum-main">
 					<text class="sum-label">应付金额：</text>
 					<text class="sum-symbol">¥</text>
-					<text class="sum-price">{{ (selectedCard.price / 100).toFixed(2) }}</text>
+					<text class="sum-price">{{ selectedCardView.priceFullText }}</text>
 				</view>
-				<text class="sum-extra" v-if="getCardUnitPriceText(selectedCard)">{{ getCardUnitPriceText(selectedCard) }}</text>
+				<text class="sum-extra" v-if="selectedCardView.unitPriceText">{{ selectedCardView.unitPriceText }}</text>
 			</view>
 			<view class="submit-btn" :class="buying ? 'disabled' : ''" @tap="doPurchase">
-				<text class="btn-text">{{ buying ? '正在下单...' : '立即购买' }}</text>
+				<text class="btn-text">{{ purchaseButtonText }}</text>
 			</view>
 		</view>
 	</view>
@@ -178,21 +173,38 @@ export default {
 			preferredAmount: 0,
 			preferredCardId: '',
 			preferredTargetType: 0,
-			activeTargetType: 0
+			activeTargetType: 0,
+			source: 'subscription_mall',
+			returnToCheckout: false,
+			pageViewTracked: false
 		};
 	},
 	computed: {
 		...mapState(['hasLogin', 'userInfo', 'token']),
 		targetTabs() {
 			var tabs = [
-				{ name: '大厅卡', desc: '抵门票/本人入场', value: 1 },
-				{ name: '包厢卡', desc: '抵小时', value: 2 },
+				{ name: '大厅卡', desc: '同行也能用', value: 1 },
+				{ name: '包厢卡', desc: '抵独立包厢房费', value: 2 },
 			];
 			return tabs.filter(tab => this.cards.some(card => this.getCardTargetType(card) === tab.value));
 		},
 		displayCards() {
-			if (!this.activeTargetType) return this.cards;
-			return this.cards.filter(card => this.getCardTargetType(card) === this.activeTargetType);
+			var cards = this.activeTargetType
+				? this.cards.filter(card => this.getCardTargetType(card) === this.activeTargetType)
+				: this.cards;
+			return cards.map(card => this.buildCardView(card, cards));
+		},
+		selectedCardView() {
+			if (!this.selectedCard) return {};
+			return this.buildCardView(this.selectedCard, this.cards);
+		},
+		sectionSummary() {
+			if (this.activeTargetType === 2) return '只抵包厢小时费，精选独立包厢可用';
+			return '同一订单可抵多张大厅票，朋友同行也能一起用';
+		},
+		purchaseButtonText() {
+			if (this.buying) return '正在下单...';
+			return this.hasLogin ? '立即购买' : '登录后购买';
 		},
 		balanceText() {
 			var balance = this.userInfo && this.userInfo.account_balance;
@@ -214,6 +226,14 @@ export default {
 		var amount = Number(options && options.amount || 0);
 		if (amount > 0) this.preferredAmount = amount;
 		if (options && options.card_id) this.preferredCardId = options.card_id;
+		if (options && options.source) {
+			try {
+				this.source = decodeURIComponent(options.source);
+			} catch (e) {
+				this.source = options.source;
+			}
+		}
+		this.returnToCheckout = this.source === 'ticket_checkout' || this.source === 'room_checkout';
 		var targetType = Number(options && options.target_type || 0);
 		if (targetType > 0) this.preferredTargetType = targetType;
 		if (targetType > 0) this.activeTargetType = targetType;
@@ -225,7 +245,7 @@ export default {
 		}
 	},
 	methods: {
-		...mapActions(['getUserInfo']),
+		...mapActions(['loginAndRegister', 'getUserInfo']),
 		fetchCards() {
 			this.loading = true;
 			AUTH.getSubscriptionCards(this.token).then(res => {
@@ -236,33 +256,71 @@ export default {
 						if (!this.activeTargetType) {
 							this.activeTargetType = this.preferredTargetType || this.getCardTargetType(this.cards[0]) || 0;
 						}
-						this.selectCard(this.getInitialCard());
+						var initialCard = this.getInitialCard();
+						if (initialCard) this.selectCard(initialCard, true);
 					}
+					this.trackPageView();
 				} else {
+					this.trackSubscriptionEvent('subscription_card_load_fail');
 					uni.showToast({ title: res._reason || '加载失败', icon: 'none' });
 				}
 			}).catch(err => {
 				this.loading = false;
+				this.trackSubscriptionEvent('subscription_card_load_fail');
 				uni.showToast({ title: '加载失败，请检查网络', icon: 'none' });
 			});
 		},
-		selectCard(card) {
+		trackPageView() {
+			if (this.pageViewTracked) return;
+			this.pageViewTracked = true;
+			this.trackSubscriptionEvent('subscription_mall_view', {
+				card_count: this.cards.length,
+				target_type: this.activeTargetType || 0,
+				has_login: !!this.hasLogin,
+				_dedupe_key: 'subscription_mall_view:' + this.source,
+				_dedupe_ttl_ms: 30000
+			});
+		},
+		trackSubscriptionEvent(event, extra) {
+			var payload = Object.assign({
+				event: event,
+				page_path: 'pages/user/subscription/buy',
+				source: this.source || 'subscription_mall'
+			}, extra || {});
+			if (!payload.item_key && this.selectedCard) {
+				payload.item_key = this.getCardAnalyticsKey(this.selectedCard);
+			}
+			AUTH.trackEvent(payload, this.token).catch(function() {});
+		},
+		selectCard(card, shouldTrack) {
+			if (!card) return;
 			this.selectedCardId = card.object_id;
-			this.selectedCard = card;
-			// 自动调整支付方式
+			this.selectedCard = this.cards.find(item => item.object_id === card.object_id) || card;
 			if (this.currentBalanceFen >= card.price) {
 				this.paytype = 'balance';
 			} else {
 				this.paytype = 'wxpay';
+			}
+			if (shouldTrack !== false) {
+				this.trackSubscriptionEvent('subscription_card_select', {
+					card_id: card.object_id,
+					target_type: this.getCardTargetType(card),
+					card_price: Number(card.price) || 0
+				});
 			}
 		},
 		switchTargetTab(targetType) {
 			if (this.activeTargetType === targetType) return;
 			this.activeTargetType = targetType;
 			if (!this.selectedCard || this.getCardTargetType(this.selectedCard) !== targetType) {
-				var next = this.getInitialCard();
-				if (next) this.selectCard(next);
+				this.selectedCardId = '';
+				this.selectedCard = null;
+				if (this.preferredAmount > 0 && this.preferredTargetType === targetType) {
+					var next = this.getInitialCard();
+					if (next) this.selectCard(next, false);
+				}
 			}
+			this.trackSubscriptionEvent('subscription_target_switch', { target_type: targetType });
 		},
 		getCardTargetType(card) {
 			return SUBSCRIPTION.getCardTargetType(card);
@@ -282,13 +340,22 @@ export default {
 			if (!card) return '';
 			return SUBSCRIPTION.getCardUsageText(card);
 		},
-		isRecommendedCard(card) {
-			if (!card) return false;
+		getRecommendationLabel(card, cards) {
+			if (!card) return '';
 			var targetType = this.getCardTargetType(card);
 			var totalLimit = Number(card.total_limit);
-			if (targetType === 1) return totalLimit === 10;
-			if (targetType === 2) return totalLimit === 20;
-			return false;
+			if (targetType === 1) {
+				if (totalLimit === 3) return '轻量入门';
+				if (totalLimit === 10) return '常客推荐';
+				if (totalLimit >= 16) return '多人更省';
+			}
+			if (targetType === 2) {
+				var roomCards = (cards || []).filter(item => this.getCardTargetType(item) === 2);
+				var minLimit = roomCards.reduce((min, item) => Math.min(min, Number(item.total_limit) || 9999), 9999);
+				if (totalLimit === minLimit) return '低门槛体验';
+				if (totalLimit === 20) return '固定小队推荐';
+			}
+			return '';
 		},
 		getInitialCard() {
 			var preferredCardId = this.preferredCardId;
@@ -309,7 +376,7 @@ export default {
 					return Math.abs(card.price - targetFen) < Math.abs(best.price - targetFen) ? card : best;
 				}, null) || candidates[0];
 			}
-			return candidates.find(card => this.isRecommendedCard(card)) || candidates[0];
+			return null;
 		},
 		getCardUnitPriceText(card) {
 			if (!card || !card.total_limit) return '';
@@ -330,6 +397,56 @@ export default {
 			var text = save % 1 === 0 ? save.toFixed(0) : save.toFixed(1);
 			return '比单买省 ¥' + text;
 		},
+		formatPrice(fen, digits) {
+			var amount = (Number(fen) || 0) / 100;
+			if (digits === 2) return amount.toFixed(2);
+			return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
+		},
+		getCardSellingPoint(card) {
+			var targetType = this.getCardTargetType(card);
+			var totalLimit = Number(card && card.total_limit) || 0;
+			if (targetType === 2) {
+				if (totalLimit <= 4) return '先小额体验，确认常来再升级';
+				if (totalLimit <= 10) return '常约独立包厢，单次房费更低';
+				if (totalLimit <= 20) return '固定小队多次组局更合适';
+				return '适合社群活动和长期固定组局';
+			}
+			if (totalLimit <= 3) return '3人同行也能在一单内抵完';
+			if (totalLimit <= 10) return '一张卡可在同一订单抵多张门票';
+			return '高频到店或固定小队，单次最省';
+		},
+		getRoomScopeText(card) {
+			if (this.getCardTargetType(card) !== 2) return '';
+			var rooms = Array.isArray(card.usable_rooms) ? card.usable_rooms : [];
+			if (rooms.length === 0) return '全部预约空间';
+			return rooms.map(room => room && room.name || '').filter(Boolean).join('、');
+		},
+		getCardAnalyticsKey(card) {
+			var prefix = this.getCardTargetType(card) === 2 ? 'room' : 'hall';
+			return prefix + '_' + (Number(card && card.total_limit) || 0);
+		},
+		buildCardView(card, cards) {
+			var targetType = this.getCardTargetType(card);
+			var visualClass = targetType === 2 ? 'room' : (this.isMonthlyCard(card) ? 'monthly' : 'times');
+			var unit = this.getCardUnit(card);
+			return Object.assign({}, card, {
+				itemClass: 'card-item' + (this.selectedCardId === card.object_id ? ' active' : ''),
+				tagClass: 'card-tag ' + visualClass,
+				badgeText: this.getCardBadge(card),
+				recommendLabel: this.getRecommendationLabel(card, cards),
+				priceText: this.formatPrice(card.price, 0),
+				priceFullText: this.formatPrice(card.price, 2),
+				originalPriceText: Number(card.original_price) > Number(card.price) ? this.formatPrice(card.original_price, 0) : '',
+				unitPriceText: this.getCardUnitPriceText(card),
+				saveText: this.getCardSaveText(card),
+				sellingPoint: this.getCardSellingPoint(card),
+				limitText: (Number(card.total_limit) || 0) + unit,
+				usageText: this.getCardUsageText(card),
+				roomScopeText: this.getRoomScopeText(card),
+				analyticsKey: this.getCardAnalyticsKey(card),
+				validityText: (Number(card.validity_days) || 0) + '天，自购买日起算'
+			});
+		},
 		selectBalancePay() {
 			if (!this.hasEnoughBalance) {
 				uni.showToast({ title: '余额不足以购买此卡包', icon: 'none' });
@@ -342,90 +459,136 @@ export default {
 		},
 		doPurchase() {
 			if (this.buying) return;
+			if (!this.selectedCard) {
+				uni.showToast({ title: '请先选择要购买的卡包', icon: 'none' });
+				return;
+			}
+			this.trackSubscriptionEvent('subscription_buy_click', {
+				card_id: this.selectedCard.object_id,
+				card_price: Number(this.selectedCard.price) || 0,
+				payment_method: this.paytype,
+				has_login: !!this.hasLogin
+			});
 			if (!this.hasLogin || !this.token) {
 				uni.showModal({
-					title: '请先登录',
-					content: '登录后才能购买特惠卡包',
-					confirmText: '去登录',
+					title: '登录后继续购买',
+					content: '登录后即可购买当前卡包',
+					confirmText: '立即登录',
 					success: (res) => {
 						if (res.confirm) {
-							uni.switchTab({ url: '/pages/user/user' });
+							this.trackSubscriptionEvent('subscription_login_start', { card_id: this.selectedCardId });
+							this.loginAndRegister().then(() => {
+								this.trackSubscriptionEvent('subscription_login_success', { card_id: this.selectedCardId });
+								this.getUserInfo(true).catch(function() {});
+								uni.showToast({ title: '登录成功，请确认购买', icon: 'none' });
+							}).catch(() => {
+								this.trackSubscriptionEvent('subscription_login_fail', { card_id: this.selectedCardId });
+							});
 						}
 					}
 				});
-				return;
-			}
-			if (!this.selectedCard) {
-				uni.showToast({ title: '请选择要购买的卡包', icon: 'none' });
 				return;
 			}
 
 			this.buying = true;
 			uni.showLoading({ title: '创建订单中...' });
 
-			// Call checkout
 			AUTH.checkout(this.token, {
-				order_type: 7, // OrderType.SUBSCRIPTION
+				order_type: 7,
 				subscription_card_id: this.selectedCard.object_id
 			}).then(res => {
 				uni.hideLoading();
 				if (res._status !== 0) {
 					this.buying = false;
+					this.trackSubscriptionEvent('subscription_checkout_fail', { card_id: this.selectedCardId });
 					uni.showModal({ title: '下单失败', content: res._reason || '创建订单失败', showCancel: false });
 					return;
 				}
 
 				var order = res.data || res;
 				var orderNumber = order.order_number;
+				this.trackSubscriptionEvent('subscription_checkout_created', {
+					card_id: this.selectedCardId,
+					order_number: orderNumber,
+					payment_method: this.paytype
+				});
 
 				if (this.paytype === 'balance') {
-					// Pay with balance
 					this.payWithBalance(orderNumber);
 				} else {
-					// Pay with WeChat Pay
 					this.payWithWechat(orderNumber);
 				}
 			}).catch(err => {
 				uni.hideLoading();
 				this.buying = false;
+				this.trackSubscriptionEvent('subscription_checkout_fail', { card_id: this.selectedCardId });
 				uni.showToast({ title: '下单失败，请重试', icon: 'none' });
 			});
 		},
 		payWithBalance(orderNumber) {
 			uni.showLoading({ title: '正在扣款...' });
+			this.trackSubscriptionEvent('subscription_payment_launch', {
+				card_id: this.selectedCardId,
+				order_number: orderNumber,
+				payment_method: 'balance'
+			});
 			AUTH.accountPay(this.token, { order_number: orderNumber }).then(res => {
 				uni.hideLoading();
 				this.buying = false;
 				if (res._status === 0) {
 					uni.showToast({ title: '购买成功', icon: 'success' });
-					AUTH.trackEvent({
-						event: 'payment_success',
-						page_path: 'pages/user/subscription/buy',
-						source: 'subscription_balance',
+					this.trackSubscriptionEvent('subscription_payment_success', {
+						card_id: this.selectedCardId,
 						order_number: orderNumber,
+						payment_method: 'balance',
+						_dedupe_key: 'subscription_payment_success:' + orderNumber,
+						_dedupe_ttl_ms: 24 * 60 * 60 * 1000
+					});
+					this.trackSubscriptionEvent('payment_success', {
+						card_id: this.selectedCardId,
+						order_number: orderNumber,
+						payment_method: 'balance',
 						_dedupe_key: 'payment_success:subscription:' + orderNumber,
 						_dedupe_ttl_ms: 24 * 60 * 60 * 1000
-					}, this.token).catch(function() {});
+					});
 					this.getUserInfo(true).catch(function() {});
-					setTimeout(() => {
-						uni.redirectTo({ url: '/pages/user/subscription/my' });
-					}, 1200);
+					setTimeout(() => this.finishPurchaseNavigation(), 1200);
 				} else {
+					this.trackSubscriptionEvent('subscription_payment_fail', {
+						card_id: this.selectedCardId,
+						order_number: orderNumber,
+						payment_method: 'balance'
+					});
 					uni.showModal({ title: '支付失败', content: res._reason || '余额支付失败', showCancel: false });
 				}
 			}).catch(err => {
 				uni.hideLoading();
 				this.buying = false;
+				this.trackSubscriptionEvent('subscription_payment_fail', {
+					card_id: this.selectedCardId,
+					order_number: orderNumber,
+					payment_method: 'balance'
+				});
 				uni.showToast({ title: '支付失败，请稍后查看订单', icon: 'none' });
 			});
 		},
 		payWithWechat(orderNumber) {
 			uni.showLoading({ title: '调起支付...' });
+			this.trackSubscriptionEvent('subscription_payment_launch', {
+				card_id: this.selectedCardId,
+				order_number: orderNumber,
+				payment_method: 'wxpay'
+			});
 			AUTH.platformPay(this.token, { order_number: orderNumber }).then(res => {
 				uni.hideLoading();
 				this.buying = false;
 				if (!res) return;
 				if (res._status !== undefined && Number(res._status) !== 0) {
+					this.trackSubscriptionEvent('subscription_payment_fail', {
+						card_id: this.selectedCardId,
+						order_number: orderNumber,
+						payment_method: 'wxpay'
+					});
 					uni.showModal({
 						title: '获取支付参数失败',
 						content: res._reason || '订单已保留，可稍后继续支付',
@@ -446,21 +609,30 @@ export default {
 				
 				PLATFORM.requestPayment(payment).then(() => {
 					uni.showToast({ title: '购买成功', icon: 'success' });
-					AUTH.trackEvent({
-						event: 'payment_success',
-						page_path: 'pages/user/subscription/buy',
-						source: 'subscription_wechat',
+					this.trackSubscriptionEvent('subscription_payment_success', {
+						card_id: this.selectedCardId,
 						order_number: orderNumber,
+						payment_method: 'wxpay',
+						_dedupe_key: 'subscription_payment_success:' + orderNumber,
+						_dedupe_ttl_ms: 24 * 60 * 60 * 1000
+					});
+					this.trackSubscriptionEvent('payment_success', {
+						card_id: this.selectedCardId,
+						order_number: orderNumber,
+						payment_method: 'wxpay',
 						_dedupe_key: 'payment_success:subscription:' + orderNumber,
 						_dedupe_ttl_ms: 24 * 60 * 60 * 1000
-					}, this.token).catch(function() {});
+					});
 					this.getUserInfo(true).catch(function() {});
-					setTimeout(() => {
-						uni.redirectTo({ url: '/pages/user/subscription/my' });
-					}, 1200);
+					setTimeout(() => this.finishPurchaseNavigation(), 1200);
 				}).catch(err => {
 					console.error('微信支付失败:', err);
 					this.buying = false;
+					this.trackSubscriptionEvent('subscription_payment_cancel', {
+						card_id: this.selectedCardId,
+						order_number: orderNumber,
+						payment_method: 'wxpay'
+					});
 					uni.showModal({
 						title: '支付未完成',
 						content: '订单已保留，可继续完成支付',
@@ -476,6 +648,11 @@ export default {
 			}).catch(err => {
 				uni.hideLoading();
 				this.buying = false;
+				this.trackSubscriptionEvent('subscription_payment_fail', {
+					card_id: this.selectedCardId,
+					order_number: orderNumber,
+					payment_method: 'wxpay'
+				});
 				uni.showModal({
 					title: '获取支付参数失败',
 					content: (err && err._reason) || '订单已保留，可稍后继续支付',
@@ -488,6 +665,22 @@ export default {
 					}
 				});
 			});
+		},
+		finishPurchaseNavigation() {
+			if (this.returnToCheckout) {
+				uni.$emit('subscriptionPurchased', {
+					card_id: this.selectedCardId,
+					target_type: this.getCardTargetType(this.selectedCard)
+				});
+				uni.navigateBack({
+					delta: 1,
+					fail: function() {
+						uni.redirectTo({ url: '/pages/user/subscription/my' });
+					}
+				});
+				return;
+			}
+			uni.redirectTo({ url: '/pages/user/subscription/my' });
 		}
 	}
 };
@@ -499,47 +692,19 @@ page {
 }
 .page-wrapper {
 	min-height: 100vh;
-	padding-top: env(safe-area-inset-top);
+	padding-top: 20rpx;
 	padding-bottom: 40rpx;
-}
-
-/* ===== 顶部装饰 ===== */
-.header-deco {
-	position: relative;
-	height: 40rpx;
-	overflow: hidden;
-}
-.deco-leaf {
-	position: absolute;
-	top: 8rpx;
-	left: 50rpx;
-	font-size: 36rpx;
-	opacity: 0.35;
-}
-.deco-cloud {
-	position: absolute;
-	top: 6rpx;
-	right: 70rpx;
-	font-size: 32rpx;
-	opacity: 0.3;
-}
-.deco-star {
-	position: absolute;
-	top: 12rpx;
-	left: 50%;
-	font-size: 28rpx;
-	opacity: 0.25;
 }
 
 /* ===== 余额卡片 ===== */
 .balance-card {
 	margin: 0 24rpx 20rpx;
-	background: linear-gradient(135deg, #FFB74D, #FF8C42);
-	border-radius: 28rpx;
-	padding: 36rpx 32rpx;
+	background: #397267;
+	border-radius: 16rpx;
+	padding: 28rpx 30rpx;
 	display: flex;
 	align-items: center;
-	box-shadow: 0 8rpx 32rpx rgba(255, 140, 66, 0.25);
+	box-shadow: 0 8rpx 24rpx rgba(38, 91, 81, 0.18);
 	box-sizing: border-box;
 
 	.balance-left {
@@ -556,6 +721,13 @@ page {
 			gap: 4rpx;
 			.yuan { font-size: 32rpx; color: #FFF; font-weight: bold; }
 			.num { font-size: 56rpx; font-weight: bold; color: #FFF; }
+		}
+		.guest-balance {
+			display: block;
+			font-size: 30rpx;
+			line-height: 1.45;
+			color: #FFF;
+			font-weight: bold;
 		}
 	}
 	.balance-right {
@@ -574,7 +746,7 @@ page {
 .section {
 	margin: 0 24rpx 30rpx;
 	background: #FFF;
-	border-radius: 24rpx;
+	border-radius: 16rpx;
 	padding: 28rpx;
 	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
 	border: 1rpx solid rgba(240, 230, 216, 0.6);
@@ -583,10 +755,9 @@ page {
 .section-header {
 	display: flex;
 	align-items: center;
-	gap: 12rpx;
 	margin-bottom: 24rpx;
-	.section-emoji { font-size: 36rpx; }
-	.section-title { font-size: 32rpx; font-weight: bold; color: #5C4B3A; }
+	.section-title { display: block; font-size: 32rpx; font-weight: bold; color: #3F352D; }
+	.section-subtitle { display: block; margin-top: 8rpx; font-size: 23rpx; line-height: 1.45; color: #88796C; }
 }
 .target-tabs {
 	display: grid;
@@ -638,7 +809,7 @@ page {
 .card-item {
 	position: relative;
 	border: 2rpx solid #F0E6D8;
-	border-radius: 24rpx;
+	border-radius: 14rpx;
 	padding: 30rpx 24rpx;
 	background: #FCF9F5;
 	transition: all 0.25s ease;
@@ -690,6 +861,13 @@ page {
 	font-weight: bold;
 	color: #5C4B3A;
 	max-width: 100%;
+}
+.card-selling-point {
+	display: block;
+	margin: -4rpx 0 14rpx;
+	font-size: 24rpx;
+	line-height: 1.45;
+	color: #67594D;
 }
 .recommend-label {
 	font-size: 20rpx;
@@ -776,6 +954,17 @@ page {
 		margin-right: 8rpx;
 		font-weight: bold;
 	}
+}
+
+.selection-tip {
+	margin-top: 20rpx;
+	padding: 18rpx 20rpx;
+	border-left: 6rpx solid #397267;
+	background: #F0F7F5;
+	border-radius: 8rpx;
+	font-size: 23rpx;
+	line-height: 1.45;
+	color: #527067;
 }
 
 /* ===== 支付选择 ===== */
@@ -865,10 +1054,10 @@ page {
 	}
 }
 .submit-btn {
-	background: linear-gradient(135deg, #FFB74D, #FF8C42);
+	background: #E8784A;
 	color: #FFF;
 	padding: 22rpx 60rpx;
-	border-radius: 999rpx;
+	border-radius: 12rpx;
 	box-shadow: 0 6rpx 20rpx rgba(255, 140, 66, 0.25);
 	
 	.btn-text {

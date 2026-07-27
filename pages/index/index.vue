@@ -163,6 +163,15 @@
 			</view>
 		</view>
 
+		<view class="saver-entry" @tap="goToSubscriptionMall">
+			<view class="saver-mark">省</view>
+			<view class="saver-copy">
+				<text class="saver-title">常来几次，别每次都按原价</text>
+				<text class="saver-sub">大厅票可多人同单抵扣，独立包厢按小时省</text>
+			</view>
+			<text class="saver-action">看卡包</text>
+		</view>
+
 		<!-- ===== 场景套餐 ===== -->
 		<view class="scene-section">
 			<view class="scene-section-head">
@@ -710,6 +719,14 @@
 				if (num < 1) num = 1;
 				if (num > 10) num = 10;
 				uni.navigateTo({ url: '/pages/ticket/buy?count=' + num });
+			},
+			goToSubscriptionMall() {
+				AUTH.trackEvent({
+					event: 'subscription_entry_click',
+					page_path: 'pages/index/index',
+					source: 'home_saver'
+				}, this.token).catch(function() {});
+				uni.navigateTo({ url: '/pages/user/subscription/buy?source=home_saver' });
 			},
 			goToVoucher(source) {
 				if (typeof source !== 'string') source = 'home_coupon_hint';
@@ -1974,6 +1991,55 @@ page { background: #FFF8F0; }
 .home-benefit-card.checked {
 	background: #FBFFF7;
 	border-color: rgba(74,154,74,0.26);
+}
+.saver-entry {
+	margin: 16rpx 24rpx 0;
+	padding: 20rpx 22rpx;
+	background: #F0F7F5;
+	border: 2rpx solid rgba(57,114,103,0.2);
+	border-radius: 14rpx;
+	display: flex;
+	align-items: center;
+	box-sizing: border-box;
+}
+.saver-mark {
+	width: 58rpx;
+	height: 58rpx;
+	border-radius: 10rpx;
+	background: #397267;
+	color: #FFF;
+	font-size: 26rpx;
+	font-weight: bold;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+.saver-copy {
+	flex: 1;
+	min-width: 0;
+	margin-left: 16rpx;
+}
+.saver-title {
+	display: block;
+	font-size: 27rpx;
+	font-weight: bold;
+	color: #315F56;
+	line-height: 1.35;
+}
+.saver-sub {
+	display: block;
+	margin-top: 4rpx;
+	font-size: 21rpx;
+	line-height: 1.4;
+	color: #61766F;
+}
+.saver-action {
+	margin-left: 14rpx;
+	font-size: 23rpx;
+	font-weight: bold;
+	color: #D7653B;
+	white-space: nowrap;
 }
 .benefit-copy {
 	flex: 1;
