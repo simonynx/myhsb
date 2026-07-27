@@ -77,7 +77,7 @@
             </view>
 
             <!-- 优惠券（仅线下待付款订单） -->
-            <view class="coupon-section" v-if="isOfflinePending && availableCoupons.length > 0">
+            <view class="coupon-section" v-if="isOfflinePending && (availableCoupons.length > 0 || selectedCoupon)">
                 <view class="section-title">使用优惠券</view>
                 <view class="coupon-list">
                     <view
@@ -122,7 +122,7 @@
             <view class="points-section" v-if="isOfflinePending">
                 <view class="points-heading">
                     <text class="section-title">积分抵扣</text>
-                    <text class="points-balance">可用 {{ availablePoints }} 积分</text>
+                    <text class="points-balance">本单可用 {{ orderAvailablePoints }} 积分</text>
                 </view>
                 <view v-if="canUseOfflinePoints">
                     <view class="points-quick-use">
@@ -448,6 +448,13 @@ export default {
             return Math.max(0, Number(this.safeUserInfo.points) || 0);
         },
 
+        orderAvailablePoints() {
+            const goodsInfo = this.orderGoodsInfo || {};
+            const context = goodsInfo.context || goodsInfo;
+            const reservedPoints = context.points_reserved ? this.appliedPoints : 0;
+            return this.availablePoints + reservedPoints;
+        },
+
         pointsStep() {
             return this.pointsConfig.step;
         },
@@ -465,7 +472,7 @@ export default {
             if (!this.isOfflinePending) return 0;
             const amountBeforePoints = Math.max(0, Number(this.order.pay_amount || 0) + Number(this.orderPointsDeducted || 0));
             const byAmount = Math.floor(amountBeforePoints / this.pointsConfig.toFen);
-            const capped = Math.min(this.availablePoints, this.pointsConfig.max, byAmount);
+            const capped = Math.min(this.orderAvailablePoints, this.pointsConfig.max, byAmount);
             return Math.floor(capped / this.pointsConfig.step) * this.pointsConfig.step;
         },
 
@@ -488,8 +495,8 @@ export default {
         },
 
         pointsUnavailableText() {
-            if (this.availablePoints < this.pointsConfig.min) {
-                return '再攒 ' + (this.pointsConfig.min - this.availablePoints) + ' 积分即可抵扣';
+            if (this.orderAvailablePoints < this.pointsConfig.min) {
+                return '再攒 ' + (this.pointsConfig.min - this.orderAvailablePoints) + ' 积分即可抵扣';
             }
             const minAmount = (this.pointsConfig.min * this.pointsConfig.toFen / 100).toFixed(2);
             return '本单满 ¥' + minAmount + ' 可使用积分抵扣';
@@ -556,7 +563,7 @@ export default {
             this.normalizeOrderGoodsInfo(this.order);
             this.syncPointsInput();
             this.entry = (options && options.entry) || '1';
-            if (this.token && !this.userInfo) {
+            if (this.token && (this.isOfflinePending || !this.userInfo)) {
                 this.getUserInfo(true).then(() => {
                     this.$nextTick(() => this.syncPointsInput());
                 }).catch(function() {});
@@ -628,9 +635,16 @@ export default {
                     .filter(this.isCouponClaimable)
                     .map(this.normalizeClaimableCoupon);
                 // 如果订单已有券，选中它
-                const couponId = (this.order && this.order.goodsInfo && (this.order.goodsInfo._coupon_id || this.order.goodsInfo.coupon_id));
+                const goodsInfo = (this.order && this.order.goodsInfo) || {};
+                const relations = goodsInfo.relations || {};
+                const couponId = relations.coupon_id || goodsInfo._coupon_id || goodsInfo.coupon_id;
                 if (couponId) {
-                    this.selectedCoupon = this.myCoupons.find(c => c.object_id === couponId) || null;
+                    const normalizedCouponId = String(couponId);
+                    this.selectedCoupon = this.myCoupons.find(c => String(c.object_id) === normalizedCouponId) || {
+                        object_id: normalizedCouponId,
+                        name: '已锁定优惠券',
+                        reserved: true,
+                    };
                 } else {
                     this.selectedCoupon = null;
                 }
@@ -675,9 +689,13 @@ export default {
         },
 
         getSelectedCouponId() {
-            return this.selectedCoupon && this.selectedCoupon.object_id
-                ? String(this.selectedCoupon.object_id)
-                : null;
+            if (this.selectedCoupon && this.selectedCoupon.object_id) {
+                return String(this.selectedCoupon.object_id);
+            }
+            const goodsInfo = this.orderGoodsInfo || {};
+            const relations = goodsInfo.relations || {};
+            const couponId = relations.coupon_id || goodsInfo._coupon_id || goodsInfo.coupon_id;
+            return couponId ? String(couponId) : null;
         },
 
         trackPointsDeduction(event, source, points) {
@@ -762,6 +780,10 @@ export default {
                 const appliedCouponDiscount = Number(payload.coupon_discount || 0);
                 const appliedPoints = Number(payload.use_points || 0);
                 const appliedPointsDeducted = Number(payload.points_deducted || 0);
+                const pointsBalance = Number(payload.points_balance);
+                if (isFinite(pointsBalance)) {
+                    this.$store.commit('updateUserInfo', { points: pointsBalance });
+                }
                 const appliedCouponId = payload.coupon_id
                     ? String(payload.coupon_id)
                     : requestedCouponId;
