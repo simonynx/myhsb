@@ -95,12 +95,20 @@
 								<text class="detail-dot">•</text>
 								<text class="detail-text">有效期：<text class="highlight">{{ card.validityText }}</text></text>
 							</view>
+							<view class="detail-item" v-if="card.orderLimitText">
+								<text class="detail-dot">•</text>
+								<text class="detail-text">每单上限：<text class="highlight">{{ card.orderLimitText }}</text></text>
+							</view>
+							<view class="detail-item" v-if="card.purchaseRuleText">
+								<text class="detail-dot">•</text>
+								<text class="detail-text">购买资格：<text class="highlight">{{ card.purchaseRuleText }}</text></text>
+							</view>
 						</view>
 					</view>
 				</view>
 			</view>
 			<view class="selection-tip" v-if="!selectedCard">
-				<text>低门槛卡适合先试，确定常来后再选更大额度</text>
+				<text>新客卡负责第一次同行体验，常客卡负责后续持续省</text>
 			</view>
 		</view>
 
@@ -149,7 +157,7 @@
 				</view>
 				<text class="sum-extra" v-if="selectedCardView.unitPriceText">{{ selectedCardView.unitPriceText }}</text>
 			</view>
-			<view class="submit-btn" :class="buying ? 'disabled' : ''" @tap="doPurchase">
+			<view class="submit-btn" :class="purchaseDisabled ? 'disabled' : ''" @tap="doPurchase">
 				<text class="btn-text">{{ purchaseButtonText }}</text>
 			</view>
 		</view>
@@ -199,12 +207,16 @@ export default {
 			return this.buildCardView(this.selectedCard, this.cards);
 		},
 		sectionSummary() {
-			if (this.activeTargetType === 2) return '只抵包厢小时费，精选独立包厢可用';
-			return '同一订单可抵多张大厅票，朋友同行也能一起用';
+			if (this.activeTargetType === 2) return '只抵包厢小时费，每单最多抵4小时';
+			return '同行可共用，新客卡限购，常客卡持续省';
 		},
 		purchaseButtonText() {
 			if (this.buying) return '正在下单...';
+			if (this.selectedCard && !this.getCardCanPurchase(this.selectedCard)) return '新客卡每人限购1次';
 			return this.hasLogin ? '立即购买' : '登录后购买';
+		},
+		purchaseDisabled() {
+			return this.buying || !this.selectedCard || !this.getCardCanPurchase(this.selectedCard);
 		},
 		balanceText() {
 			var balance = this.userInfo && this.userInfo.account_balance;
@@ -251,12 +263,18 @@ export default {
 			AUTH.getSubscriptionCards(this.token).then(res => {
 				this.loading = false;
 				if (res._status === 0 && res.data) {
+					var previousSelectedId = this.selectedCardId;
 					this.cards = res.data;
+					this.selectedCardId = '';
+					this.selectedCard = null;
 					if (this.cards.length > 0) {
 						if (!this.activeTargetType) {
 							this.activeTargetType = this.preferredTargetType || this.getCardTargetType(this.cards[0]) || 0;
 						}
-						var initialCard = this.getInitialCard();
+						var previousCard = previousSelectedId
+							? this.cards.find(card => card.object_id === previousSelectedId && this.getCardCanPurchase(card))
+							: null;
+						var initialCard = previousCard || this.getInitialCard();
 						if (initialCard) this.selectCard(initialCard, true);
 					}
 					this.trackPageView();
@@ -294,6 +312,10 @@ export default {
 		},
 		selectCard(card, shouldTrack) {
 			if (!card) return;
+			if (!this.getCardCanPurchase(card)) {
+				uni.showToast({ title: '新客卡每人限购1次，请选择常客卡', icon: 'none' });
+				return;
+			}
 			this.selectedCardId = card.object_id;
 			this.selectedCard = this.cards.find(item => item.object_id === card.object_id) || card;
 			if (this.currentBalanceFen >= card.price) {
@@ -326,7 +348,10 @@ export default {
 			return SUBSCRIPTION.getCardTargetType(card);
 		},
 		isMonthlyCard(card) {
-			return card && this.getCardTargetType(card) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 16;
+			return card && this.getCardTargetType(card) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 8;
+		},
+		getCardCanPurchase(card) {
+			return !card || card.can_purchase !== false;
 		},
 		getCardBadge(card) {
 			if (!card) return '卡包';
@@ -345,27 +370,25 @@ export default {
 			var targetType = this.getCardTargetType(card);
 			var totalLimit = Number(card.total_limit);
 			if (targetType === 1) {
-				if (totalLimit === 3) return '轻量入门';
+				if (totalLimit === 3) return '每人限购1次';
+				if (totalLimit === 8) return '双人月享';
 				if (totalLimit === 10) return '常客推荐';
-				if (totalLimit >= 16) return '多人更省';
 			}
 			if (targetType === 2) {
-				var roomCards = (cards || []).filter(item => this.getCardTargetType(item) === 2);
-				var minLimit = roomCards.reduce((min, item) => Math.min(min, Number(item.total_limit) || 9999), 9999);
-				if (totalLimit === minLimit) return '低门槛体验';
+				if (totalLimit === 10) return '常客入门';
 				if (totalLimit === 20) return '固定小队推荐';
 			}
 			return '';
 		},
 		getInitialCard() {
 			var preferredCardId = this.preferredCardId;
-			var found = preferredCardId ? this.cards.find(c => c.object_id === preferredCardId) : null;
+			var found = preferredCardId ? this.cards.find(c => c.object_id === preferredCardId && this.getCardCanPurchase(c)) : null;
 			if (found) return found;
 
-			var candidates = this.cards;
+			var candidates = this.cards.filter(c => this.getCardCanPurchase(c));
 			var targetType = this.activeTargetType || this.preferredTargetType;
 			if (targetType) {
-				var typedCards = this.cards.filter(c => this.getCardTargetType(c) === targetType);
+				var typedCards = candidates.filter(c => this.getCardTargetType(c) === targetType);
 				if (typedCards.length > 0) candidates = typedCards;
 			}
 
@@ -406,14 +429,26 @@ export default {
 			var targetType = this.getCardTargetType(card);
 			var totalLimit = Number(card && card.total_limit) || 0;
 			if (targetType === 2) {
-				if (totalLimit <= 4) return '先小额体验，确认常来再升级';
-				if (totalLimit <= 10) return '常约独立包厢，单次房费更低';
+				if (totalLimit <= 10) return '至少覆盖3次常规组局，先锁定下次见面';
 				if (totalLimit <= 20) return '固定小队多次组局更合适';
 				return '适合社群活动和长期固定组局';
 			}
-			if (totalLimit <= 3) return '3人同行也能在一单内抵完';
-			if (totalLimit <= 10) return '一张卡可在同一订单抵多张门票';
+			if (totalLimit <= 3) return '首次3人同行可一单抵完，之后升级常客卡';
+			if (totalLimit <= 8) return '双人每周来一次，30天刚好用完';
+			if (totalLimit <= 10) return '每单最多抵3人，保留后续到店额度';
 			return '高频到店或固定小队，单次最省';
+		},
+		getOrderLimitText(card) {
+			var rule = SUBSCRIPTION.getPrimaryUsageRule(card);
+			var maxPerOrder = Number(rule && rule.max_per_order) || 0;
+			if (maxPerOrder <= 0) return '';
+			if (this.getCardTargetType(card) === 2) return '最多抵' + maxPerOrder + '小时包厢费';
+			return '最多抵' + maxPerOrder + '张大厅票';
+		},
+		getPurchaseRuleText(card) {
+			var limit = Number(card && card.purchase_limit_per_user) || 0;
+			if (limit <= 0) return '';
+			return this.getCardCanPurchase(card) ? '新客专享，每人限购' + limit + '次' : '已购买过，不能重复购买';
 		},
 		getRoomScopeText(card) {
 			if (this.getCardTargetType(card) !== 2) return '';
@@ -429,10 +464,11 @@ export default {
 			var targetType = this.getCardTargetType(card);
 			var visualClass = targetType === 2 ? 'room' : (this.isMonthlyCard(card) ? 'monthly' : 'times');
 			var unit = this.getCardUnit(card);
+			var canPurchase = this.getCardCanPurchase(card);
 			return Object.assign({}, card, {
-				itemClass: 'card-item' + (this.selectedCardId === card.object_id ? ' active' : ''),
+				itemClass: 'card-item' + (this.selectedCardId === card.object_id ? ' active' : '') + (canPurchase ? '' : ' unavailable'),
 				tagClass: 'card-tag ' + visualClass,
-				badgeText: this.getCardBadge(card),
+				badgeText: canPurchase ? this.getCardBadge(card) : '已购过',
 				recommendLabel: this.getRecommendationLabel(card, cards),
 				priceText: this.formatPrice(card.price, 0),
 				priceFullText: this.formatPrice(card.price, 2),
@@ -443,6 +479,8 @@ export default {
 				limitText: (Number(card.total_limit) || 0) + unit,
 				usageText: this.getCardUsageText(card),
 				roomScopeText: this.getRoomScopeText(card),
+				orderLimitText: this.getOrderLimitText(card),
+				purchaseRuleText: this.getPurchaseRuleText(card),
 				analyticsKey: this.getCardAnalyticsKey(card),
 				validityText: (Number(card.validity_days) || 0) + '天，自购买日起算'
 			});
@@ -463,6 +501,10 @@ export default {
 				uni.showToast({ title: '请先选择要购买的卡包', icon: 'none' });
 				return;
 			}
+			if (!this.getCardCanPurchase(this.selectedCard)) {
+				uni.showToast({ title: '新客卡每人限购1次，请选择常客卡', icon: 'none' });
+				return;
+			}
 			this.trackSubscriptionEvent('subscription_buy_click', {
 				card_id: this.selectedCard.object_id,
 				card_price: Number(this.selectedCard.price) || 0,
@@ -480,6 +522,7 @@ export default {
 							this.loginAndRegister().then(() => {
 								this.trackSubscriptionEvent('subscription_login_success', { card_id: this.selectedCardId });
 								this.getUserInfo(true).catch(function() {});
+								this.fetchCards();
 								uni.showToast({ title: '登录成功，请确认购买', icon: 'none' });
 							}).catch(() => {
 								this.trackSubscriptionEvent('subscription_login_fail', { card_id: this.selectedCardId });
@@ -818,6 +861,10 @@ page {
 		border-color: #FF8C42;
 		background: #FFFBF7;
 		box-shadow: 0 4rpx 20rpx rgba(255,140,66,0.12);
+	}
+	&.unavailable {
+		opacity: 0.62;
+		background: #F3F1EE;
 	}
 }
 .card-tag {

@@ -120,6 +120,7 @@ function isCouponAvailable(coupon, baseAmountFen) {
   if (!coupon) return false;
   if (coupon.status !== 'unused') return false;
   if (coupon.is_valid === false) return false;
+  if (toFen(baseAmountFen) <= 0) return false;
   if (toFen(coupon.min_consume) > 0 && toFen(baseAmountFen) < toFen(coupon.min_consume)) {
     return false;
   }
@@ -130,6 +131,7 @@ function getCouponDisableReason(coupon, baseAmountFen) {
   if (!coupon) return '不可用';
   if (coupon.status === 'used') return '已使用';
   if (coupon.status === 'expired' || coupon.is_valid === false) return '已过期';
+  if (toFen(baseAmountFen) <= 0) return '已由卡包抵扣，无需用券';
   if (toFen(coupon.min_consume) > 0 && toFen(baseAmountFen) < toFen(coupon.min_consume)) {
     return '需满' + formatYuan(coupon.min_consume) + '元';
   }

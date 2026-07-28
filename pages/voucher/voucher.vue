@@ -203,8 +203,8 @@
 			</view>
 
 			<view class="subscription-list" v-if="displaySubscriptionCards.length > 0">
-				<view 
-					class="sub-card-item" 
+				<view
+					:class="card.itemClass"
 					v-for="card in displaySubscriptionCards"
 					:key="card.object_id"
 					@tap="buyCard(card)"
@@ -230,6 +230,8 @@
 							<text class="info-line">· 可抵扣: {{ card.usageText }}</text>
 							<text class="info-line" v-if="card.roomScopeText">· 适用空间: {{ card.roomScopeText }}</text>
 							<text class="info-line">· 有效期: {{ card.validity_days }}天</text>
+							<text class="info-line" v-if="card.orderLimitText">· 每单上限: {{ card.orderLimitText }}</text>
+							<text class="info-line" v-if="card.purchaseRuleText">· 购买资格: {{ card.purchaseRuleText }}</text>
 						</view>
 						<view class="sub-card-footer">
 							<view class="sub-card-price">
@@ -237,7 +239,7 @@
 								<text class="price">{{ card.priceText }}</text>
 								<text class="orig" v-if="card.originalPriceText">¥{{ card.originalPriceText }}</text>
 							</view>
-							<view class="buy-btn">立即购卡</view>
+							<view class="buy-btn">{{ card.buyText }}</view>
 						</view>
 					</view>
 				</view>
@@ -481,11 +483,11 @@ export default {
 			return tabs.filter(tab => this.subscriptionCards.some(card => this.getSubscriptionTargetType(card) === tab.value));
 		},
 		subscriptionValueTitle() {
-			return this.subscriptionTargetType === 2 ? '包厢卡只卖真实省下的钱' : '大厅卡可以和朋友一起用';
+			return this.subscriptionTargetType === 2 ? '一次买卡，锁定下一场组局' : '新客同行有专享，常客共享更长久';
 		},
 		subscriptionValueText() {
-			if (this.subscriptionTargetType === 2) return '仅抵包厢小时费，适用空间会逐一标明；低价卡座不混在原价里计算优惠。';
-			return '同一订单可抵多张大厅票，3人同行也能一次使用3次额度。';
+			if (this.subscriptionTargetType === 2) return '仅抵精选包厢小时费，每单最多抵4小时，剩余额度留给下一次见面。';
+			return '新客3次卡可供3人同行但每人限购1次；常客卡继续支持朋友共享。';
 		},
 		displaySubscriptionCards() {
 			const cards = this.subscriptionTargetType
@@ -645,6 +647,18 @@ export default {
 				item_key: card.analyticsKey,
 				target_type: this.getSubscriptionTargetType(card)
 			}, this.token).catch(function() {});
+			if (card.can_purchase === false) {
+				uni.showModal({
+					title: '新客卡已使用',
+					content: '该卡每人限购1次，常客卡仍可与朋友共享使用。',
+					showCancel: false,
+					confirmText: '看常客卡',
+					success: () => {
+						uni.navigateTo({ url: '/pages/user/subscription/buy?source=voucher_mall&target_type=1' });
+					}
+				});
+				return;
+			}
 			uni.navigateTo({ url: '/pages/user/subscription/buy?source=voucher_mall&card_id=' + card.object_id });
 		},
 		switchSubscriptionTarget(targetType) {
@@ -673,7 +687,7 @@ export default {
 			return SUBSCRIPTION.getCardTargetType(card);
 		},
 		isMonthlySubscription(card) {
-			return card && this.getSubscriptionTargetType(card) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 16;
+			return card && this.getSubscriptionTargetType(card) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 8;
 		},
 		getSubscriptionVisualClass(card) {
 			if (this.getSubscriptionTargetType(card) === 2) return 'room';
@@ -696,14 +710,12 @@ export default {
 			const targetType = this.getSubscriptionTargetType(card);
 			const totalLimit = Number(card.total_limit);
 			if (targetType === 1) {
-				if (totalLimit === 3) return '轻量入门';
+				if (totalLimit === 3) return '每人限购1次';
+				if (totalLimit === 8) return '双人月享';
 				if (totalLimit === 10) return '常客推荐';
-				if (totalLimit >= 16) return '多人更省';
 			}
 			if (targetType === 2) {
-				const roomCards = (cards || []).filter(item => this.getSubscriptionTargetType(item) === 2);
-				const minLimit = roomCards.reduce((min, item) => Math.min(min, Number(item.total_limit) || 9999), 9999);
-				if (totalLimit === minLimit) return '低门槛体验';
+				if (totalLimit === 10) return '常客入门';
 				if (totalLimit === 20) return '固定小队推荐';
 			}
 			return '';
@@ -731,14 +743,26 @@ export default {
 			const targetType = this.getSubscriptionTargetType(card);
 			const totalLimit = Number(card && card.total_limit) || 0;
 			if (targetType === 2) {
-				if (totalLimit <= 4) return '先小额体验，确认常来再升级';
-				if (totalLimit <= 10) return '常约独立包厢，单次房费更低';
+				if (totalLimit <= 10) return '至少覆盖3次常规组局，先锁定下次见面';
 				if (totalLimit <= 20) return '固定小队多次组局更合适';
 				return '适合社群活动和长期固定组局';
 			}
-			if (totalLimit <= 3) return '3人同行也能在一单内抵完';
-			if (totalLimit <= 10) return '一张卡可在同一订单抵多张门票';
+			if (totalLimit <= 3) return '首次3人同行可一单抵完，之后升级常客卡';
+			if (totalLimit <= 8) return '双人每周来一次，30天刚好用完';
+			if (totalLimit <= 10) return '每单最多抵3人，保留后续到店额度';
 			return '高频到店或固定小队，单次最省';
+		},
+		getSubscriptionOrderLimitText(card) {
+			const rule = SUBSCRIPTION.getPrimaryUsageRule(card);
+			const maxPerOrder = Number(rule && rule.max_per_order) || 0;
+			if (maxPerOrder <= 0) return '';
+			if (this.getSubscriptionTargetType(card) === 2) return '最多抵' + maxPerOrder + '小时';
+			return '最多抵' + maxPerOrder + '张票';
+		},
+		getSubscriptionPurchaseRuleText(card) {
+			const limit = Number(card && card.purchase_limit_per_user) || 0;
+			if (limit <= 0) return '';
+			return card.can_purchase === false ? '已购买过' : '每人限购' + limit + '次';
 		},
 		getSubscriptionRoomScopeText(card) {
 			if (this.getSubscriptionTargetType(card) !== 2) return '';
@@ -755,7 +779,9 @@ export default {
 			return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
 		},
 		buildSubscriptionCardView(card, cards) {
+			const canPurchase = card.can_purchase !== false;
 			return Object.assign({}, card, {
+				itemClass: 'sub-card-item' + (canPurchase ? '' : ' unavailable'),
 				subscriptionVisualClass: this.getSubscriptionVisualClass(card),
 				badgeText: this.getSubscriptionBadge(card),
 				unitText: this.getSubscriptionUnit(card),
@@ -765,6 +791,9 @@ export default {
 				saveText: this.getSubscriptionSaveText(card),
 				usageText: this.getSubscriptionUsageText(card),
 				roomScopeText: this.getSubscriptionRoomScopeText(card),
+				orderLimitText: this.getSubscriptionOrderLimitText(card),
+				purchaseRuleText: this.getSubscriptionPurchaseRuleText(card),
+				buyText: canPurchase ? '立即购卡' : '已购过',
 				analyticsKey: this.getSubscriptionAnalyticsKey(card),
 				priceText: this.formatSubscriptionPrice(card.price),
 				originalPriceText: Number(card.original_price) > Number(card.price) ? this.formatSubscriptionPrice(card.original_price) : ''
@@ -1753,6 +1782,11 @@ page, .page {
 	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.08), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
 	border: 2rpx solid rgba(160, 120, 80, 0.12);
 	position: relative;
+
+	&.unavailable {
+		opacity: 0.64;
+		background: #F3F1EE;
+	}
 	
 	.sub-card-left {
 		width: 180rpx;

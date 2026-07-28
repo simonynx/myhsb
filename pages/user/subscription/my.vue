@@ -171,7 +171,7 @@ export default {
 			uni.navigateTo({ url: '/pages/user/subscription/buy?source=my_cards' });
 		},
 		isMonthlyCard(template) {
-			return template && SUBSCRIPTION.getCardTargetType(template) === 1 && Number(template.validity_days) <= 31 && Number(template.total_limit) >= 16;
+			return template && SUBSCRIPTION.getCardTargetType(template) === 1 && Number(template.validity_days) <= 31 && Number(template.total_limit) >= 8;
 		},
 		getCardBadge(template) {
 			if (!template) return '卡包';
