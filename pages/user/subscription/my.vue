@@ -76,6 +76,14 @@
 							<text class="expire-time warning" v-if="sub.expire_warning">{{ sub.expire_warning }}</text>
 						</view>
 					</view>
+
+					<view class="card-rules" v-if="sub.ruleLines.length > 0">
+						<text class="rules-title">使用规则</text>
+						<view class="rule-line" v-for="rule in sub.ruleLines" :key="rule.key">
+							<text class="rule-dot">•</text>
+							<text class="rule-text">{{ rule.text }}</text>
+						</view>
+					</view>
 				</view>
 			</view>
 		</scroll-view>
@@ -138,6 +146,7 @@ export default {
 							badgeText: this.getCardBadge(sub.card_template),
 							unitText: this.getCardUnit(sub.card_template),
 							usageText: this.getCardUsageText(sub.card_template),
+							ruleLines: this.getCardRuleLines(sub.card_template),
 							statusText: this.getStatusText(sub),
 							cardClass: 'card-item ' + this.getCardClass(sub) + ' ' + this.getBgClass(sub)
 						});
@@ -184,6 +193,58 @@ export default {
 		getCardUsageText(template) {
 			if (!template) return '';
 			return SUBSCRIPTION.getCardUsageText(template);
+		},
+		getUsageRuleText(rule) {
+			if (!rule) return '';
+			const maxPerOrder = Number(rule.max_per_order) || 0;
+			if (rule.slot === SUBSCRIPTION.SLOT_TICKET) {
+				return maxPerOrder > 0
+					? '大厅购票：每单最多抵' + maxPerOrder + '张，超出部分正常结算'
+					: '大厅购票：按本单人数和卡内剩余额度抵扣';
+			}
+			if (rule.slot === SUBSCRIPTION.SLOT_SELF_ENTRY_FEE) {
+				return maxPerOrder > 0
+					? '包厢预约：每单最多抵' + maxPerOrder + '位持卡人入场费'
+					: '包厢预约：按同行人数和卡内剩余额度抵入场费';
+			}
+			if (rule.slot === SUBSCRIPTION.SLOT_ROOM_HOURS) {
+				return maxPerOrder > 0
+					? '包厢预约：每单最多抵' + maxPerOrder + '小时包厢费'
+					: '包厢预约：按预约时长和卡内剩余额度抵扣';
+			}
+			return '';
+		},
+		getCardRuleLines(template) {
+			if (!template) return [];
+			const texts = [];
+			const slots = [
+				SUBSCRIPTION.SLOT_TICKET,
+				SUBSCRIPTION.SLOT_SELF_ENTRY_FEE,
+				SUBSCRIPTION.SLOT_ROOM_HOURS
+			];
+			slots.forEach(slot => {
+				const text = this.getUsageRuleText(SUBSCRIPTION.getUsageRule(template, slot));
+				if (text) texts.push(text);
+			});
+
+			if (SUBSCRIPTION.getCardTargetType(template) === 2) {
+				texts.push('仅抵包厢小时费，不含本人及同行入场费');
+			}
+
+			const purchaseLimit = Number(template.purchase_limit_per_user) || 0;
+			if (purchaseLimit > 0) {
+				texts.push('每个账号限购' + purchaseLimit + '次，已购卡权益不受影响');
+			}
+
+			texts.push(template.stackable === false
+				? '同一订单不可与其他卡包同时使用'
+				: '可与其他适用卡包在同一订单使用');
+			texts.push('卡包抵扣后，剩余金额可继续使用会员折扣、适用优惠券和积分');
+
+			return texts.map((text, index) => ({
+				key: 'rule_' + index,
+				text: text
+			}));
 		},
 		calcUsedPercent(sub) {
 			const total = Number(sub.card_template.total_limit) || 0;
@@ -504,6 +565,38 @@ page {
 			color: #FFE7A3;
 			font-weight: bold;
 		}
+	}
+}
+
+.card-rules {
+	margin-top: 18rpx;
+	padding-top: 18rpx;
+	border-top: 1rpx solid rgba(255, 255, 255, 0.15);
+	.rules-title {
+		display: block;
+		margin-bottom: 10rpx;
+		font-size: 22rpx;
+		font-weight: bold;
+		color: #FFF;
+	}
+	.rule-line {
+		display: flex;
+		align-items: flex-start;
+		margin-top: 6rpx;
+	}
+	.rule-dot {
+		width: 20rpx;
+		flex-shrink: 0;
+		font-size: 20rpx;
+		line-height: 1.55;
+		color: rgba(255, 255, 255, 0.7);
+	}
+	.rule-text {
+		min-width: 0;
+		flex: 1;
+		font-size: 21rpx;
+		line-height: 1.55;
+		color: rgba(255, 255, 255, 0.88);
 	}
 }
 
