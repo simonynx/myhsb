@@ -94,6 +94,14 @@
       <text class="perler-material">材料范围：{{ perlerMaterialSpec }}</text>
     </view>
 
+    <view class="upgrade-guide" v-if="ticketMode === 'perler_day'">
+      <view class="upgrade-guide-copy">
+        <text class="upgrade-guide-title">已有今天的入场权益？</text>
+        <text class="upgrade-guide-desc">系统会按小程序订单或店员确认的外部团单，显示对应升级方式和价格。</text>
+      </view>
+      <view class="upgrade-guide-btn" @click="goPerlerUpgradeCenter">查看升级资格</view>
+    </view>
+
     <!-- 费用明细 -->
     <view class="price-section">
       <view class="section-title">费用明细</view>
@@ -103,12 +111,17 @@
           <text class="row-value">¥{{ basePrice }}</text>
         </view>
 
-        <view class="price-row fixed-price-row" v-if="isPerlerMode">
-          <text class="row-label"><text class="tag tag-active">固定价</text> 不与会员折扣、卡包、优惠券或积分叠加</text>
-          <text class="fixed-price-note">权益更清楚</text>
+        <view class="price-row fixed-price-row" v-if="isUpgradeMode">
+          <text class="row-label"><text class="tag tag-active">增购价</text> {{ (perlerUpgradePriceFen / 100).toFixed(0) }}元已扣除原有入场权益，不再叠加会员、优惠券或积分</text>
+          <text class="fixed-price-note">当天专享</text>
         </view>
 
-        <block v-if="!isPerlerMode">
+        <view class="price-row benefit-policy-row" v-if="ticketMode === 'perler_day'">
+          <text class="row-label"><text class="tag tag-active">优惠</text> 会员折扣、优惠券和积分均可使用</text>
+          <text class="benefit-policy-note">卡包仅抵大厅票</text>
+        </view>
+
+        <block v-if="supportsStandardBenefits">
         <!-- 会员折扣 -->
         <view class="price-row discount-row" v-if="memberDiscountAmount > 0">
           <text class="row-label">
@@ -119,7 +132,7 @@
         </view>
 
         <!-- 次卡/月卡折抵 -->
-        <view class="price-row coupon-row" @click="openSubscriptionPicker">
+        <view class="price-row coupon-row" v-if="supportsSubscription" @click="openSubscriptionPicker">
           <text class="row-label">
             <text class="tag" :class="selectedSubscription ? 'tag-active' : 'tag-gray'">卡包</text>
             <block v-if="selectedSubscription">{{ selectedSubscription.card_template.name }}</block>
@@ -133,7 +146,7 @@
             </text>
           </view>
         </view>
-        <view class="subscription-breakdown" v-if="selectedSubscription">
+        <view class="subscription-breakdown" v-if="supportsSubscription && selectedSubscription">
           <view class="subscription-breakdown-copy">
             <text class="subscription-breakdown-title">{{ subscriptionUsageText }}</text>
             <text class="subscription-breakdown-note">{{ subscriptionLimitText }}</text>
@@ -470,6 +483,14 @@ export default {
       return this.ticketMode === 'perler_upgrade';
     },
 
+    supportsStandardBenefits() {
+      return !this.isUpgradeMode;
+    },
+
+    supportsSubscription() {
+      return this.ticketMode === 'hall';
+    },
+
     ticketPriceFen() {
       if (this.ticketMode === 'perler_day') return this.perlerDayPriceFen;
       if (this.ticketMode === 'perler_upgrade') return this.perlerUpgradePriceFen;
@@ -488,7 +509,7 @@ export default {
 
     ticketBadge() {
       if (this.isUpgradeMode) return '到店专享';
-      if (this.isPerlerMode) return '固定体验价';
+      if (this.isPerlerMode) return '优惠可用';
       return this.memberLevelName;
     },
 
@@ -532,7 +553,7 @@ export default {
     },
 
     userDiscount() {
-      if (this.isPerlerMode) return 100;
+      if (this.isUpgradeMode) return 100;
       return (this.userInfo && this.userInfo.discount) || 100;
     },
 
@@ -652,7 +673,7 @@ export default {
       return Math.floor(raw / step) * step;
     },
     canUsePoints() {
-      if (this.isPerlerMode) return false;
+      if (this.isUpgradeMode) return false;
       return this.safeUserInfo.points >= this.pointsMinUse
         && this.maxUsablePoints >= this.pointsMinUse
         && this.afterMemberPriceFen > 0;
@@ -693,12 +714,12 @@ export default {
     },
 
     availableCoupons() {
-      if (this.isPerlerMode) return [];
+      if (this.isUpgradeMode) return [];
       return COUPON.getAvailableCoupons(this.myCoupons, this.afterMemberPriceFen);
     },
 
     unavailableCoupons() {
-      if (this.isPerlerMode) return [];
+      if (this.isUpgradeMode) return [];
       return COUPON.getUnavailableCoupons(this.myCoupons, this.afterMemberPriceFen);
     },
 
@@ -780,17 +801,15 @@ export default {
         showCancel: false,
         success: () => {
           this.loginAndRegister().then(() => {
-            this.loadMyCoupons();
-            this.loadMySubscriptions();
+            if (this.supportsStandardBenefits) this.loadMyCoupons();
+            if (this.supportsSubscription) this.loadMySubscriptions();
           });
         }
       });
       return;
     }
-    if (!this.isPerlerMode) {
-      this.loadMyCoupons();
-      this.loadMySubscriptions();
-    }
+    if (this.supportsStandardBenefits) this.loadMyCoupons();
+    if (this.supportsSubscription) this.loadMySubscriptions();
   },
 
   onUnload() {
@@ -810,10 +829,8 @@ export default {
       this.selectedSubscription = null;
       this.usePoints = false;
       this.pointsToUse = 0;
-      if (mode === 'hall') {
-        this.loadMyCoupons();
-        this.loadMySubscriptions();
-      }
+      this.loadMyCoupons();
+      if (mode === 'hall') this.loadMySubscriptions();
     },
 
     async loadMyCoupons() {
@@ -881,6 +898,10 @@ export default {
         ticket_count: this.ticketCount
       }, this.token).catch(function() {});
       uni.switchTab({ url: '/pages/group/group' });
+    },
+
+    goPerlerUpgradeCenter() {
+      uni.navigateTo({ url: '/pages/ticket/upgrade' });
     },
 
     prepareGiftTicket() {
@@ -1004,8 +1025,8 @@ export default {
         }});
         return;
       }
-      if (!this.isPerlerMode) this.syncPointUsage();
-      if (!this.isPerlerMode && !this.syncCouponSelection()) {
+      if (this.supportsStandardBenefits) this.syncPointUsage();
+      if (this.supportsStandardBenefits && !this.syncCouponSelection()) {
         uni.showToast({ title: '已移除不可用优惠券，请确认金额', icon: 'none' });
         return;
       }
@@ -1020,10 +1041,10 @@ export default {
           ticket_variant: this.ticketMode,
           source_order_number: this.isUpgradeMode ? this.sourceOrderNumber : '',
           contact_name: (this.safeUserInfo.nickname || this.safeUserInfo.username || ''),
-          coupon_id: !this.isPerlerMode && this.selectedCoupon ? this.selectedCoupon.object_id : null,
-          use_points: !this.isPerlerMode && this.usePoints ? this.pointsToUse : 0,
+          coupon_id: this.supportsStandardBenefits && this.selectedCoupon ? this.selectedCoupon.object_id : null,
+          use_points: this.supportsStandardBenefits && this.usePoints ? this.pointsToUse : 0,
           expected_amount: this.finalPriceFen,
-          user_subscription_id: !this.isPerlerMode && this.selectedSubscription ? this.selectedSubscription.object_id : null,
+          user_subscription_id: this.supportsSubscription && this.selectedSubscription ? this.selectedSubscription.object_id : null,
         };
 
         const res = await AUTH.checkout(this.token, param);
@@ -1265,6 +1286,39 @@ page {
   font-size: 23rpx;
   color: #6F7E79;
   line-height: 1.55;
+}
+
+.upgrade-guide {
+  margin: 0 24rpx 20rpx;
+  padding: 24rpx 26rpx;
+  background: #FFF8EF;
+  border-left: 6rpx solid #FF9B59;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+.upgrade-guide-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+.upgrade-guide-title { font-size: 27rpx; color: $dark; font-weight: bold; }
+.upgrade-guide-desc { font-size: 22rpx; color: #72665D; line-height: 1.55; }
+.upgrade-guide-btn {
+  width: 174rpx;
+  height: 62rpx;
+  line-height: 62rpx;
+  text-align: center;
+  flex-shrink: 0;
+  border-radius: 8rpx;
+  background: #FF8C42;
+  color: #FFF;
+  font-size: 22rpx;
+  font-weight: bold;
 }
 
 // 社交提示
@@ -1554,6 +1608,12 @@ page {
   padding: 18rpx 0 !important;
   .row-label { flex: 1; padding-right: 18rpx; line-height: 1.5; }
   .fixed-price-note { flex-shrink: 0; font-size: 22rpx; color: #21867A; }
+}
+.benefit-policy-row {
+  align-items: flex-start !important;
+  padding: 18rpx 0 !important;
+  .row-label { flex: 1; padding-right: 18rpx; line-height: 1.5; }
+  .benefit-policy-note { flex-shrink: 0; font-size: 22rpx; color: #888; }
 }
 
 // 使用须知

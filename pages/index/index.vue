@@ -49,7 +49,7 @@
 					</view>
 					<view class="notice-line" v-if="perlerEnabled">
 						<text class="notice-dot">🧩</text>
-						<text class="notice-copy">拼豆一日票{{ perlerDayPriceText }}，含大厅入场和1份标准材料；当天已入场或已预约可按{{ perlerUpgradePriceText }}补差升级。</text>
+						<text class="notice-copy">拼豆一日票{{ perlerDayPriceText }}，会员、优惠券和积分均可用，含大厅入场和1份标准材料；当天已入场或已预约可按{{ perlerUpgradePriceText }}补差升级。</text>
 					</view>
 					<view class="notice-line">
 						<text class="notice-dot">↩️</text>
@@ -197,6 +197,17 @@
 				<view class="scene-hero-price">
 					<text class="scene-price">{{ primaryScenePackage.price }}</text>
 					<text class="scene-action">{{ primaryScenePackage.actionText }}</text>
+				</view>
+			</view>
+			<view class="perler-upgrade-entry" v-if="perlerEnabled" @tap="openPerlerUpgradeEntry">
+				<text class="perler-upgrade-icon">🧩</text>
+				<view class="perler-upgrade-copy">
+					<text class="perler-upgrade-title">已有大厅、预约或团购入场权益？</text>
+					<text class="perler-upgrade-desc">统一查询今天可用的升级方式，到店临时想玩也能办理</text>
+				</view>
+				<view class="perler-upgrade-action">
+					<text>查看升级</text>
+					<text class="perler-upgrade-arrow">›</text>
 				</view>
 			</view>
 			<view class="scene-grid">
@@ -609,7 +620,7 @@
 
 
 				entertainmentItems: [
-					{ key: 'perler', emoji: '🧩', name: '拼豆创作', desc: '不限制作时间，成品可带走', tag: '固定体验价', cardStyle: 'border-top-color: #78C8B8;', tagStyle: 'background: #E1F5F0; color: #21867A;' },
+					{ key: 'perler', emoji: '🧩', name: '拼豆创作', desc: '不限制作时间，成品可带走', tag: '会员券积分可用', cardStyle: 'border-top-color: #78C8B8;', tagStyle: 'background: #E1F5F0; color: #21867A;' },
 					{ emoji: '🎮', name: '主机游戏', desc: 'Switch / PS / 双人闯关', tag: '包间另计', cardStyle: 'border-top-color: #A8C8EC;', tagStyle: 'background: #E3F0FC; color: #4A90D9;' },
 					{ emoji: '🎲', name: '桌游天地', desc: '2-8人聚会，轻松开局', tag: '大厅免费', cardStyle: 'border-top-color: #F0B8B8;', tagStyle: 'background: #FCE8E8; color: #D86060;' },
 					{ emoji: '📚', name: '漫画小说', desc: '一个人来也能安静待很久', tag: '大厅免费', cardStyle: 'border-top-color: #E8D4A0;', tagStyle: 'background: #FFF5D6; color: #B89630;' },
@@ -769,6 +780,14 @@
 					source: 'home_scene'
 				}, this.token).catch(function() {});
 				uni.navigateTo({ url: '/pages/ticket/buy?mode=perler_day' });
+			},
+			openPerlerUpgradeEntry() {
+				AUTH.trackEvent({
+					event: 'perler_upgrade_entry_click',
+					page_path: 'pages/index/index',
+					source: 'home_scene'
+				}, this.token).catch(function() {});
+				uni.navigateTo({ url: '/pages/ticket/upgrade' });
 			},
 			goToSubscriptionMall() {
 				AUTH.trackEvent({
@@ -1624,6 +1643,61 @@ page { background: #FFF8F0; }
 	background: #FF8C42;
 	padding: 7rpx 14rpx;
 	border-radius: 20rpx;
+}
+.perler-upgrade-entry {
+	margin-top: 16rpx;
+	padding: 20rpx;
+	background: #F1F9F7;
+	border: 1rpx solid #CDE8E1;
+	border-left: 6rpx solid #2A9D8F;
+	border-radius: 12rpx;
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+}
+.perler-upgrade-icon {
+	width: 58rpx;
+	height: 58rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #FFF;
+	border-radius: 8rpx;
+	font-size: 32rpx;
+	flex-shrink: 0;
+}
+.perler-upgrade-copy {
+	flex: 1;
+	min-width: 0;
+}
+.perler-upgrade-title {
+	display: block;
+	font-size: 25rpx;
+	font-weight: bold;
+	color: #365C54;
+	line-height: 1.35;
+}
+.perler-upgrade-desc {
+	display: block;
+	margin-top: 5rpx;
+	font-size: 20rpx;
+	color: #668078;
+	line-height: 1.45;
+}
+.perler-upgrade-action {
+	width: 110rpx;
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	font-size: 21rpx;
+	font-weight: bold;
+	color: #21867A;
+}
+.perler-upgrade-arrow {
+	margin-left: 5rpx;
+	font-size: 34rpx;
+	line-height: 1;
 }
 
 /* ===== 社交空间入口 ===== */

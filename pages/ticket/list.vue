@@ -300,7 +300,9 @@ export default {
             let expireDate = formatDate(expireAt);
             const ticketVariant = item.ticket_variant || 'hall';
             const ticketName = item.ticket_name || (ticketVariant === 'hall' ? '大厅入场券' : '拼豆体验票');
-            const isPerler = ticketVariant === 'perler_day' || ticketVariant === 'perler_upgrade';
+            const isPerler = ticketVariant === 'perler_day'
+              || ticketVariant === 'perler_upgrade'
+              || ticketVariant === 'perler_channel_upgrade';
             let canUpgrade = false;
             if (ticketVariant === 'hall' && verifiedAt) {
               const verifiedDate = new Date((verifiedAt < 1e12 ? verifiedAt * 1000 : verifiedAt));
@@ -356,7 +358,6 @@ export default {
     },
 
     goPerlerUpgrade(item) {
-      const count = Math.max(1, Math.min(10, Number(item.ticket_count) || 1));
       const source = encodeURIComponent(item.order_number || '');
       AUTH.trackEvent({
         event: 'perler_upgrade_entry_click',
@@ -364,7 +365,7 @@ export default {
         source: 'verified_ticket',
         source_order_number: item.order_number
       }, this.token).catch(function() {});
-      uni.navigateTo({ url: '/pages/ticket/buy?mode=perler_upgrade&source_order=' + source + '&max_count=' + count });
+      uni.navigateTo({ url: '/pages/ticket/upgrade?source_order=' + source });
     },
 
     goToGroupSquare() {

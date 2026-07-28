@@ -219,6 +219,14 @@
 			}
 		},
 		{
+			"path": "pages/ticket/upgrade",
+			"style": {
+				"navigationBarTitleText": "拼豆升级",
+				"navigationBarBackgroundColor": "#2A9D8F",
+				"navigationBarTextStyle": "white"
+			}
+		},
+		{
 			"path": "pages/ticket/list",
 			"style": {
 				"navigationBarTitleText": "我的门票",

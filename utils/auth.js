@@ -456,6 +456,18 @@ function getTicketOrders(token) {
   return request('/orders/ticket_orders/', 'GET', null, token);
 }
 
+function getPerlerUpgradeOptions(token, channelToken) {
+  var url = '/orders/perler_upgrade_options/';
+  if (channelToken) url += '?channel_token=' + encodeURIComponent(channelToken);
+  return request(url, 'GET', null, token);
+}
+
+function claimPerlerChannelUpgrade(token, channelToken) {
+  return request('/orders/claim_perler_channel_upgrade/', 'POST', {
+    channel_token: channelToken
+  }, token);
+}
+
 function verifyTicket(token, params) {
   return request('/orders/verify_ticket/', 'POST', params, token);
 }
@@ -574,6 +586,8 @@ var httpRequest = {
   updateOrderCoupon: updateOrderCoupon,
   refundOrder: refundOrder,
   getTicketOrders: getTicketOrders,
+  getPerlerUpgradeOptions: getPerlerUpgradeOptions,
+  claimPerlerChannelUpgrade: claimPerlerChannelUpgrade,
   verifyTicket: verifyTicket,
   createTicketTransfer: createTicketTransfer,
   getTransferInfo: getTransferInfo,

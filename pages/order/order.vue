@@ -684,7 +684,6 @@
 				}
 			},
 			goPerlerUpgrade(item) {
-				var count = Math.max(1, Math.min(10, Number(item.perlerUpgradeRemaining) || 1));
 				var source = encodeURIComponent(item.order_number || '');
 				AUTH.trackEvent({
 					event: 'perler_upgrade_entry_click',
@@ -692,7 +691,7 @@
 					source: item.order_type === 1 ? 'appointment_order' : 'verified_ticket',
 					source_order_number: item.order_number
 				}, this.token).catch(function() {});
-				uni.navigateTo({ url: '/pages/ticket/buy?mode=perler_upgrade&source_order=' + source + '&max_count=' + count });
+				uni.navigateTo({ url: '/pages/ticket/upgrade?source_order=' + source });
 			},
 			isPendingUseOrder(item) {
 				if (!item || item.order_status !== 1) return false;
