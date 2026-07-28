@@ -70,6 +70,10 @@
                     <text class="detail-label">会员折扣</text>
                     <text class="detail-value">-¥{{ formatMoney(orderMemberDiscount) }}</text>
                 </view>
+                <view class="detail-row discount" v-if="orderManualDiscount > 0">
+                    <text class="detail-label">店员减免</text>
+                    <text class="detail-value">-¥{{ formatMoney(orderManualDiscount) }}</text>
+                </view>
                 <view class="detail-row discount" v-if="orderPointsDeducted > 0">
                     <text class="detail-label">积分抵扣</text>
                     <text class="detail-value">-¥{{ formatMoney(orderPointsDeducted) }}</text>
@@ -368,6 +372,10 @@ export default {
             return this.orderGoodsInfo._member_discount || this.orderPricingInfo.member_discount || 0;
         },
 
+        orderManualDiscount() {
+            return this.orderGoodsInfo._manual_discount || this.orderPricingInfo.manual_discount || 0;
+        },
+
         orderPointsDeducted() {
             return this.orderGoodsInfo._points_deducted || this.orderPricingInfo.points_deducted || 0;
         },
@@ -420,6 +428,7 @@ export default {
                 this.orderSubscriptionDeductions.length > 0 ||
                 this.orderAddonsTotal > 0 ||
                 this.orderMemberDiscount > 0 ||
+                this.orderManualDiscount > 0 ||
                 this.orderPointsDeducted > 0 ||
                 this.orderCouponDiscount > 0;
         },
@@ -427,7 +436,7 @@ export default {
         // 可用优惠券（订单相关）
         couponBaseAmount() {
             if (!this.order) return 0;
-            const amountAfterMember = this.orderBaseAmount + this.orderAddonsTotal - this.orderMemberDiscount;
+            const amountAfterMember = this.orderBaseAmount + this.orderAddonsTotal - this.orderMemberDiscount - this.orderManualDiscount;
             return amountAfterMember > 0 ? amountAfterMember : (this.order.pay_amount || 0);
         },
 
