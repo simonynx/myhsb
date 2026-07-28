@@ -47,6 +47,10 @@
 						<text class="notice-dot">🎮</text>
 						<text class="notice-copy">包厢、主机等升级项目按小时另计，周末或多人局建议提前预约。</text>
 					</view>
+					<view class="notice-line" v-if="perlerEnabled">
+						<text class="notice-dot">🧩</text>
+						<text class="notice-copy">拼豆一日票{{ perlerDayPriceText }}，含大厅入场和1份标准材料；当天已入场或已预约可按{{ perlerUpgradePriceText }}补差升级。</text>
+					</view>
 					<view class="notice-line">
 						<text class="notice-dot">↩️</text>
 						<text class="notice-copy">门票未核销且未过期可退；预约订单按预约开始时间判断退款规则。</text>
@@ -79,7 +83,7 @@
 
 			<view class="header-content">
 				<text class="header-title">{{ constance.store_name || '摸鱼划水吧' }}</text>
-				<text class="header-sub">大厅畅玩打底，包厢和套餐按需升级</text>
+				<text class="header-sub">桌游、拼豆、漫画自由切换，想安静再约包厢</text>
 			</view>
 
 			<view class="grass-hill">
@@ -240,10 +244,10 @@
 		<view class="section">
 			<view class="section-header">
 				<text class="section-title">🎮 店里玩什么</text>
-				<text class="section-sub">大厅免费玩，包间另计费</text>
+				<text class="section-sub">大厅权益内可畅玩，拼豆按材料体验计费</text>
 			</view>
 			<view class="world-grid">
-				<view class="world-card" v-for="(item, idx) in entertainmentItems" :key="idx" :style="item.cardStyle">
+				<view class="world-card" v-for="(item, idx) in visibleEntertainmentItems" :key="idx" :style="item.cardStyle">
 					<view class="world-top">
 						<text class="world-emoji">{{ item.emoji }}</text>
 						<text class="world-tag" :style="item.tagStyle">{{ item.tag }}</text>
@@ -373,6 +377,21 @@
 			ticketPriceText() {
 				return '¥' + (this.ticketPriceFen / 100).toFixed(0) + '/人';
 			},
+			perlerDayPriceFen() {
+				const price = this.constance && this.constance.perler_day_price;
+				return price ? parseInt(price) : 6900;
+			},
+			perlerDayPriceText() {
+				return '¥' + (this.perlerDayPriceFen / 100).toFixed(0) + '/人';
+			},
+			perlerUpgradePriceText() {
+				const price = this.constance && this.constance.perler_upgrade_price;
+				return '¥' + ((parseInt(price) || 3100) / 100).toFixed(0) + '/人';
+			},
+			perlerEnabled() {
+				const value = this.constance && this.constance.perler_enabled;
+				return value !== false && value !== 0 && value !== '0' && value !== 'false';
+			},
 			ticketPriceHalfText() {
 				return '¥' + (this.ticketPriceFen / 200).toFixed(0);
 			},
@@ -383,7 +402,7 @@
 				return '¥' + (this.ticketPriceFen * 4 / 100).toFixed(0) + '起';
 			},
 			scenePackages() {
-				return [
+				const items = [
 					{
 						key: 'single',
 						icon: '🎫',
@@ -428,12 +447,34 @@
 						action: 'reserve',
 					},
 				];
+				if (this.perlerEnabled) {
+					items.unshift({
+						key: 'perler',
+						icon: '🧩',
+						badge: '新体验',
+						name: '拼豆一日创作',
+						desc: '不限创作时间，含1份标准材料和大厅入场；累了就换桌游或漫画',
+						price: this.perlerDayPriceText,
+						actionText: '去选拼豆票',
+						action: 'perler',
+					});
+				}
+				return items;
 			},
 			primaryScenePackage() {
 				return this.scenePackages[0] || null;
 			},
 			secondaryScenePackages() {
 				return this.scenePackages.slice(1);
+			},
+			visibleEntertainmentItems() {
+				const self = this;
+				return this.entertainmentItems.filter(function(item) {
+					return self.perlerEnabled || item.key !== 'perler';
+				}).map(function(item) {
+					if (item.key !== 'perler') return item;
+					return Object.assign({}, item, { tag: self.perlerDayPriceText.replace('/人', '') + '含入场' });
+				});
 			},
 			showCouponHint() {
 				return this.hasLogin && !this.showInviteLanding && !this.couponHintClosed && this.claimableCouponCount > 0;
@@ -568,6 +609,7 @@
 
 
 				entertainmentItems: [
+					{ key: 'perler', emoji: '🧩', name: '拼豆创作', desc: '不限制作时间，成品可带走', tag: '固定体验价', cardStyle: 'border-top-color: #78C8B8;', tagStyle: 'background: #E1F5F0; color: #21867A;' },
 					{ emoji: '🎮', name: '主机游戏', desc: 'Switch / PS / 双人闯关', tag: '包间另计', cardStyle: 'border-top-color: #A8C8EC;', tagStyle: 'background: #E3F0FC; color: #4A90D9;' },
 					{ emoji: '🎲', name: '桌游天地', desc: '2-8人聚会，轻松开局', tag: '大厅免费', cardStyle: 'border-top-color: #F0B8B8;', tagStyle: 'background: #FCE8E8; color: #D86060;' },
 					{ emoji: '📚', name: '漫画小说', desc: '一个人来也能安静待很久', tag: '大厅免费', cardStyle: 'border-top-color: #E8D4A0;', tagStyle: 'background: #FFF5D6; color: #B89630;' },
@@ -719,6 +761,14 @@
 				if (num < 1) num = 1;
 				if (num > 10) num = 10;
 				uni.navigateTo({ url: '/pages/ticket/buy?count=' + num });
+			},
+			goToPerlerTicket() {
+				AUTH.trackEvent({
+					event: 'perler_ticket_entry_click',
+					page_path: 'pages/index/index',
+					source: 'home_scene'
+				}, this.token).catch(function() {});
+				uni.navigateTo({ url: '/pages/ticket/buy?mode=perler_day' });
 			},
 			goToSubscriptionMall() {
 				AUTH.trackEvent({
@@ -1004,6 +1054,8 @@
 				if (!scene) return;
 				if (scene.action === 'ticket') {
 					this.goToBuyTicketCount(scene.count || 1);
+				} else if (scene.action === 'perler') {
+					this.goToPerlerTicket();
 				} else if (scene.action === 'reserve') {
 					this.goToReserve();
 				} else if (scene.action === 'voucher') {

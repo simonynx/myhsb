@@ -1,20 +1,20 @@
 <template>
   <view class="page">
     <!-- 渐变导航栏 -->
-    <view class="nav-bar" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="nav-bar" :style="statusBarStyle">
       <view class="nav-back-wrap" @click="goBack">
         <text class="nav-back">←</text>
       </view>
-      <text class="nav-title">我的门票</text>
+      <text class="nav-title">我的票包</text>
       <view class="nav-right"></view>
     </view>
 
     <!-- 顶部装饰区 -->
     <view class="header-bg">
       <view class="header-inner">
-        <text class="header-emoji">🎫</text>
-        <text class="header-title">大厅入场券</text>
-        <text class="header-sub">购买后有效期内到店出示即可入场</text>
+        <text class="header-emoji">🎟</text>
+        <text class="header-title">到店票券</text>
+        <text class="header-sub">大厅票与拼豆体验票都在这里出示核销</text>
       </view>
       <!-- 波浪底边 -->
       <view class="wave-bottom">
@@ -27,7 +27,7 @@
       <view class="empty-card">
         <text class="empty-icon">🎫</text>
         <text class="empty-text">暂无门票</text>
-        <text class="empty-sub">去首页买张大厅入场券吧～</text>
+        <text class="empty-sub">大厅畅玩或拼豆一日体验，都可以从首页购买</text>
         <view class="empty-btn" @click="goToBuy">
           <text>去购买</text>
         </view>
@@ -60,8 +60,8 @@
           <!-- 中部：票券信息 -->
           <view class="card-info">
             <view class="ticket-name-row">
-              <text class="ticket-icon">🎫</text>
-              <text class="ticket-name">大厅入场券</text>
+              <text class="ticket-icon">{{ item._ticketIcon }}</text>
+              <text class="ticket-name">{{ item._ticketName }}</text>
               <text class="ticket-count">× {{ item.ticket_count || 1 }}人</text>
             </view>
             <view class="ticket-price-row">
@@ -70,6 +70,7 @@
                 {{ item.received_transfer ? '好友赠送' : '¥' + (item.pay_amount / 100).toFixed(2) }}
               </text>
             </view>
+            <text class="material-note" v-if="item.material_spec">含：{{ item.material_spec }}</text>
           </view>
 
           <!-- 分割线（穿孔效果） -->
@@ -117,7 +118,7 @@
                 <view class="action-btn secondary" v-if="!item.received_transfer" @click="refundTicket(item)">
                   <text>退款</text>
                 </view>
-                <view class="action-btn primary" @click="openShareModal(item)">
+                <view class="action-btn primary" v-if="item.can_transfer" @click="openShareModal(item)">
                   <text>送好友</text>
                 </view>
               </view>
@@ -146,11 +147,14 @@
             <template v-else>
               <view class="status-hint">
                 <text class="hint-icon">{{ item._statusClass === 'used' ? '✅' : '⏰' }}</text>
-                <text class="hint-text">{{ item._statusClass === 'used' ? '已核销，欢迎下次光临' : '已过期，请重新购买' }}</text>
+                <text class="hint-text">{{ item._statusHint }}</text>
               </view>
-              <view class="action-btns single">
+              <view class="action-btns" :class="item._canUpgrade ? '' : 'single'">
                 <view class="action-btn secondary" @click="goToOrderDetail(item)">
                   <text>订单详情</text>
+                </view>
+                <view class="action-btn perler-upgrade" v-if="item._canUpgrade" @click="goPerlerUpgrade(item)">
+                  <text>+¥{{ perlerUpgradePriceText }} 升级拼豆</text>
                 </view>
               </view>
             </template>
@@ -163,7 +167,8 @@
     <view class="bottom-hint" v-if="tickets.length > 0">
       <text>需要更多门票或约朋友？</text>
       <view class="bottom-actions">
-        <text class="bottom-link" @click="goToBuy">去购买</text>
+        <text class="bottom-link" @click="goToHallBuy">买大厅票</text>
+        <text class="bottom-link perler-link" @click="goToPerlerBuy">拼豆一日票</text>
         <text class="bottom-link" @click="goToGroupSquare">找人组局 →</text>
       </view>
     </view>
@@ -246,6 +251,7 @@ export default {
       tickets: [],
       loading: false,
       statusBarHeight: 0,
+      statusBarStyle: '',
       shareModalVisible: false,
       shareToken: '',
       shareTicket: {},
@@ -254,11 +260,16 @@ export default {
   },
 
   computed: {
-    ...mapState(['token', 'userInfo']),
+    ...mapState(['token', 'userInfo', 'constance']),
+    perlerUpgradePriceText() {
+      const price = this.constance && this.constance.perler_upgrade_price;
+      return ((parseInt(price) || 3100) / 100).toFixed(0);
+    },
   },
 
   onShow() {
     this.statusBarHeight = PLATFORM.getStatusBarHeight();
+    this.statusBarStyle = 'padding-top:' + this.statusBarHeight + 'px;';
     this.loadTickets();
   },
 
@@ -287,10 +298,30 @@ export default {
               statusText = '转赠中';
             }
             let expireDate = formatDate(expireAt);
+            const ticketVariant = item.ticket_variant || 'hall';
+            const ticketName = item.ticket_name || (ticketVariant === 'hall' ? '大厅入场券' : '拼豆体验票');
+            const isPerler = ticketVariant === 'perler_day' || ticketVariant === 'perler_upgrade';
+            let canUpgrade = false;
+            if (ticketVariant === 'hall' && verifiedAt) {
+              const verifiedDate = new Date((verifiedAt < 1e12 ? verifiedAt * 1000 : verifiedAt));
+              const today = new Date();
+              canUpgrade = verifiedDate.getFullYear() === today.getFullYear()
+                && verifiedDate.getMonth() === today.getMonth()
+                && verifiedDate.getDate() === today.getDate();
+            }
+            let statusHint = '已过期，请重新购买';
+            if (statusClass === 'used') {
+              statusHint = isPerler ? '体验已核销，成品记得带回家' : '已核销，欢迎继续在店内畅玩';
+            }
             return {
               ...item,
+              can_transfer: item.can_transfer !== false && ticketVariant === 'hall',
+              _ticketName: ticketName,
+              _ticketIcon: isPerler ? '🧩' : '🎫',
+              _canUpgrade: canUpgrade,
               _statusClass: statusClass,
               _statusText: statusText,
+              _statusHint: statusHint,
               _expireDate: expireDate,
               _expanded: false,
             };
@@ -314,6 +345,26 @@ export default {
 
     goToBuy() {
       uni.switchTab({ url: '/pages/index/index' });
+    },
+
+    goToHallBuy() {
+      uni.navigateTo({ url: '/pages/ticket/buy?mode=hall' });
+    },
+
+    goToPerlerBuy() {
+      uni.navigateTo({ url: '/pages/ticket/buy?mode=perler_day' });
+    },
+
+    goPerlerUpgrade(item) {
+      const count = Math.max(1, Math.min(10, Number(item.ticket_count) || 1));
+      const source = encodeURIComponent(item.order_number || '');
+      AUTH.trackEvent({
+        event: 'perler_upgrade_entry_click',
+        page_path: 'pages/ticket/list',
+        source: 'verified_ticket',
+        source_order_number: item.order_number
+      }, this.token).catch(function() {});
+      uni.navigateTo({ url: '/pages/ticket/buy?mode=perler_upgrade&source_order=' + source + '&max_count=' + count });
     },
 
     goToGroupSquare() {
@@ -674,6 +725,16 @@ page { background: $bg; }
       }
     }
   }
+  .material-note {
+    display: block;
+    margin-top: 14rpx;
+    padding: 12rpx 14rpx;
+    background: #EEF8F5;
+    border-radius: 8rpx;
+    font-size: 22rpx;
+    color: #52766E;
+    line-height: 1.5;
+  }
 }
 
 // 分割线（穿孔效果）
@@ -778,7 +839,7 @@ page { background: $bg; }
     }
   }
 
-  .action-btns {
+.action-btns {
     display: flex;
     justify-content: flex-end;
     gap: 16rpx;
@@ -803,6 +864,14 @@ page { background: $bg; }
     }
   }
 }
+.action-btn.perler-upgrade {
+  flex: 1;
+  min-width: 240rpx;
+  color: #FFF;
+  background: #21867A;
+  border-color: #21867A;
+}
+.bottom-link.perler-link { color: #21867A; }
 
 // ========== 底部提示 ==========
 .bottom-hint {

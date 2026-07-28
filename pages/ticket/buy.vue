@@ -13,13 +13,30 @@
       </view>
     </view>
 
-    <!-- 门票卡片 -->
-    <view class="ticket-card">
-      <view class="ticket-top">
-        <view class="ticket-name">🎫 大厅入场券</view>
-        <view class="ticket-badge">{{ memberLevelName }}</view>
+    <view class="ticket-mode-switch" :class="perlerEnabled ? '' : 'single-mode'" v-if="!isUpgradeMode">
+      <view class="mode-option" :class="ticketMode === 'hall' ? 'active' : ''" @click="setTicketMode('hall')">
+        <text class="mode-icon">🎫</text>
+        <view class="mode-copy">
+          <text class="mode-name">大厅畅玩</text>
+          <text class="mode-price">¥{{ (hallPriceFen / 100).toFixed(0) }}/人</text>
+        </view>
       </view>
-      <view class="ticket-desc">全天不限时畅玩 · 零食茶水自助 · 漫画小说桌游</view>
+      <view class="mode-option perler" v-if="perlerEnabled" :class="ticketMode === 'perler_day' ? 'active' : ''" @click="setTicketMode('perler_day')">
+        <text class="mode-icon">🧩</text>
+        <view class="mode-copy">
+          <text class="mode-name">拼豆一日</text>
+          <text class="mode-price">¥{{ (perlerDayPriceFen / 100).toFixed(0) }}/人</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 门票卡片 -->
+    <view class="ticket-card" :class="isPerlerMode ? 'perler-card' : ''">
+      <view class="ticket-top">
+        <view class="ticket-name">{{ ticketIcon }} {{ ticketName }}</view>
+        <view class="ticket-badge">{{ ticketBadge }}</view>
+      </view>
+      <view class="ticket-desc">{{ ticketDescription }}</view>
       <view class="ticket-price-row">
         <text class="ticket-price-label">单价</text>
         <text class="ticket-price-value">¥{{ (ticketPriceFen / 100).toFixed(0) }}/人</text>
@@ -39,7 +56,7 @@
     </view>
 
     <!-- 社交提示 -->
-    <view class="social-nudge-card">
+    <view class="social-nudge-card" v-if="!isPerlerMode">
       <view class="social-nudge-copy">
         <text class="social-nudge-kicker">一个人也能来，多人更好玩</text>
         <text class="social-nudge-title">想先找搭子再买票？</text>
@@ -55,15 +72,43 @@
       </view>
     </view>
 
+    <view class="perler-value-card" v-else>
+      <view class="perler-value-head">
+        <text class="perler-value-kicker">不是无限材料，是一整天的创作时间</text>
+        <text class="perler-value-title">{{ isUpgradeMode ? '已经到店，补差即可开做' : '拼豆、桌游、漫画可以随时换着玩' }}</text>
+      </view>
+      <view class="perler-value-grid">
+        <view class="perler-value-item">
+          <text class="value-icon">🧩</text>
+          <text class="value-name">标准材料包</text>
+        </view>
+        <view class="perler-value-item">
+          <text class="value-icon">🛠</text>
+          <text class="value-name">工具与熨烫</text>
+        </view>
+        <view class="perler-value-item">
+          <text class="value-icon">🎲</text>
+          <text class="value-name">{{ isUpgradeMode ? '沿用原入场权益' : '包含大厅入场' }}</text>
+        </view>
+      </view>
+      <text class="perler-material">材料范围：{{ perlerMaterialSpec }}</text>
+    </view>
+
     <!-- 费用明细 -->
     <view class="price-section">
       <view class="section-title">费用明细</view>
       <view class="price-list">
         <view class="price-row">
-          <text class="row-label">门票 × {{ ticketCount }}人</text>
+          <text class="row-label">{{ ticketName }} × {{ ticketCount }}人</text>
           <text class="row-value">¥{{ basePrice }}</text>
         </view>
 
+        <view class="price-row fixed-price-row" v-if="isPerlerMode">
+          <text class="row-label"><text class="tag tag-active">固定价</text> 不与会员折扣、卡包、优惠券或积分叠加</text>
+          <text class="fixed-price-note">权益更清楚</text>
+        </view>
+
+        <block v-if="!isPerlerMode">
         <!-- 会员折扣 -->
         <view class="price-row discount-row" v-if="memberDiscountAmount > 0">
           <text class="row-label">
@@ -167,6 +212,7 @@
             {{ pointsUnavailableText }}
           </text>
         </view>
+        </block>
 
         <!-- 余额 -->
         <view class="price-row balance-row">
@@ -205,7 +251,7 @@
           <text class="hl-icon">⏳</text>
           <view class="hl-text">
             <text class="hl-label">有效期</text>
-            <text class="hl-value">购买后 {{ expireDays }} 天内有效</text>
+            <text class="hl-value">{{ validityText }}</text>
           </view>
         </view>
         <view class="hl-tag warning">过期不可退</view>
@@ -216,22 +262,36 @@
       <view class="notice-item">
         <text class="notice-icon">📍</text>
         <view class="notice-body">
-          <text class="notice-label">入场方式</text>
-          <text class="notice-desc">到店后出示核销码或报数字码即可入场</text>
+          <text class="notice-label">{{ isUpgradeMode ? '升级方式' : '入场方式' }}</text>
+          <text class="notice-desc">{{ redemptionDescription }}</text>
         </view>
       </view>
-      <view class="notice-item">
+      <view class="notice-item" v-if="!isPerlerMode">
         <text class="notice-icon">🎲</text>
         <view class="notice-body">
           <text class="notice-label">大厅包含</text>
           <text class="notice-desc">大厅桌游、漫画小说、零食茶水自助均可使用，按需取用即可</text>
         </view>
       </view>
-      <view class="notice-item">
+      <view class="notice-item" v-if="!isPerlerMode">
         <text class="notice-icon">🎮</text>
         <view class="notice-body">
           <text class="notice-label">升级说明</text>
           <text class="notice-desc">包厢、主机、生日氛围布置等增值项目按小时或套餐另计，建议提前预约</text>
+        </view>
+      </view>
+      <view class="notice-item" v-if="isPerlerMode">
+        <text class="notice-icon">🧩</text>
+        <view class="notice-body">
+          <text class="notice-label">材料边界</text>
+          <text class="notice-desc">{{ perlerMaterialSpec }}；超出标准规格的材料按现场标价补差</text>
+        </view>
+      </view>
+      <view class="notice-item" v-if="isPerlerMode">
+        <text class="notice-icon">⏱</text>
+        <view class="notice-body">
+          <text class="notice-label">时间说明</text>
+          <text class="notice-desc">拼豆可在营业时间内不限时体验；如另有包厢预约，包厢仍按预约时段计时，结束后可移至大厅继续</text>
         </view>
       </view>
       <view class="notice-item">
@@ -245,7 +305,7 @@
         <text class="notice-icon">👥</text>
         <view class="notice-body">
           <text class="notice-label">使用人数</text>
-          <text class="notice-desc">门票按人数购买，{{ ticketCount }} 人需购买 {{ ticketCount }} 张</text>
+          <text class="notice-desc">{{ peopleRuleDescription }}</text>
         </view>
       </view>
     </view>
@@ -375,7 +435,15 @@ export default {
   data() {
     return {
       ticketCount: 1,
-      ticketPriceFen: 3800,
+      ticketMode: 'hall',
+      hallPriceFen: 3800,
+      perlerDayPriceFen: 6900,
+      perlerUpgradePriceFen: 3100,
+      perlerExpireDays: 30,
+      perlerMaterialSpec: '1份标准材料包（建议作品不超过20×20cm）、工具使用和1次成品熨烫',
+      perlerEnabled: true,
+      sourceOrderNumber: '',
+      maxUpgradeCount: 1,
       couponPickerOpen: false,
       myCoupons: [],
       selectedCoupon: null,
@@ -394,6 +462,59 @@ export default {
   computed: {
     ...mapState(['hasLogin', 'token', 'userInfo', 'constance']),
 
+    isPerlerMode() {
+      return this.ticketMode === 'perler_day' || this.ticketMode === 'perler_upgrade';
+    },
+
+    isUpgradeMode() {
+      return this.ticketMode === 'perler_upgrade';
+    },
+
+    ticketPriceFen() {
+      if (this.ticketMode === 'perler_day') return this.perlerDayPriceFen;
+      if (this.ticketMode === 'perler_upgrade') return this.perlerUpgradePriceFen;
+      return this.hallPriceFen;
+    },
+
+    ticketName() {
+      if (this.ticketMode === 'perler_day') return '拼豆一日体验票';
+      if (this.ticketMode === 'perler_upgrade') return '拼豆当日升级';
+      return '大厅入场券';
+    },
+
+    ticketIcon() {
+      return this.isPerlerMode ? '🧩' : '🎫';
+    },
+
+    ticketBadge() {
+      if (this.isUpgradeMode) return '到店专享';
+      if (this.isPerlerMode) return '固定体验价';
+      return this.memberLevelName;
+    },
+
+    ticketDescription() {
+      if (this.isUpgradeMode) return '当天已入场/已预约顾客专享 · 不重复收大厅入场费';
+      if (this.isPerlerMode) return '营业时间内不限时 · 标准材料1份 · 含大厅入场权益';
+      return '全天不限时畅玩 · 零食茶水自助 · 漫画小说桌游';
+    },
+
+    validityText() {
+      if (this.isUpgradeMode) return '仅限原订单到店当天使用';
+      if (this.isPerlerMode) return '购买后 ' + this.perlerExpireDays + ' 天内任选1天使用';
+      return '购买后 ' + this.expireDays + ' 天内有效';
+    },
+
+    redemptionDescription() {
+      if (this.isUpgradeMode) return '补差订单会绑定原订单，到店向店员出示新生成的6位核销码';
+      if (this.isPerlerMode) return '到店出示6位核销码，核销后可领取材料并使用当日大厅权益';
+      return '到店后出示核销码或报数字码即可入场';
+    },
+
+    peopleRuleDescription() {
+      if (this.isPerlerMode) return '体验按人数购买，' + this.ticketCount + ' 人需购买 ' + this.ticketCount + ' 份；每份对应1份标准材料';
+      return '门票按人数购买，' + this.ticketCount + ' 人需购买 ' + this.ticketCount + ' 张';
+    },
+
     basePriceFen() {
       return this.ticketPriceFen * this.ticketCount;
     },
@@ -411,6 +532,7 @@ export default {
     },
 
     userDiscount() {
+      if (this.isPerlerMode) return 100;
       return (this.userInfo && this.userInfo.discount) || 100;
     },
 
@@ -422,6 +544,7 @@ export default {
     },
 
     usableSubscriptions() {
+      if (this.isPerlerMode) return [];
       if (!this.mySubscriptions) return [];
       return this.mySubscriptions.filter(sub => {
         const template = sub.card_template || {};
@@ -529,6 +652,7 @@ export default {
       return Math.floor(raw / step) * step;
     },
     canUsePoints() {
+      if (this.isPerlerMode) return false;
       return this.safeUserInfo.points >= this.pointsMinUse
         && this.maxUsablePoints >= this.pointsMinUse
         && this.afterMemberPriceFen > 0;
@@ -569,10 +693,12 @@ export default {
     },
 
     availableCoupons() {
+      if (this.isPerlerMode) return [];
       return COUPON.getAvailableCoupons(this.myCoupons, this.afterMemberPriceFen);
     },
 
     unavailableCoupons() {
+      if (this.isPerlerMode) return [];
       return COUPON.getUnavailableCoupons(this.myCoupons, this.afterMemberPriceFen);
     },
 
@@ -632,6 +758,14 @@ export default {
       setTimeout(() => this.loadMySubscriptions(), 1200);
     };
     uni.$on('subscriptionPurchased', this._subscriptionPurchasedHandler);
+    if (options && (options.mode === 'perler' || options.mode === 'perler_day')) {
+      this.ticketMode = 'perler_day';
+    } else if (options && options.mode === 'perler_upgrade') {
+      this.ticketMode = 'perler_upgrade';
+      this.sourceOrderNumber = decodeURIComponent(options.source_order || '');
+      const maxCount = parseInt(options.max_count || 1);
+      this.maxUpgradeCount = maxCount >= 1 && maxCount <= 10 ? maxCount : 1;
+    }
     if (options && options.count) {
       const count = parseInt(options.count);
       if (count >= 1 && count <= 10) {
@@ -653,8 +787,10 @@ export default {
       });
       return;
     }
-    this.loadMyCoupons();
-    this.loadMySubscriptions();
+    if (!this.isPerlerMode) {
+      this.loadMyCoupons();
+      this.loadMySubscriptions();
+    }
   },
 
   onUnload() {
@@ -665,6 +801,20 @@ export default {
 
   methods: {
     ...mapActions(['loginAndRegister', 'getUserInfo']),
+
+    setTicketMode(mode) {
+      if (mode !== 'hall' && mode !== 'perler_day') return;
+      if (mode === 'perler_day' && !this.perlerEnabled) return;
+      this.ticketMode = mode;
+      this.selectedCoupon = null;
+      this.selectedSubscription = null;
+      this.usePoints = false;
+      this.pointsToUse = 0;
+      if (mode === 'hall') {
+        this.loadMyCoupons();
+        this.loadMySubscriptions();
+      }
+    },
 
     async loadMyCoupons() {
       if (!this.token) return;
@@ -748,7 +898,8 @@ export default {
     },
 
     incPeople() {
-      if (this.ticketCount < 10) this.ticketCount++;
+      const maxCount = this.isUpgradeMode ? this.maxUpgradeCount : 10;
+      if (this.ticketCount < maxCount) this.ticketCount++;
     },
 
     decPeople() {
@@ -827,8 +978,19 @@ export default {
     async loadTicketPrice() {
       try {
         const res = await AUTH.getConstance(this.token || null);
-        if (res && res._status === 0 && res.data && res.data.ticket_price_per_person) {
-          this.ticketPriceFen = parseInt(res.data.ticket_price_per_person);
+        if (res && res._status === 0 && res.data) {
+          const enabled = res.data.perler_enabled;
+          this.perlerEnabled = enabled !== false && enabled !== 0 && enabled !== '0' && enabled !== 'false';
+          if (res.data.ticket_price_per_person) this.hallPriceFen = parseInt(res.data.ticket_price_per_person);
+          if (res.data.perler_day_price) this.perlerDayPriceFen = parseInt(res.data.perler_day_price);
+          if (res.data.perler_upgrade_price) this.perlerUpgradePriceFen = parseInt(res.data.perler_upgrade_price);
+          if (res.data.perler_ticket_expire_days) this.perlerExpireDays = parseInt(res.data.perler_ticket_expire_days);
+          if (res.data.perler_material_spec) this.perlerMaterialSpec = String(res.data.perler_material_spec);
+          if (this.isPerlerMode && !this.perlerEnabled) {
+            this.ticketMode = 'hall';
+            this.sourceOrderNumber = '';
+            uni.showToast({ title: '拼豆体验暂未开放', icon: 'none' });
+          }
         }
       } catch (e) {
         console.log('load ticket price error:', e);
@@ -842,8 +1004,8 @@ export default {
         }});
         return;
       }
-      this.syncPointUsage();
-      if (!this.syncCouponSelection()) {
+      if (!this.isPerlerMode) this.syncPointUsage();
+      if (!this.isPerlerMode && !this.syncCouponSelection()) {
         uni.showToast({ title: '已移除不可用优惠券，请确认金额', icon: 'none' });
         return;
       }
@@ -855,11 +1017,13 @@ export default {
           order_type: 6,
           ticket_count: this.ticketCount,
           ticket_price: this.ticketPriceFen,
+          ticket_variant: this.ticketMode,
+          source_order_number: this.isUpgradeMode ? this.sourceOrderNumber : '',
           contact_name: (this.safeUserInfo.nickname || this.safeUserInfo.username || ''),
-          coupon_id: this.selectedCoupon ? this.selectedCoupon.object_id : null,
-          use_points: this.usePoints ? this.pointsToUse : 0,
+          coupon_id: !this.isPerlerMode && this.selectedCoupon ? this.selectedCoupon.object_id : null,
+          use_points: !this.isPerlerMode && this.usePoints ? this.pointsToUse : 0,
           expected_amount: this.finalPriceFen,
-          user_subscription_id: this.selectedSubscription ? this.selectedSubscription.object_id : null,
+          user_subscription_id: !this.isPerlerMode && this.selectedSubscription ? this.selectedSubscription.object_id : null,
         };
 
         const res = await AUTH.checkout(this.token, param);
@@ -938,6 +1102,40 @@ page {
     flex-direction: column;
     .shop-name { font-size: 32rpx; font-weight: bold; color: $dark; }
     .shop-tag { font-size: 24rpx; color: $gray; margin-top: 4rpx; }
+  }
+}
+
+.ticket-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12rpx;
+  margin: 20rpx 24rpx 16rpx;
+  padding: 8rpx;
+  background: #F2E9DF;
+  border-radius: 16rpx;
+  &.single-mode { grid-template-columns: minmax(0, 1fr); }
+}
+.mode-option {
+  min-height: 92rpx;
+  padding: 14rpx 18rpx;
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  border: 2rpx solid transparent;
+  border-radius: 12rpx;
+  .mode-icon { font-size: 34rpx; }
+  .mode-copy { display: flex; flex-direction: column; min-width: 0; }
+  .mode-name { font-size: 27rpx; font-weight: bold; color: #68584A; }
+  .mode-price { margin-top: 2rpx; font-size: 22rpx; color: #9B8877; }
+  &.active {
+    background: #FFF;
+    border-color: rgba(232, 120, 74, 0.25);
+    box-shadow: 0 4rpx 12rpx rgba(92, 75, 58, 0.08);
+    .mode-name { color: #D96537; }
+  }
+  &.perler.active {
+    border-color: rgba(42, 157, 143, 0.3);
+    .mode-name { color: #21867A; }
   }
 }
 
@@ -1022,6 +1220,51 @@ page {
     .total-label { font-size: 28rpx; color: $gray; }
     .total-value { font-size: 32rpx; font-weight: bold; color: $primary; }
   }
+}
+.ticket-card.perler-card {
+  border-color: rgba(42, 157, 143, 0.28);
+  box-shadow: 0 6rpx 20rpx rgba(42, 157, 143, 0.08);
+  .ticket-badge { color: #21867A; background: #E7F5F1; }
+  .ticket-price-value, .total-value { color: #21867A; }
+}
+
+.perler-value-card {
+  margin: 0 24rpx 20rpx;
+  padding: 28rpx;
+  background: #FFF;
+  border: 2rpx solid rgba(42, 157, 143, 0.18);
+  border-radius: 16rpx;
+}
+.perler-value-head { display: flex; flex-direction: column; gap: 8rpx; }
+.perler-value-kicker { font-size: 22rpx; color: #21867A; font-weight: bold; }
+.perler-value-title { font-size: 30rpx; color: $dark; font-weight: bold; line-height: 1.4; }
+.perler-value-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
+  margin-top: 22rpx;
+}
+.perler-value-item {
+  min-height: 112rpx;
+  padding: 14rpx 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  background: #F1F9F7;
+  border-radius: 10rpx;
+  .value-icon { font-size: 34rpx; }
+  .value-name { font-size: 21rpx; color: #52645F; text-align: center; line-height: 1.35; }
+}
+.perler-material {
+  display: block;
+  margin-top: 18rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx dashed #CEE4DE;
+  font-size: 23rpx;
+  color: #6F7E79;
+  line-height: 1.55;
 }
 
 // 社交提示
@@ -1305,6 +1548,12 @@ page {
       .final-price { font-size: 36rpx; font-weight: bold; color: $primary; }
     }
   }
+}
+.fixed-price-row {
+  align-items: flex-start !important;
+  padding: 18rpx 0 !important;
+  .row-label { flex: 1; padding-right: 18rpx; line-height: 1.5; }
+  .fixed-price-note { flex-shrink: 0; font-size: 22rpx; color: #21867A; }
 }
 
 // 使用须知

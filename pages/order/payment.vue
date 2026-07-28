@@ -33,6 +33,10 @@
                     <text class="info-tag">卡包</text>
                     <text class="info-text">{{ subscriptionOrderName }}</text>
                 </view>
+                <view class="order-info" v-if="order.order_type === 6">
+                    <text class="info-tag">{{ ticketOrderVariant === 'hall' ? '门票' : '拼豆' }}</text>
+                    <text class="info-text">{{ ticketOrderName }} × {{ ticketOrderCount }}人</text>
+                </view>
             </view>
 
             <!-- 订单明细 -->
@@ -287,6 +291,25 @@ export default {
 
         orderGoodsInfo() {
             return (this.order && (this.order.goodsInfo || this.order.goods_info)) || {};
+        },
+
+        ticketOrderContext() {
+            return this.orderGoodsInfo.context || this.orderGoodsInfo || {};
+        },
+
+        ticketOrderVariant() {
+            return (this.order && this.order.ticket_variant) || this.ticketOrderContext.ticket_variant || 'hall';
+        },
+
+        ticketOrderName() {
+            if (this.order && this.order.ticket_name) return this.order.ticket_name;
+            if (this.ticketOrderContext.ticket_name) return this.ticketOrderContext.ticket_name;
+            var snapshot = this.orderGoodsInfo.snapshot || {};
+            return snapshot.name || '大厅入场券';
+        },
+
+        ticketOrderCount() {
+            return Number((this.order && this.order.ticket_count) || this.ticketOrderContext.ticket_count || 1);
         },
 
         orderPricingInfo() {

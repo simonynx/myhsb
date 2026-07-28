@@ -54,9 +54,19 @@
 				<!-- 门票详情 -->
 				<view class="detail-section" v-if="item.order_type === 6">
 					<view class="detail-row">
-						<text class="detail-icon">🎫</text>
+						<text class="detail-icon">{{ item.ticketVariant === 'hall' ? '🎫' : '🧩' }}</text>
 						<text class="detail-label">门票</text>
-						<text class="detail-value">大厅入场券 × {{ item.goodsInfo.ticket_count || 1 }}人</text>
+						<text class="detail-value">{{ item.ticketName }} × {{ item.goodsInfo.ticket_count || 1 }}人</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo.material_spec">
+						<text class="detail-icon">🧩</text>
+						<text class="detail-label">体验包含</text>
+						<text class="detail-value">{{ item.goodsInfo.material_spec }}</text>
+					</view>
+					<view class="detail-row" v-if="item.goodsInfo.source_order_number">
+						<text class="detail-icon">🔗</text>
+						<text class="detail-label">关联订单</text>
+						<text class="detail-value">{{ item.goodsInfo.source_order_number }}</text>
 					</view>
 					<view class="detail-row" v-if="item.verify_code">
 						<text class="detail-icon">🔢</text>
@@ -139,7 +149,7 @@
 					</view>
 					<view class="visit-reminder-row" v-if="item.order_type === 6">
 						<text class="visit-reminder-dot"></text>
-						<text class="visit-reminder-text">到店出示核销码或报数字码，店员核销后即可入场。</text>
+						<text class="visit-reminder-text">{{ item.ticketVariant === 'hall' ? '到店出示核销码或报数字码，店员核销后即可入场。' : '到店出示拼豆体验核销码，核销后领取标准材料并开始制作。' }}</text>
 					</view>
 					<view class="visit-reminder-row" v-if="item.order_type === 1">
 						<text class="visit-reminder-dot"></text>
@@ -275,14 +285,14 @@
 				<!-- 操作按钮 -->
 				<view class="action-section" v-if="item.order_status === 0">
 					<view class="countdown-tip" v-if="item.end_time && item.countdownText">{{ item.countdownText }}</view>
-					<button class="btn-cancel" @click.stop="cancelOrder(item)">取消预约</button>
+					<button class="btn-cancel" @click.stop="cancelOrder(item)">取消订单</button>
 					<button class="btn-pay" @click.stop="goPay(item)">立即支付</button>
 				</view>
-				<view class="action-section" v-else-if="item.order_status === 1">
+				<view class="action-section" v-else-if="item.order_status === 1 && (item.canPerlerUpgrade || item.refundable)">
+					<button class="btn-perler" v-if="item.canPerlerUpgrade" @click.stop="goPerlerUpgrade(item)">+¥{{ perlerUpgradePriceText }} 升级拼豆</button>
 					<button v-if="item.refundable" class="btn-refund" @click.stop="refundOrder(item)">申请退款</button>
-					<button class="btn-delete" @click.stop="deleteOrder(item)">删除记录</button>
 				</view>
-				<view class="action-section" v-else>
+				<view class="action-section" v-else-if="item.deletable">
 					<button class="btn-delete" @click.stop="deleteOrder(item)">删除记录</button>
 				</view>
 			</view>
@@ -324,9 +334,13 @@
 		2: '微信支付',
 	};
 
-	export default {
+		export default {
 		computed: {
-			...mapState(['hasLogin', 'userInfo', 'token']),
+			...mapState(['hasLogin', 'userInfo', 'token', 'constance']),
+			perlerUpgradePriceText() {
+				var price = this.constance && this.constance.perler_upgrade_price;
+				return ((parseInt(price) || 3100) / 100).toFixed(0);
+			},
 			currentOrders() {
 				return this.navList[this.tabCurrentIndex] && this.navList[this.tabCurrentIndex].orderList || [];
 			},
@@ -403,6 +417,10 @@
 						var goodsInfoStr = item.goods_info;
 						var goodsInfo = (typeof goodsInfoStr === 'string') ? JSON.parse(goodsInfoStr || '{}') : (goodsInfoStr || {});
 						item.goodsInfo = goodsInfo;
+						item.ticketVariant = item.ticket_variant || goodsInfo.ticket_variant || 'hall';
+						item.ticketName = item.ticket_name || goodsInfo.ticket_name || (item.ticketVariant === 'hall' ? '大厅入场券' : '拼豆体验票');
+						item.canPerlerUpgrade = false;
+						item.deletable = [2, 8, 9, 99].indexOf(Number(item.order_status)) !== -1;
 
 						if (item.order_type === 1 && goodsInfo.room_id) {
 							item.room = this.getRoomById(rooms, goodsInfo.room_id);
@@ -432,6 +450,8 @@
 							invalidList.orderList.push(item);
 						}
 					}
+
+					this.applyPerlerUpgradeEligibility(allList.orderList);
 
 					// 更新count
 					this.navList[0].count = allList.orderList.length;
@@ -624,8 +644,55 @@
 				return map && map.icon || '📋';
 			},
 			getOrderTypeName(item) {
+				if (item && item.order_type === 6 && item.ticketName) return item.ticketName;
 				var map = ORDER_TYPE_MAP[item.order_type];
 				return map && map.name || '订单';
+			},
+			applyPerlerUpgradeEligibility(orders) {
+				var usedBySource = {};
+				var now = Date.now();
+				for (var i = 0; i < orders.length; i++) {
+					var upgrade = orders[i];
+					if (upgrade.ticketVariant !== 'perler_upgrade') continue;
+					if (upgrade.order_status !== 0 && upgrade.order_status !== 1) continue;
+					if (upgrade.order_status === 0 && upgrade.end_time && upgrade.end_time * 1000 <= now) continue;
+					var sourceNumber = upgrade.goodsInfo && upgrade.goodsInfo.source_order_number;
+					if (!sourceNumber) continue;
+					usedBySource[sourceNumber] = (usedBySource[sourceNumber] || 0) + Number(upgrade.goodsInfo.ticket_count || 1);
+				}
+
+				var today = new Date();
+				var todayText = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+				for (var j = 0; j < orders.length; j++) {
+					var item = orders[j];
+					if (item.order_status !== 1) continue;
+					var sourceCount = 0;
+					if (item.order_type === 1 && String(item.goodsInfo.date || '') === todayText) {
+						sourceCount = Number(item.goodsInfo.user_count || item.user_count || 1);
+					} else if (item.order_type === 6 && item.ticketVariant === 'hall' && item.verified_at) {
+						var verifiedDate = new Date(item.verified_at < 1e12 ? item.verified_at * 1000 : item.verified_at);
+						if (verifiedDate.getFullYear() === today.getFullYear()
+							&& verifiedDate.getMonth() === today.getMonth()
+							&& verifiedDate.getDate() === today.getDate()) {
+							sourceCount = Number(item.goodsInfo.ticket_count || item.ticket_count || 1);
+						}
+					}
+					if (sourceCount <= 0) continue;
+					var remaining = Math.max(0, sourceCount - Number(usedBySource[item.order_number] || 0));
+					item.perlerUpgradeRemaining = remaining;
+					item.canPerlerUpgrade = remaining > 0;
+				}
+			},
+			goPerlerUpgrade(item) {
+				var count = Math.max(1, Math.min(10, Number(item.perlerUpgradeRemaining) || 1));
+				var source = encodeURIComponent(item.order_number || '');
+				AUTH.trackEvent({
+					event: 'perler_upgrade_entry_click',
+					page_path: 'pages/order/order',
+					source: item.order_type === 1 ? 'appointment_order' : 'verified_ticket',
+					source_order_number: item.order_number
+				}, this.token).catch(function() {});
+				uni.navigateTo({ url: '/pages/ticket/buy?mode=perler_upgrade&source_order=' + source + '&max_count=' + count });
 			},
 			isPendingUseOrder(item) {
 				if (!item || item.order_status !== 1) return false;
@@ -735,7 +802,7 @@
 				var self = this;
 				uni.showModal({
 					title: '确认取消',
-					content: '确定要取消这个预约吗？',
+					content: '确定要取消这个订单吗？',
 					success: function(res) {
 						if (!res.confirm) return;
 						uni.showLoading({ title: '请稍后' });
@@ -1179,6 +1246,11 @@ page {
 		background: #FFF0E6;
 		color: #FF6B00;
 		border: 2rpx solid #FF6B00;
+	}
+	.btn-perler {
+		background: #21867A;
+		color: #FFF;
+		border: none;
 	}
 }
 
