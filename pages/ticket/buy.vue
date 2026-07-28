@@ -88,7 +88,23 @@
             </text>
           </view>
         </view>
-        <view class="selection-hint" v-if="selectedSubscription">{{ subscriptionUsageText }}</view>
+        <view class="subscription-breakdown" v-if="selectedSubscription">
+          <view class="subscription-breakdown-copy">
+            <text class="subscription-breakdown-title">{{ subscriptionUsageText }}</text>
+            <text class="subscription-breakdown-note">{{ subscriptionLimitText }}</text>
+          </view>
+          <view class="subscription-counts">
+            <view class="subscription-count-item">
+              <text class="subscription-count-value">{{ subscriptionDeductedCount }}</text>
+              <text class="subscription-count-label">卡包抵扣</text>
+            </view>
+            <view class="subscription-count-divider"></view>
+            <view class="subscription-count-item">
+              <text class="subscription-count-value payable">{{ subscriptionPayableTicketCount }}</text>
+              <text class="subscription-count-label">另行结算</text>
+            </view>
+          </view>
+        </view>
 
         <!-- 优惠券 -->
         <view class="price-row coupon-row" @click="openCouponPicker">
@@ -332,6 +348,7 @@
             <view class="coupon-right">
               <view class="coupon-name">{{ sub.card_template.name }}</view>
               <view class="coupon-expire" style="font-size: 20rpx; color: #999; margin-top: 4rpx;">适用: 大厅入场券抵扣</view>
+              <view class="coupon-expire" style="font-size: 20rpx; color: #666;">{{ sub.order_limit_text }}</view>
               <view class="coupon-expire" style="font-size: 20rpx; color: #E8784A;">{{ sub.usage_text }}</view>
               <view class="coupon-expire" style="font-size: 20rpx; color: #999;">有效期至 {{ sub.formatted_expire }}</view>
               <view class="coupon-check" v-if="selectedSubscription && selectedSubscription.object_id === sub.object_id">✓</view>
@@ -414,10 +431,14 @@ export default {
         const ruleMax = Number(rule.max_per_order) || 0;
         const orderLimit = ruleMax > 0 ? Math.min(this.ticketCount, ruleMax) : this.ticketCount;
         const deductedCount = Math.min(orderLimit, Number(sub.remaining_limit) || 0);
+        const cashTicketCount = Math.max(0, this.ticketCount - deductedCount);
         return Object.assign({}, sub, {
           deducted_count: deductedCount,
           formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
-          usage_text: '本次可抵' + deductedCount + '张大厅入场券'
+          order_limit_text: ruleMax > 0 ? '该卡每单最多抵' + ruleMax + '张' : '按卡内剩余额度抵扣',
+          usage_text: cashTicketCount > 0
+            ? '本次抵' + deductedCount + '张，另' + cashTicketCount + '张按当前优惠结算'
+            : '本次可抵' + deductedCount + '张大厅入场券'
         });
       });
     },
@@ -438,9 +459,30 @@ export default {
       return this.subscriptionDeductedCount * this.ticketPriceFen;
     },
 
+    selectedSubscriptionOrderMax() {
+      if (!this.selectedSubscription) return 0;
+      const rule = SUBSCRIPTION.getUsageRule(this.selectedSubscription.card_template || {}, SUBSCRIPTION.SLOT_TICKET) || {};
+      return Number(rule.max_per_order) || 0;
+    },
+
+    subscriptionPayableTicketCount() {
+      return Math.max(0, this.ticketCount - this.subscriptionDeductedCount);
+    },
+
     subscriptionUsageText() {
       if (!this.selectedSubscription) return '';
-      return '已自动使用，抵' + this.subscriptionDeductedCount + '张大厅入场券';
+      if (this.subscriptionPayableTicketCount > 0) {
+        return '本单卡包抵' + this.subscriptionDeductedCount + '张，另' + this.subscriptionPayableTicketCount + '张按当前优惠结算';
+      }
+      return '本单' + this.subscriptionDeductedCount + '张均由卡包抵扣';
+    },
+
+    subscriptionLimitText() {
+      if (!this.selectedSubscription) return '';
+      if (this.selectedSubscriptionOrderMax > 0) {
+        return '该卡每单最多抵' + this.selectedSubscriptionOrderMax + '张，同行人数不受限制';
+      }
+      return '按卡内剩余额度抵扣，同行人数不受限制';
     },
 
     memberDiscountAmountFen() {
@@ -1119,13 +1161,64 @@ page {
         }
       }
     }
-    .selection-hint {
-      font-size: 24rpx;
-      color: $primary;
+    .subscription-breakdown {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20rpx;
       background: #FFF8F6;
       border-radius: 8rpx;
-      padding: 8rpx 14rpx;
-      margin: -4rpx 0 12rpx;
+      border-left: 6rpx solid $primary;
+      padding: 16rpx 18rpx;
+      margin: -4rpx 0 16rpx;
+      .subscription-breakdown-copy {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 6rpx;
+      }
+      .subscription-breakdown-title {
+        font-size: 24rpx;
+        line-height: 1.45;
+        color: $primary;
+        font-weight: bold;
+      }
+      .subscription-breakdown-note {
+        font-size: 20rpx;
+        line-height: 1.4;
+        color: #777;
+      }
+      .subscription-counts {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+      }
+      .subscription-count-item {
+        min-width: 76rpx;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .subscription-count-value {
+        font-size: 30rpx;
+        line-height: 1.1;
+        color: $primary;
+        font-weight: bold;
+        &.payable { color: $dark; }
+      }
+      .subscription-count-label {
+        margin-top: 6rpx;
+        font-size: 18rpx;
+        color: #888;
+        white-space: nowrap;
+      }
+      .subscription-count-divider {
+        width: 1px;
+        height: 42rpx;
+        margin: 0 10rpx;
+        background: #F1D8CF;
+      }
     }
     .balance-row {
       background: #F8F8F8;
