@@ -1,29 +1,20 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 营销弹窗 -->
-		<view class="banner-popup" v-if="activeBanner" @tap="closeBanner">
-			<view :class="bannerPanelClass" @tap.stop>
-				<image
-					class="banner-img"
-					v-if="activeBanner.image_url"
-					:src="activeBanner.image_url"
-					mode="aspectFill"
-					@tap="goBannerLink"
-				/>
-				<view class="banner-text-hero" v-else @tap="goBannerLink">
-					<view class="banner-text-icon">{{ activeBanner.icon || '活' }}</view>
-					<text class="banner-text-tag">{{ activeBanner.tag || '店内活动' }}</text>
+		<!-- 只有大图活动才使用强曝光弹窗 -->
+		<view class="marketing-popup" v-if="activeBanner" @tap="closeBanner">
+			<view class="marketing-panel" @tap.stop>
+				<view class="marketing-media" @tap="goBannerLink">
+					<image class="marketing-image" :src="activeBanner.image_url" mode="aspectFill" />
+					<view class="marketing-close" @tap.stop="closeBanner">✕</view>
 				</view>
-				<view class="banner-info">
-					<text class="banner-title">{{ activeBanner.title }}</text>
-					<text class="banner-sub" v-if="activeBanner.subtitle">{{ activeBanner.subtitle }}</text>
+				<view class="marketing-copy">
+					<text class="marketing-kicker">{{ activeBanner.tag || '店内活动' }}</text>
+					<text class="marketing-title">{{ activeBanner.title }}</text>
+					<text class="marketing-sub" v-if="activeBanner.subtitle">{{ activeBanner.subtitle }}</text>
 				</view>
-				<view class="banner-actions">
-					<view class="banner-secondary" @tap.stop="closeBanner">稍后</view>
-					<view class="banner-primary" @tap.stop="goBannerLink">{{ activeBanner.cta_text || '去看看' }}</view>
-				</view>
-				<view class="banner-close" @tap.stop="closeBanner">
-					<text>✕</text>
+				<view :class="bannerActionsClass">
+					<view class="marketing-secondary" v-if="bannerHasTarget" @tap.stop="closeBanner">稍后</view>
+					<view class="marketing-primary" @tap.stop="goBannerLink">{{ bannerPrimaryText }}</view>
 				</view>
 			</view>
 		</view>
@@ -49,7 +40,7 @@
 					</view>
 					<view class="notice-line" v-if="perlerEnabled">
 						<text class="notice-dot">🧩</text>
-						<text class="notice-copy">拼豆一日票{{ perlerDayPriceText }}，会员、优惠券和积分均可用，含大厅入场和1份标准材料；当天已入场或已预约可按{{ perlerUpgradePriceText }}补差升级。</text>
+						<text class="notice-copy">拼豆一日票{{ perlerDayPriceText }}，含大厅入场和1份标准材料。会员直客及当天有效的小程序权益按{{ perlerUpgradePriceText }}升级，外部团购由店员核验后按{{ perlerChannelUpgradePriceText }}办理。</text>
 					</view>
 					<view class="notice-line">
 						<text class="notice-dot">↩️</text>
@@ -68,296 +59,166 @@
 			</view>
 		</view>
 
-		<!-- ===== 天空背景 ===== -->
-		<view class="sky-header">
-			<view class="cloud cloud-1">
-				<view class="puff p1"></view>
-				<view class="puff p2"></view>
-				<view class="puff p3"></view>
-			</view>
-			<view class="cloud cloud-2">
-				<view class="puff p1"></view>
-				<view class="puff p2"></view>
-			</view>
-			<view class="sun"></view>
-
-			<view class="header-content">
-				<text class="header-title">{{ constance.store_name || '摸鱼划水吧' }}</text>
-				<text class="header-sub">桌游、拼豆、漫画自由切换，想安静再约包厢</text>
-			</view>
-
-			<view class="grass-hill">
-				<view class="blade blade-1">🌿</view>
-				<view class="blade blade-2">🌱</view>
-				<view class="blade blade-3">🌿</view>
-				<view class="blade blade-4">🌱</view>
-			</view>
-		</view>
-
-		<!-- 收藏引导 -->
-		<view class="collection-hint" v-if="!collectionHintClosed" @click="closeCollectionHint">
-			<text class="hint-text">⭐️ 收藏小程序，下次预约更方便</text>
-			<text class="hint-close">✕</text>
-		</view>
-
-		<!-- 可领券提醒 -->
-		<view class="coupon-hint" v-if="showCouponHint" @tap="goToVoucher">
-			<view class="coupon-hint-main">
-				<text class="coupon-hint-icon">券</text>
-				<view class="coupon-hint-copy">
-					<text class="coupon-hint-title">{{ claimableCouponTitle }}</text>
-					<text class="coupon-hint-sub">现在领取，下单时可直接抵扣</text>
-				</view>
-			</view>
-			<view class="coupon-hint-right">
-				<text class="coupon-hint-action">去领取</text>
-				<text class="coupon-hint-close" @tap.stop="closeCouponHint">✕</text>
-			</view>
-		</view>
-
-		<!-- 活动情报卡 -->
-		<view class="activity-card" v-if="activityCard" @tap="goActivityCard">
-			<view class="activity-icon">{{ activityCard.icon || '活' }}</view>
-			<view class="activity-copy">
-				<view class="activity-line">
-					<text class="activity-tag">{{ activityCard.tag || '店内活动' }}</text>
-					<text class="activity-title">{{ activityCard.title }}</text>
-				</view>
-				<text class="activity-sub" v-if="activityCard.subtitle">{{ activityCard.subtitle }}</text>
-			</view>
-			<view class="activity-side">
-				<text class="activity-action">{{ activityCard.cta_text || '去看看' }}</text>
-				<text class="activity-close" @tap.stop="closeActivityCard">✕</text>
-			</view>
-		</view>
-
-		<!-- 好友邀请落地 -->
-		<view class="invite-landing-card" v-if="showInviteLanding" @tap="handleInviteLandingTap">
-			<view class="invite-landing-icon">礼</view>
-			<view class="invite-landing-copy">
-				<text class="invite-landing-kicker">好友邀请</text>
-				<text class="invite-landing-title">{{ inviteLandingTitle }}</text>
-				<text class="invite-landing-sub">{{ inviteLandingSub }}</text>
-			</view>
-			<view class="invite-landing-side">
-				<text class="invite-landing-action">{{ inviteLandingAction }}</text>
-				<text class="invite-landing-close" @tap.stop="closeInviteLanding">✕</text>
-			</view>
-		</view>
-
-		<!-- 今日福利 -->
-		<view :class="homeBenefitCardClass" @tap="handleHomeBenefitTap">
-			<view class="benefit-copy">
-				<text class="benefit-kicker">{{ homeBenefitKicker }}</text>
-				<text class="benefit-title">{{ homeBenefitTitle }}</text>
-				<text class="benefit-sub">{{ homeBenefitSub }}</text>
-			</view>
-			<view class="benefit-side">
-				<view :class="homeBenefitDiceClass">
-					<view class="dice-face">
-						<view
-							v-for="dot in homeDiceDots"
-							:key="dot.key"
-							:class="dot.className"
-						></view>
-					</view>
-					<text class="dice-label">{{ homeDiceLabel }}</text>
-				</view>
-				<text class="benefit-action">{{ homeBenefitAction }}</text>
-			</view>
-		</view>
-
-		<view class="saver-entry" @tap="goToSubscriptionMall">
-			<view class="saver-mark">省</view>
-			<view class="saver-copy">
-				<text class="saver-title">常来几次，别每次都按原价</text>
-				<text class="saver-sub">大厅票可多人同单抵扣，独立包厢按小时省</text>
-			</view>
-			<text class="saver-action">看卡包</text>
-		</view>
-
-		<!-- ===== 场景套餐 ===== -->
-		<view class="scene-section">
-			<view class="scene-section-head">
-				<view>
-					<text class="scene-title">今天想怎么玩？</text>
-					<text class="scene-sub">先选场景，再决定买票、加购或约包厢</text>
-				</view>
-				<text class="scene-note">推荐</text>
-			</view>
-			<view class="scene-hero-card" v-if="primaryScenePackage" @tap="handleSceneTap(primaryScenePackage)">
-				<view class="scene-hero-main">
-					<text class="scene-hero-icon">{{ primaryScenePackage.icon }}</text>
-					<view class="scene-hero-text">
-						<text class="scene-hero-badge">{{ primaryScenePackage.badge }}</text>
-						<text class="scene-hero-name">{{ primaryScenePackage.name }}</text>
-						<text class="scene-hero-desc">{{ primaryScenePackage.desc }}</text>
-					</view>
-				</view>
-				<view class="scene-hero-price">
-					<text class="scene-price">{{ primaryScenePackage.price }}</text>
-					<text class="scene-action">{{ primaryScenePackage.actionText }}</text>
-				</view>
-			</view>
-			<view class="perler-upgrade-entry" v-if="perlerEnabled" @tap="openPerlerUpgradeEntry">
-				<text class="perler-upgrade-icon">🧩</text>
-				<view class="perler-upgrade-copy">
-					<text class="perler-upgrade-title">已有大厅、预约或团购入场权益？</text>
-					<text class="perler-upgrade-desc">统一查询今天可用的升级方式，到店临时想玩也能办理</text>
-				</view>
-				<view class="perler-upgrade-action">
-					<text>查看升级</text>
-					<text class="perler-upgrade-arrow">›</text>
-				</view>
-			</view>
-			<view class="scene-grid">
-				<view class="scene-card" v-for="scene in secondaryScenePackages" :key="scene.key" @tap="handleSceneTap(scene)">
-					<view class="scene-card-top">
-						<text class="scene-card-icon">{{ scene.icon }}</text>
-						<text class="scene-card-badge">{{ scene.badge }}</text>
-					</view>
-					<text class="scene-card-name">{{ scene.name }}</text>
-					<text class="scene-card-desc">{{ scene.desc }}</text>
-					<view class="scene-card-foot">
-						<text class="scene-card-price">{{ scene.price }}</text>
-						<text class="scene-card-action">{{ scene.actionText }}</text>
-					</view>
-				</view>
-			</view>
-		</view>
-
-		<!-- ===== 社交空间入口 ===== -->
-		<view class="social-space-card" @tap="goToGroupSquare">
-			<view class="social-copy">
-				<text class="social-kicker">第三空间</text>
-				<text class="social-title">今天有没有人差位？</text>
-				<text class="social-desc">先看包厢/主机组局；只玩大厅的话，买票后也能在票包送好友。</text>
-			</view>
-			<view class="social-side">
-				<text class="social-badge">找队友</text>
-				<text class="social-action">去看看 →</text>
-			</view>
-		</view>
-
-		<!-- ===== 轮播 ===== -->
-		<view class="carousel-wrapper" v-if="carouselList.length > 0">
-			<swiper class="carousel" circular autoplay interval="4000" @change="swiperChange">
+		<!-- 真实门店首屏 -->
+		<view class="home-hero">
+			<swiper class="hero-media" v-if="carouselList.length > 0" circular autoplay interval="5000" @change="swiperChange">
 				<swiper-item v-for="(img, idx) in carouselList" :key="idx">
-					<image :src="img" class="carousel-image" mode="aspectFill" />
+					<image class="hero-image" :src="img" mode="aspectFill" />
 				</swiper-item>
 			</swiper>
-			<view class="carousel-indicator">
-				<view v-for="i in swiperLength" :key="i" :class="swiperCurrent === i - 1 ? 'indicator-dot active' : 'indicator-dot'"></view>
+			<view class="hero-fallback" v-else>
+				<image class="hero-logo" src="/static/logo_small.jpg" mode="aspectFit" />
+				<text class="hero-fallback-text">桌游 · 漫画 · 拼豆 · 包厢</text>
+			</view>
+			<view class="hero-scrim"></view>
+			<view class="hero-topbar">
+				<view :class="storeStatusClass">
+					<text class="store-status-dot"></text>
+					<text>{{ storeStatusText }}</text>
+				</view>
+				<text class="hero-hours">{{ businessHoursText }}</text>
+			</view>
+			<view class="hero-content">
+				<text class="hero-kicker">福州 · ACG综合体验空间</text>
+				<text class="hero-title">{{ storeNameText }}</text>
+				<text class="hero-subtitle">桌游、漫画、拼豆自由切换，想安静再约一间包厢</text>
+				<view class="hero-value-line">
+					<text class="hero-value-main">大厅 {{ ticketPriceText }}</text>
+					<text class="hero-value-separator">·</text>
+					<text class="hero-value-sub">营业时间内不限时</text>
+				</view>
+			</view>
+			<view class="hero-dots" v-if="heroDots.length > 1">
+				<view v-for="dot in heroDots" :key="dot.key" :class="dot.className"></view>
 			</view>
 		</view>
 
-		<!-- ===== 店里玩什么 ===== -->
-		<view class="section">
-			<view class="section-header">
-				<text class="section-title">🎮 店里玩什么</text>
-				<text class="section-sub">大厅权益内可畅玩，拼豆按材料体验计费</text>
+		<!-- 三个核心消费场景 -->
+		<view class="play-section">
+			<view class="section-heading">
+				<view>
+					<text class="section-kicker">先选一种玩法</text>
+					<text class="section-title">今天想怎么玩？</text>
+				</view>
+				<text class="section-heading-note">到店也能调整</text>
 			</view>
-			<view class="world-grid">
-				<view class="world-card" v-for="(item, idx) in visibleEntertainmentItems" :key="idx" :style="item.cardStyle">
-					<view class="world-top">
-						<text class="world-emoji">{{ item.emoji }}</text>
-						<text class="world-tag" :style="item.tagStyle">{{ item.tag }}</text>
+			<view class="play-grid">
+				<view v-for="option in playOptions" :key="option.key" :class="option.className" @tap="handleSceneTap(option)">
+					<view class="play-option-head">
+						<text class="play-option-mark">{{ option.mark }}</text>
+						<text class="play-option-badge">{{ option.badge }}</text>
 					</view>
-					<text class="world-name">{{ item.name }}</text>
-					<text class="world-desc">{{ item.desc }}</text>
-				</view>
-			</view>
-		</view>
-
-		<!-- ===== 增值服务 ===== -->
-		<view class="section upsell-section">
-			<view class="section-header">
-				<text class="section-title">💎 到店还能升级</text>
-				<text class="section-sub">布置、补给、包厢按需加</text>
-			</view>
-			<view class="upsell-list">
-				<view class="upsell-item" v-for="item in upsellItems" :key="item.key" @tap="handleUpsellTap(item)">
-					<view class="upsell-icon" :style="item.style">{{ item.icon }}</view>
-					<view class="upsell-body">
-						<text class="upsell-name">{{ item.name }}</text>
-						<text class="upsell-desc">{{ item.desc }}</text>
+					<text class="play-option-name">{{ option.name }}</text>
+					<text class="play-option-desc">{{ option.desc }}</text>
+					<view class="play-option-foot">
+						<text class="play-option-price">{{ option.price }}</text>
+						<text class="play-option-action">{{ option.actionText }} ›</text>
 					</view>
-					<text class="upsell-price">{{ item.price }}</text>
-				</view>
-			</view>
-		</view>
-
-		<!-- ===== 店铺信息 ===== -->
-		<view class="section">
-			<view class="section-header">
-				<text class="section-title">🏠 店铺信息</text>
-			</view>
-			<view class="shop-card">
-				<view class="shop-header-row">
-					<text class="shop-name">{{ constance.store_name || '摸鱼划水吧' }}</text>
-					<view class="shop-status">
-						<text class="status-dot"></text>
-						<text class="status-text">营业中</text>
-					</view>
-				</view>
-				<view class="info-row" @tap="openLocation">
-					<text class="info-icon">📍</text>
-					<view class="info-text">
-						<text class="info-label">地址</text>
-						<text class="info-value">{{(constance.store_address || addressData.address) + (constance.store_area || addressData.area)}}</text>
-					</view>
-					<text class="info-action">导航</text>
-				</view>
-				<view class="info-row">
-					<text class="info-icon">🕐</text>
-					<view class="info-text">
-						<text class="info-label">营业时间</text>
-						<text class="info-value">{{ constance.business_hours || '10:00 - 22:00' }}</text>
-					</view>
-				</view>
-				<view class="info-row">
-					<text class="info-icon">📞</text>
-					<view class="info-text">
-						<text class="info-label">电话</text>
-						<text class="info-value highlight">{{constance.phone_number || '83596103'}}</text>
-					</view>
-				</view>
-				<view class="info-row">
-					<text class="info-icon">📶</text>
-					<view class="info-text">
-						<text class="info-label">WiFi</text>
-						<text class="info-value">{{constance.wifi_account || 'moyu888'}} / {{constance.wifi_password || 'moyu888'}}</text>
-					</view>
-				</view>
-				<view class="info-row" @tap="openStoreNotice">
-					<text class="info-icon">📋</text>
-					<view class="info-text">
-						<text class="info-label">入店须知</text>
-						<text class="info-value">大厅票、包厢升级、退款规则</text>
-					</view>
-					<text class="info-action">查看</text>
 				</view>
 			</view>
 		</view>
 
-		<!-- ===== 玩家评价 ===== -->
-		<view class="section" v-if="reviews.length > 0">
-			<view class="section-header">
-				<view class="section-title-wrap">
-					<text class="section-title">💬 玩家怎么说</text>
-					<text class="section-sub">{{ reviewSummaryText }}</text>
+		<!-- 首页只保留一个动态提醒 -->
+		<view :class="homePromptClass" v-if="homePromptType" @tap="handleHomePromptTap">
+			<text class="home-prompt-icon">{{ homePromptIcon }}</text>
+			<view class="home-prompt-copy">
+				<text class="home-prompt-kicker">{{ homePromptKicker }}</text>
+				<text class="home-prompt-title">{{ homePromptTitle }}</text>
+				<text class="home-prompt-sub" v-if="homePromptSub">{{ homePromptSub }}</text>
+			</view>
+			<view class="home-prompt-side">
+				<text class="home-prompt-action">{{ homePromptAction }}</text>
+				<text class="home-prompt-close" v-if="homePromptClosable" @tap.stop="closeHomePrompt">✕</text>
+			</view>
+		</view>
+
+		<!-- 到店后的次级服务 -->
+		<view class="service-section">
+			<view class="section-heading compact">
+				<view>
+					<text class="section-kicker">临时改变计划也没关系</text>
+					<text class="section-title">到店后继续加</text>
 				</view>
-				<text class="section-more" @tap="goToMyReviews">{{ hasLogin ? '写评价 →' : '登录评价 →' }}</text>
+			</view>
+			<view class="service-list">
+				<view class="service-row perler" v-if="perlerEnabled" @tap="openPerlerUpgradeEntry">
+					<text class="service-mark">豆</text>
+					<view class="service-copy">
+						<text class="service-title">临时想玩拼豆</text>
+						<text class="service-sub">会员直客/小程序权益{{ perlerUpgradePriceText }}，外部团购核验{{ perlerChannelUpgradePriceText }}</text>
+					</view>
+					<text class="service-action">查资格 ›</text>
+				</view>
+				<view class="service-row saver" @tap="goToSubscriptionMall">
+					<text class="service-mark">省</text>
+					<view class="service-copy">
+						<text class="service-title">常来就别每次原价</text>
+						<text class="service-sub">大厅次卡按人数抵，包厢小时卡按时长省</text>
+					</view>
+					<text class="service-action">看卡包 ›</text>
+				</view>
+			</view>
+		</view>
+
+		<view class="social-section" @tap="goToGroupSquare">
+			<view class="social-mark">局</view>
+			<view class="social-copy">
+				<text class="social-kicker">不想一个人开场</text>
+				<text class="social-title">看看今天谁还差位</text>
+				<text class="social-desc">找桌游搭子、主机队友，或发起自己的包厢局</text>
+			</view>
+			<text class="social-action">去组局 ›</text>
+		</view>
+
+		<view class="store-section">
+			<view class="section-heading compact">
+				<view>
+					<text class="section-kicker">第一次来先认准位置</text>
+					<text class="section-title">到店信息</text>
+				</view>
+			</view>
+			<view class="store-panel">
+				<view class="store-primary-row" @tap="openLocation">
+					<text class="store-row-mark">位</text>
+					<view class="store-row-copy">
+						<text class="store-row-label">门店地址</text>
+						<text class="store-row-value">{{ storeAddressText }}</text>
+					</view>
+					<text class="store-row-action">导航 ›</text>
+				</view>
+				<view class="store-detail-grid">
+					<view class="store-detail" @tap="callStore">
+						<text class="store-detail-label">联系电话</text>
+						<text class="store-detail-value accent">{{ storePhoneText }}</text>
+						<text class="store-detail-action">点击拨打</text>
+					</view>
+					<view class="store-detail" @tap="openStoreNotice">
+						<text class="store-detail-label">到店前须知</text>
+						<text class="store-detail-value">票券、升级、退款</text>
+						<text class="store-detail-action">查看规则</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<view class="review-section" v-if="reviews.length > 0">
+			<view class="section-heading compact">
+				<view>
+					<text class="section-kicker">真实到店体验</text>
+					<text class="section-title">玩家怎么说</text>
+					<text class="section-summary">{{ reviewSummaryText }}</text>
+				</view>
+				<text class="section-link" @tap="goToMyReviews">{{ hasLogin ? '写评价 ›' : '登录评价 ›' }}</text>
 			</view>
 			<swiper class="reviews-swiper" vertical autoplay circular interval="4000">
-				<swiper-item v-for="(rev, idx) in reviews" :key="idx">
+				<swiper-item v-for="rev in reviews" :key="rev.key">
 					<view class="review-card">
 						<view class="review-header">
 							<text class="review-avatar">{{ rev.avatarText }}</text>
 							<view class="review-meta">
 								<text class="review-name">{{ rev.displayName }}</text>
 								<view class="review-stars">
-									<text v-for="s in 5" :key="s" :class="s <= rev.ratingNumber ? 'star filled' : 'star'">⭐</text>
+									<text v-for="s in 5" :key="s" :class="s <= rev.ratingNumber ? 'star filled' : 'star'">★</text>
 								</view>
 							</view>
 							<text class="review-badge">{{ rev.recommendText }}</text>
@@ -399,101 +260,100 @@
 				const price = this.constance && this.constance.perler_upgrade_price;
 				return '¥' + ((parseInt(price) || 3100) / 100).toFixed(0) + '/人';
 			},
+			perlerChannelUpgradePriceText() {
+				const price = this.constance && this.constance.perler_channel_upgrade_price;
+				return '¥' + ((parseInt(price) || 3900) / 100).toFixed(0) + '/人';
+			},
 			perlerEnabled() {
 				const value = this.constance && this.constance.perler_enabled;
 				return value !== false && value !== 0 && value !== '0' && value !== 'false';
 			},
-			ticketPriceHalfText() {
-				return '¥' + (this.ticketPriceFen / 200).toFixed(0);
-			},
-			doubleTicketText() {
-				return '¥' + (this.ticketPriceFen * 2 / 100).toFixed(0) + '起';
-			},
-			fourTicketText() {
-				return '¥' + (this.ticketPriceFen * 4 / 100).toFixed(0) + '起';
-			},
-			scenePackages() {
+			playOptions() {
 				const items = [
 					{
-						key: 'single',
-						icon: '🎫',
-						badge: '引流款',
-						name: '一个人放空',
-						desc: '漫画小说、桌游、茶水零食，买票进来慢慢待',
+						key: 'hall',
+						mark: '票',
+						badge: '一票待一天',
+						name: '大厅自由畅玩',
+						desc: '桌游、漫画小说、茶水零食都包含，一个人或朋友同行都合适',
 						price: this.ticketPriceText,
-						actionText: '买大厅票',
+						actionText: '买票入场',
 						action: 'ticket',
 						count: 1,
-					},
-					{
-						key: 'couple',
-						icon: '🥤',
-						badge: '双人',
-						name: '两个人休闲',
-						desc: '适合约会、朋友小聚，到店可加饮品零食',
-						price: this.doubleTicketText,
-						actionText: '买2张',
-						action: 'ticket',
-						count: 2,
-					},
-					{
-						key: 'group',
-						icon: '🎲',
-						badge: '多人',
-						name: '四人桌游局',
-						desc: '先买入场票，想更安静再升级包厢',
-						price: this.fourTicketText,
-						actionText: '买4张',
-						action: 'ticket',
-						count: 4,
+						className: 'play-option hall',
 					},
 					{
 						key: 'room',
-						icon: '🎮',
-						badge: '升级',
-						name: '包厢主机局',
-						desc: 'Switch / PS / 私密空间，适合提前预约',
+						mark: '房',
+						badge: '安静私密',
+						name: '预约包厢',
+						desc: '主机、聚会、团建，按小时选择合适空间',
 						price: '按小时',
-						actionText: '去预约',
+						actionText: '选房间',
 						action: 'reserve',
+						className: this.perlerEnabled ? 'play-option room' : 'play-option room full',
 					},
 				];
 				if (this.perlerEnabled) {
-					items.unshift({
+					items.splice(1, 0, {
 						key: 'perler',
-						icon: '🧩',
-						badge: '新体验',
-						name: '拼豆一日创作',
-						desc: '不限创作时间，含1份标准材料和大厅入场；累了就换桌游或漫画',
+						mark: '豆',
+						badge: '含大厅入场',
+						name: '拼豆一日',
+						desc: '标准材料1份，不限制作时间，成品可以带走',
 						price: this.perlerDayPriceText,
-						actionText: '去选拼豆票',
+						actionText: '买拼豆票',
 						action: 'perler',
+						className: 'play-option perler',
 					});
 				}
 				return items;
 			},
-			primaryScenePackage() {
-				return this.scenePackages[0] || null;
+			heroDots() {
+				return this.carouselList.map(function(img, index) {
+					return {
+						key: 'hero-dot-' + index,
+						className: index === this.swiperCurrent ? 'hero-dot active' : 'hero-dot'
+					};
+				}.bind(this));
 			},
-			secondaryScenePackages() {
-				return this.scenePackages.slice(1);
+			businessHoursText() {
+				return String(this.constance && this.constance.business_hours || '10:00 - 22:00').trim();
 			},
-			visibleEntertainmentItems() {
-				const self = this;
-				return this.entertainmentItems.filter(function(item) {
-					return self.perlerEnabled || item.key !== 'perler';
-				}).map(function(item) {
-					if (item.key !== 'perler') return item;
-					return Object.assign({}, item, { tag: self.perlerDayPriceText.replace('/人', '') + '含入场' });
-				});
+			storeNameText() {
+				return this.constance && this.constance.store_name || '摸鱼划水吧';
+			},
+			storeBusinessState() {
+				var text = this.businessHoursText.replace(/[~～—–至]/g, '-');
+				var match = text.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+				if (!match) return { text: '营业时间见详情', className: 'store-status neutral' };
+				var start = parseInt(match[1]) * 60 + parseInt(match[2]);
+				var end = parseInt(match[3]) * 60 + parseInt(match[4]);
+				var now = new Date(this.nowTimestamp || Date.now());
+				var minutes = now.getHours() * 60 + now.getMinutes();
+				var overnight = end <= start;
+				var isOpen = overnight ? (minutes >= start || minutes < end) : (minutes >= start && minutes < end);
+				if (!isOpen) return { text: '当前未营业', className: 'store-status closed' };
+				var remaining = overnight
+					? (minutes >= start ? 24 * 60 - minutes + end : end - minutes)
+					: end - minutes;
+				if (remaining <= 60) return { text: '即将打烊', className: 'store-status closing' };
+				return { text: '营业中', className: 'store-status open' };
+			},
+			storeStatusText() {
+				return this.storeBusinessState.text;
+			},
+			storeStatusClass() {
+				return this.storeBusinessState.className;
+			},
+			storeAddressText() {
+				return (this.constance && this.constance.store_address || this.addressData.address) + (this.constance && this.constance.store_area || this.addressData.area);
+			},
+			storePhoneText() {
+				return String(this.constance && this.constance.phone_number || '83596103');
 			},
 			showCouponHint() {
 				return this.hasLogin && !this.showInviteLanding && !this.couponHintClosed && this.claimableCouponCount > 0;
-			},
-			bannerPanelClass() {
-				var names = ['banner-panel'];
-				if (!this.activeBanner || !this.activeBanner.image_url) names.push('text-only');
-				return names.join(' ');
 			},
 			claimableCouponTitle() {
 				if (this.claimableCouponName) {
@@ -513,66 +373,62 @@
 			inviteLandingAction() {
 				return this.hasLogin ? '领取' : '登录领';
 			},
-			homeBenefitKicker() {
-				if (!this.hasLogin) return '新手投骰';
-				if (this.checkInInfo.checked_in_today) return '骰子已落定';
-				if (this.checkInInfo.can_check_in) return '今日投骰';
-				return '回访奖励';
+			homePromptType() {
+				if (this.showInviteLanding) return 'invite';
+				if (this.showCouponHint) return 'coupon';
+				if (this.hasLogin && this.checkInInfo.can_check_in) return 'checkin';
+				if (this.activityCard) return 'activity';
+				return '';
 			},
-			homeBenefitCardClass() {
-				var names = ['home-benefit-card'];
-				if (this.checkInInfo.checked_in_today) names.push('checked');
-				if (this.checkInRolling) names.push('loading');
-				return names.join(' ');
+			bannerPrimaryText() {
+				if (!this.bannerHasTarget) return '知道了';
+				return this.activeBanner.cta_text || '去看看';
 			},
-			homeBenefitTitle() {
-				if (!this.hasLogin) return '登录解锁今日投骰';
-				if (this.checkInInfo.checked_in_today) return '今日已投骰';
-				if (this.checkInInfo.can_check_in) return '投骰领' + this.homeCheckInPointsText;
-				return '明天继续来领';
+			bannerHasTarget() {
+				return !!(this.activeBanner && this.activeBanner.link_type !== 'none' && this.activeBanner.link_value);
 			},
-			homeBenefitSub() {
-				if (!this.hasLogin) return '登录后点亮每日棋盘，积分和优惠券一起攒';
+			bannerActionsClass() {
+				return this.bannerHasTarget ? 'marketing-actions' : 'marketing-actions single';
+			},
+			homePromptClass() {
+				return this.homePromptType ? 'home-prompt ' + this.homePromptType : 'home-prompt';
+			},
+			homePromptIcon() {
+				if (this.homePromptType === 'invite') return '礼';
+				if (this.homePromptType === 'activity') return this.activityCard && this.activityCard.icon || '活';
+				if (this.homePromptType === 'coupon') return '券';
+				return '骰';
+			},
+			homePromptKicker() {
+				if (this.homePromptType === 'invite') return '好友邀请';
+				if (this.homePromptType === 'activity') return this.activityCard && this.activityCard.tag || '店内活动';
+				if (this.homePromptType === 'coupon') return '下单前先领';
+				return '今日签到';
+			},
+			homePromptTitle() {
+				if (this.homePromptType === 'invite') return this.inviteLandingTitle;
+				if (this.homePromptType === 'activity') return this.activityCard && this.activityCard.title || '';
+				if (this.homePromptType === 'coupon') return this.claimableCouponTitle;
+				return '投骰领' + this.homeCheckInPointsText;
+			},
+			homePromptSub() {
+				if (this.homePromptType === 'invite') return this.inviteLandingSub;
+				if (this.homePromptType === 'activity') return this.activityCard && this.activityCard.subtitle || '';
+				if (this.homePromptType === 'coupon') return '领取后会在结算时展示可用抵扣';
 				var streak = Number(this.checkInInfo.current_streak || 0);
-				if (this.checkInInfo.checked_in_today) {
-					return streak > 0 ? '已连续' + streak + '天，明天可领' + this.tomorrowCheckInPointsText : '明天继续投骰攒积分';
-				}
-				if (streak > 0) return '已连续' + streak + '天，今天别让棋子停下';
-				return '每天投一次，兑换卡券更快';
+				return streak > 0 ? '已连续' + streak + '天，今天继续累积' : '签到积分可以在卡券商城兑换';
 			},
-			homeBenefitAction() {
-				if (!this.hasLogin) return '登录';
-				if (this.checkInInfo.can_check_in) return '投骰';
-				return '看卡券';
+			homePromptAction() {
+				if (this.homePromptType === 'invite') return this.inviteLandingAction;
+				if (this.homePromptType === 'activity') return this.activityCard && this.activityCard.cta_text || '去看看';
+				if (this.homePromptType === 'coupon') return '去领取';
+				return this.checkInRolling ? '领取中' : '去签到';
 			},
-			homeBenefitDiceClass() {
-				var names = ['benefit-dice'];
-				if (this.checkInRolling) names.push('rolling');
-				if (this.checkInInfo.checked_in_today) names.push('done');
-				return names.join(' ');
-			},
-			homeDiceLabel() {
-				if (this.checkInRolling) return '投骰中';
-				if (!this.hasLogin) return '新手骰';
-				if (this.checkInInfo.checked_in_today) return '已投' + this.homeDiceNumber + '点';
-				if (this.checkInInfo.can_check_in) return '今日可投';
-				return '明日再投';
-			},
-			homeDiceNumber() {
-				var streak = Number(this.checkInInfo.current_streak || 0);
-				var points = Number(this.checkInInfo.points_earned_today || this.checkInInfo.next_points || 0);
-				if (this.checkInInfo.can_check_in) streak += 1;
-				return this.getCheckInDiceNumber(streak, points);
-			},
-			homeDiceDots() {
-				return this.buildDiceDots(this.homeDiceNumber);
+			homePromptClosable() {
+				return this.homePromptType === 'invite' || this.homePromptType === 'activity' || this.homePromptType === 'coupon';
 			},
 			homeCheckInPointsText() {
 				var points = this.checkInInfo.next_points || (this.checkInInfo.config && this.checkInInfo.config.daily_points) || 10;
-				return '+' + points + '积分';
-			},
-			tomorrowCheckInPointsText() {
-				var points = this.checkInInfo.tomorrow_points || this.checkInInfo.next_points || (this.checkInInfo.config && this.checkInInfo.config.daily_points) || 10;
 				return '+' + points + '积分';
 			},
 			reviewSummaryText() {
@@ -604,39 +460,29 @@
 					this.trackInviteLandingView();
 				}
 			},
+			homePromptType(value) {
+				if (value === 'activity') this.trackActivityCardView();
+			},
+			activityCard(value) {
+				if (value && this.homePromptType === 'activity') this.trackActivityCardView();
+			},
 		},
 		data() {
 			return {
 				swiperCurrent: 0,
+				nowTimestamp: Date.now(),
 				activeBanner: null,
 				activityCard: null,
-				swiperLength: 0,
 				carouselList: [],
 				addressData: {
 					name: '摸鱼划水吧',
-					address: '福建省福州市鼓楼区',
-					area: '6号儒商楼08店面',
+					address: '福州市鼓楼区吉庇路',
+					area: '61号综合办公楼三层A区',
 				},
-
-
-				entertainmentItems: [
-					{ key: 'perler', emoji: '🧩', name: '拼豆创作', desc: '不限制作时间，成品可带走', tag: '会员券积分可用', cardStyle: 'border-top-color: #78C8B8;', tagStyle: 'background: #E1F5F0; color: #21867A;' },
-					{ emoji: '🎮', name: '主机游戏', desc: 'Switch / PS / 双人闯关', tag: '包间另计', cardStyle: 'border-top-color: #A8C8EC;', tagStyle: 'background: #E3F0FC; color: #4A90D9;' },
-					{ emoji: '🎲', name: '桌游天地', desc: '2-8人聚会，轻松开局', tag: '大厅免费', cardStyle: 'border-top-color: #F0B8B8;', tagStyle: 'background: #FCE8E8; color: #D86060;' },
-					{ emoji: '📚', name: '漫画小说', desc: '一个人来也能安静待很久', tag: '大厅免费', cardStyle: 'border-top-color: #E8D4A0;', tagStyle: 'background: #FFF5D6; color: #B89630;' },
-					{ emoji: '📖', name: '亲子阅读', desc: '儿童半价，周末更好安排', tag: '大厅免费', cardStyle: 'border-top-color: #A8D8A8;', tagStyle: 'background: #E0F5E0; color: #4A9A4A;' },
-				],
-				upsellItems: [
-					{ key: 'room', icon: '🎮', name: '包厢主机升级', desc: '想玩 Switch / PS，先预约更稳', price: '按小时', action: 'reserve', style: 'background: #E3F0FC;' },
-					{ key: 'snack', icon: '🍿', name: '饮品零食补给', desc: '多人局、下午场适合加一份小食饮品', price: '到店选', action: 'voucher', style: 'background: #FFF5D6;' },
-					{ key: 'decor', icon: '🎈', name: '生日氛围布置', desc: '气球、花艺、小道具，适合庆生拍照', price: '58元起', action: 'reserve', style: 'background: #FCE8E8;' },
-					{ key: 'party', icon: '🎂', name: '生日/团建小局', desc: '4人以上建议提前约位置，布置补给可加选', price: '可加选', action: 'reserve', style: 'background: #E0F5E0;' },
-				],
 				reviews: [],
 				reviewTotalCount: 0,
 				reviewAverageText: '',
 				reviewsLoaded: false,
-				collectionHintClosed: false,
 				couponHintClosed: false,
 				couponHintClosedKey: '',
 				claimableCouponCount: 0,
@@ -656,6 +502,7 @@
 				bannerLoading: false,
 				bannerLastCheckedAt: 0,
 				bannerActionTrackedAt: {},
+				lastActivityShownId: '',
 				pageViewLastTrackedAt: 0,
 				homeBenefitLastTrackedAt: 0,
 				inviteLandingClosed: false,
@@ -664,11 +511,11 @@
 		},
 		onShow() {
 			uni.$emit('tabBarChange', { key: 'index' });
+			this.startStoreClock();
 			this.schedulePageViewTrack();
 			this.trackHomeBenefitView();
 			this.trackInviteLandingView();
 			if (this.constance) this.loadData();
-			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
 			if (this.hasLogin) {
 				this.loadCheckInInfo({ force: true });
 			}
@@ -681,14 +528,84 @@
 			} else {
 				this.loadData();
 			}
-			this.collectionHintClosed = uni.getStorageSync('collection_hint_closed');
 			this.scheduleDeferredRefresh(true);
 			this.trackHomeBenefitView();
 			this.trackInviteLandingView();
 		},
+		onHide() {
+			this.stopStoreClock();
+			this.stopBannerPopupTimer();
+			this.activeBanner = null;
+		},
+		beforeDestroy() {
+			this.stopStoreClock();
+			this.stopBannerPopupTimer();
+			if (this._deferredRefreshTimer) clearTimeout(this._deferredRefreshTimer);
+		},
+		onShareAppMessage() {
+			const ticketPrice = '¥' + (this.ticketPriceFen / 100).toFixed(0);
+			const titles = [
+				'别卷了！花' + ticketPrice + '可以躺一整天的神仙店 🎮',
+				'福州这家宝藏店，' + ticketPrice + '能玩一整天，我私藏很久了',
+				'周末不知道去哪？来这里躺平，零食还免费',
+				'带娃+打游戏两不误，这家店的老板太懂了',
+				'我的精神避难所，今天忍痛分享给你 🤫',
+			];
+			AUTH.trackEvent({
+				event: 'share_home',
+				page_path: 'pages/index/index',
+				share_type: 'wechat_session',
+				source: 'home'
+			}).catch(function() {});
+			return {
+				title: titles[Math.floor(Math.random() * titles.length)],
+				imageUrl: '/static/share_home.jpg',
+				path: '/pages/index/index',
+			};
+		},
+		onShareTimeline() {
+			AUTH.trackEvent({
+				event: 'share_timeline',
+				page_path: 'pages/index/index',
+				share_type: 'timeline',
+				source: 'home'
+			}).catch(function() {});
+			return {
+				title: '福州周末不知道去哪？来摸鱼划水吧玩一天',
+				imageUrl: '/static/share_home.jpg',
+			};
+		},
+		onAddToFavorites() {
+			AUTH.trackEvent({
+				event: 'share_favorite',
+				page_path: 'pages/index/index',
+				source: 'home'
+			}).catch(function() {});
+			return {
+				title: '先收藏，下次想玩桌游漫画主机找得到',
+				imageUrl: '/static/share_home.jpg',
+			};
+		},
 		methods: {
 			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getReviewList']),
 			...mapMutations(['setPendingInviteCode']),
+			startStoreClock() {
+				this.stopStoreClock();
+				this.nowTimestamp = Date.now();
+				this._storeClockTimer = setInterval(function() {
+					this.nowTimestamp = Date.now();
+				}.bind(this), 60 * 1000);
+			},
+			stopStoreClock() {
+				if (!this._storeClockTimer) return;
+				clearInterval(this._storeClockTimer);
+				this._storeClockTimer = null;
+			},
+			stopBannerPopupTimer() {
+				if (!this._bannerPopupTimer) return;
+				clearTimeout(this._bannerPopupTimer);
+				this._bannerPopupTimer = null;
+			},
 			schedulePageViewTrack() {
 				var now = Date.now();
 				if (now - this.pageViewLastTrackedAt < 30000) return;
@@ -747,13 +664,22 @@
 				this.trackInviteLandingView();
 			},
 			openLocation() {
+				var config = this.constance || {};
 				uni.openLocation({
-					latitude: parseFloat(this.constance.store_latitude || 26.068525),
-					longitude: parseFloat(this.constance.store_longitude || 119.303882),
+					latitude: parseFloat(config.store_latitude || 26.080446),
+					longitude: parseFloat(config.store_longitude || 119.299214),
 					scale: 5,
-					name: this.constance.store_name || this.addressData.name,
-					address: (this.constance.store_address || this.addressData.address) + (this.constance.store_area || this.addressData.area)
+					name: config.store_name || this.addressData.name,
+					address: this.storeAddressText
 				});
+			},
+			callStore() {
+				var number = this.storePhoneText.replace(/[^\d+]/g, '');
+				if (!number) {
+					uni.showToast({ title: '暂未配置联系电话', icon: 'none' });
+					return;
+				}
+				uni.makePhoneCall({ phoneNumber: number });
 			},
 			openStoreNotice() {
 				this.storeNoticeVisible = true;
@@ -799,6 +725,10 @@
 			},
 			goToVoucher(source) {
 				if (typeof source !== 'string') source = 'home_coupon_hint';
+				var initialTab = 'coupon';
+				if (source === 'home_points') initialTab = 'points';
+				if (source === 'home_upsell' || source === 'home_shop') initialTab = 'shop';
+				uni.setStorageSync('voucherInitialTab', initialTab);
 				AUTH.trackEvent({
 					event: 'coupon_hint_click',
 					page_path: 'pages/index/index',
@@ -810,6 +740,26 @@
 			closeCouponHint() {
 				this.couponHintClosed = true;
 				this.couponHintClosedKey = this.claimableCouponKey;
+			},
+			handleHomePromptTap() {
+				if (this.homePromptType === 'invite') {
+					this.handleInviteLandingTap();
+				} else if (this.homePromptType === 'activity') {
+					this.goActivityCard();
+				} else if (this.homePromptType === 'coupon') {
+					this.goToVoucher('home_coupon_hint');
+				} else if (this.homePromptType === 'checkin') {
+					this.handleHomeBenefitTap();
+				}
+			},
+			closeHomePrompt() {
+				if (this.homePromptType === 'invite') {
+					this.closeInviteLanding();
+				} else if (this.homePromptType === 'activity') {
+					this.closeActivityCard();
+				} else if (this.homePromptType === 'coupon') {
+					this.closeCouponHint();
+				}
 			},
 			trackHomeBenefitView() {
 				var now = Date.now();
@@ -837,23 +787,6 @@
 				var seed = Number(streak || 0) + Number(points || 0);
 				if (!seed || seed < 1) seed = 1;
 				return ((seed - 1) % 6) + 1;
-			},
-			buildDiceDots(number) {
-				var map = {
-					1: ['center'],
-					2: ['top-left', 'bottom-right'],
-					3: ['top-left', 'center', 'bottom-right'],
-					4: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-					5: ['top-left', 'top-right', 'center', 'bottom-left', 'bottom-right'],
-					6: ['top-left', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-right']
-				};
-				var positions = map[number] || map[1];
-				return positions.map(function(pos, idx) {
-					return {
-						key: 'dot' + idx,
-						className: 'dice-dot ' + pos
-					};
-				});
 			},
 			async loadCheckInInfo(options) {
 				options = options || {};
@@ -891,7 +824,7 @@
 				if (this.checkInInfo.can_check_in) {
 					this.doHomeCheckIn();
 				} else {
-					this.goToVoucher();
+					this.goToVoucher('home_points');
 				}
 			},
 			async doHomeCheckIn() {
@@ -950,6 +883,7 @@
 					cancelText: '知道了',
 					success: function(res) {
 						if (res.confirm) {
+							uni.setStorageSync('voucherInitialTab', 'points');
 							uni.switchTab({ url: '/pages/voucher/voucher' });
 						}
 					}
@@ -1083,14 +1017,6 @@
 					this.openLocation();
 				}
 			},
-			handleUpsellTap(item) {
-				if (!item) return;
-				if (item.action === 'voucher') {
-					this.goToVoucher('home_upsell');
-				} else if (item.action === 'reserve') {
-					this.goToReserve();
-				}
-			},
 			goToMyReviews() {
 				if (!this.hasLogin) {
 					uni.showModal({
@@ -1131,7 +1057,6 @@
 				for (var i = 0; i < sources.length; i++) {
 					this.carouselList.push(addPrefix(sources[i]));
 				}
-				this.swiperLength = this.carouselList.length;
 				this.homeDataLoaded = true;
 				this.homeDataKey = dataKey;
 			},
@@ -1157,7 +1082,7 @@
 					var ratingTotal = 0;
 					var ratingCount = 0;
 					for (var i = 0; i < list.length; i++) {
-						var item = this.prepareReviewItem(list[i]);
+						var item = this.prepareReviewItem(list[i], i);
 						if (!item) continue;
 						prepared.push(item);
 						if (item.ratingNumber > 0) {
@@ -1178,7 +1103,7 @@
 					this.reviewsLoading = false;
 				}
 			},
-			prepareReviewItem(raw) {
+			prepareReviewItem(raw, index) {
 				if (!raw) return null;
 				var content = (raw.content || '').replace(/\s+/g, ' ').trim();
 				if (!content) return null;
@@ -1196,6 +1121,7 @@
 				var avatar = raw.user_avatar || '';
 				var avatarText = avatar && avatar.indexOf('http') !== 0 && avatar.length <= 4 ? avatar : '😄';
 				return {
+					key: raw.object_id || 'review-' + index,
 					object_id: raw.object_id,
 					user_id: raw.user_id,
 					displayName: name,
@@ -1209,54 +1135,6 @@
 			swiperChange(e) {
 				this.swiperCurrent = e.detail.current;
 			},
-			onShareAppMessage() {
-				const ticketPrice = this.ticketPriceText || '¥38/人';
-				const titles = [
-					'别卷了！花' + ticketPrice + '可以躺一整天的神仙店 🎮',
-					'福州这家宝藏店，' + ticketPrice + '能玩一整天，我私藏很久了',
-					'周末不知道去哪？来这里躺平，零食还免费',
-					'带娃+打游戏两不误，这家店的老板太懂了',
-					'我的精神避难所，今天忍痛分享给你 🤫',
-				];
-				AUTH.trackEvent({
-					event: 'share_home',
-					page_path: 'pages/index/index',
-					share_type: 'wechat_session',
-					source: 'home'
-				}).catch(function() {});
-				return {
-					title: titles[Math.floor(Math.random() * titles.length)],
-					imageUrl: '/static/share_home.jpg',
-					path: '/pages/index/index',
-				};
-			},
-			onShareTimeline() {
-				AUTH.trackEvent({
-					event: 'share_timeline',
-					page_path: 'pages/index/index',
-					share_type: 'timeline',
-					source: 'home'
-				}).catch(function() {});
-				return {
-					title: '福州周末不知道去哪？来摸鱼划水吧玩一天',
-					imageUrl: '/static/share_home.jpg',
-				};
-			},
-			onAddToFavorites() {
-				AUTH.trackEvent({
-					event: 'share_favorite',
-					page_path: 'pages/index/index',
-					source: 'home'
-				}).catch(function() {});
-				return {
-					title: '先收藏，下次想玩桌游漫画主机找得到',
-					imageUrl: '/static/share_home.jpg',
-				};
-			},
-			closeCollectionHint() {
-				this.collectionHintClosed = true;
-				uni.setStorageSync('collection_hint_closed', true);
-			},
 			recordBannerAction(banner, action) {
 				if (!banner || !banner.id) return;
 				var actionKey = banner.id + ':' + action;
@@ -1267,19 +1145,42 @@
 				this.bannerActionTrackedAt[actionKey] = now;
 				AUTH.recordBanner(banner.id, action).catch(function() {});
 			},
+			trackActivityCardView() {
+				if (!this.activityCard || this.homePromptType !== 'activity') return;
+				if (this.lastActivityShownId === this.activityCard.id) return;
+				this.lastActivityShownId = this.activityCard.id;
+				this.recordBannerAction(this.activityCard, 'show');
+			},
 			getBannerStorageKey(banner, type) {
 				if (!banner || !banner.id) return '';
 				return 'activity_' + type + '_' + banner.id;
 			},
-			findActivityBanner(list, withImage) {
+			getBannerDisplayType(banner) {
+				if (!banner) return '';
+				return banner.display_type || (banner.image_url ? 'image_popup' : 'text_card');
+			},
+			findActivityBanner(list, displayType) {
 				list = list || [];
 				for (var i = 0; i < list.length; i++) {
 					var item = list[i];
 					if (!item) continue;
-					if (withImage && item.image_url) return item;
-					if (!withImage && !item.image_url) return item;
+					if (this.getBannerDisplayType(item) === displayType) return item;
 				}
 				return null;
+			},
+			queueBannerPopup(banner, now) {
+				if (!banner || this.activeBanner) return;
+				var popupKey = this.getBannerStorageKey(banner, 'popup_shown');
+				var popupShownAt = uni.getStorageSync(popupKey);
+				if (popupShownAt && now - popupShownAt < 24 * 60 * 60 * 1000) return;
+				this.stopBannerPopupTimer();
+				this._bannerPopupTimer = setTimeout(function() {
+					this._bannerPopupTimer = null;
+					if (this.showInviteLanding || this.storeNoticeVisible || this.activeBanner) return;
+					this.activeBanner = banner;
+					uni.setStorageSync(popupKey, Date.now());
+					this.recordBannerAction(banner, 'show');
+				}.bind(this), 1200);
 			},
 			isTabBarPath(url) {
 				var path = String(url || '').split('?')[0].replace(/^\//, '');
@@ -1306,41 +1207,6 @@
 					uni.showToast({ title: '外链活动请联系客服查看', icon: 'none' });
 				}
 			},
-			checkBanner() {
-				if (this.bannerLoading) return;
-				var checkedAt = Date.now();
-				if (this.bannerLastCheckedAt && checkedAt - this.bannerLastCheckedAt < 5 * 60 * 1000) return;
-				this.bannerLoading = true;
-				AUTH.activeBanners().then(res => {
-					this.bannerLastCheckedAt = Date.now();
-					if (res._status !== 0 || !res.data || res.data.length === 0) return;
-					var list = res.data || [];
-					var now = Date.now();
-					var card = this.findActivityBanner(list, false);
-					if (card) {
-						var cardKey = this.getBannerStorageKey(card, 'card_closed');
-						var cardClosedAt = uni.getStorageSync(cardKey);
-						if (!cardClosedAt || now - cardClosedAt >= 12 * 60 * 60 * 1000) {
-							if (!this.activityCard || this.activityCard.id !== card.id) {
-								this.activityCard = card;
-								this.recordBannerAction(card, 'show');
-							}
-						}
-					}
-
-					var popup = this.findActivityBanner(list, true);
-					if (!popup || this.activeBanner || this.showInviteLanding || this.storeNoticeVisible) return;
-					var popupKey = this.getBannerStorageKey(popup, 'popup_shown');
-					var popupShownAt = uni.getStorageSync(popupKey);
-					if (popupShownAt && now - popupShownAt < 24 * 60 * 60 * 1000) return;
-					this.activeBanner = popup;
-					uni.setStorageSync(popupKey, now);
-					this.recordBannerAction(popup, 'show');
-				}).catch(function() {
-				}).then(function() {
-					this.bannerLoading = false;
-				}.bind(this));
-			},
 			closeBanner(options) {
 				var skipRecord = options && options.skipRecord === true;
 				if (!skipRecord) this.recordBannerAction(this.activeBanner, 'close');
@@ -1348,10 +1214,44 @@
 			},
 			goBannerLink() {
 				if (!this.activeBanner) return;
-				var b = this.activeBanner;
-				this.recordBannerAction(b, 'click');
-				this.openActivityTarget(b);
+				var banner = this.activeBanner;
+				var hasTarget = banner.link_type !== 'none' && !!banner.link_value;
+				if (hasTarget) {
+					this.recordBannerAction(banner, 'click');
+					this.openActivityTarget(banner);
+				}
 				this.closeBanner({ skipRecord: true });
+			},
+			checkBanner() {
+				if (this.bannerLoading) return;
+				var checkedAt = Date.now();
+				if (this.bannerLastCheckedAt && checkedAt - this.bannerLastCheckedAt < 5 * 60 * 1000) return;
+				this.bannerLoading = true;
+				AUTH.activeBanners().then(res => {
+					this.bannerLastCheckedAt = Date.now();
+					if (res._status !== 0 || !res.data) return;
+					var list = res.data || [];
+					var now = Date.now();
+					var card = this.findActivityBanner(list, 'text_card');
+					if (card) {
+						var cardKey = this.getBannerStorageKey(card, 'card_closed');
+						var cardClosedAt = uni.getStorageSync(cardKey);
+						if (!cardClosedAt || now - cardClosedAt >= 12 * 60 * 60 * 1000) {
+							if (!this.activityCard || this.activityCard.id !== card.id) {
+								this.activityCard = card;
+							}
+						} else {
+							this.activityCard = null;
+						}
+					} else {
+						this.activityCard = null;
+					}
+					var popup = this.findActivityBanner(list, 'image_popup');
+					this.queueBannerPopup(popup, now);
+				}).catch(function() {
+				}).then(function() {
+					this.bannerLoading = false;
+				}.bind(this));
 			},
 			closeActivityCard() {
 				if (!this.activityCard) return;
@@ -1371,861 +1271,952 @@
 </script>
 
 <style lang="scss">
-/* ===== 全局 ===== */
-page { background: #FFF8F0; }
-.page-wrapper { min-height: 100vh; padding-bottom: 140rpx; }
+/* ===== 2026 首页重构 ===== */
+page {
+	background: #F7F5F1;
+}
 
-/* ===== 天空背景 ===== */
-.sky-header {
+.page-wrapper {
+	min-height: 100vh;
+	padding-bottom: 150rpx;
+	background: #F7F5F1;
+}
+
+.marketing-popup {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 10000;
+	padding: 44rpx;
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(25, 21, 18, 0.56);
+}
+
+.marketing-panel {
+	width: 100%;
+	max-width: 620rpx;
+	max-height: calc(100vh - 88rpx);
+	overflow-y: auto;
+	border-radius: 16rpx;
+	background: #FFF;
+	box-shadow: 0 20rpx 60rpx rgba(45, 36, 30, 0.24);
+}
+
+.marketing-media {
 	position: relative;
-	background: linear-gradient(180deg, #FFF0E0 0%, #FFF5EC 50%, #FFF8F0 100%);
-	padding: 80rpx 32rpx 60rpx;
+	width: 100%;
+	height: 380rpx;
+	background: #E9E4DE;
 	overflow: hidden;
-	text-align: center;
-}
-.cloud {
-	position: absolute;
-	background: #FFF;
-	border-radius: 60rpx;
-	opacity: 0.5;
-}
-.cloud .puff {
-	position: absolute;
-	background: #FFF;
-	border-radius: 50%;
-}
-.cloud-1 {
-	width: 120rpx; height: 40rpx;
-	top: 24rpx; right: 48rpx;
-	animation: float 12s ease-in-out infinite;
-}
-.cloud-1 .p1 { width: 48rpx; height: 48rpx; top: -22rpx; left: 14rpx; }
-.cloud-1 .p2 { width: 40rpx; height: 40rpx; top: -16rpx; right: 18rpx; }
-.cloud-1 .p3 { width: 32rpx; height: 32rpx; top: -8rpx; left: 46rpx; }
-.cloud-2 {
-	width: 80rpx; height: 28rpx;
-	top: 50rpx; left: 40rpx;
-	opacity: 0.35;
-	animation: float 14s ease-in-out infinite;
-	animation-delay: -5s;
-}
-.cloud-2 .p1 { width: 36rpx; height: 36rpx; top: -16rpx; left: 10rpx; }
-.cloud-2 .p2 { width: 28rpx; height: 28rpx; top: -10rpx; right: 12rpx; }
-.sun {
-	position: absolute;
-	top: 30rpx;
-	right: 160rpx;
-	width: 48rpx;
-	height: 48rpx;
-	background: #FFE4A1;
-	border-radius: 50%;
-	box-shadow: 0 0 24rpx rgba(255, 228, 161, 0.5);
-}
-@keyframes float {
-	0%, 100% { transform: translateX(0); }
-	50% { transform: translateX(16rpx); }
-}
-.header-content { position: relative; z-index: 2; }
-.header-title {
-	font-size: 48rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-	letter-spacing: 4rpx;
-	display: block;
-}
-.header-sub {
-	font-size: 24rpx;
-	color: #A08B7A;
-	margin-top: 10rpx;
-	display: block;
-}
-.grass-hill {
-	position: absolute;
-	bottom: -10rpx;
-	left: -10%;
-	right: -10%;
-	height: 50rpx;
-	background: linear-gradient(180deg, transparent 0%, #A5D6A7 100%);
-	border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-}
-.blade {
-	position: absolute;
-	font-size: 24rpx;
-	bottom: 8rpx;
-	animation: grass-sway 3s ease-in-out infinite;
-}
-.blade-1 { left: 15%; }
-.blade-2 { left: 35%; animation-delay: 0.5s; }
-.blade-3 { left: 65%; animation-delay: 1s; }
-.blade-4 { left: 85%; animation-delay: 1.5s; }
-@keyframes grass-sway {
-	0%, 100% { transform: rotate(-5deg); }
-	50% { transform: rotate(5deg); }
 }
 
-/* ===== 收藏引导 ===== */
-.favorite-tip {
+.marketing-image {
+	width: 100%;
+	height: 100%;
+}
+
+.marketing-close {
+	position: absolute;
+	top: 16rpx;
+	right: 16rpx;
+	width: 52rpx;
+	height: 52rpx;
+	border-radius: 8rpx;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: linear-gradient(90deg, #FFF8E1, #FFF3E0);
-	margin: 16rpx 24rpx 0;
-	padding: 14rpx 24rpx;
-	border-radius: 50rpx;
-	border: 2rpx solid #FFD54F;
-	gap: 12rpx;
-}
-.favorite-icon { font-size: 28rpx; }
-.favorite-text { font-size: 24rpx; color: #F57C00; flex: 1; text-align: center; }
-.favorite-close { font-size: 22rpx; color: #FFB74D; padding: 4rpx; }
-
-/* ===== 场景套餐 ===== */
-.scene-section {
-	margin: 20rpx 24rpx 24rpx;
-	background: #FFF;
-	border-radius: 28rpx;
-	padding: 24rpx;
-	box-shadow: 0 8rpx 30rpx rgba(92,75,58,0.08);
-	border: 2rpx solid rgba(255,181,167,0.18);
-}
-.scene-section-head {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	margin-bottom: 18rpx;
-}
-.scene-title {
-	display: block;
-	font-size: 34rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-}
-.scene-sub {
-	display: block;
+	background: rgba(25, 21, 18, 0.66);
 	font-size: 22rpx;
-	color: #A08B7A;
-	margin-top: 4rpx;
-}
-.scene-note {
-	font-size: 20rpx;
-	color: #FF8C42;
-	background: #FFF3E8;
-	padding: 6rpx 14rpx;
-	border-radius: 20rpx;
-	font-weight: bold;
-}
-.scene-hero-card {
-	background: linear-gradient(135deg, #FF8C42 0%, #FFB56D 100%);
-	border-radius: 24rpx;
-	padding: 24rpx;
 	color: #FFF;
-	box-shadow: 0 10rpx 28rpx rgba(255,140,66,0.22);
 }
-.scene-hero-main {
-	display: flex;
-	align-items: center;
-	gap: 18rpx;
+
+.marketing-copy {
+	padding: 24rpx 24rpx 18rpx;
 }
-.scene-hero-icon {
-	width: 92rpx;
-	height: 92rpx;
-	background: rgba(255,255,255,0.22);
-	border-radius: 24rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 48rpx;
-	flex-shrink: 0;
-}
-.scene-hero-text {
-	flex: 1;
-	min-width: 0;
-}
-.scene-hero-badge {
-	display: inline-block;
+
+.marketing-kicker {
+	display: block;
 	font-size: 20rpx;
-	color: #FF8C42;
-	background: rgba(255,255,255,0.92);
-	padding: 4rpx 12rpx;
-	border-radius: 14rpx;
-	font-weight: bold;
-	margin-bottom: 8rpx;
+	font-weight: 700;
+	color: #B05E37;
 }
-.scene-hero-name {
+
+.marketing-title {
 	display: block;
-	font-size: 34rpx;
-	font-weight: bold;
-	line-height: 1.2;
-}
-.scene-hero-desc {
-	display: block;
-	font-size: 23rpx;
-	line-height: 1.45;
-	opacity: 0.92;
-	margin-top: 6rpx;
-}
-.scene-hero-price {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-top: 20rpx;
-	padding-top: 18rpx;
-	border-top: 1rpx solid rgba(255,255,255,0.28);
-}
-.scene-price {
-	font-size: 36rpx;
+	margin-top: 5rpx;
+	font-size: 32rpx;
+	line-height: 1.3;
 	font-weight: 800;
+	color: #332D28;
 }
-.scene-action {
-	font-size: 24rpx;
-	color: #FF8C42;
-	background: #FFF;
-	padding: 10rpx 22rpx;
-	border-radius: 28rpx;
-	font-weight: bold;
-}
-.scene-grid {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 14rpx;
-	margin-top: 16rpx;
-}
-.scene-card {
-	background: #FFF8F0;
-	border-radius: 22rpx;
-	padding: 20rpx;
-	border: 1rpx solid #F4E3D0;
-}
-.scene-card-top {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 12rpx;
-}
-.scene-card-icon { font-size: 36rpx; }
-.scene-card-badge {
-	font-size: 18rpx;
-	color: #8D6E63;
-	background: #FFF;
-	border-radius: 14rpx;
-	padding: 4rpx 10rpx;
-	font-weight: bold;
-}
-.scene-card-name {
+
+.marketing-sub {
 	display: block;
-	font-size: 28rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-	line-height: 1.25;
-}
-.scene-card-desc {
-	display: block;
-	font-size: 21rpx;
-	color: #8D6E63;
-	line-height: 1.45;
 	margin-top: 8rpx;
-	min-height: 62rpx;
+	font-size: 22rpx;
+	line-height: 1.5;
+	color: #746A62;
 }
-.scene-card-foot {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-top: 14rpx;
+
+.marketing-actions {
+	display: grid;
+	grid-template-columns: 1fr 1.45fr;
+	gap: 12rpx;
+	padding: 0 24rpx 24rpx;
 }
-.scene-card-price {
-	font-size: 26rpx;
-	font-weight: bold;
-	color: #FF8C42;
+
+.marketing-actions.single {
+	grid-template-columns: 1fr;
 }
-.scene-card-action {
-	font-size: 20rpx;
-	color: #FFF;
-	background: #FF8C42;
-	padding: 7rpx 14rpx;
-	border-radius: 20rpx;
-}
-.perler-upgrade-entry {
-	margin-top: 16rpx;
-	padding: 20rpx;
-	background: #F1F9F7;
-	border: 1rpx solid #CDE8E1;
-	border-left: 6rpx solid #2A9D8F;
+
+.marketing-secondary,
+.marketing-primary {
+	height: 74rpx;
 	border-radius: 12rpx;
 	display: flex;
 	align-items: center;
-	gap: 16rpx;
+	justify-content: center;
+	font-size: 25rpx;
+	font-weight: 800;
 }
-.perler-upgrade-icon {
-	width: 58rpx;
-	height: 58rpx;
+
+.marketing-secondary {
+	background: #F1EDE8;
+	color: #746A62;
+}
+
+.marketing-primary {
+	background: #C96B3F;
+	color: #FFF;
+}
+
+.notice-popup {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 10010;
+	padding: 44rpx;
+	box-sizing: border-box;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: #FFF;
-	border-radius: 8rpx;
-	font-size: 32rpx;
-	flex-shrink: 0;
-}
-.perler-upgrade-copy {
-	flex: 1;
-	min-width: 0;
-}
-.perler-upgrade-title {
-	display: block;
-	font-size: 25rpx;
-	font-weight: bold;
-	color: #365C54;
-	line-height: 1.35;
-}
-.perler-upgrade-desc {
-	display: block;
-	margin-top: 5rpx;
-	font-size: 20rpx;
-	color: #668078;
-	line-height: 1.45;
-}
-.perler-upgrade-action {
-	width: 110rpx;
-	flex-shrink: 0;
-	display: flex;
-	align-items: center;
-	justify-content: flex-end;
-	font-size: 21rpx;
-	font-weight: bold;
-	color: #21867A;
-}
-.perler-upgrade-arrow {
-	margin-left: 5rpx;
-	font-size: 34rpx;
-	line-height: 1;
+	background: rgba(25, 21, 18, 0.54);
 }
 
-/* ===== 社交空间入口 ===== */
-.social-space-card {
-	margin: 0 24rpx 24rpx;
-	background: linear-gradient(135deg, #EAF7EC 0%, #FFF8F0 62%, #FFE8D0 100%);
-	border-radius: 28rpx;
-	padding: 26rpx;
+.notice-panel {
+	width: 100%;
+	max-width: 620rpx;
+	max-height: calc(100vh - 88rpx);
+	padding: 28rpx;
+	box-sizing: border-box;
+	overflow-y: auto;
+	border-radius: 16rpx;
+	background: #FFF;
+	box-shadow: 0 20rpx 56rpx rgba(45, 36, 30, 0.2);
+}
+
+.notice-head {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	justify-content: space-between;
-	border: 2rpx solid rgba(129,199,132,0.2);
-	box-shadow: 0 8rpx 28rpx rgba(92,75,58,0.07);
+	gap: 20rpx;
+	margin-bottom: 20rpx;
 }
-.social-copy { flex: 1; min-width: 0; padding-right: 18rpx; }
-.social-kicker { display: block; font-size: 22rpx; color: #4A9A4A; font-weight: bold; margin-bottom: 6rpx; }
-.social-title { display: block; font-size: 34rpx; color: #5C4B3A; font-weight: bold; line-height: 1.25; }
-.social-desc { display: block; font-size: 23rpx; color: #7C6A58; line-height: 1.45; margin-top: 8rpx; }
-.social-side { display: flex; flex-direction: column; align-items: flex-end; gap: 14rpx; flex-shrink: 0; }
-.social-badge { font-size: 22rpx; color: #FFF; background: #81C784; border-radius: 18rpx; padding: 8rpx 16rpx; font-weight: bold; }
-.social-action { font-size: 24rpx; color: #FF8C42; font-weight: bold; }
 
-/* ===== 轮播 ===== */
-.carousel-wrapper { margin: 0 24rpx; }
-.carousel { width: 100%; height: 360rpx; border-radius: 28rpx; overflow: hidden; box-shadow: 0 8rpx 32rpx rgba(92,75,58,0.1); }
-.carousel-image { width: 100%; height: 100%; }
-.carousel-indicator { display: flex; justify-content: center; gap: 10rpx; padding-top: 16rpx; }
-.indicator-dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: #E0D5CC; transition: all 0.3s; }
-.indicator-dot.active { width: 40rpx; border-radius: 20rpx; background: #FF8C42; }
-/* ===== 通用区块 ===== */
-.section { margin: 0 24rpx 28rpx; }
-.section-header { display: flex; align-items: baseline; gap: 10rpx; margin-bottom: 16rpx; }
-.section-title-wrap { flex: 1; min-width: 0; }
-.section-title { font-size: 32rpx; font-weight: bold; color: #5C4B3A; }
-.section-sub { display: block; font-size: 22rpx; color: #C4B5A5; margin-top: 4rpx; }
-.section-more { margin-left: auto; font-size: 22rpx; color: #FF8C42; font-weight: 500; }
-
-/* ===== 店里玩什么 ===== */
-.world-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; }
-.world-card {
-	position: relative;
-	background: #FFF;
-	border-radius: 24rpx;
-	padding: 24rpx;
-	border-top: 6rpx solid;
-	box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06);
+.notice-kicker {
+	display: block;
+	font-size: 20rpx;
+	font-weight: 700;
+	color: #B05E37;
 }
-.world-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12rpx; }
-.world-emoji { font-size: 40rpx; }
-.world-tag { font-size: 20rpx; padding: 4rpx 10rpx; border-radius: 10rpx; font-weight: bold; }
-.world-name { display: block; font-size: 28rpx; font-weight: bold; color: #5C4B3A; }
-.world-desc { display: block; font-size: 21rpx; color: #A08B7A; line-height: 1.45; margin-top: 8rpx; }
 
-/* ===== 增值服务 ===== */
-.upsell-section { margin-top: 0; }
-.upsell-list {
+.notice-title {
+	display: block;
+	margin-top: 4rpx;
+	font-size: 34rpx;
+	font-weight: 800;
+	color: #332D28;
+}
+
+.notice-close {
+	width: 52rpx;
+	height: 52rpx;
+	border-radius: 8rpx;
+	background: #F3ECE5;
+	color: #7F746B;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 22rpx;
+	flex-shrink: 0;
+}
+
+.notice-list {
 	display: flex;
 	flex-direction: column;
 	gap: 12rpx;
 }
-.upsell-item {
+
+.notice-line {
 	display: flex;
-	align-items: center;
-	background: #FFF;
-	border-radius: 20rpx;
-	padding: 20rpx;
-	box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06);
-	border: 1rpx solid rgba(240,230,216,0.7);
+	align-items: flex-start;
+	gap: 12rpx;
+	padding: 16rpx;
+	border-radius: 12rpx;
+	background: #F7F5F1;
 }
-.upsell-icon {
-	width: 72rpx;
-	height: 72rpx;
-	border-radius: 20rpx;
+
+.notice-dot {
+	width: 36rpx;
+	font-size: 25rpx;
+	line-height: 1.45;
+	flex-shrink: 0;
+}
+
+.notice-copy {
+	flex: 1;
+	font-size: 23rpx;
+	line-height: 1.55;
+	color: #615850;
+}
+
+.notice-confirm {
+	margin-top: 22rpx;
+	height: 76rpx;
+	border-radius: 12rpx;
+	background: #C96B3F;
+	color: #FFF;
+	font-size: 26rpx;
+	font-weight: 800;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	font-size: 36rpx;
-	flex-shrink: 0;
-	margin-right: 16rpx;
-}
-.upsell-body {
-	flex: 1;
-	min-width: 0;
-}
-.upsell-name {
-	display: block;
-	font-size: 27rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-	margin-bottom: 4rpx;
-}
-.upsell-desc {
-	display: block;
-	font-size: 21rpx;
-	color: #A08B7A;
-	line-height: 1.4;
-}
-.upsell-price {
-	margin-left: 14rpx;
-	font-size: 22rpx;
-	color: #FF8C42;
-	font-weight: bold;
-	background: #FFF3E8;
-	padding: 8rpx 14rpx;
-	border-radius: 18rpx;
-	flex-shrink: 0;
 }
 
-/* ===== 店铺信息 ===== */
-.shop-card { background: #FFF; border-radius: 28rpx; padding: 24rpx; box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06); }
-.shop-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
-.shop-name { font-size: 32rpx; font-weight: bold; color: #5C4B3A; }
-.shop-status { display: flex; align-items: center; gap: 8rpx; }
-.status-dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: #81C784; }
-.status-text { font-size: 22rpx; color: #81C784; }
-.info-row { display: flex; align-items: center; gap: 14rpx; padding: 12rpx 0; border-bottom: 1rpx solid #F5F0E8; }
-.info-row:last-child { border-bottom: none; }
-.info-icon { font-size: 32rpx; }
-.info-text { flex: 1; }
-.info-label { display: block; font-size: 20rpx; color: #C4B5A5; margin-bottom: 2rpx; }
-.info-value { display: block; font-size: 24rpx; color: #5C4B3A; }
-.info-value.highlight { color: #FF8C42; font-weight: bold; }
-.info-action { font-size: 22rpx; color: #FF8C42; background: #FFF3E8; padding: 6rpx 16rpx; border-radius: 20rpx; font-weight: 500; }
+.home-hero {
+	position: relative;
+	height: 690rpx;
+	background: #D9D4CC;
+	overflow: hidden;
+}
 
-/* ===== 评价 ===== */
-.reviews-swiper { height: 278rpx; }
-.review-card { background: #FFF; border-radius: 24rpx; padding: 22rpx; box-shadow: 0 2rpx 12rpx rgba(92,75,58,0.06); height: calc(100% - 44rpx); margin: 10rpx 4rpx; border: 1rpx solid rgba(255,181,167,0.18); box-sizing: border-box; }
-.review-header { display: flex; align-items: center; gap: 12rpx; margin-bottom: 12rpx; }
-.review-avatar { font-size: 44rpx; }
-.review-meta { flex: 1; min-width: 0; }
-.review-name { display: block; font-size: 26rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 2rpx; }
-.review-stars { display: flex; gap: 4rpx; }
-.star { font-size: 18rpx; opacity: 0.3; }
-.star.filled { opacity: 1; }
-.review-badge { font-size: 20rpx; color: #FF8C42; background: #FFF3E8; padding: 6rpx 12rpx; border-radius: 16rpx; flex-shrink: 0; }
-.review-text { display: -webkit-box; font-size: 24rpx; color: #6F5A48; line-height: 1.55; margin-bottom: 8rpx; overflow: hidden; text-overflow: ellipsis; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.review-time { font-size: 18rpx; color: #C4B5A5; }
-/* ===== 营销弹窗 ===== */
-.banner-popup { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 40rpx; }
-.banner-panel { background: #FFF; border-radius: 28rpx; overflow: hidden; width: 100%; max-width: 600rpx; position: relative; animation: popup-in 0.3s ease; box-shadow: 0 16rpx 48rpx rgba(0,0,0,0.15); }
-.banner-panel.text-only { padding-top: 32rpx; }
-.banner-img { width: 100%; height: 400rpx; }
-.banner-text-hero { display: flex; flex-direction: column; align-items: center; padding: 8rpx 30rpx 0; }
-.banner-text-icon { width: 96rpx; height: 96rpx; border-radius: 28rpx; background: #FFF3E8; color: #FF8C42; font-size: 34rpx; font-weight: bold; display: flex; align-items: center; justify-content: center; }
-.banner-text-tag { margin-top: 14rpx; font-size: 22rpx; color: #4A9A4A; background: #EAF7EC; padding: 6rpx 16rpx; border-radius: 18rpx; font-weight: bold; }
-.banner-info { padding: 24rpx; }
-.banner-title { display: block; font-size: 30rpx; font-weight: bold; color: #5C4B3A; margin-bottom: 8rpx; }
-.banner-sub { display: block; font-size: 22rpx; color: #A08B7A; line-height: 1.45; }
-.banner-actions { display: flex; gap: 16rpx; padding: 0 24rpx 26rpx; }
-.banner-secondary,
-.banner-primary { flex: 1; height: 72rpx; border-radius: 36rpx; display: flex; align-items: center; justify-content: center; font-size: 26rpx; font-weight: bold; }
-.banner-secondary { color: #8C7B6B; background: #F7F1E8; }
-.banner-primary { color: #FFF; background: #FF8C42; }
-.banner-close { position: absolute; top: 16rpx; right: 16rpx; width: 56rpx; height: 56rpx; background: rgba(0,0,0,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #FFF; font-size: 28rpx; }
-.banner-panel.text-only .banner-close { background: #F7F1E8; color: #8C7B6B; }
+.hero-media,
+.hero-image,
+.hero-fallback {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+}
 
-/* ===== 入店须知弹层 ===== */
-.notice-popup { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.44); z-index: 10010; display: flex; align-items: center; justify-content: center; padding: 44rpx; }
-.notice-panel { width: 100%; max-width: 620rpx; background: #FFFDF9; border-radius: 28rpx; padding: 30rpx; box-shadow: 0 20rpx 56rpx rgba(92,75,58,0.18); }
-.notice-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24rpx; }
-.notice-kicker { display: block; font-size: 22rpx; color: #FF8C42; margin-bottom: 6rpx; }
-.notice-title { display: block; font-size: 34rpx; font-weight: bold; color: #5C4B3A; }
-.notice-close { width: 54rpx; height: 54rpx; border-radius: 50%; background: #FFF3E8; color: #A08B7A; display: flex; align-items: center; justify-content: center; font-size: 24rpx; }
-.notice-list { display: flex; flex-direction: column; gap: 18rpx; }
-.notice-line { display: flex; align-items: flex-start; gap: 14rpx; padding: 18rpx; background: #FFF8EF; border-radius: 16rpx; }
-.notice-dot { width: 38rpx; font-size: 28rpx; line-height: 1.35; flex-shrink: 0; }
-.notice-copy { flex: 1; font-size: 25rpx; line-height: 1.55; color: #6F5A48; }
-.notice-confirm { margin-top: 26rpx; height: 78rpx; border-radius: 39rpx; background: #FF8C42; color: #FFF; font-size: 28rpx; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+.hero-fallback {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background: #EFE4D5;
+}
 
-/* ===== 收藏引导 ===== */
-.collection-hint { margin: 16rpx 24rpx 0; background: linear-gradient(90deg, #FFF8E1, #FFECB3); border-radius: 16rpx; padding: 16rpx 24rpx; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2rpx 8rpx rgba(255, 152, 0, 0.1); }
-.hint-text { font-size: 24rpx; color: #E65100; font-weight: bold; }
-.hint-close { font-size: 24rpx; color: #E65100; opacity: 0.6; padding: 8rpx; }
+.hero-logo {
+	width: 180rpx;
+	height: 180rpx;
+	border-radius: 16rpx;
+}
 
-/* ===== 可领券提醒 ===== */
-.coupon-hint {
-	margin: 16rpx 24rpx 0;
-	background: #FFF;
-	border-radius: 20rpx;
-	padding: 18rpx 20rpx;
+.hero-fallback-text {
+	margin-top: 22rpx;
+	font-size: 24rpx;
+	color: #67594E;
+}
+
+.hero-scrim {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(180deg, rgba(24, 20, 17, 0.42) 0%, rgba(24, 20, 17, 0.04) 38%, rgba(24, 20, 17, 0.78) 100%);
+	pointer-events: none;
+}
+
+.hero-topbar {
+	position: absolute;
+	top: calc(env(safe-area-inset-top) + 24rpx);
+	left: 24rpx;
+	right: 24rpx;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	box-shadow: 0 8rpx 24rpx rgba(210, 72, 58, 0.12);
-	border: 2rpx solid #FFD1C2;
-}
-.coupon-hint-main {
-	display: flex;
-	align-items: center;
-	min-width: 0;
-	flex: 1;
-}
-.coupon-hint-icon {
-	width: 58rpx;
-	height: 58rpx;
-	border-radius: 16rpx;
-	background: #FFE8DE;
-	color: #D84A35;
-	font-size: 26rpx;
-	font-weight: bold;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
-	margin-right: 16rpx;
-}
-.coupon-hint-copy {
-	min-width: 0;
-	flex: 1;
-}
-.coupon-hint-title {
-	display: block;
-	font-size: 26rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-.coupon-hint-sub {
-	display: block;
-	margin-top: 4rpx;
-	font-size: 21rpx;
-	color: #A08B7A;
-}
-.coupon-hint-right {
-	display: flex;
-	align-items: center;
-	flex-shrink: 0;
-	margin-left: 16rpx;
-}
-.coupon-hint-action {
-	font-size: 22rpx;
-	color: #FFF;
-	background: #D84A35;
-	padding: 8rpx 16rpx;
-	border-radius: 20rpx;
-	font-weight: bold;
-}
-.coupon-hint-close {
-	font-size: 22rpx;
-	color: #C4B5A5;
-	padding: 8rpx 0 8rpx 16rpx;
+	z-index: 2;
 }
 
-/* ===== 活动情报卡 ===== */
-.activity-card {
-	margin: 16rpx 24rpx 0;
-	border-radius: 22rpx;
-	padding: 20rpx 22rpx;
-	display: flex;
-	align-items: center;
-	gap: 16rpx;
-	background: #FFFDF8;
-	border: 2rpx solid rgba(255,140,66,0.16);
-	box-shadow: 0 10rpx 28rpx rgba(92,75,58,0.07);
-	box-sizing: border-box;
-}
-.activity-icon {
-	width: 68rpx;
-	height: 68rpx;
-	border-radius: 20rpx;
-	background: #FFF3E8;
-	color: #FF8C42;
-	font-size: 26rpx;
-	font-weight: bold;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
-}
-.activity-copy {
-	flex: 1;
-	min-width: 0;
-}
-.activity-line {
+.store-status {
+	height: 52rpx;
+	padding: 0 16rpx;
 	display: flex;
 	align-items: center;
 	gap: 10rpx;
-	min-width: 0;
-}
-.activity-tag {
-	flex-shrink: 0;
-	font-size: 19rpx;
-	color: #4A9A4A;
-	background: #EAF7EC;
-	border-radius: 16rpx;
-	padding: 4rpx 10rpx;
-	font-weight: bold;
-}
-.activity-title {
-	font-size: 27rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-.activity-sub {
-	display: block;
+	border-radius: 8rpx;
+	background: rgba(255, 255, 255, 0.94);
 	font-size: 22rpx;
-	color: #8C7B6B;
-	line-height: 1.35;
-	margin-top: 7rpx;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-.activity-side {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	flex-shrink: 0;
-}
-.activity-action {
-	font-size: 22rpx;
-	color: #FFF;
-	background: #FF8C42;
-	border-radius: 20rpx;
-	padding: 8rpx 16rpx;
-	font-weight: bold;
-	white-space: nowrap;
-}
-.activity-close {
-	margin-top: 10rpx;
-	font-size: 22rpx;
-	color: #C4B5A5;
-	padding: 4rpx 8rpx;
+	font-weight: 700;
+	color: #3E352E;
 }
 
-/* ===== 首页福利入口 ===== */
-.invite-landing-card,
-.home-benefit-card {
-	margin: 16rpx 24rpx 0;
-	border-radius: 24rpx;
-	padding: 22rpx;
+.store-status-dot {
+	width: 10rpx;
+	height: 10rpx;
+	border-radius: 50%;
+	background: #8B8178;
+}
+
+.store-status.open .store-status-dot { background: #3F8C52; }
+.store-status.open { color: #2F6F40; }
+.store-status.closing .store-status-dot { background: #D99028; }
+.store-status.closing { color: #9A641E; }
+.store-status.closed .store-status-dot { background: #A65A4E; }
+.store-status.closed { color: #86493F; }
+
+.hero-hours {
+	height: 52rpx;
+	padding: 0 16rpx;
 	display: flex;
 	align-items: center;
-	box-shadow: 0 10rpx 28rpx rgba(92,75,58,0.08);
-	box-sizing: border-box;
-}
-.invite-landing-card {
-	background: linear-gradient(135deg, #FFF1E7 0%, #EAF7EC 100%);
-	border: 2rpx solid rgba(255,140,66,0.22);
-}
-.invite-landing-icon {
-	width: 72rpx;
-	height: 72rpx;
-	border-radius: 20rpx;
-	background: #FF8C42;
-	color: #FFF;
-	font-size: 28rpx;
-	font-weight: bold;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
-	margin-right: 18rpx;
-}
-.invite-landing-copy {
-	flex: 1;
-	min-width: 0;
-}
-.invite-landing-kicker,
-.benefit-kicker {
-	display: block;
+	border-radius: 8rpx;
+	background: rgba(31, 27, 24, 0.62);
 	font-size: 21rpx;
-	font-weight: bold;
-	color: #4A9A4A;
-	margin-bottom: 4rpx;
+	color: #FFF;
 }
-.invite-landing-title,
-.benefit-title {
-	display: block;
-	font-size: 30rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-	line-height: 1.25;
+
+.hero-content {
+	position: absolute;
+	left: 30rpx;
+	right: 30rpx;
+	bottom: 54rpx;
+	z-index: 2;
 }
-.invite-landing-sub,
-.benefit-sub {
+
+.hero-kicker {
 	display: block;
 	font-size: 22rpx;
-	color: #7C6A58;
-	line-height: 1.42;
-	margin-top: 6rpx;
+	font-weight: 700;
+	color: #F3CE9B;
 }
-.invite-landing-side,
-.benefit-side {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	flex-shrink: 0;
-	margin-left: 16rpx;
-}
-.invite-landing-action,
-.benefit-action {
-	font-size: 23rpx;
+
+.hero-title {
+	display: block;
+	margin-top: 8rpx;
+	font-size: 50rpx;
+	line-height: 1.18;
+	font-weight: 800;
 	color: #FFF;
-	background: #FF8C42;
-	border-radius: 22rpx;
-	padding: 9rpx 18rpx;
-	font-weight: bold;
-	white-space: nowrap;
+	letter-spacing: 0;
 }
-.invite-landing-close {
+
+.hero-subtitle {
+	display: block;
 	margin-top: 12rpx;
-	font-size: 22rpx;
-	color: #BFA996;
-	padding: 4rpx 8rpx;
+	font-size: 25rpx;
+	line-height: 1.48;
+	color: rgba(255, 255, 255, 0.9);
 }
-.home-benefit-card {
-	background: #FFF;
-	border: 2rpx solid rgba(129,199,132,0.22);
-	justify-content: space-between;
-}
-.home-benefit-card.checked {
-	background: #FBFFF7;
-	border-color: rgba(74,154,74,0.26);
-}
-.saver-entry {
-	margin: 16rpx 24rpx 0;
-	padding: 20rpx 22rpx;
-	background: #F0F7F5;
-	border: 2rpx solid rgba(57,114,103,0.2);
-	border-radius: 14rpx;
+
+.hero-value-line {
 	display: flex;
-	align-items: center;
-	box-sizing: border-box;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 10rpx;
+	margin-top: 20rpx;
 }
-.saver-mark {
-	width: 58rpx;
-	height: 58rpx;
-	border-radius: 10rpx;
-	background: #397267;
+
+.hero-value-main {
+	font-size: 30rpx;
+	font-weight: 800;
 	color: #FFF;
-	font-size: 26rpx;
-	font-weight: bold;
+}
+
+.hero-value-separator,
+.hero-value-sub {
+	font-size: 22rpx;
+	color: rgba(255, 255, 255, 0.82);
+}
+
+.hero-dots {
+	position: absolute;
+	right: 28rpx;
+	bottom: 22rpx;
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	flex-shrink: 0;
+	gap: 8rpx;
+	z-index: 3;
 }
-.saver-copy {
-	flex: 1;
-	min-width: 0;
-	margin-left: 16rpx;
+
+.hero-dot {
+	width: 10rpx;
+	height: 10rpx;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.45);
 }
-.saver-title {
+
+.hero-dot.active {
+	width: 30rpx;
+	border-radius: 5rpx;
+	background: #FFF;
+}
+
+.play-section,
+.service-section,
+.store-section,
+.review-section {
+	margin: 0 24rpx;
+	padding-top: 38rpx;
+}
+
+.section-heading {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 20rpx;
+	margin-bottom: 20rpx;
+}
+
+.section-heading.compact {
+	margin-bottom: 16rpx;
+}
+
+.section-kicker {
 	display: block;
-	font-size: 27rpx;
-	font-weight: bold;
-	color: #315F56;
-	line-height: 1.35;
+	font-size: 20rpx;
+	font-weight: 700;
+	color: #B05E37;
 }
-.saver-sub {
+
+.section-title {
 	display: block;
 	margin-top: 4rpx;
-	font-size: 21rpx;
-	line-height: 1.4;
-	color: #61766F;
-}
-.saver-action {
-	margin-left: 14rpx;
-	font-size: 23rpx;
-	font-weight: bold;
-	color: #D7653B;
-	white-space: nowrap;
-}
-.benefit-copy {
-	flex: 1;
-	min-width: 0;
-	padding-right: 16rpx;
-}
-.benefit-dice {
-	min-width: 118rpx;
-	text-align: center;
-	margin-bottom: 10rpx;
-}
-.dice-face {
-	position: relative;
-	width: 76rpx;
-	height: 76rpx;
-	margin: 0 auto;
-	border-radius: 18rpx;
-	background: #FFF;
-	border: 3rpx solid #5C4B3A;
-	box-shadow: 0 8rpx 0 rgba(92,75,58,0.12), inset 0 -6rpx 0 rgba(92,75,58,0.06);
-	box-sizing: border-box;
-}
-.benefit-dice.done .dice-face {
-	border-color: #4A9A4A;
-	box-shadow: 0 8rpx 0 rgba(74,154,74,0.16), inset 0 -6rpx 0 rgba(74,154,74,0.08);
-}
-.benefit-dice.rolling .dice-face {
-	animation: dice-roll 0.52s ease-in-out infinite;
-}
-.dice-dot {
-	position: absolute;
-	width: 12rpx;
-	height: 12rpx;
-	border-radius: 999rpx;
-	background: #5C4B3A;
-}
-.benefit-dice.done .dice-dot {
-	background: #4A9A4A;
-}
-.dice-dot.top-left { left: 17rpx; top: 17rpx; }
-.dice-dot.top-right { right: 17rpx; top: 17rpx; }
-.dice-dot.middle-left { left: 17rpx; top: 34rpx; }
-.dice-dot.middle-right { right: 17rpx; top: 34rpx; }
-.dice-dot.center { left: 35rpx; top: 35rpx; }
-.dice-dot.bottom-left { left: 17rpx; bottom: 17rpx; }
-.dice-dot.bottom-right { right: 17rpx; bottom: 17rpx; }
-.dice-label {
-	display: block;
-	font-size: 19rpx;
-	font-weight: bold;
-	color: #4A9A4A;
-	margin-top: 9rpx;
-	line-height: 1.2;
+	font-size: 34rpx;
+	line-height: 1.25;
+	font-weight: 800;
+	color: #332D28;
+	letter-spacing: 0;
 }
 
-/* ===== 动画 ===== */
-@keyframes popup-in { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-@keyframes dice-roll {
-	0% { transform: rotate(0deg) scale(1); }
-	50% { transform: rotate(10deg) scale(1.06); }
-	100% { transform: rotate(0deg) scale(1); }
+.section-heading-note,
+.section-summary {
+	font-size: 21rpx;
+	color: #8B8178;
 }
+
+.section-summary {
+	display: block;
+	margin-top: 6rpx;
+}
+
+.section-link {
+	flex-shrink: 0;
+	font-size: 22rpx;
+	font-weight: 700;
+	color: #B05E37;
+}
+
+.play-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14rpx;
+}
+
+.play-option {
+	min-width: 0;
+	min-height: 286rpx;
+	padding: 22rpx;
+	box-sizing: border-box;
+	border: 1rpx solid #DDD7CF;
+	border-radius: 16rpx;
+	background: #FFF;
+	display: flex;
+	flex-direction: column;
+}
+
+.play-option.hall,
+.play-option.full {
+	grid-column: 1 / -1;
+}
+
+.play-option.hall {
+	min-height: 260rpx;
+	background: #C96B3F;
+	border-color: #C96B3F;
+	color: #FFF;
+}
+
+.play-option.perler {
+	background: #EEF7F4;
+	border-color: #BFDCD4;
+}
+
+.play-option.room {
+	background: #FFF;
+}
+
+.play-option-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12rpx;
+}
+
+.play-option-mark {
+	width: 54rpx;
+	height: 54rpx;
+	border-radius: 8rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #F1E8DE;
+	font-size: 24rpx;
+	font-weight: 800;
+	color: #6F5A49;
+}
+
+.hall .play-option-mark {
+	background: rgba(255, 255, 255, 0.18);
+	color: #FFF;
+}
+
+.perler .play-option-mark {
+	background: #2F8275;
+	color: #FFF;
+}
+
+.play-option-badge {
+	font-size: 19rpx;
+	font-weight: 700;
+	color: #85766A;
+}
+
+.hall .play-option-badge {
+	color: rgba(255, 255, 255, 0.82);
+}
+
+.perler .play-option-badge {
+	color: #31766B;
+}
+
+.play-option-name {
+	display: block;
+	margin-top: 18rpx;
+	font-size: 30rpx;
+	line-height: 1.25;
+	font-weight: 800;
+	color: #332D28;
+}
+
+.hall .play-option-name { color: #FFF; }
+
+.play-option-desc {
+	display: block;
+	margin-top: 8rpx;
+	font-size: 21rpx;
+	line-height: 1.48;
+	color: #786E66;
+	flex: 1;
+}
+
+.hall .play-option-desc {
+	max-width: 560rpx;
+	color: rgba(255, 255, 255, 0.86);
+}
+
+.play-option-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12rpx;
+	margin-top: 18rpx;
+}
+
+.play-option-price {
+	font-size: 27rpx;
+	font-weight: 800;
+	color: #B05E37;
+}
+
+.hall .play-option-price { color: #FFF; }
+.perler .play-option-price { color: #246E63; }
+
+.play-option-action {
+	font-size: 21rpx;
+	font-weight: 700;
+	color: #B05E37;
+	white-space: nowrap;
+}
+
+.hall .play-option-action { color: #FFF; }
+.perler .play-option-action { color: #246E63; }
+
+.home-prompt {
+	margin: 28rpx 24rpx 0;
+	padding: 20rpx;
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	border: 1rpx solid #E1D7CB;
+	border-radius: 14rpx;
+	background: #FFF;
+}
+
+.home-prompt.invite { border-left: 6rpx solid #C96B3F; }
+.home-prompt.activity { border-left: 6rpx solid #4E7754; }
+.home-prompt.coupon { border-left: 6rpx solid #B34F43; }
+.home-prompt.checkin { border-left: 6rpx solid #D39A36; }
+
+.home-prompt-icon {
+	width: 58rpx;
+	height: 58rpx;
+	border-radius: 8rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	background: #F3ECE5;
+	font-size: 23rpx;
+	font-weight: 800;
+	color: #6A5B50;
+}
+
+.home-prompt-copy,
+.service-copy,
+.social-copy,
+.store-row-copy {
+	flex: 1;
+	min-width: 0;
+}
+
+.home-prompt-kicker {
+	display: block;
+	font-size: 19rpx;
+	font-weight: 700;
+	color: #9B6A4E;
+}
+
+.home-prompt-title {
+	display: block;
+	margin-top: 3rpx;
+	font-size: 27rpx;
+	font-weight: 800;
+	line-height: 1.3;
+	color: #332D28;
+}
+
+.home-prompt-sub {
+	display: block;
+	margin-top: 5rpx;
+	font-size: 20rpx;
+	line-height: 1.4;
+	color: #81766D;
+}
+
+.home-prompt-side {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	flex-shrink: 0;
+}
+
+.home-prompt-action {
+	font-size: 21rpx;
+	font-weight: 800;
+	color: #B05E37;
+	white-space: nowrap;
+}
+
+.home-prompt-close {
+	margin-top: 12rpx;
+	padding: 4rpx 8rpx;
+	font-size: 20rpx;
+	color: #A79C93;
+}
+
+.service-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
+}
+
+.service-row {
+	min-height: 118rpx;
+	padding: 18rpx 20rpx;
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	box-sizing: border-box;
+	border: 1rpx solid #DDD7CF;
+	border-radius: 14rpx;
+	background: #FFF;
+}
+
+.service-mark,
+.social-mark,
+.store-row-mark {
+	width: 56rpx;
+	height: 56rpx;
+	border-radius: 8rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	font-size: 23rpx;
+	font-weight: 800;
+}
+
+.service-row.perler .service-mark {
+	background: #2F8275;
+	color: #FFF;
+}
+
+.service-row.saver .service-mark {
+	background: #4E7754;
+	color: #FFF;
+}
+
+.service-title {
+	display: block;
+	font-size: 26rpx;
+	font-weight: 800;
+	color: #332D28;
+}
+
+.service-sub {
+	display: block;
+	margin-top: 5rpx;
+	font-size: 20rpx;
+	line-height: 1.42;
+	color: #81766D;
+}
+
+.service-action {
+	flex-shrink: 0;
+	font-size: 20rpx;
+	font-weight: 800;
+	color: #5F695F;
+	white-space: nowrap;
+}
+
+.social-section {
+	margin: 38rpx 24rpx 0;
+	padding: 24rpx;
+	display: flex;
+	align-items: center;
+	gap: 18rpx;
+	border: 1rpx solid #CED7CE;
+	border-radius: 16rpx;
+	background: #EDF3ED;
+}
+
+.social-mark {
+	background: #4E7754;
+	color: #FFF;
+}
+
+.social-kicker {
+	display: block;
+	font-size: 19rpx;
+	font-weight: 700;
+	color: #55735A;
+}
+
+.social-title {
+	display: block;
+	margin-top: 3rpx;
+	font-size: 28rpx;
+	line-height: 1.3;
+	font-weight: 800;
+	color: #2F3D31;
+}
+
+.social-desc {
+	display: block;
+	margin-top: 6rpx;
+	font-size: 20rpx;
+	line-height: 1.42;
+	color: #677269;
+}
+
+.social-action {
+	flex-shrink: 0;
+	font-size: 21rpx;
+	font-weight: 800;
+	color: #3F6745;
+	white-space: nowrap;
+}
+
+.store-panel {
+	border: 1rpx solid #DDD7CF;
+	border-radius: 16rpx;
+	background: #FFF;
+	overflow: hidden;
+}
+
+.store-primary-row {
+	min-height: 124rpx;
+	padding: 20rpx;
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	box-sizing: border-box;
+	border-bottom: 1rpx solid #E8E2DB;
+}
+
+.store-row-mark {
+	background: #C96B3F;
+	color: #FFF;
+}
+
+.store-row-label,
+.store-detail-label {
+	display: block;
+	font-size: 19rpx;
+	color: #958A80;
+}
+
+.store-row-value {
+	display: block;
+	margin-top: 5rpx;
+	font-size: 24rpx;
+	font-weight: 700;
+	line-height: 1.42;
+	color: #332D28;
+}
+
+.store-row-action {
+	flex-shrink: 0;
+	font-size: 21rpx;
+	font-weight: 800;
+	color: #B05E37;
+}
+
+.store-detail-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+}
+
+.store-detail {
+	min-width: 0;
+	padding: 22rpx;
+	box-sizing: border-box;
+}
+
+.store-detail + .store-detail {
+	border-left: 1rpx solid #E8E2DB;
+}
+
+.store-detail-value {
+	display: block;
+	margin-top: 7rpx;
+	font-size: 24rpx;
+	font-weight: 800;
+	line-height: 1.35;
+	color: #3E3731;
+}
+
+.store-detail-value.accent { color: #B05E37; }
+
+.store-detail-action {
+	display: block;
+	margin-top: 8rpx;
+	font-size: 19rpx;
+	color: #8A8077;
+}
+
+.reviews-swiper {
+	height: 260rpx;
+}
+
+.review-card {
+	height: calc(100% - 12rpx);
+	margin: 6rpx 0;
+	padding: 22rpx;
+	box-sizing: border-box;
+	border: 1rpx solid #DDD7CF;
+	border-radius: 14rpx;
+	background: #FFF;
+	box-shadow: none;
+}
+
+.review-header {
+	display: flex;
+	align-items: center;
+}
+
+.review-avatar {
+	width: 52rpx;
+	height: 52rpx;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #F1E8DE;
+	font-size: 24rpx;
+}
+
+.review-meta {
+	flex: 1;
+	min-width: 0;
+	margin-left: 14rpx;
+}
+
+.review-name {
+	display: block;
+	font-size: 24rpx;
+	font-weight: 800;
+	color: #332D28;
+}
+
+.review-stars {
+	display: flex;
+	gap: 2rpx;
+	margin-top: 3rpx;
+}
+
+.star {
+	font-size: 18rpx;
+	color: #D8D1C9;
+}
+
+.star.filled { color: #D99028; }
+
+.review-badge {
+	padding: 5rpx 10rpx;
+	border-radius: 8rpx;
+	background: #F3ECE5;
+	font-size: 18rpx;
+	color: #9A5C3D;
+}
+
+.review-text {
+	display: -webkit-box;
+	margin-top: 16rpx;
+	overflow: hidden;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	font-size: 23rpx;
+	line-height: 1.5;
+	color: #5F574F;
+}
+
+.review-time {
+	display: block;
+	margin-top: 8rpx;
+	font-size: 18rpx;
+	color: #A39A92;
+}
+
 </style>

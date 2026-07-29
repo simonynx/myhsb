@@ -746,10 +746,33 @@ export default {
             this.specSelected = selects;
         },
 
+        getContinuousBookingTimes(times) {
+            const sorted = (times || []).slice().sort((a, b) => {
+                return String(a && a.item && a.item[0] || '').localeCompare(
+                    String(b && b.item && b.item[0] || '')
+                );
+            });
+            for (let i = 0; i < sorted.length; i += 1) {
+                const item = sorted[i] && sorted[i].item;
+                if (!item || item.length < 2 || !item[0] || !item[1]) {
+                    uni.showToast({ title: '预约时段信息有误，请重新选择', icon: 'none' });
+                    return null;
+                }
+                if (i > 0 && sorted[i - 1].item[1] !== item[0]) {
+                    uni.showToast({ title: '预约时段需连续，分开到店请分别下单', icon: 'none' });
+                    return null;
+                }
+            }
+            return sorted;
+        },
+
         handleDirectBook() {
-            const times = this.$refs.timesComponent && this.$refs.timesComponent.getSelection();
+            const selectedTimes = this.$refs.timesComponent && this.$refs.timesComponent.getSelection();
+            const times = this.getContinuousBookingTimes(selectedTimes);
             if (!times || !times.length) {
-                uni.showToast({ title: '请先选择预约时段', icon: 'none' });
+                if (!selectedTimes || !selectedTimes.length) {
+                    uni.showToast({ title: '请先选择预约时段', icon: 'none' });
+                }
                 return;
             }
             const selects = times.map(t => [t.item[0], t.item[1]]);

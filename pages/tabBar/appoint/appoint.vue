@@ -551,6 +551,26 @@ export default {
             this.specSelected = selects;
         },
 
+        getContinuousBookingTimes(times) {
+            const sorted = (times || []).slice().sort((a, b) => {
+                return String(a && a.item && a.item[0] || '').localeCompare(
+                    String(b && b.item && b.item[0] || '')
+                );
+            });
+            for (let i = 0; i < sorted.length; i += 1) {
+                const item = sorted[i] && sorted[i].item;
+                if (!item || item.length < 2 || !item[0] || !item[1]) {
+                    uni.showToast({ title: '预约时段信息有误，请重新选择', icon: 'none' });
+                    return null;
+                }
+                if (i > 0 && sorted[i - 1].item[1] !== item[0]) {
+                    uni.showToast({ title: '预约时段需连续，分开到店请分别下单', icon: 'none' });
+                    return null;
+                }
+            }
+            return sorted;
+        },
+
         handleDirectBook() {
             if (!this.hasLogin) {
                 uni.showModal({ title: '提示', content: '请先登录再预约', success: (res) => {
@@ -558,9 +578,12 @@ export default {
                 }});
                 return;
             }
-            const times = this.$refs.timesComponent && this.$refs.timesComponent.getSelection();
+            const selectedTimes = this.$refs.timesComponent && this.$refs.timesComponent.getSelection();
+            const times = this.getContinuousBookingTimes(selectedTimes);
             if (!times || !times.length) {
-                uni.showToast({ title: '请先选择预约时段', icon: 'none' });
+                if (!selectedTimes || !selectedTimes.length) {
+                    uni.showToast({ title: '请先选择预约时段', icon: 'none' });
+                }
                 return;
             }
             const selects = times.map(t => [t.item[0], t.item[1]]);
@@ -853,38 +876,10 @@ page {
         z-index: 3;
     }
 
-    // 彩色条多样化
-    &:nth-child(1)::after { background: linear-gradient(to bottom, #AED581, #7CB342); }
-    &:nth-child(2)::after { background: linear-gradient(to bottom, #90CAF9, #64B5F6); }
-    &:nth-child(3)::after { background: linear-gradient(to bottom, #F48FB1, #F06292); }
-    &:nth-child(4)::after { background: linear-gradient(to bottom, #CE93D8, #BA68C8); }
-    &:nth-child(5)::after { background: linear-gradient(to bottom, #FFE082, #FFB300); }
-    &:nth-child(6)::after { background: linear-gradient(to bottom, #80CBC4, #4DB6AC); }
-    &:nth-child(7)::after { background: linear-gradient(to bottom, #FFCC80, #FF9800); }
-
     &:active {
         transform: scale(0.98);
         box-shadow: 0 6rpx 20rpx rgba(160, 120, 80, 0.08);
     }
-
-    &::before {
-        position: absolute;
-        top: 10rpx;
-        right: 16rpx;
-        left: auto;
-        font-size: 40rpx;
-        transform: rotate(15deg);
-        opacity: 0.75;
-        z-index: 2;
-        filter: drop-shadow(0 2rpx 4rpx rgba(0,0,0,0.15));
-    }
-    &:nth-child(1)::before { content: '🌿'; }
-    &:nth-child(2)::before { content: '🌸'; }
-    &:nth-child(3)::before { content: '🍄'; }
-    &:nth-child(4)::before { content: '⭐'; }
-    &:nth-child(5)::before { content: '🍃'; }
-    &:nth-child(6)::before { content: '🌼'; }
-    &:nth-child(7)::before { content: '🦋'; }
 
     .card-img-wrap {
         width: 100%;

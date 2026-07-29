@@ -1,67 +1,68 @@
 <template>
-	<view class="tabbar-wrapper" :style="{ paddingBottom: safeAreaBottom + 'px' }">
+	<view class="tabbar-wrapper" :style="wrapperStyleText">
 		<view class="tabbar-inner">
 			<!-- 首页 -->
 			<view
 				class="tab-item"
-				:class="{ active: current === 'index' }"
+				:class="tabVisuals.index.itemClass"
 				@click="switchTab(tabs[0])"
 			>
-				<view class="tab-icon-wrap" :class="{ active: current === 'index', bump: bumpKey === 'index' }">
+				<view class="tab-icon-wrap" :class="tabVisuals.index.iconClass">
 					<text class="tab-svg">
-						<text class="svg-path" :class="{ filled: current === 'index' }">🏠</text>
+						<text class="svg-path" :class="tabVisuals.index.pathClass">{{ tabVisuals.index.icon }}</text>
 					</text>
 				</view>
-				<text class="tab-label" :class="{ active: current === 'index' }">首页</text>
+				<text class="tab-label" :class="tabVisuals.index.labelClass">首页</text>
 			</view>
 
 			<!-- 卡券 -->
 			<view
 				class="tab-item"
-				:class="{ active: current === 'voucher' }"
+				:class="tabVisuals.voucher.itemClass"
 				@click="switchTab(tabs[1])"
 			>
-				<view class="tab-icon-wrap" :class="{ active: current === 'voucher', bump: bumpKey === 'voucher' }">
+				<view class="tab-icon-wrap" :class="tabVisuals.voucher.iconClass">
 					<text class="tab-svg">
-						<text class="svg-path" :class="{ filled: current === 'voucher' }">{{ current === 'voucher' ? '🎫' : '🎟️' }}</text>
+						<text class="svg-path" :class="tabVisuals.voucher.pathClass">{{ tabVisuals.voucher.icon }}</text>
 					</text>
 				</view>
-				<text class="tab-label" :class="{ active: current === 'voucher' }">卡券</text>
+				<text class="tab-label" :class="tabVisuals.voucher.labelClass">卡券</text>
 			</view>
 
 			<!-- 中心按钮 -->
 			<view class="center-slot" @click="switchTab(tabs[2])">
-				<view class="center-btn" :class="{ active: current === 'appoint', bump: bumpKey === 'appoint' }">
-					<text class="center-icon">{{ current === 'appoint' ? '📅' : '📆' }}</text>
+				<view class="center-btn" :class="tabVisuals.appoint.iconClass">
+					<text class="center-icon">{{ tabVisuals.appoint.icon }}</text>
 				</view>
+				<text class="center-label" :class="tabVisuals.appoint.labelClass">预约</text>
 			</view>
 
 			<!-- 组局 -->
 			<view
 				class="tab-item"
-				:class="{ active: current === 'group' }"
+				:class="tabVisuals.group.itemClass"
 				@click="switchTab(tabs[3])"
 			>
-				<view class="tab-icon-wrap" :class="{ active: current === 'group', bump: bumpKey === 'group' }">
+				<view class="tab-icon-wrap" :class="tabVisuals.group.iconClass">
 					<text class="tab-svg">
-						<text class="svg-path" :class="{ filled: current === 'group' }">{{ current === 'group' ? '👥' : '👤' }}</text>
+						<text class="svg-path" :class="tabVisuals.group.pathClass">{{ tabVisuals.group.icon }}</text>
 					</text>
 				</view>
-				<text class="tab-label" :class="{ active: current === 'group' }">组局</text>
+				<text class="tab-label" :class="tabVisuals.group.labelClass">组局</text>
 			</view>
 
 			<!-- 我的 -->
 			<view
 				class="tab-item"
-				:class="{ active: current === 'user' }"
+				:class="tabVisuals.user.itemClass"
 				@click="switchTab(tabs[4])"
 			>
-				<view class="tab-icon-wrap" :class="{ active: current === 'user', bump: bumpKey === 'user' }">
+				<view class="tab-icon-wrap" :class="tabVisuals.user.iconClass">
 					<text class="tab-svg">
-						<text class="svg-path" :class="{ filled: current === 'user' }">{{ current === 'user' ? '😄' : '🙂' }}</text>
+						<text class="svg-path" :class="tabVisuals.user.pathClass">{{ tabVisuals.user.icon }}</text>
 					</text>
 				</view>
-				<text class="tab-label" :class="{ active: current === 'user' }">我的</text>
+				<text class="tab-label" :class="tabVisuals.user.labelClass">我的</text>
 			</view>
 		</view>
 	</view>
@@ -79,6 +80,27 @@ const TAB_KEYS = {
 };
 
 export default {
+	computed: {
+		wrapperStyleText() {
+			return 'padding-bottom:' + this.safeAreaBottom + 'px;';
+		},
+		tabVisuals() {
+			var icons = { index: '⌂', voucher: '券', appoint: '日', group: '局', user: '我' };
+			var result = {};
+			this.tabs.forEach(function(tab) {
+				var active = this.current === tab.key;
+				var bump = this.bumpKey === tab.key;
+				result[tab.key] = {
+					itemClass: active ? 'active' : '',
+					iconClass: (active ? 'active' : '') + (bump ? ' bump' : ''),
+					pathClass: active ? 'filled' : '',
+					labelClass: active ? 'active' : '',
+					icon: icons[tab.key]
+				};
+			}.bind(this));
+			return result;
+		}
+	},
 	data() {
 		return {
 			current: 'index',
@@ -139,11 +161,11 @@ export default {
 
 <style lang="scss" scoped>
 $tab-bg: #FFFFFF;
-$primary: #FF8C42;
-$primary-light: #FFCC80;
-$green: #A5D6A7;
-$text: #A09080;
-$text-active: #FF8C42;
+$primary: #C96B3F;
+$primary-light: #E6B08D;
+$green: #4E7754;
+$text: #8B8178;
+$text-active: #B05E37;
 
 .tabbar-wrapper {
 	position: fixed;
@@ -160,7 +182,7 @@ $text-active: #FF8C42;
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-around;
-	padding: 10rpx 12rpx calc(10rpx + env(safe-area-inset-bottom));
+	padding: 10rpx 12rpx;
 	height: 110rpx;
 }
 
@@ -192,7 +214,7 @@ $text-active: #FF8C42;
 	position: relative;
 
 	&.active {
-		background: linear-gradient(135deg, $primary-light, $primary);
+		background: $primary;
 		box-shadow: 0 6rpx 18rpx rgba($primary, 0.3);
 	}
 
@@ -208,9 +230,14 @@ $text-active: #FF8C42;
 }
 
 .svg-path {
-	font-size: 36rpx;
+	font-size: 28rpx;
+	font-weight: 800;
+	color: #81766D;
 	transition: all 0.22s;
-	filter: drop-shadow(0 1rpx 2rpx rgba(0,0,0,0.08));
+
+	&.filled {
+		color: #FFF;
+	}
 }
 
 .tab-label {
@@ -236,17 +263,30 @@ $text-active: #FF8C42;
 	width: 80rpx;
 }
 
+.center-label {
+	margin-top: 1rpx;
+	font-size: 20rpx;
+	font-weight: 600;
+	color: $text;
+	line-height: 1;
+
+	&.active {
+		color: $text-active;
+		font-weight: 700;
+	}
+}
+
 .center-btn {
-	width: 88rpx;
-	height: 88rpx;
-	border-radius: 50%;
-	background: linear-gradient(135deg, $primary-light 0%, $primary 100%);
+	width: 68rpx;
+	height: 68rpx;
+	border-radius: 22rpx;
+	background: $primary;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	position: relative;
 	z-index: 1;
-	margin-top: -4rpx;
+	margin-top: 0;
 	box-shadow:
 		0 8rpx 24rpx rgba($primary, 0.35),
 		0 2rpx 8rpx rgba($primary, 0.2),
@@ -254,12 +294,12 @@ $text-active: #FF8C42;
 	transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 
 	&.active {
-		background: linear-gradient(135deg, $green 0%, $primary-light 50%, $primary 100%);
+		background: $green;
 		box-shadow:
 			0 10rpx 30rpx rgba($primary, 0.4),
 			0 2rpx 8rpx rgba($primary, 0.25),
 			inset 0 2rpx 4rpx rgba(255,255,255,0.35);
-		transform: scale(1.08);
+		transform: scale(1.04);
 	}
 
 	&.bump {
@@ -268,7 +308,9 @@ $text-active: #FF8C42;
 }
 
 .center-icon {
-	font-size: 42rpx;
+	font-size: 28rpx;
+	font-weight: 800;
+	color: #FFF;
 	transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -290,7 +332,7 @@ $text-active: #FF8C42;
 	25%  { transform: scale(0.88); }
 	55%  { transform: scale(1.22); }
 	80%  { transform: scale(0.96); }
-	100% { transform: scale(1.08); }
+	100% { transform: scale(1); }
 }
 
 @keyframes emojiPop {
