@@ -7,15 +7,8 @@
 			</view>
 		</view>
 
-		<!-- 顶部装饰 -->
-		<view class="header-deco">
-			<text class="deco-leaf">🍃</text>
-			<text class="deco-cloud">☁️</text>
-			<text class="deco-flower">🌿</text>
-		</view>
-
-		<!-- 用户信息卡 -->
-		<view class="profile-card">
+		<!-- 用户身份与资产 -->
+		<view class="profile-panel">
 			<view class="profile-top" v-if="hasLogin">
 				<view class="avatar-wrap" @tap="openAuthorizationModal">
 					<image class="avatar" :src="avatarUrl || '/static/missing-face.png'"></image>
@@ -48,21 +41,22 @@
 				</view>
 			</view>
 
-			<!-- 快捷数据 -->
-			<view class="quick-stats">
-				<view class="qstat-item" @tap="hasLogin ? goPointsCenter() : handleLogin()">
-					<text class="qstat-num">{{ hasLogin ? (userInfo && userInfo.points || 0) : '-' }}</text>
-					<text class="qstat-label">积分</text>
+			<view class="asset-grid">
+				<view class="asset-item" @tap="goBalance">
+					<text class="asset-value">{{ balanceText }}</text>
+					<text class="asset-label">余额</text>
 				</view>
-				<view class="qstat-divider"></view>
-				<view class="qstat-item" @tap="hasLogin ? navTo('/pages/user/balance/balance') : handleLogin()">
-					<text class="qstat-num">{{ balanceText }}</text>
-					<text class="qstat-label">余额</text>
+				<view class="asset-item" @tap="goPointsCenter">
+					<text class="asset-value">{{ hasLogin ? (userInfo && userInfo.points || 0) : '-' }}</text>
+					<text class="asset-label">积分</text>
 				</view>
-				<view class="qstat-divider"></view>
-				<view class="qstat-item">
-					<text class="qstat-num">{{ totalConsumeText }}</text>
-					<text class="qstat-label">累计消费</text>
+				<view class="asset-item" @tap="goCouponCenter">
+					<text class="asset-value">{{ couponAssetText }}</text>
+					<text class="asset-label">优惠券</text>
+				</view>
+				<view class="asset-item" @tap="goCardPack">
+					<text class="asset-value small">{{ hasLogin ? '查看' : '-' }}</text>
+					<text class="asset-label">卡包</text>
 				</view>
 			</view>
 		</view>
@@ -76,48 +70,65 @@
 			<view class="guest-benefit-btn" @tap="handleLogin">立即登录</view>
 		</view>
 
-		<!-- 今日行动 -->
-		<view class="retention-panel" v-if="hasLogin">
-			<view class="retention-head">
+		<!-- 订单优先展示 -->
+		<view class="surface-section order-section">
+			<view class="section-head">
 				<view>
-					<text class="retention-title">今天可以做</text>
-					<text class="retention-sub">{{ retentionSummary }}</text>
+					<text class="section-title">我的订单</text>
+					<text class="section-sub">{{ hasLogin ? orderSectionHint : '登录后查看预约和门票' }}</text>
 				</view>
-				<text class="retention-note">回访奖励</text>
+				<text class="section-link" @tap="goOrderList(0)">全部订单</text>
 			</view>
-			<view class="retention-grid">
-				<view :class="retentionCheckCardClass" @tap="doCheckIn">
-					<view class="retention-dice">
-						<view class="mini-dice-face">
-							<view
-								v-for="dot in checkInDiceDots"
-								:key="dot.key"
-								:class="dot.className"
-							></view>
-						</view>
-						<text class="mini-dice-label">{{ checkInDiceLabel }}</text>
-					</view>
-					<view class="retention-copy">
-						<text class="retention-card-title">{{ checkInActionTitle }}</text>
-						<text class="retention-card-sub">{{ checkInActionSub }}</text>
-					</view>
+			<view class="order-grid">
+				<view class="order-entry pay" @tap="goOrderList(1)">
+					<view class="order-entry-mark">付</view>
+					<text class="order-entry-label">待付款</text>
+					<text class="order-entry-count" v-if="orderCounts.waitPay > 0">{{ orderCounts.waitPay > 99 ? '99+' : orderCounts.waitPay }}</text>
 				</view>
-				<view class="retention-card coupon" @tap="goCouponCenter">
-					<text class="retention-icon">券</text>
-					<view class="retention-copy">
-						<text class="retention-card-title">{{ couponActionTitle }}</text>
-						<text class="retention-card-sub">{{ couponActionSub }}</text>
-					</view>
+				<view class="order-entry use" @tap="goOrderList(2)">
+					<view class="order-entry-mark">用</view>
+					<text class="order-entry-label">待使用</text>
+					<text class="order-entry-count" v-if="orderCounts.waitUse > 0">{{ orderCounts.waitUse > 99 ? '99+' : orderCounts.waitUse }}</text>
 				</view>
-				<view class="retention-card order" @tap="goRetentionOrder">
-					<text class="retention-icon">单</text>
-					<view class="retention-copy">
-						<text class="retention-card-title">{{ orderActionTitle }}</text>
-						<text class="retention-card-sub">{{ orderActionSub }}</text>
-					</view>
+				<view class="order-entry" @tap="goOrderList(0)">
+					<view class="order-entry-mark">单</view>
+					<text class="order-entry-label">全部</text>
+				</view>
+				<view class="order-entry" @tap="goOrderList(3)">
+					<view class="order-entry-mark">成</view>
+					<text class="order-entry-label">已完成</text>
 				</view>
 			</view>
-			<view class="checkin-board">
+		</view>
+
+		<!-- 每日签到保留轻游戏化反馈 -->
+		<view class="surface-section checkin-section" v-if="hasLogin">
+			<view class="section-head compact">
+				<view>
+					<text class="section-title">每日投骰</text>
+					<text class="section-sub">{{ checkInActionSub }}</text>
+				</view>
+				<text class="checkin-reward">{{ checkInPointsText }}</text>
+			</view>
+			<view :class="checkInMainClass">
+				<view class="mini-dice-face">
+					<view
+						v-for="dot in checkInDiceDots"
+						:key="dot.key"
+						:class="dot.className"
+					></view>
+				</view>
+				<view class="checkin-copy">
+					<text class="checkin-title">{{ checkInActionTitle }}</text>
+					<text class="checkin-sub">坚持回访，连续签到还有额外奖励</text>
+				</view>
+				<view class="checkin-button" @tap="doCheckIn">{{ checkInButtonText }}</view>
+			</view>
+			<view class="checkin-toggle" @tap="toggleCheckInBoard">
+				<text>{{ checkInBoardToggleText }}</text>
+				<text class="checkin-toggle-arrow">{{ checkInBoardToggleArrow }}</text>
+			</view>
+			<view class="checkin-board" v-if="checkInBoardExpanded">
 				<view class="checkin-board-head">
 					<text class="checkin-board-title">7日棋盘</text>
 					<text class="checkin-board-sub">{{ checkInBoardSummary }}</text>
@@ -134,207 +145,103 @@
 					</view>
 				</view>
 			</view>
-			<view class="retention-rewards" v-if="checkInInfo.config && checkInInfo.config.milestones">
+			<view class="retention-rewards" v-if="checkInBoardExpanded && checkInInfo.config && checkInInfo.config.milestones">
 				<text class="retention-rewards-label">连续签到奖励</text>
 				<text class="retention-reward-item" v-for="(m, idx) in checkInInfo.config.milestones" :key="idx">
 					{{ m.days }}天+{{ m.bonus_points }}
 				</text>
 			</view>
+			<view class="checkin-broken" v-if="checkInInfo.is_broken_streak">
+				<text>连续签到已中断，今日从第1天重新开始</text>
+			</view>
 		</view>
 
-		<!-- 断签提示 -->
-		<view class="checkin-broken" v-if="hasLogin && checkInInfo.is_broken_streak">
-			<text>⚠️ 连续签到已中断，今日签到重新从第1天开始</text>
-		</view>
-
-		<!-- 会员成长 -->
-		<view class="growth-card" v-if="hasLogin && memberConfig.length > 0">
-			<view class="growth-header">
-				<view class="growth-left">
-					<text class="growth-icon">{{ memberIcon }}</text>
-					<view class="growth-info">
-						<text class="growth-level">{{ memberLevelName }}</text>
-						<text class="growth-tip" v-if="nextLevelName">还差 ¥{{ needToNext }} 升级</text>
-						<text class="growth-tip" v-else>已是最高等级 ✨</text>
+		<!-- 会员成长与权益合并 -->
+		<view class="surface-section member-section" v-if="hasLogin && memberConfig.length > 0">
+			<view class="section-head compact">
+				<view class="member-current">
+					<view class="member-current-mark" :style="memberBgStyle">{{ memberIcon }}</view>
+					<view>
+						<text class="section-title">{{ memberLevelName }}</text>
+						<text class="section-sub">累计消费 ¥{{ totalConsumeText }}</text>
 					</view>
 				</view>
-				<text class="growth-rate">{{ progressPercent }}%</text>
+				<view class="member-discount" :style="memberBgStyle">{{ currentDiscountText }}</view>
 			</view>
-			<view class="progress-bar">
-				<view class="progress-fill" :style="progressFillStyle"></view>
+			<view class="member-progress-head">
+				<text v-if="nextLevelName">距离{{ nextLevelName }}还差 ¥{{ needToNext }}</text>
+				<text v-else>已解锁当前全部会员折扣</text>
+				<text>{{ progressPercent }}%</text>
 			</view>
-			<view class="level-dots">
-				<view v-for="l in levelDots" :key="l.level" :class="l.className">
-					<text class="dot-icon">{{ l.icon }}</text>
-					<text class="dot-name">{{ l.name }}</text>
+			<view class="member-progress">
+				<view class="member-progress-fill" :style="progressFillStyle"></view>
+			</view>
+			<view class="member-level-track">
+				<view v-for="lv in memberBenefitLevels" :key="lv.level" :class="lv.className">
+					<text class="member-level-icon">{{ lv.icon }}</text>
+					<text class="member-level-name">{{ lv.name }}</text>
+					<text class="member-level-discount">{{ lv.discountText }}</text>
 				</view>
 			</view>
 		</view>
 
-		<!-- 会员权益 -->
-		<view class="vip-card" v-if="hasLogin && memberConfig.length > 0">
-			<view class="vip-header">
-				<text class="vip-title">会员权益</text>
-				<view class="vip-badge" :style="memberBgStyle">
-					<text class="vip-badge-text">{{ currentDiscountText }}</text>
+		<!-- 常用服务 -->
+		<view class="surface-section service-section">
+			<view class="section-head compact">
+				<view>
+					<text class="section-title">常用服务</text>
+					<text class="section-sub">门票、组局和会员服务</text>
 				</view>
 			</view>
-			<view class="vip-levels">
-				<block v-for="(lv, idx) in memberBenefitLevels" :key="lv.level">
-					<view :class="lv.className">
-						<text class="vl-icon">{{ lv.icon }}</text>
-						<text class="vl-name">{{ lv.name }}</text>
-						<text class="vl-discount">{{ lv.discountText }}</text>
-					</view>
-					<view class="vip-arrow" v-if="idx < memberBenefitLevels.length - 1">→</view>
-				</block>
-			</view>
-			<view class="vip-tip" v-if="nextLevelName">
-				再消费 <text class="tip-highlight">¥{{ needToNext }}</text> 升级{{ nextLevelName }}
-			</view>
-			<view class="vip-tip" v-else>
-				🎉 已升至最高等级
+			<view class="service-grid">
+				<view class="service-item" @tap="goTicketList">
+					<text class="service-mark green">票</text>
+					<text class="service-name">我的门票</text>
+				</view>
+				<view class="service-item" @tap="goGroup">
+					<text class="service-mark orange">组</text>
+					<text class="service-name">我的组局</text>
+				</view>
+				<view class="service-item" @tap="goDeposit">
+					<text class="service-mark blue">充</text>
+					<text class="service-name">充值余额</text>
+				</view>
+				<view class="service-item" @tap="goSubscriptionMall">
+					<text class="service-mark orange">省</text>
+					<text class="service-name">常客省钱卡</text>
+				</view>
+				<view class="service-item" @tap="goReviews">
+					<text class="service-mark green">评</text>
+					<text class="service-name">我的评价</text>
+				</view>
+				<view class="service-item" @tap="goDeviceHelp">
+					<text class="service-mark blue">帮</text>
+					<text class="service-name">包厢帮助</text>
+				</view>
 			</view>
 		</view>
 
-		<!-- 邀请有礼 -->
-		<view class="invite-card" v-if="hasLogin">
-			<view class="invite-header">
-				<view class="invite-title-row">
-					<text class="invite-icon">🎁</text>
+		<!-- 邀请奖励降为次要入口 -->
+		<view class="surface-section invite-section" v-if="hasLogin">
+			<view class="invite-main">
+				<text class="invite-mark">礼</text>
+				<view class="invite-copy">
 					<text class="invite-title">邀请有礼</text>
+					<text class="invite-desc">好友注册成功，双方都有奖励</text>
 				</view>
-				<text class="invite-desc">好友注册成功后，你可获得积分和邀请券奖励</text>
+				<button class="invite-share-btn" open-type="share">邀请</button>
 			</view>
-			<view class="invite-code-row">
-				<text class="invite-code-label">我的邀请码：</text>
-				<text class="invite-code-value">{{ inviteCode || '----' }}</text>
-				<view class="invite-copy-btn" @tap="copyInviteCode">
-					<text>复制</text>
-				</view>
-			</view>
-			<button class="invite-share-btn" open-type="share">
-				<text class="share-btn-icon">🚀</text>
-				<text class="share-btn-text">立即邀请好友</text>
-			</button>
-			<view class="invite-stats">
-				<text class="invite-count">已邀请 {{ inviteInfo.total_invites || 0 }} 人</text>
+			<view class="invite-meta" v-if="inviteCode">
+				<text>邀请码 {{ inviteCode }}</text>
+				<text class="invite-copy-link" @tap="copyInviteCode">复制</text>
+				<text class="invite-count">已邀请{{ inviteInfo.total_invites || 0 }}人</text>
 			</view>
 		</view>
 
-		<!-- 订单入口 -->
-		<view class="section order-section">
-			<view class="section-header order-header">
-				<view class="order-title-wrap">
-					<text class="section-title">我的订单</text>
-					<text class="order-section-sub">{{ orderSectionHint }}</text>
-				</view>
-			</view>
-			<view class="order-primary-grid">
-				<view class="order-primary-item pay" @tap="navTo('/pages/order/order?state=1')">
-					<view class="order-primary-icon">
-						<text>付</text>
-					</view>
-					<view class="order-primary-copy">
-						<text class="order-primary-title">待付款</text>
-						<text class="order-primary-sub">及时支付保留订单</text>
-					</view>
-					<view class="order-badge" v-if="orderCounts.waitPay > 0">
-						<text>{{ orderCounts.waitPay > 99 ? '99+' : orderCounts.waitPay }}</text>
-					</view>
-				</view>
-				<view class="order-primary-item use" @tap="navTo('/pages/order/order?state=2')">
-					<view class="order-primary-icon">
-						<text>用</text>
-					</view>
-					<view class="order-primary-copy">
-						<text class="order-primary-title">待使用</text>
-						<text class="order-primary-sub">到店出示即可使用</text>
-					</view>
-					<view class="order-badge" v-if="orderCounts.waitUse > 0">
-						<text>{{ orderCounts.waitUse > 99 ? '99+' : orderCounts.waitUse }}</text>
-					</view>
-				</view>
-			</view>
-			<view class="order-secondary-row">
-				<view class="order-secondary-item" @tap="navTo('/pages/order/order?state=0')">
-					<text class="secondary-icon">全</text>
-					<text class="secondary-text">全部订单</text>
-				</view>
-				<view class="order-secondary-item" @tap="navTo('/pages/order/order?state=3')">
-					<text class="secondary-icon">完</text>
-					<text class="secondary-text">已完成</text>
-				</view>
-				<view class="order-secondary-item" @tap="navTo('/pages/order/order?state=4')">
-					<text class="secondary-icon">失</text>
-					<text class="secondary-text">已失效</text>
-				</view>
-			</view>
-		</view>
-
-		<!-- 评价入口 -->
-		<view class="section menu-section">
-			<view class="menu-item" @tap="hasLogin ? navTo('/pages/my/reviews') : handleLogin()">
-				<text class="menu-icon">💬</text>
-				<text class="menu-text">我的评价</text>
-				<text class="menu-arrow">→</text>
-			</view>
-			<view class="menu-item" @tap="hasLogin ? goCouponCenter() : handleLogin()">
-				<text class="menu-icon">🎫</text>
-				<text class="menu-text">优惠券</text>
-				<view class="menu-tip" v-if="hasLogin && couponTipText">
-					<text class="tip-text">{{ couponTipText }}</text>
-				</view>
-				<text class="menu-arrow">→</text>
-			</view>
-			<view class="menu-item" @tap="hasLogin ? goGroup() : handleLogin()">
-				<text class="menu-icon">👥</text>
-				<text class="menu-text">我的组局</text>
-				<text class="menu-arrow">→</text>
-			</view>
-			<view class="menu-item" @tap="hasLogin ? navTo('/pages/ticket/list') : handleLogin()">
-				<text class="menu-icon">🎟️</text>
-				<text class="menu-text">我的门票</text>
-				<text class="menu-arrow">→</text>
-			</view>
-			<view class="menu-item" @tap="hasLogin ? navTo('/pages/user/subscription/my') : handleLogin()">
-				<text class="menu-icon">💳</text>
-				<text class="menu-text">我的卡包</text>
-				<text class="menu-arrow">→</text>
-			</view>
-		</view>
-
-		<!-- 充值入口 -->
-		<view class="section menu-section">
-			<view class="menu-item" @tap="hasLogin ? navTo('/pages/user/deposit/deposit') : handleLogin()">
-				<text class="menu-icon">💎</text>
-				<text class="menu-text">充值余额</text>
-				<view class="menu-tip">
-					<text class="tip-text">{{ balanceMenuText }}</text>
-				</view>
-				<text class="menu-arrow">→</text>
-			</view>
-			<view class="menu-item" @tap="goSubscriptionMall">
-				<text class="menu-icon">💳</text>
-				<text class="menu-text">常客省钱卡</text>
-				<view class="menu-tip">
-					<text class="tip-text">可先浏览</text>
-				</view>
-				<text class="menu-arrow">→</text>
-			</view>
-			<view class="menu-item" @tap="navTo('/pages/help/device')">
-				<text class="menu-icon">🛠️</text>
-				<text class="menu-text">设备帮助</text>
-				<view class="menu-tip">
-						<text class="tip-text">包厢说明</text>
-				</view>
-				<text class="menu-arrow">→</text>
-			</view>
-			<view class="menu-item" @tap="hasLogin ? navTo('/pages/user/setting/setting') : handleLogin()">
-				<text class="menu-icon">⚙️</text>
-				<text class="menu-text">设置</text>
-				<text class="menu-arrow">→</text>
-			</view>
+		<view class="utility-row" @tap="goSettings">
+			<text class="utility-mark">设</text>
+			<text class="utility-text">账号与设置</text>
+			<text class="utility-arrow">›</text>
 		</view>
 
 		<!-- 隐藏 canvas 用于生成专属邀请海报 -->
@@ -375,7 +282,7 @@
 				return 'background: ' + this.memberColor + ';';
 			},
 			progressFillStyle() {
-				return 'width: ' + this.progressPercent + '%; background: linear-gradient(90deg, ' + this.memberColor + ', #FFCC80);';
+				return 'width: ' + this.progressPercent + '%; background: ' + this.memberColor + ';';
 			},
 			memberNo() {
 				var oid = this.userInfo && this.userInfo.object_id ? this.userInfo.object_id : '';
@@ -391,9 +298,6 @@
 				if (!this.hasLogin) return '-';
 				return '¥' + this.balanceAmountText;
 			},
-			balanceMenuText() {
-				return '余额 ' + this.balanceAmountText + ' 元';
-			},
 			totalConsumeText() {
 				if (!this.hasLogin) return '-';
 				var amount = this.userInfo && this.userInfo.total_consume;
@@ -406,10 +310,10 @@
 				if (this.userInfo && this.userInfo.invite_code) return this.userInfo.invite_code;
 				return '';
 			},
-			couponTipText() {
-				if (this.claimableCouponCount > 0) return '可领' + this.claimableCouponCount + '张';
-				if (this.unusedCouponCount > 0) return '可用' + this.unusedCouponCount + '张';
-				return '';
+			couponAssetText() {
+				if (!this.hasLogin) return '-';
+				if (this.claimableCouponCount > 0) return '可领' + this.claimableCouponCount;
+				return String(this.unusedCouponCount || 0);
 			},
 			checkInPointsText() {
 				var points = this.checkInInfo.next_points || (this.checkInInfo.config && this.checkInInfo.config.daily_points) || 10;
@@ -424,12 +328,6 @@
 				if (this.checkInInfo.current_streak > 0) return '棋盘第' + this.checkInBoardCurrentDay + '格 · 连续' + this.checkInInfo.current_streak + '天';
 				return this.checkInInfo.can_check_in ? '投骰点亮棋盘' : '保持回访';
 			},
-			retentionCheckCardClass() {
-				var names = ['retention-card', 'check'];
-				if (this.checkInInfo.checked_in_today) names.push('done');
-				if (this.checkInLoading) names.push('loading');
-				return names.join(' ');
-			},
 			checkInDiceNumber() {
 				var streak = Number(this.checkInInfo.current_streak || 0);
 				var points = Number(this.checkInInfo.points_earned_today || this.checkInInfo.next_points || 0);
@@ -439,11 +337,23 @@
 			checkInDiceDots() {
 				return this.buildDiceDots(this.checkInDiceNumber, 'mini-dice-dot ');
 			},
-			checkInDiceLabel() {
+			checkInMainClass() {
+				var names = ['checkin-main'];
+				if (this.checkInInfo.checked_in_today) names.push('done');
+				if (this.checkInLoading) names.push('loading');
+				return names.join(' ');
+			},
+			checkInButtonText() {
 				if (this.checkInLoading) return '投骰中';
-				if (this.checkInInfo.checked_in_today) return this.checkInDiceNumber + '点';
-				if (this.checkInInfo.can_check_in) return '可投';
-				return '明日';
+				if (this.checkInInfo.checked_in_today) return '已签到';
+				if (this.checkInInfo.can_check_in) return '投骰签到';
+				return '明天再来';
+			},
+			checkInBoardToggleText() {
+				return this.checkInBoardExpanded ? '收起7日棋盘' : '查看7日棋盘与连续奖励';
+			},
+			checkInBoardToggleArrow() {
+				return this.checkInBoardExpanded ? '↑' : '↓';
 			},
 			checkInBoardCompletedDay() {
 				var raw = Number(this.checkInInfo.current_streak || 0);
@@ -495,37 +405,10 @@
 				if (this.checkInInfo.checked_in_today) return '已点亮本轮第' + this.checkInBoardCurrentDay + '格，连续' + streak + '天';
 				return '今日投骰后点亮第' + this.checkInBoardCurrentDay + '格';
 			},
-			couponActionTitle() {
-				if (this.claimableCouponCount > 0) return '可领' + this.claimableCouponCount + '张券';
-				if (this.unusedCouponCount > 0) return '可用' + this.unusedCouponCount + '张券';
-				return '暂无新券';
-			},
-			couponActionSub() {
-				if (this.claimableCouponCount > 0) return '领完下单可抵扣';
-				if (this.unusedCouponCount > 0) return '下单前记得使用';
-				return '有新券会提醒你';
-			},
-			orderActionTitle() {
-				if (this.orderCounts.waitPay > 0) return '待付款' + this.orderCounts.waitPay + '单';
-				if (this.orderCounts.waitUse > 0) return '待使用' + this.orderCounts.waitUse + '单';
-				return '去安排一局';
-			},
-			orderActionSub() {
-				if (this.orderCounts.waitPay > 0) return '尽快支付保留订单';
-				if (this.orderCounts.waitUse > 0) return '到店出示订单';
-				return '买票或预约包厢';
-			},
 			orderSectionHint() {
 				if (this.orderCounts.waitPay > 0) return '待付款 ' + this.orderCounts.waitPay + ' 单';
 				if (this.orderCounts.waitUse > 0) return '待使用 ' + this.orderCounts.waitUse + ' 单';
 				return '暂无待处理订单';
-			},
-			retentionSummary() {
-				if (this.checkInInfo.can_check_in) return '先签到，把今天的积分拿了';
-				if (this.claimableCouponCount > 0) return '有新券可以领取';
-				if (this.orderCounts.waitPay > 0) return '有订单还没支付';
-				if (this.orderCounts.waitUse > 0) return '有订单等你到店使用';
-				return '看看余额、券和邀请奖励';
 			},
 			nextLevelData() {
 				var level = (this.userInfo && this.userInfo.member_level) || 0;
@@ -535,9 +418,6 @@
 			},
 			nextLevelName() {
 				return (this.nextLevelData && this.nextLevelData.name) || '';
-			},
-			nextLevelDiscount() {
-				return this.formatMemberDiscount(this.nextLevelData && this.nextLevelData.discount);
 			},
 			currentDiscountText() {
 				if (this.userInfo && this.userInfo.discount_text) return this.userInfo.discount_text;
@@ -560,18 +440,7 @@
 				var curr = currLevel.threshold / 100;
 				var next = nextLevel.threshold / 100;
 				var total = this.userInfo && this.userInfo.total_consume / 100 || 0;
-				return Math.min(100, ((total - curr) / (next - curr)) * 100).toFixed(0);
-			},
-			levelDots() {
-				var currentLevel = (this.userInfo && this.userInfo.member_level) || 0;
-				return this.memberConfig.map(function(l) {
-					return {
-						level: l.level,
-						icon: l.icon,
-						name: l.name,
-						className: currentLevel >= l.level ? 'level-dot active' : 'level-dot',
-					};
-				});
+				return Math.max(0, Math.min(100, ((total - curr) / (next - curr)) * 100)).toFixed(0);
 			},
 			memberBenefitLevels() {
 				var currentLevel = (this.userInfo && this.userInfo.member_level) || 0;
@@ -584,7 +453,7 @@
 						discountText: l.discount_text || this.formatMemberDiscount(l.discount),
 						className: currentLevel >= l.level ? 'vip-level active' : 'vip-level',
 					};
-				});
+				}.bind(this));
 			},
 		},
 		data() {
@@ -592,6 +461,7 @@
 				orderCounts: { waitPay: 0, waitUse: 0 },
 				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 },
 				checkInLoading: false,
+				checkInBoardExpanded: false,
 				inviteInfo: {},
 				memberConfig: [],
 				claimableCouponCount: 0,
@@ -637,10 +507,44 @@
 					this.loadCouponCounts();
 				});
 			},
+			ensureLoggedIn() {
+				if (this.hasLogin) return true;
+				this.handleLogin();
+				return false;
+			},
+			goBalance() {
+				if (!this.ensureLoggedIn()) return;
+				this.navTo('/pages/user/balance/balance');
+			},
+			goCardPack() {
+				if (!this.ensureLoggedIn()) return;
+				this.navTo('/pages/user/subscription/my');
+			},
+			goTicketList() {
+				if (!this.ensureLoggedIn()) return;
+				this.navTo('/pages/ticket/list');
+			},
+			goDeposit() {
+				if (!this.ensureLoggedIn()) return;
+				this.navTo('/pages/user/deposit/deposit');
+			},
+			goReviews() {
+				if (!this.ensureLoggedIn()) return;
+				this.navTo('/pages/my/reviews');
+			},
+			goDeviceHelp() {
+				this.navTo('/pages/help/device');
+			},
+			goSettings() {
+				if (!this.ensureLoggedIn()) return;
+				this.navTo('/pages/user/setting/setting');
+			},
 			goGroup() {
+				if (!this.ensureLoggedIn()) return;
 				uni.navigateTo({ url: '/pages/group/my' });
 			},
 			goCouponCenter() {
+				if (!this.ensureLoggedIn()) return;
 				if (this.claimableCouponCount > 0) {
 					uni.navigateTo({ url: '/pages/my/coupons/coupons?tab=available' });
 				} else if (this.unusedCouponCount > 0) {
@@ -650,6 +554,7 @@
 				}
 			},
 			goPointsCenter() {
+				if (!this.ensureLoggedIn()) return;
 				uni.setStorageSync('voucherInitialTab', 'points');
 				uni.switchTab({ url: '/pages/voucher/voucher' });
 			},
@@ -661,14 +566,12 @@
 				}, this.token).catch(function() {});
 				uni.navigateTo({ url: '/pages/user/subscription/buy?source=user_center' });
 			},
-			goRetentionOrder() {
-				if (this.orderCounts.waitPay > 0) {
-					this.navTo('/pages/order/order?state=1');
-				} else if (this.orderCounts.waitUse > 0) {
-					this.navTo('/pages/order/order?state=2');
-				} else {
-					uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
-				}
+			goOrderList(state) {
+				if (!this.ensureLoggedIn()) return;
+				this.navTo('/pages/order/order?state=' + state);
+			},
+			toggleCheckInBoard() {
+				this.checkInBoardExpanded = !this.checkInBoardExpanded;
 			},
 			getBoardDay(rawDay) {
 				rawDay = Number(rawDay || 0);
@@ -736,6 +639,7 @@
 						}, this.token).catch(function() {});
 						this.getUserInfo();
 						await this.loadCheckInInfo();
+						this.checkInBoardExpanded = true;
 						this.showCheckInSuccess(d);
 					} else {
 						uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
@@ -865,6 +769,7 @@
 			resetUserPageState() {
 				this.orderCounts = { waitPay: 0, waitUse: 0 };
 				this.checkInInfo = { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 };
+				this.checkInBoardExpanded = false;
 				this.inviteInfo = {};
 				this.claimableCouponCount = 0;
 				this.unusedCouponCount = 0;
@@ -1014,7 +919,7 @@ page {
 
 /* ===== 自定义导航栏 ===== */
 .custom-nav {
-	background: linear-gradient(135deg, #FFB74D, #FF8C42);
+	background: #FFFFFF;
 	padding-top: var(--status-bar-height);
 	position: sticky;
 	top: 0;
@@ -1033,64 +938,7 @@ page {
 	color: #fff;
 }
 
-/* ===== 顶部装饰 ===== */
-.header-deco {
-	position: relative;
-	height: 50rpx;
-	overflow: hidden;
-}
-.deco-leaf {
-	position: absolute;
-	top: 8rpx;
-	left: 50rpx;
-	font-size: 36rpx;
-	opacity: 0.35;
-	animation: sway 4s ease-in-out infinite;
-}
-.deco-cloud {
-	position: absolute;
-	top: 6rpx;
-	right: 70rpx;
-	font-size: 32rpx;
-	opacity: 0.3;
-	animation: drift 6s ease-in-out infinite;
-}
-.deco-flower {
-	position: absolute;
-	top: 12rpx;
-	left: 50%;
-	font-size: 28rpx;
-	opacity: 0.25;
-	animation: sway 5s ease-in-out infinite reverse;
-}
-
-@keyframes sway {
-	0%, 100% { transform: rotate(-6deg); }
-	50% { transform: rotate(6deg); }
-}
-@keyframes drift {
-	0%, 100% { transform: translateX(0); }
-	50% { transform: translateX(16rpx); }
-}
-
 /* ===== 用户卡片 ===== */
-.profile-card {
-	margin: 0 24rpx 24rpx;
-	background: #FFF;
-	border-radius: 28rpx;
-	padding: 28rpx;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	border: 1rpx solid rgba(240, 230, 216, 0.6);
-	position: relative;
-	overflow: hidden;
-	&::before {
-		content: '';
-		position: absolute;
-		top: 0; left: 0; right: 0;
-		height: 6rpx;
-		background: linear-gradient(90deg, #FF8C42, #FFB5A7, #A5D6A7);
-	}
-}
 .profile-top {
 	display: flex;
 	align-items: center;
@@ -1157,489 +1005,6 @@ page {
 	border-radius: 20rpx;
 }
 .edit-btn text { font-size: 24rpx; color: #FF8C42; font-weight: bold; }
-.quick-stats {
-	display: flex;
-	align-items: center;
-	justify-content: space-around;
-	padding-top: 20rpx;
-	border-top: 1rpx solid #F0E6D8;
-}
-.qstat-item {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	flex: 1;
-	min-width: 0;
-}
-.qstat-item .qstat-num {
-	font-size: 34rpx;
-	font-weight: 800;
-	color: #5C4B3A;
-	background: linear-gradient(135deg, #FF8C42, #FFCC80);
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
-	max-width: 190rpx;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-.qstat-item .qstat-label { font-size: 22rpx; color: #A09080; margin-top: 4rpx; }
-.qstat-divider {
-	width: 2rpx;
-	height: 50rpx;
-	background: linear-gradient(to bottom, transparent, #F0E6D8, transparent);
-}
-
-/* ===== 成长卡片 ===== */
-.growth-card {
-	margin: 24rpx 24rpx 24rpx;
-	background: linear-gradient(135deg, #FFF8F0 0%, #FFF 60%, #FFF8F0 100%);
-	border-radius: 24rpx;
-	padding: 28rpx;
-	border: 1rpx solid #F0E6D8;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	position: relative;
-	overflow: hidden;
-	&::after {
-		content: '';
-		position: absolute;
-		right: -40rpx; top: -40rpx;
-		width: 160rpx; height: 160rpx;
-		background: radial-gradient(circle, rgba(255,140,66,0.08) 0%, transparent 70%);
-		border-radius: 50%;
-	}
-}
-.growth-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 20rpx;
-}
-.growth-left {
-	display: flex;
-	align-items: center;
-	gap: 12rpx;
-}
-.growth-icon { font-size: 40rpx; }
-.growth-info {
-	display: flex;
-	flex-direction: column;
-	gap: 2rpx;
-}
-.growth-level {
-	font-size: 28rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-}
-.growth-tip {
-	font-size: 20rpx;
-	color: #A09080;
-}
-.growth-rate {
-	font-size: 28rpx;
-	font-weight: bold;
-	color: #FF8C42;
-}
-.growth-card .progress-bar {
-	height: 14rpx;
-	background: #F0E6D8;
-	border-radius: 7rpx;
-	margin-bottom: 20rpx;
-	overflow: hidden;
-}
-.growth-card .progress-bar .progress-fill {
-	height: 100%;
-	border-radius: 7rpx;
-	transition: width 0.5s ease;
-}
-.level-dots {
-	display: flex;
-	justify-content: space-between;
-}
-.level-dot {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-}
-.level-dot .dot-icon { font-size: 32rpx; opacity: 0.25; }
-.level-dot .dot-name { font-size: 20rpx; color: #CCC; margin-top: 4rpx; }
-.level-dot.active .dot-icon { opacity: 1; }
-.level-dot.active .dot-name { color: #FF8C42; font-weight: bold; }
-
-/* ===== 通用区块容器 ===== */
-.section {
-	margin: 20rpx 24rpx;
-	border-radius: 24rpx;
-	overflow: hidden;
-	background: #FFF;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	border: 1rpx solid rgba(240, 230, 216, 0.6);
-}
-.section-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 24rpx 24rpx 0;
-}
-.section-title {
-	font-size: 30rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-}
-.section-more {
-	font-size: 24rpx;
-	color: #A09080;
-}
-
-/* ===== 会员权益 ===== */
-.vip-card {
-	margin: 0 24rpx 24rpx;
-	background: #FFF;
-	border-radius: 24rpx;
-	padding: 32rpx 24rpx;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	border: 1rpx solid rgba(240, 230, 216, 0.6);
-
-	.vip-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 28rpx;
-	}
-
-	.vip-title {
-		font-size: 30rpx;
-		font-weight: bold;
-		color: #5C4B3A;
-	}
-
-	.vip-badge {
-		display: inline-flex;
-		align-items: center;
-		padding: 6rpx 20rpx;
-		border-radius: 24rpx;
-	}
-	.vip-badge-text {
-		font-size: 26rpx;
-		font-weight: bold;
-		color: #FFF;
-	}
-
-	.vip-levels {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0 8rpx;
-		gap: 16rpx;
-	}
-
-	.vip-level {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 16rpx 12rpx;
-		border-radius: 16rpx;
-		min-width: 120rpx;
-		opacity: 0.4;
-		transition: all 0.3s;
-		background: #F8F8F8;
-
-		&.active {
-			opacity: 1;
-			background: #FFF8F0;
-			box-shadow: 0 4rpx 12rpx rgba(255,140,66,0.15);
-			transform: translateY(-4rpx);
-		}
-	}
-
-	.vl-icon { font-size: 40rpx; }
-	.vl-name { font-size: 22rpx; color: #8C7B6B; margin-top: 6rpx; }
-	.vl-discount { font-size: 24rpx; color: #5C4B3A; font-weight: bold; margin-top: 4rpx; }
-
-	.vip-arrow {
-		font-size: 24rpx;
-		color: #D0C8C0;
-		flex-shrink: 0;
-	}
-
-	.vip-tip {
-		margin-top: 24rpx;
-		text-align: center;
-		font-size: 24rpx;
-		color: #A09080;
-	}
-	.tip-highlight {
-		color: #FF8C42;
-		font-weight: bold;
-	}
-}
-
-.checkin-broken {
-	margin: 0 32rpx 16rpx;
-	padding: 12rpx 20rpx;
-	background: #FFEBEE;
-	border-radius: 12rpx;
-	font-size: 24rpx;
-	color: #C62828;
-	text-align: center;
-}
-
-/* ===== 邀请有礼卡片 ===== */
-.invite-card {
-	margin: 24rpx;
-	background: #FFF;
-	border-radius: 24rpx;
-	padding: 32rpx 24rpx;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	border: 1rpx solid rgba(240, 230, 216, 0.6);
-
-	.invite-header {
-		margin-bottom: 24rpx;
-	}
-	.invite-title-row {
-		display: flex;
-		align-items: center;
-		gap: 10rpx;
-		margin-bottom: 6rpx;
-	}
-	.invite-icon { font-size: 32rpx; }
-	.invite-title {
-		font-size: 30rpx;
-		font-weight: bold;
-		color: #5C4B3A;
-	}
-	.invite-desc {
-		font-size: 24rpx;
-		color: #A09080;
-	}
-	.invite-code-row {
-		display: flex;
-		align-items: center;
-		gap: 12rpx;
-		background: #FFF8F0;
-		border-radius: 16rpx;
-		padding: 20rpx 24rpx;
-		margin-bottom: 16rpx;
-	}
-	.invite-code-label {
-		font-size: 26rpx;
-		color: #A09080;
-	}
-	.invite-code-value {
-		font-size: 36rpx;
-		font-weight: bold;
-		color: #FF8C42;
-		letter-spacing: 4rpx;
-		flex: 1;
-	}
-	.invite-copy-btn {
-		background: #FF8C42;
-		color: #fff;
-		font-size: 24rpx;
-		padding: 8rpx 20rpx;
-		border-radius: 30rpx;
-		box-shadow: 0 4rpx 12rpx rgba(255,140,66,0.25);
-	}
-	.invite-share-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 100%;
-		background: linear-gradient(135deg, #FFCC80, #FF8C42);
-		color: #FFF;
-		font-size: 30rpx;
-		font-weight: bold;
-		padding: 24rpx 0;
-		border-radius: 50rpx;
-		margin: 0 0 16rpx 0;
-		box-shadow: 0 8rpx 24rpx rgba(255,140,66,0.35);
-		transition: transform 0.1s;
-		&:active {
-			transform: scale(0.98);
-		}
-		&::after { border: none; }
-		.share-btn-icon { font-size: 32rpx; margin-right: 12rpx; }
-		.share-btn-text { font-size: 30rpx; }
-	}
-	.invite-stats {
-		text-align: center;
-	}
-	.invite-count {
-		font-size: 24rpx;
-		color: #A09080;
-	}
-}
-
-/* ===== 订单入口 ===== */
-.order-section {
-	background: #FFF;
-	border-radius: 24rpx;
-	padding: 24rpx;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	border: 1rpx solid rgba(240, 230, 216, 0.6);
-
-	.order-header {
-		padding: 0;
-		margin-bottom: 20rpx;
-	}
-	.order-title-wrap {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		width: 100%;
-	}
-	.order-section-sub {
-		font-size: 22rpx;
-		color: #B9A998;
-	}
-	.order-primary-grid {
-		display: flex;
-		gap: 16rpx;
-	}
-	.order-primary-item {
-		flex: 1;
-		min-height: 132rpx;
-		border-radius: 20rpx;
-		padding: 22rpx 18rpx;
-		display: flex;
-		align-items: center;
-		gap: 16rpx;
-		position: relative;
-		border: 1rpx solid rgba(255, 220, 180, 0.75);
-		transition: transform 0.15s, opacity 0.15s;
-	}
-	.order-primary-item.pay {
-		background: #FFF7EF;
-	}
-	.order-primary-item.use {
-		background: #F0FAF3;
-		border-color: rgba(180, 226, 195, 0.75);
-	}
-	.order-primary-item:active {
-		transform: scale(0.97);
-		opacity: 0.9;
-	}
-	.order-primary-icon {
-		width: 56rpx;
-		height: 56rpx;
-		border-radius: 18rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: #FFF;
-		box-shadow: 0 4rpx 12rpx rgba(140, 100, 60, 0.08);
-		flex-shrink: 0;
-		text {
-			font-size: 26rpx;
-			font-weight: bold;
-			color: #FF8C42;
-		}
-	}
-	.order-primary-copy {
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-	}
-	.order-primary-title {
-		font-size: 28rpx;
-		font-weight: bold;
-		color: #5C4B3A;
-	}
-	.order-primary-sub {
-		font-size: 21rpx;
-		color: #A09080;
-		margin-top: 8rpx;
-		line-height: 1.25;
-	}
-	.order-badge {
-		position: absolute;
-		top: 12rpx;
-		right: 14rpx;
-		background: #FF8C42;
-		border-radius: 20rpx;
-		min-width: 32rpx;
-		height: 32rpx;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 0 8rpx;
-		text { font-size: 18rpx; color: #fff; font-weight: bold; }
-	}
-	.order-secondary-row {
-		margin-top: 18rpx;
-		padding-top: 18rpx;
-		border-top: 1rpx solid #F4ECE2;
-		display: flex;
-		gap: 14rpx;
-	}
-	.order-secondary-item {
-		flex: 1;
-		height: 64rpx;
-		border-radius: 32rpx;
-		background: #FAF7F2;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 8rpx;
-		transition: background 0.15s, transform 0.15s;
-	}
-	.order-secondary-item:active {
-		background: #FFF0E0;
-		transform: scale(0.97);
-	}
-	.secondary-icon {
-		width: 30rpx;
-		height: 30rpx;
-		border-radius: 50%;
-		background: #FFF;
-		color: #FF8C42;
-		font-size: 18rpx;
-		font-weight: bold;
-		text-align: center;
-		line-height: 30rpx;
-	}
-	.secondary-text {
-		font-size: 23rpx;
-		color: #8C7B6B;
-	}
-}
-
-/* ===== 菜单 ===== */
-.menu-section {
-	margin: 20rpx 24rpx;
-	border-radius: 24rpx;
-	overflow: hidden;
-	background: #FFF;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	border: 1rpx solid rgba(240, 230, 216, 0.6);
-	.menu-item {
-		display: flex;
-		align-items: center;
-		padding: 32rpx 24rpx;
-		border-bottom: 1rpx solid #F0E6D8;
-		transition: background 0.15s;
-		&:last-child { border-bottom: none; }
-		&:active { background: #FFF8F0; }
-		.menu-icon { font-size: 36rpx; margin-right: 16rpx; }
-		.menu-text {
-			flex: 1;
-			font-size: 28rpx;
-			color: #5C4B3A;
-		}
-		.menu-tip {
-			margin-right: 12rpx;
-			.tip-text {
-				font-size: 22rpx;
-				color: #FF8C42;
-				font-weight: bold;
-			}
-		}
-		.menu-arrow { font-size: 28rpx; color: #D0C8C0; transition: transform 0.2s; }
-		&:active .menu-arrow { transform: translateX(4rpx); }
-	}
-}
-
 .guest {
 	justify-content: center;
 	gap: 20rpx;
@@ -1654,7 +1019,7 @@ page {
 	display: block;
 }
 .login-btn {
-	background: linear-gradient(135deg, #FFB5A7, #FF8C42);
+	background: #C96B3F;
 	color: #fff;
 	padding: 14rpx 36rpx;
 	border-radius: 32rpx;
@@ -1663,82 +1028,6 @@ page {
 	box-shadow: 0 4rpx 16rpx rgba(255, 140, 66, 0.25);
 }
 
-/* ===== 今日行动 ===== */
-.retention-panel {
-	margin: 0 24rpx 24rpx;
-	background: #FFF;
-	border-radius: 24rpx;
-	padding: 24rpx;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	border: 1rpx solid rgba(240, 230, 216, 0.6);
-}
-.retention-head {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	margin-bottom: 18rpx;
-	gap: 18rpx;
-}
-.retention-title {
-	display: block;
-	font-size: 30rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-}
-.retention-sub {
-	display: block;
-	font-size: 22rpx;
-	color: #A09080;
-	margin-top: 4rpx;
-}
-.retention-note {
-	flex-shrink: 0;
-	font-size: 20rpx;
-	color: #FF8C42;
-	background: #FFF5EE;
-	padding: 6rpx 14rpx;
-	border-radius: 18rpx;
-	font-weight: bold;
-}
-.retention-grid {
-	display: grid;
-	grid-template-columns: 1fr 1fr 1fr;
-	gap: 12rpx;
-}
-.retention-card {
-	min-height: 150rpx;
-	border-radius: 18rpx;
-	padding: 16rpx 12rpx;
-	display: flex;
-	flex-direction: column;
-	justify-content: space-between;
-	border: 1rpx solid rgba(240, 230, 216, 0.7);
-}
-.retention-card.check { background: #FFF5EE; }
-.retention-card.check.done { background: #F4FBF0; }
-.retention-card.check.loading .mini-dice-face {
-	animation: mini-dice-roll 0.52s ease-in-out infinite;
-}
-.retention-card.coupon { background: #FFF8E7; }
-.retention-card.order { background: #EEF8F1; }
-.retention-icon {
-	width: 42rpx;
-	height: 42rpx;
-	border-radius: 14rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: #FFF;
-	color: #FF8C42;
-	font-size: 22rpx;
-	font-weight: bold;
-}
-.retention-dice {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8rpx;
-}
 .mini-dice-face {
 	position: relative;
 	width: 44rpx;
@@ -1750,19 +1039,12 @@ page {
 	box-sizing: border-box;
 	flex-shrink: 0;
 }
-.retention-card.check.done .mini-dice-face {
-	border-color: #4A9A4A;
-	box-shadow: 0 5rpx 0 rgba(74,154,74,0.15), inset 0 -4rpx 0 rgba(74,154,74,0.08);
-}
 .mini-dice-dot {
 	position: absolute;
 	width: 7rpx;
 	height: 7rpx;
 	border-radius: 999rpx;
 	background: #5C4B3A;
-}
-.retention-card.check.done .mini-dice-dot {
-	background: #4A9A4A;
 }
 .mini-dice-dot.top-left { left: 9rpx; top: 9rpx; }
 .mini-dice-dot.top-right { right: 9rpx; top: 9rpx; }
@@ -1771,29 +1053,6 @@ page {
 .mini-dice-dot.center { left: 19rpx; top: 19rpx; }
 .mini-dice-dot.bottom-left { left: 9rpx; bottom: 9rpx; }
 .mini-dice-dot.bottom-right { right: 9rpx; bottom: 9rpx; }
-.mini-dice-label {
-	font-size: 19rpx;
-	font-weight: bold;
-	color: #FF8C42;
-	white-space: nowrap;
-}
-.retention-copy {
-	min-width: 0;
-}
-.retention-card-title {
-	display: block;
-	font-size: 25rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-	line-height: 1.25;
-}
-.retention-card-sub {
-	display: block;
-	font-size: 20rpx;
-	color: #8C7B6B;
-	line-height: 1.35;
-	margin-top: 6rpx;
-}
 .checkin-board {
 	margin-top: 18rpx;
 	padding: 18rpx 14rpx 16rpx;
@@ -1900,44 +1159,652 @@ page {
 	100% { transform: rotate(0deg) scale(1); }
 }
 
-/* ===== 游客权益引导 ===== */
+/* ===== 个人中心轻游戏化重构 ===== */
+page {
+	background: #F7F5F1;
+}
+
+.page-wrapper {
+	padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+}
+
+.custom-nav {
+	background: #FFFFFF;
+	border-bottom: 1rpx solid #EAE5DF;
+	box-shadow: none;
+}
+
+.nav-title {
+	color: #332D28;
+	font-size: 32rpx;
+}
+
+.profile-panel {
+	background: #4E7754;
+	padding: 30rpx 24rpx 24rpx;
+	margin-bottom: 16rpx;
+}
+
+.profile-panel .profile-top {
+	margin-bottom: 0;
+}
+
+.profile-panel .profile-info {
+	min-width: 0;
+}
+
+.profile-panel .avatar-wrap .avatar {
+	width: 96rpx;
+	height: 96rpx;
+	border-color: rgba(255, 255, 255, 0.88);
+}
+
+.profile-panel .avatar-wrap .avatar-badge {
+	border-color: #4E7754;
+}
+
+.profile-panel .profile-info .nickname {
+	color: #FFFFFF;
+	font-size: 34rpx;
+	max-width: 300rpx;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.profile-panel .profile-info .member-no {
+	color: rgba(255, 255, 255, 0.76);
+	background: rgba(255, 255, 255, 0.12);
+	margin-left: 0;
+}
+
+.profile-panel .edit-btn {
+	background: rgba(255, 255, 255, 0.14);
+	border-radius: 10rpx;
+}
+
+.profile-panel .edit-btn text {
+	color: #FFFFFF;
+}
+
+.profile-panel .guest-tip {
+	color: rgba(255, 255, 255, 0.72);
+}
+
+.profile-panel .login-btn {
+	background: #C96B3F;
+	border-radius: 10rpx;
+	box-shadow: none;
+}
+
+.asset-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	margin-top: 26rpx;
+	padding-top: 22rpx;
+	border-top: 1rpx solid rgba(255, 255, 255, 0.16);
+}
+
+.asset-item {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	min-height: 76rpx;
+}
+
+.asset-item:not(:last-child)::after {
+	content: '';
+	position: absolute;
+	right: 0;
+	top: 12rpx;
+	width: 1rpx;
+	height: 48rpx;
+	background: rgba(255, 255, 255, 0.14);
+}
+
+.asset-value {
+	max-width: 150rpx;
+	font-size: 30rpx;
+	font-weight: 700;
+	color: #FFFFFF;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.asset-value.small {
+	font-size: 25rpx;
+}
+
+.asset-label {
+	margin-top: 6rpx;
+	font-size: 21rpx;
+	color: rgba(255, 255, 255, 0.7);
+}
+
+.surface-section {
+	margin: 0 0 16rpx;
+	padding: 26rpx 24rpx;
+	background: #FFFFFF;
+	border-top: 1rpx solid #ECE7E1;
+	border-bottom: 1rpx solid #ECE7E1;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+.section-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20rpx;
+	margin-bottom: 22rpx;
+}
+
+.section-head > view {
+	min-width: 0;
+}
+
+.section-head.compact {
+	margin-bottom: 18rpx;
+}
+
+.section-title {
+	display: block;
+	font-size: 29rpx;
+	font-weight: 700;
+	color: #332D28;
+}
+
+.section-sub {
+	display: block;
+	margin-top: 5rpx;
+	font-size: 21rpx;
+	line-height: 1.35;
+	color: #8B8178;
+}
+
+.section-link {
+	flex-shrink: 0;
+	font-size: 23rpx;
+	color: #4E7754;
+}
+
+.order-section {
+	padding: 26rpx 24rpx;
+}
+
+.order-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12rpx;
+}
+
+.order-entry {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	min-height: 112rpx;
+	transition: opacity 0.15s, transform 0.15s;
+}
+
+.order-entry:active {
+	opacity: 0.75;
+	transform: scale(0.97);
+}
+
+.order-entry-mark {
+	width: 54rpx;
+	height: 54rpx;
+	line-height: 54rpx;
+	text-align: center;
+	border-radius: 10rpx;
+	background: #F2F0ED;
+	color: #6F675F;
+	font-size: 23rpx;
+	font-weight: 700;
+}
+
+.order-entry.pay .order-entry-mark {
+	background: #FFF0E7;
+	color: #C96B3F;
+}
+
+.order-entry.use .order-entry-mark {
+	background: #EAF4EC;
+	color: #4E7754;
+}
+
+.order-entry-label {
+	margin-top: 10rpx;
+	font-size: 22rpx;
+	color: #554E47;
+	white-space: nowrap;
+}
+
+.order-entry-count {
+	position: absolute;
+	top: 0;
+	right: 10rpx;
+	min-width: 30rpx;
+	height: 30rpx;
+	padding: 0 7rpx;
+	border-radius: 15rpx;
+	box-sizing: border-box;
+	background: #C96B3F;
+	color: #FFFFFF;
+	font-size: 18rpx;
+	line-height: 30rpx;
+	text-align: center;
+}
+
+.checkin-reward {
+	flex-shrink: 0;
+	padding: 6rpx 12rpx;
+	border-radius: 8rpx;
+	background: #FFF0E7;
+	color: #C96B3F;
+	font-size: 21rpx;
+	font-weight: 700;
+}
+
+.checkin-main {
+	display: flex;
+	align-items: center;
+	gap: 16rpx;
+	min-height: 90rpx;
+}
+
+.checkin-main.loading .mini-dice-face {
+	animation: mini-dice-roll 0.52s ease-in-out infinite;
+}
+
+.checkin-main.done .mini-dice-face {
+	border-color: #4E7754;
+	box-shadow: 0 4rpx 0 rgba(78, 119, 84, 0.16);
+}
+
+.checkin-main.done .mini-dice-dot {
+	background: #4E7754;
+}
+
+.mini-dice-face {
+	flex-shrink: 0;
+	width: 48rpx;
+	height: 48rpx;
+	border-radius: 10rpx;
+	border-color: #332D28;
+	box-shadow: 0 4rpx 0 rgba(51, 45, 40, 0.12);
+}
+
+.checkin-copy {
+	flex: 1;
+	min-width: 0;
+}
+
+.checkin-title {
+	display: block;
+	font-size: 26rpx;
+	font-weight: 700;
+	color: #332D28;
+}
+
+.checkin-sub {
+	display: block;
+	margin-top: 5rpx;
+	font-size: 20rpx;
+	line-height: 1.35;
+	color: #8B8178;
+}
+
+.checkin-button {
+	flex-shrink: 0;
+	min-width: 118rpx;
+	height: 58rpx;
+	padding: 0 16rpx;
+	border-radius: 10rpx;
+	box-sizing: border-box;
+	background: #C96B3F;
+	color: #FFFFFF;
+	font-size: 22rpx;
+	font-weight: 700;
+	line-height: 58rpx;
+	text-align: center;
+}
+
+.checkin-main.done .checkin-button {
+	background: #E8E4DF;
+	color: #777069;
+}
+
+.checkin-toggle {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 18rpx;
+	padding-top: 18rpx;
+	border-top: 1rpx solid #EEEAE5;
+	font-size: 22rpx;
+	color: #4E7754;
+}
+
+.checkin-toggle-arrow {
+	font-size: 24rpx;
+}
+
+.checkin-board {
+	margin-top: 18rpx;
+	padding: 18rpx 12rpx;
+	border-radius: 8rpx;
+	background: #FAF8F5;
+	border-color: #ECE7E1;
+}
+
+.checkin-broken {
+	margin: 16rpx 0 0;
+	padding: 12rpx 16rpx;
+	border-radius: 8rpx;
+	background: #FFF0E7;
+	color: #9C4E2D;
+	font-size: 21rpx;
+	text-align: left;
+}
+
+.member-current {
+	display: flex;
+	align-items: center;
+	gap: 14rpx;
+	min-width: 0;
+}
+
+.member-current-mark {
+	flex-shrink: 0;
+	width: 52rpx;
+	height: 52rpx;
+	border-radius: 10rpx;
+	color: #FFFFFF;
+	font-size: 25rpx;
+	line-height: 52rpx;
+	text-align: center;
+}
+
+.member-discount {
+	flex-shrink: 0;
+	padding: 6rpx 14rpx;
+	border-radius: 8rpx;
+	color: #FFFFFF;
+	font-size: 22rpx;
+	font-weight: 700;
+}
+
+.member-progress-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16rpx;
+	margin-bottom: 10rpx;
+	font-size: 21rpx;
+	color: #766E66;
+}
+
+.member-progress {
+	height: 10rpx;
+	border-radius: 5rpx;
+	background: #ECE8E3;
+	overflow: hidden;
+}
+
+.member-progress-fill {
+	height: 100%;
+	border-radius: 5rpx;
+	transition: width 0.45s ease;
+}
+
+.member-level-track {
+	display: flex;
+	gap: 8rpx;
+	margin-top: 20rpx;
+}
+
+.member-level-track .vip-level {
+	flex: 1;
+	min-width: 0;
+	min-height: 92rpx;
+	padding: 10rpx 4rpx;
+	border-radius: 8rpx;
+	background: #F5F3F0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	opacity: 0.55;
+	box-sizing: border-box;
+}
+
+.member-level-track .vip-level.active {
+	background: #EEF5EF;
+	opacity: 1;
+}
+
+.member-level-icon {
+	font-size: 24rpx;
+}
+
+.member-level-name,
+.member-level-discount {
+	max-width: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.member-level-name {
+	margin-top: 4rpx;
+	font-size: 19rpx;
+	color: #554E47;
+}
+
+.member-level-discount {
+	margin-top: 2rpx;
+	font-size: 18rpx;
+	font-weight: 700;
+	color: #4E7754;
+}
+
+.service-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	border-top: 1rpx solid #EEEAE5;
+	border-left: 1rpx solid #EEEAE5;
+}
+
+.service-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	min-height: 126rpx;
+	border-right: 1rpx solid #EEEAE5;
+	border-bottom: 1rpx solid #EEEAE5;
+	transition: background 0.15s;
+}
+
+.service-item:active {
+	background: #F8F6F3;
+}
+
+.service-mark,
+.invite-mark,
+.utility-mark {
+	display: inline-block;
+	width: 44rpx;
+	height: 44rpx;
+	border-radius: 8rpx;
+	font-size: 21rpx;
+	font-weight: 700;
+	line-height: 44rpx;
+	text-align: center;
+}
+
+.service-mark.orange,
+.invite-mark {
+	background: #FFF0E7;
+	color: #C96B3F;
+}
+
+.service-mark.green {
+	background: #EAF4EC;
+	color: #4E7754;
+}
+
+.service-mark.blue,
+.utility-mark {
+	background: #EAF1F5;
+	color: #557A95;
+}
+
+.service-name {
+	margin-top: 10rpx;
+	font-size: 22rpx;
+	color: #554E47;
+	white-space: nowrap;
+}
+
+.invite-main {
+	display: flex;
+	align-items: center;
+	gap: 14rpx;
+}
+
+.invite-copy {
+	flex: 1;
+	min-width: 0;
+}
+
+.invite-title {
+	display: block;
+	font-size: 27rpx;
+	font-weight: 700;
+	color: #332D28;
+}
+
+.invite-desc {
+	display: block;
+	margin-top: 4rpx;
+	font-size: 21rpx;
+	color: #8B8178;
+}
+
+.invite-share-btn {
+	flex-shrink: 0;
+	width: 112rpx;
+	height: 58rpx;
+	margin: 0;
+	padding: 0;
+	border-radius: 10rpx;
+	background: #C96B3F;
+	color: #FFFFFF;
+	font-size: 22rpx;
+	font-weight: 700;
+	line-height: 58rpx;
+}
+
+.invite-share-btn::after {
+	border: 0;
+}
+
+.invite-meta {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 14rpx;
+	margin-top: 18rpx;
+	padding-top: 16rpx;
+	border-top: 1rpx solid #EEEAE5;
+	font-size: 21rpx;
+	color: #8B8178;
+}
+
+.invite-copy-link {
+	color: #C96B3F;
+	font-weight: 700;
+}
+
+.invite-count {
+	margin-left: auto;
+	color: #8B8178;
+}
+
+.utility-row {
+	display: flex;
+	align-items: center;
+	gap: 14rpx;
+	min-height: 88rpx;
+	padding: 0 24rpx;
+	background: #FFFFFF;
+	border-top: 1rpx solid #ECE7E1;
+	border-bottom: 1rpx solid #ECE7E1;
+}
+
+.utility-text {
+	flex: 1;
+	font-size: 25rpx;
+	color: #554E47;
+}
+
+.utility-arrow {
+	font-size: 32rpx;
+	color: #AAA39C;
+}
+
 .guest-benefit-card {
-	margin: 0 24rpx 24rpx;
-	background: #FFF;
-	border-radius: 24rpx;
-	padding: 28rpx 24rpx;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	border: 1rpx solid rgba(240, 230, 216, 0.6);
+	margin: 0 0 16rpx;
+	padding: 24rpx;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 18rpx;
+	border-radius: 0;
+	box-shadow: none;
+	border: 0;
+	border-bottom: 1rpx solid #ECE7E1;
+	background: #FFFFFF;
 }
+
 .guest-benefit-main {
 	flex: 1;
 	min-width: 0;
 }
+
 .guest-benefit-title {
 	display: block;
-	font-size: 30rpx;
-	font-weight: bold;
-	color: #5C4B3A;
+	font-size: 27rpx;
+	font-weight: 700;
+	color: #332D28;
 }
+
 .guest-benefit-sub {
 	display: block;
 	margin-top: 8rpx;
-	font-size: 23rpx;
+	font-size: 21rpx;
 	line-height: 1.45;
-	color: #A09080;
+	color: #8B8178;
 }
+
 .guest-benefit-btn {
 	flex-shrink: 0;
-	background: #FF8C42;
-	color: #FFF;
-	font-size: 24rpx;
-	font-weight: bold;
 	padding: 12rpx 24rpx;
-	border-radius: 28rpx;
-	box-shadow: 0 4rpx 14rpx rgba(255, 140, 66, 0.22);
+	border-radius: 10rpx;
+	background: #C96B3F;
+	color: #FFFFFF;
+	font-size: 24rpx;
+	font-weight: 700;
+	box-shadow: none;
 }
 </style>
