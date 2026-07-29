@@ -40,7 +40,7 @@
 					</view>
 					<view class="notice-line" v-if="perlerEnabled">
 						<text class="notice-dot">🧩</text>
-						<text class="notice-copy">拼豆一日票{{ perlerDayPriceText }}，含大厅入场和1份标准材料。会员直客及当天有效的小程序权益按{{ perlerUpgradePriceText }}升级，外部团购由店员核验后按{{ perlerChannelUpgradePriceText }}办理。</text>
+						<text class="notice-copy">拼豆一日票{{ perlerDayPriceText }}，含大厅入场和1份标准材料。会员或当天有效的小程序订单按{{ perlerUpgradePriceText }}升级，外部团购由店员核验后按{{ perlerChannelUpgradePriceText }}办理。</text>
 					</view>
 					<view class="notice-line">
 						<text class="notice-dot">↩️</text>
@@ -79,9 +79,9 @@
 				<text class="hero-hours">{{ businessHoursText }}</text>
 			</view>
 			<view class="hero-content">
-				<text class="hero-kicker">福州 · ACG综合体验空间</text>
+				<text class="hero-kicker">福州 · 桌游 × 漫画 × 拼豆体验店</text>
 				<text class="hero-title">{{ storeNameText }}</text>
-				<text class="hero-subtitle">桌游、漫画、拼豆自由切换，想安静再约一间包厢</text>
+				<text class="hero-subtitle">大厅不限时自由玩，也可以预约独立包厢</text>
 				<view class="hero-value-line">
 					<text class="hero-value-main">大厅 {{ ticketPriceText }}</text>
 					<text class="hero-value-separator">·</text>
@@ -171,7 +171,7 @@
 					<text class="service-mark">豆</text>
 					<view class="service-copy">
 						<text class="service-title">临时想玩拼豆</text>
-						<text class="service-sub">会员直客/小程序权益{{ perlerUpgradePriceText }}，外部团购核验{{ perlerChannelUpgradePriceText }}</text>
+						<text class="service-sub">会员或小程序订单{{ perlerUpgradePriceText }}，外部团购核验{{ perlerChannelUpgradePriceText }}</text>
 					</view>
 					<text class="service-action">查资格 ›</text>
 				</view>

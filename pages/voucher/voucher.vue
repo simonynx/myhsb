@@ -1,12 +1,11 @@
 <template>
 	<view class="page">
-		<!-- 顶部手绘风标题 -->
+		<!-- 轻游戏化补给站标题 -->
 		<view class="header">
-			<view class="cloud cloud-1">☁️</view>
-			<view class="cloud cloud-2">☁️</view>
-			<view class="leaf leaf-1">🍃</view>
-			<view class="leaf leaf-2">🌿</view>
-			<text class="header-title">卡券商城</text>
+			<view class="header-title-row">
+				<text class="header-emblem">券</text>
+				<text class="header-title">卡券商城</text>
+			</view>
 			<text class="header-sub">积分能花、消费能抵，常来更划算</text>
 		</view>
 
@@ -19,7 +18,7 @@
 				:class="mainTab === tab.value ? 'active' : ''"
 				@click="switchMainTab(tab.value)"
 			>
-				<text class="tab-emoji">{{ tab.emoji }}</text>
+				<text class="tab-mark">{{ tab.mark }}</text>
 				<text class="tab-name">{{ tab.name }}</text>
 				<view class="tab-dot" v-if="tab.badge > 0">{{ tab.badge }}</view>
 				<view class="tab-underline" v-if="mainTab === tab.value"></view>
@@ -31,7 +30,7 @@
 			<!-- 我的优惠券入口 -->
 			<view class="forest-banner" @tap="goCoupons">
 				<view class="banner-moss">
-					<text class="banner-emoji">🎟️</text>
+					<text class="banner-mark">券</text>
 					<view class="banner-info">
 						<text class="banner-title">我的优惠券</text>
 						<text class="banner-sub">查看已领取、待使用和过期记录</text>
@@ -58,7 +57,6 @@
 							<text class="c-num">{{ getCouponValue(item) }}</text>
 						</view>
 						<text class="c-desc">{{ getCouponDesc(item) }}</text>
-						<view class="c-leaf">🍃</view>
 					</view>
 					<view class="c-right">
 						<text class="c-name">{{ item.name }}</text>
@@ -128,8 +126,6 @@
 				>
 					<view class="goods-img-wrap">
 						<text class="goods-emoji">{{ getGoodsEmoji(g) }}</text>
-						<view class="corner-leaf leaf-tl">🌿</view>
-						<view class="corner-leaf leaf-br">🍃</view>
 					</view>
 					<view class="goods-body">
 						<text class="goods-name">{{ g.name }}</text>
@@ -171,7 +167,7 @@
 			<!-- 我的卡包入口 banner -->
 			<view class="forest-banner" @tap="goMyCards">
 				<view class="banner-moss">
-					<text class="banner-emoji">💳</text>
+					<text class="banner-mark">卡</text>
 					<view class="banner-info">
 						<text class="banner-title">我的卡包</text>
 						<text class="banner-sub">查看我的次卡与月卡剩余额度</text>
@@ -323,8 +319,6 @@
 							<text class="lock-icon">🔮</text>
 							<text class="lock-text">等级不足</text>
 						</view>
-						<view class="corner-leaf leaf-tl">🌿</view>
-						<view class="corner-leaf leaf-br">🍃</view>
 					</view>
 					<view class="goods-body">
 						<text class="goods-name">{{ g.name }}</text>
@@ -499,10 +493,10 @@ export default {
 			pointsFilter: 'all',
 			subscriptionTargetType: 0,
 			mainTabs: [
-				{ name: '省钱卡', emoji: '💳', badge: 0, value: 2 },
-				{ name: '积分好礼', emoji: '🌟', badge: 0, value: 3 },
-				{ name: '领券', emoji: '🎟️', badge: 0, value: 0 },
-				{ name: '好物', emoji: '🏠', badge: 0, value: 1 },
+				{ name: '省钱卡', mark: '卡', badge: 0, value: 2 },
+				{ name: '积分好礼', mark: '礼', badge: 0, value: 3 },
+				{ name: '领券', mark: '券', badge: 0, value: 0 },
+				{ name: '好物', mark: '店', badge: 0, value: 1 },
 			],
 			subTabs: [
 				{ name: '全部', emoji: '🏠' },
@@ -1091,85 +1085,58 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-$wood: #E8784A;
-$wood-light: #FFB88C;
-$forest: #7CB342;
-$forest-light: #AED581;
-$sky: #64B5F6;
-$sky-light: #90CAF9;
-$sakura: #F48FB1;
-$sakura-light: #F8BBD0;
-$cream: #FDF8F0;
-$cream-dark: #F5EDE0;
-$bark: #4A3728;
-$bark-light: #6D5A48;
+$wood: #C96B3F;
+$forest: #4E7754;
+$sky: #557A95;
+$sakura: #C76B7B;
+$cream: #FAF7F3;
+$cream-dark: #E9E3DC;
+$bark: #332D28;
+$bark-light: #746A62;
 
 page, .page {
 	height: 100vh;
-	background-color: #FDF6E9;
-	background-image: repeating-linear-gradient(
-		0deg,
-		transparent,
-		transparent 3rpx,
-		rgba(139, 90, 43, 0.025) 3rpx,
-		rgba(139, 90, 43, 0.025) 6rpx
-	);
+	background-color: #F7F5F1;
 	display: flex;
 	flex-direction: column;
 }
 
-/* ===== 手绘风顶部 ===== */
+/* ===== 轻游戏化补给站顶部 ===== */
 .header {
-	position: relative;
-	background: linear-gradient(180deg, #FFF8E7 0%, $cream 100%);
-	padding: 32rpx 0 24rpx;
-	text-align: center;
+	background: #FFFFFF;
+	padding: 26rpx 28rpx 22rpx;
 	flex-shrink: 0;
-	overflow: hidden;
+	border-bottom: 1rpx solid #ECE7E1;
+	.header-title-row {
+		display: flex;
+		align-items: center;
+		gap: 14rpx;
+	}
+	.header-emblem {
+		width: 48rpx;
+		height: 48rpx;
+		border-radius: 12rpx;
+		background: #F3E4DC;
+		color: $wood;
+		font-size: 24rpx;
+		font-weight: bold;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
 	.header-title {
-		font-size: 40rpx;
+		font-size: 36rpx;
 		font-weight: bold;
 		color: $bark;
-		letter-spacing: 4rpx;
-		display: block;
-		position: relative;
-		z-index: 2;
+		letter-spacing: 0;
 	}
 	.header-sub {
-		font-size: 24rpx;
+		font-size: 22rpx;
 		color: $bark-light;
-		margin-top: 8rpx;
+		margin-top: 10rpx;
 		display: block;
-		position: relative;
-		z-index: 2;
+		padding-left: 62rpx;
 	}
-	.cloud {
-		position: absolute;
-		font-size: 48rpx;
-		opacity: 0.35;
-		z-index: 1;
-		animation: drift 8s ease-in-out infinite;
-	}
-	.cloud-1 { top: 16rpx; right: 40rpx; }
-	.cloud-2 { top: 40rpx; left: 30rpx; font-size: 36rpx; animation-delay: -3s; }
-	.leaf {
-		position: absolute;
-		font-size: 32rpx;
-		opacity: 0.3;
-		z-index: 1;
-		animation: sway 4s ease-in-out infinite;
-	}
-	.leaf-1 { top: 20rpx; left: 120rpx; animation-delay: -1s; }
-	.leaf-2 { bottom: 10rpx; right: 100rpx; font-size: 28rpx; animation-delay: -2s; }
-}
-
-@keyframes drift {
-	0%, 100% { transform: translateX(0); }
-	50% { transform: translateX(12rpx); }
-}
-@keyframes sway {
-	0%, 100% { transform: rotate(-5deg); }
-	50% { transform: rotate(5deg); }
 }
 
 /* ===== 主 Tab ===== */
@@ -1188,11 +1155,25 @@ page, .page {
 	justify-content: center;
 	flex-direction: column;
 	gap: 4rpx;
-	padding: 20rpx 0 16rpx;
+	padding: 14rpx 0 12rpx;
 	position: relative;
-	.tab-emoji { font-size: 32rpx; }
+	.tab-mark {
+		width: 42rpx;
+		height: 38rpx;
+		border-radius: 10rpx;
+		background: #F2EFEA;
+		color: #81776F;
+		font-size: 20rpx;
+		font-weight: bold;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
 	.tab-name { font-size: 24rpx; color: $bark-light; transition: all 0.25s; }
-	&.active .tab-name { color: $wood; font-weight: bold; }
+	&.active {
+		.tab-mark { background: #F3E4DC; color: $wood; }
+		.tab-name { color: $wood; font-weight: bold; }
+	}
 	.tab-underline {
 		position: absolute;
 		bottom: 0;
@@ -1200,7 +1181,7 @@ page, .page {
 		transform: translateX(-50%);
 		width: 48rpx;
 		height: 6rpx;
-		background: linear-gradient(90deg, $wood-light, $wood);
+		background: $wood;
 		border-radius: 6rpx;
 	}
 	.tab-dot {
@@ -1241,34 +1222,38 @@ page, .page {
 	.shop-intro-count { font-size: 22rpx; color: $wood; font-weight: bold; white-space: nowrap; }
 }
 
-/* ===== 森林 Banner ===== */
+/* ===== 我的权益入口 ===== */
 .forest-banner {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	margin: 20rpx 24rpx;
-	padding: 28rpx 24rpx;
-	background: linear-gradient(135deg, #E8F5E9, #FFF8E1);
-	border-radius: 22rpx 26rpx 24rpx 20rpx / 24rpx 20rpx 26rpx 22rpx;
-	border: 2rpx solid rgba(124,179,66,0.18);
-	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.08), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
+	padding: 24rpx;
+	background: #FFFFFF;
+	border-radius: 16rpx;
+	border: 1rpx solid #DDE7DE;
+	border-left: 6rpx solid $forest;
+	box-shadow: 0 4rpx 14rpx rgba(62, 45, 32, 0.05);
 	position: relative;
 	overflow: hidden;
 	&:active { opacity: 0.9; transform: scale(0.99); }
-	&::before {
-		content: '🌿';
-		position: absolute;
-		bottom: -8rpx;
-		right: 20rpx;
-		font-size: 60rpx;
-		opacity: 0.12;
-	}
 	.banner-moss {
 		display: flex;
 		align-items: center;
 		gap: 16rpx;
 	}
-	.banner-emoji { font-size: 56rpx; }
+	.banner-mark {
+		width: 54rpx;
+		height: 54rpx;
+		border-radius: 12rpx;
+		background: #E8F0E9;
+		color: $forest;
+		font-size: 24rpx;
+		font-weight: bold;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
 	.banner-info {
 		display: flex;
 		flex-direction: column;
@@ -1299,15 +1284,15 @@ page, .page {
 .coupon-card {
 	display: flex;
 	background: #FFF;
-	border-radius: 22rpx 26rpx 24rpx 20rpx / 24rpx 22rpx 26rpx 20rpx;
+	border-radius: 16rpx;
 	overflow: hidden;
-	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.08), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
-	border: 2rpx solid rgba(160, 120, 80, 0.12);
+	box-shadow: 0 4rpx 14rpx rgba(62, 45, 32, 0.06);
+	border: 1rpx solid #E9E3DC;
 	position: relative;
 
 	.c-left {
 		width: 200rpx;
-		background: linear-gradient(135deg, $forest-light, $forest);
+		background: $forest;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -1319,13 +1304,6 @@ page, .page {
 		.c-sym { font-size: 22rpx; color: #FFF; }
 		.c-num { font-size: 48rpx; font-weight: bold; color: #FFF; }
 		.c-desc { font-size: 20rpx; color: rgba(255,255,255,0.9); margin-top: 6rpx; text-align: center; }
-		.c-leaf {
-			position: absolute;
-			bottom: 8rpx;
-			right: 8rpx;
-			font-size: 28rpx;
-			opacity: 0.35;
-		}
 	}
 
 	.c-right {
@@ -1342,11 +1320,11 @@ page, .page {
 			width: 132rpx;
 			height: 56rpx;
 			line-height: 56rpx;
-			background: linear-gradient(135deg, $wood-light, $wood);
+			background: $wood;
 			color: #FFF;
 			font-size: 24rpx;
 			font-weight: bold;
-			border-radius: 30rpx;
+			border-radius: 10rpx;
 			text-align: center;
 			align-self: flex-start;
 			box-shadow: 0 4rpx 12rpx rgba(232,120,74,0.25);
@@ -1359,7 +1337,7 @@ page, .page {
 	}
 }
 
-/* ===== 手绘风分类胶囊 ===== */
+/* ===== 商品分类 ===== */
 .category-pills {
 	display: flex;
 	flex-wrap: wrap;
@@ -1372,17 +1350,17 @@ page, .page {
 	gap: 8rpx;
 	padding: 14rpx 24rpx;
 	background: #FFF;
-	border-radius: 40rpx;
+	border-radius: 10rpx;
 	border: 2rpx solid $cream-dark;
 	box-shadow: 0 2rpx 8rpx rgba(74,55,40,0.04);
 	transition: all 0.25s;
 	.pill-emoji { font-size: 28rpx; }
 	.pill-name { font-size: 24rpx; color: $bark-light; }
 	&.active {
-		background: linear-gradient(135deg, $wood-light, $wood);
-		border-color: transparent;
-		box-shadow: 0 4rpx 16rpx rgba(232,120,74,0.25);
-		.pill-name { color: #FFF; font-weight: bold; }
+		background: #F3E4DC;
+		border-color: #E6BBA5;
+		box-shadow: none;
+		.pill-name { color: $wood; font-weight: bold; }
 	}
 	&:active { transform: scale(0.95); }
 }
@@ -1402,28 +1380,17 @@ page, .page {
 }
 .goods-card {
 	background: #FFF;
-	border-radius: 22rpx 26rpx 20rpx 28rpx / 26rpx 22rpx 28rpx 24rpx;
+	border-radius: 16rpx;
 	overflow: hidden;
-	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.08), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
-	border: 2rpx solid rgba(160, 120, 80, 0.12);
+	box-shadow: 0 4rpx 14rpx rgba(62, 45, 32, 0.06);
+	border: 1rpx solid #E9E3DC;
 	transition: transform 0.25s, box-shadow 0.25s;
 	position: relative;
 	&:active { transform: scale(0.97); }
 	&.locked { opacity: 0.55; }
-	&::before {
-		content: '🌿';
-		position: absolute;
-		top: -10rpx;
-		left: -6rpx;
-		font-size: 28rpx;
-		transform: rotate(-18deg);
-		opacity: 0.45;
-		z-index: 2;
-	}
-
 	.goods-img-wrap {
 		height: 180rpx;
-		background: linear-gradient(135deg, #FFF8F0, #F5EDE0);
+		background: #F5F1EC;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -1433,20 +1400,13 @@ page, .page {
 			position: absolute;
 			top: 12rpx;
 			left: 12rpx;
-			background: linear-gradient(135deg, $wood, #D84315);
+			background: $wood;
 			border-radius: 12rpx;
 			padding: 4rpx 12rpx;
 			text { font-size: 18rpx; color: #FFF; font-weight: bold; }
 
-			&.points { background: linear-gradient(135deg, $forest, #7CB342); }
-			&.mixed { background: linear-gradient(135deg, $sky, #1E88E5); }
-		}
-		.corner-leaf {
-			position: absolute;
-			font-size: 24rpx;
-			opacity: 0.2;
-			&.leaf-tl { top: 4rpx; left: 4rpx; }
-			&.leaf-br { bottom: 4rpx; right: 4rpx; }
+			&.points { background: $forest; }
+			&.mixed { background: $sky; }
 		}
 		.lock-mask {
 			position: absolute;
@@ -1493,8 +1453,8 @@ page, .page {
 			.price-num { font-size: 34rpx; color: $wood; font-weight: bold; }
 			.price-points { font-size: 20rpx; color: $forest; font-weight: bold; margin-left: 4rpx; }
 			.goods-buy-btn {
-				background: linear-gradient(135deg, $wood-light, $wood);
-				border-radius: 20rpx;
+				background: $wood;
+				border-radius: 10rpx;
 				padding: 8rpx 20rpx;
 				box-shadow: 0 2rpx 8rpx rgba(232,120,74,0.2);
 				text { font-size: 22rpx; color: #FFF; font-weight: bold; }
@@ -1530,13 +1490,13 @@ page, .page {
 /* ===== 积分卡片 ===== */
 .points-card {
 	margin: 20rpx 24rpx;
-	background: linear-gradient(135deg, #FFF8E1, #FFECB3);
-	border-radius: 24rpx 20rpx 26rpx 22rpx / 20rpx 26rpx 22rpx 24rpx;
+	background: #FFF4CC;
+	border-radius: 16rpx;
 	padding: 28rpx 32rpx;
 	position: relative;
 	overflow: hidden;
-	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.1), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
-	border: 2rpx solid rgba(255,183,77,0.25);
+	box-shadow: 0 4rpx 14rpx rgba(62, 45, 32, 0.06);
+	border: 1rpx solid #ECD68A;
 	.points-bg {
 		position: absolute;
 		inset: 0;
@@ -1595,7 +1555,7 @@ page, .page {
 		border-top: 2rpx solid rgba(160, 120, 80, 0.1);
 	}
 	.points-progress-bar { height: 10rpx; background: rgba(255,255,255,0.7); border-radius: 5rpx; overflow: hidden; }
-	.points-progress-fill { height: 100%; background: linear-gradient(90deg, #FFB84D, $wood); border-radius: 5rpx; }
+	.points-progress-fill { height: 100%; background: $wood; border-radius: 5rpx; }
 	.points-progress-text { display: block; margin-top: 10rpx; font-size: 21rpx; color: $bark-light; }
 }
 
@@ -1680,7 +1640,7 @@ page, .page {
 		text-align: center;
 
 		&.primary {
-			background: linear-gradient(135deg, $wood-light, $wood);
+			background: $wood;
 			border-color: transparent;
 			color: #FFF;
 			font-weight: bold;
@@ -1701,7 +1661,7 @@ page, .page {
 	margin-top: 8rpx;
 	text {
 		font-size: 20rpx;
-		color: #E8784A;
+		color: $wood;
 		background: rgba(232,120,74,0.08);
 		padding: 4rpx 12rpx;
 		border-radius: 10rpx;
@@ -1774,8 +1734,8 @@ page, .page {
 	background: #FFF;
 	border-radius: 14rpx;
 	overflow: hidden;
-	box-shadow: 0 10rpx 28rpx rgba(160, 120, 80, 0.08), 0 2rpx 6rpx rgba(160, 120, 80, 0.04);
-	border: 2rpx solid rgba(160, 120, 80, 0.12);
+	box-shadow: 0 4rpx 14rpx rgba(62, 45, 32, 0.06);
+	border: 1rpx solid #E9E3DC;
 	position: relative;
 
 	&.unavailable {
@@ -1794,13 +1754,13 @@ page, .page {
 		position: relative;
 		
 		&.times {
-			background: linear-gradient(135deg, $wood-light, $wood);
+			background: $wood;
 		}
 		&.monthly {
-			background: linear-gradient(135deg, #AB47BC, #7B1FA2);
+			background: $forest;
 		}
 		&.room {
-			background: linear-gradient(135deg, #5C6BC0, #3949AB);
+			background: $sky;
 		}
 		
 		.sub-card-type {
@@ -1924,12 +1884,12 @@ page, .page {
 			}
 			
 			.buy-btn {
-				background: linear-gradient(135deg, $wood-light, $wood);
+				background: $wood;
 				color: #FFF;
 				font-size: 22rpx;
 				font-weight: bold;
 				padding: 10rpx 24rpx;
-				border-radius: 30rpx;
+				border-radius: 10rpx;
 				box-shadow: 0 4rpx 12rpx rgba(232,120,74,0.2);
 				
 				&:active {

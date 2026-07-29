@@ -59,7 +59,7 @@
         <view class="group-intent-card" v-if="groupIntentVisible && !loading">
             <view class="group-intent-copy">
                 <text class="group-intent-title">准备发起组局</text>
-                <text class="group-intent-sub">选一个包厢和时段后，在底部弹窗点“找搭子”即可发布。</text>
+                <text class="group-intent-sub">本次选择将用于创建组局，其他玩家可以加入并分摊费用。</text>
             </view>
             <view class="group-intent-close" @click="closeGroupIntent">知道了</view>
         </view>
@@ -96,17 +96,13 @@
                         <text v-else-if="room.statusClass === 'partial'">部分可约</text>
                         <text v-else>可预约</text>
                     </view>
-                    <!-- 房间编号角标 -->
-                    <view class="room-index-badge" v-if="idx < 3">
-                        <text class="index-text">TOP {{ idx + 1 }}</text>
-                    </view>
                 </view>
 
                 <!-- 右侧信息 -->
                 <view class="card-info">
                     <view class="card-header">
                         <text class="card-name">{{ room.name }}</text>
-                        <text class="seats-badge" v-if="room.seats_count">👥 {{ room.seats_count }}人</text>
+                        <text class="seats-badge" v-if="room.seats_count">{{ room.seats_count }}人</text>
                     </view>
 
                     <!-- 时段可用情况 - 升级版色块 -->
@@ -147,16 +143,10 @@
 
             <!-- 空状态 -->
             <view class="empty-section" v-if="roomList.length === 0">
-                <text class="empty-icon">🍄</text>
+                <text class="empty-icon">空</text>
                 <text class="empty-title">当天暂无可预约的包厢</text>
-                <text class="empty-sub">换个日期试试吧～</text>
+                <text class="empty-sub">换个日期看看其他空档</text>
             </view>
-        </view>
-
-        <!-- 底部说明 -->
-        <view class="bottom-tip">
-            <text>· 滑动日期可查看更多</text>
-            <text>· 点击包厢查看详情和设施</text>
         </view>
 
         <!-- 时间选择弹窗 -->
@@ -640,32 +630,24 @@ export default {
 </script>
 
 <style lang="scss">
-$primary: #E8784A;
-$primary-light: #FFB88C;
-$gold: #FFB933;
-$green: #7CB342;
-$red: #E53935;
-$dark: #4A3728;
-$gray: #A08B7A;
-$light-gray: #F5EDE0;
-$bg: #FDF6E9;
+$primary: #C96B3F;
+$gold: #D99028;
+$green: #4E7754;
+$red: #A65A4E;
+$dark: #332D28;
+$gray: #8B8178;
+$light-gray: #E9E3DC;
+$bg: #F7F5F1;
 $card-bg: #FFFFFF;
 
 page {
     background: $bg;
     min-height: 100vh;
-    background-image: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 3rpx,
-        rgba(139, 90, 43, 0.025) 3rpx,
-        rgba(139, 90, 43, 0.025) 6rpx
-    );
 }
 
 .status-bar-placeholder {
     height: var(--status-bar-height, 44px);
-    background: linear-gradient(135deg, #E8784A, #FFB88C);
+    background: #FFFFFF;
 }
 
 .nav-bar {
@@ -674,23 +656,23 @@ page {
     justify-content: center;
     position: relative;
     height: 88rpx;
-    background: linear-gradient(135deg, #E8784A, #FFB88C);
+    background: #FFFFFF;
+    border-bottom: 1rpx solid #ECE7E1;
 
     .nav-title {
-        font-size: 36rpx;
+        font-size: 34rpx;
         font-weight: bold;
-        color: #fff;
-        letter-spacing: 2rpx;
-        text-shadow: 0 2rpx 4rpx rgba(0,0,0,0.1);
+        color: $dark;
+        letter-spacing: 0;
     }
 }
 
 // 周日历
 .week-strip {
     background: #fff;
-    padding: 20rpx 0 24rpx;
-    border-radius: 0 0 24rpx 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(160, 120, 80, 0.08);
+    padding: 16rpx 0 20rpx;
+    border-bottom: 1rpx solid #ECE7E1;
+    box-shadow: 0 4rpx 14rpx rgba(62, 45, 32, 0.04);
     position: relative;
     z-index: 1;
 
@@ -704,27 +686,24 @@ page {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 16rpx 20rpx;
-        border-radius: 20rpx 24rpx 18rpx 22rpx / 22rpx 18rpx 24rpx 20rpx;
+        padding: 14rpx 18rpx;
+        border-radius: 14rpx;
         transition: all 0.25s;
         position: relative;
         min-width: 88rpx;
         background: #FFF;
-        border: 2rpx solid rgba(160, 120, 80, 0.08);
-        box-shadow: 0 3rpx 10rpx rgba(160, 120, 80, 0.08);
+        border: 1rpx solid transparent;
 
         &.active {
-            background: linear-gradient(135deg, $primary-light, $primary);
-            border-color: transparent;
-            box-shadow: 0 4rpx 16rpx rgba(232, 120, 74, 0.25);
-            transform: scale(1.05);
+            background: #F5E6DE;
+            border-color: #DDA181;
 
             .day-week, .day-date {
-                color: #fff;
+                color: $primary;
             }
 
             .day-dot {
-                background: #fff;
+                background: $primary;
             }
         }
 
@@ -816,8 +795,8 @@ page {
     justify-content: space-between;
     padding: 24rpx 30rpx 16rpx;
     margin: 0 20rpx;
-    background: linear-gradient(to right, rgba(255,255,255,0.8), rgba(255,248,240,0.6));
-    border-radius: 20rpx 20rpx 0 0;
+    background: #FBF8F4;
+    border-radius: 16rpx 16rpx 0 0;
 
     .list-count {
         font-size: 26rpx;
@@ -849,25 +828,24 @@ page {
 
 .room-card {
     background: $card-bg;
-    border-radius: 24rpx 28rpx 22rpx 26rpx / 26rpx 22rpx 28rpx 24rpx;
+    border-radius: 16rpx;
     overflow: hidden;
-    margin-bottom: 24rpx;
+    margin-bottom: 18rpx;
     display: block;
-    box-shadow: 0 12rpx 32rpx rgba(160, 100, 60, 0.12), 0 4rpx 8rpx rgba(160, 100, 60, 0.06);
+    box-shadow: 0 6rpx 18rpx rgba(62, 45, 32, 0.07);
     transition: transform 0.25s, box-shadow 0.25s;
-    border: 2rpx solid rgba(160, 120, 80, 0.1);
-    border-bottom: 4rpx dashed rgba(232,120,74,0.35);
+    border: 1rpx solid #E9E3DC;
     position: relative;
 
     &::after {
         content: '';
         position: absolute;
         left: 0;
-        top: 320rpx;
+        top: 280rpx;
         bottom: 20rpx;
-        width: 6rpx;
+        width: 5rpx;
         border-radius: 0 6rpx 6rpx 0;
-        background: linear-gradient(to bottom, $primary-light, $primary);
+        background: $primary;
         z-index: 3;
     }
 
@@ -878,7 +856,7 @@ page {
 
     .card-img-wrap {
         width: 100%;
-        height: 320rpx;
+        height: 280rpx;
         position: relative;
         overflow: hidden;
     }
@@ -886,7 +864,7 @@ page {
     .card-img {
         width: 100%;
         height: 100%;
-        border-radius: 24rpx 24rpx 0 0;
+        border-radius: 16rpx 16rpx 0 0;
     }
 
     // 图片底部渐变遮罩
@@ -900,43 +878,26 @@ page {
         pointer-events: none;
     }
 
-    // 房间编号角标
-    .room-index-badge {
-        position: absolute;
-        bottom: 12rpx;
-        right: 12rpx;
-        background: linear-gradient(135deg, rgba(232,120,74,0.85), rgba(255,140,100,0.85));
-        padding: 4rpx 14rpx;
-        border-radius: 16rpx;
-        box-shadow: 0 2rpx 8rpx rgba(232, 120, 74, 0.3);
-
-        .index-text {
-            font-size: 20rpx;
-            color: #fff;
-            font-weight: bold;
-        }
-    }
-
     .status-badge {
         position: absolute;
         top: 14rpx;
         left: 14rpx;
         padding: 6rpx 16rpx;
-        border-radius: 20rpx;
+        border-radius: 10rpx;
         font-size: 22rpx;
         font-weight: bold;
         color: #fff;
 
         &.available {
-            background: linear-gradient(135deg, rgba($green, 0.92), rgba(124,179,66,0.8));
+            background: rgba($green, 0.94);
         }
 
         &.partial {
-            background: linear-gradient(135deg, rgba($gold, 0.92), rgba(255,183,77,0.8));
+            background: rgba($gold, 0.94);
         }
 
         &.full {
-            background: linear-gradient(135deg, rgba($red, 0.92), rgba(229,57,53,0.8));
+            background: rgba($red, 0.94);
         }
     }
 
@@ -963,10 +924,10 @@ page {
 
         .seats-badge {
             font-size: 22rpx;
-            color: #8B7355;
-            background: #F5F0E8;
+            color: #5C554E;
+            background: #F2EFEA;
             padding: 4rpx 12rpx;
-            border-radius: 16rpx;
+            border-radius: 8rpx;
             font-weight: 500;
         }
     }
@@ -1027,12 +988,11 @@ page {
 
         .tag {
             font-size: 21rpx;
-            color: #fff;
-            background: linear-gradient(135deg, $primary, $primary-light);
+            color: #8D4A2F;
+            background: #F7EAE3;
             padding: 5rpx 14rpx;
-            border-radius: 20rpx;
-            border: none;
-            box-shadow: 0 2rpx 6rpx rgba(232,120,74,0.2);
+            border-radius: 8rpx;
+            border: 1rpx solid #EBC9B7;
             font-weight: 500;
         }
     }
@@ -1078,13 +1038,13 @@ page {
         font-size: 26rpx;
         font-weight: bold;
         padding: 12rpx 32rpx;
-        border-radius: 30rpx 34rpx 28rpx 32rpx / 32rpx 28rpx 34rpx 30rpx;
+        border-radius: 12rpx;
         transition: all 0.2s;
 
         &.ready {
-            background: linear-gradient(135deg, $primary, $primary-light);
+            background: $primary;
             color: #fff;
-            box-shadow: 0 4rpx 16rpx rgba(232, 120, 74, 0.3);
+            box-shadow: 0 4rpx 12rpx rgba(201, 107, 63, 0.2);
         }
 
         &.disabled {
@@ -1107,9 +1067,17 @@ page {
     padding: 100rpx 40rpx;
 
     .empty-icon {
-        font-size: 100rpx;
+        width: 76rpx;
+        height: 76rpx;
+        border-radius: 16rpx;
+        background: #F2E6DE;
+        color: $primary;
+        font-size: 30rpx;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         margin-bottom: 24rpx;
-        filter: drop-shadow(0 2rpx 4rpx rgba(0,0,0,0.06));
     }
 
     .empty-title {
@@ -1153,14 +1121,15 @@ page {
 .group-intent-card {
     margin: 0 24rpx 20rpx;
     padding: 22rpx 24rpx;
-    background: linear-gradient(135deg, #FFF8E1 0%, #FFF4E8 55%, #EAF7EC 100%);
-    border: 2rpx solid rgba(232,120,74,0.16);
-    border-radius: 22rpx;
+    background: #FFFFFF;
+    border: 1rpx solid #DDE7DE;
+    border-left: 6rpx solid $green;
+    border-radius: 14rpx;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 18rpx;
-    box-shadow: 0 4rpx 16rpx rgba(160,120,80,0.06);
+    box-shadow: 0 4rpx 14rpx rgba(62,45,32,0.05);
 }
 .group-intent-copy {
     flex: 1;
@@ -1185,18 +1154,8 @@ page {
     font-size: 24rpx;
     font-weight: bold;
     background: #FFF3E8;
-    border-radius: 24rpx;
+    border-radius: 10rpx;
     padding: 10rpx 18rpx;
-}
-// 底部提示
-.bottom-tip {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20rpx 40rpx 60rpx;
-    font-size: 22rpx;
-    color: $gray;
-    gap: 6rpx;
 }
 
 // 时间选择弹窗
@@ -1320,7 +1279,7 @@ page {
             .pf-social-tip {
                 display: block;
                 font-size: 21rpx;
-                color: #7CB342;
+                color: $green;
                 margin-top: 4rpx;
                 line-height: 1.35;
             }
@@ -1334,7 +1293,7 @@ page {
 
         .pf-btn {
             height: 76rpx;
-            border-radius: 38rpx;
+            border-radius: 12rpx;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1345,7 +1304,7 @@ page {
             transition: background 0.2s;
 
             &.group {
-                background: linear-gradient(135deg, #FF9ECD, #FF6432);
+                background: $green;
                 &.disabled {
                     background: #CCC;
                 }

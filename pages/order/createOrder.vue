@@ -557,7 +557,7 @@ export default {
                     priority: 100,
                     tag: peopleCount + '人推荐',
                     title: '多人小食盘',
-                    reason: '当前' + peopleCount + '人，先备共享小食，减少中途出包间加单。'
+                    reason: '当前' + peopleCount + '人，先备共享小食，减少中途出包厢加单。'
                 });
                 put(drinkSupply, {
                     priority: 80,

@@ -326,7 +326,7 @@
 				<text class="menu-icon">🛠️</text>
 				<text class="menu-text">设备帮助</text>
 				<view class="menu-tip">
-					<text class="tip-text">包间教程</text>
+						<text class="tip-text">包厢说明</text>
 				</view>
 				<text class="menu-arrow">→</text>
 			</view>
