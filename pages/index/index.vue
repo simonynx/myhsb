@@ -93,6 +93,32 @@
 			</view>
 		</view>
 
+		<!-- 大厅票核心权益：保留首页主线，同时让非桌游服务可被快速看见 -->
+		<view class="hall-benefits">
+			<view class="hall-benefits-head">
+				<text class="hall-benefits-title">大厅票已包含</text>
+				<text class="hall-benefits-note">进店后不用重复加购</text>
+			</view>
+			<view class="hall-benefits-list">
+				<view class="hall-benefit-item">
+					<text class="hall-benefit-dot"></text>
+					<text>桌游畅玩</text>
+				</view>
+				<view class="hall-benefit-item">
+					<text class="hall-benefit-dot"></text>
+					<text>漫画小说</text>
+				</view>
+				<view class="hall-benefit-item">
+					<text class="hall-benefit-dot"></text>
+					<text>零食茶水自助</text>
+				</view>
+				<view class="hall-benefit-item">
+					<text class="hall-benefit-dot"></text>
+					<text>营业时段不限时</text>
+				</view>
+			</view>
+		</view>
+
 		<!-- 三个核心消费场景 -->
 		<view class="play-section">
 			<view class="section-heading">
@@ -1670,6 +1696,55 @@ page {
 	width: 30rpx;
 	border-radius: 5rpx;
 	background: #FFF;
+}
+
+.hall-benefits {
+	padding: 20rpx 24rpx 22rpx;
+	background: #FFF;
+	border-bottom: 1rpx solid #E9E3DC;
+}
+
+.hall-benefits-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 18rpx;
+}
+
+.hall-benefits-title {
+	font-size: 25rpx;
+	font-weight: 800;
+	color: #332D28;
+}
+
+.hall-benefits-note {
+	font-size: 20rpx;
+	color: #91877F;
+}
+
+.hall-benefits-list {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10rpx 22rpx;
+	margin-top: 13rpx;
+}
+
+.hall-benefit-item {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	font-size: 22rpx;
+	line-height: 1.45;
+	color: #5E554E;
+}
+
+.hall-benefit-dot {
+	width: 8rpx;
+	height: 8rpx;
+	margin-right: 12rpx;
+	border-radius: 50%;
+	background: #4E7754;
+	flex-shrink: 0;
 }
 
 .play-section,

@@ -8,9 +8,7 @@
 				@click="switchTab(tabs[0])"
 			>
 				<view class="tab-icon-wrap" :class="tabVisuals.index.iconClass">
-					<text class="tab-svg">
-						<text class="svg-path" :class="tabVisuals.index.pathClass">{{ tabVisuals.index.icon }}</text>
-					</text>
+					<uni-icons :type="tabVisuals.index.iconType" :color="tabVisuals.index.iconColor" size="24"></uni-icons>
 				</view>
 				<text class="tab-label" :class="tabVisuals.index.labelClass">首页</text>
 			</view>
@@ -22,17 +20,15 @@
 				@click="switchTab(tabs[1])"
 			>
 				<view class="tab-icon-wrap" :class="tabVisuals.voucher.iconClass">
-					<text class="tab-svg">
-						<text class="svg-path" :class="tabVisuals.voucher.pathClass">{{ tabVisuals.voucher.icon }}</text>
-					</text>
+					<uni-icons :type="tabVisuals.voucher.iconType" :color="tabVisuals.voucher.iconColor" size="24"></uni-icons>
 				</view>
 				<text class="tab-label" :class="tabVisuals.voucher.labelClass">卡券</text>
 			</view>
 
-			<!-- 中心按钮 -->
+			<!-- 预约入口与其余入口保持一致，仅当前页高亮 -->
 			<view class="center-slot" @click="switchTab(tabs[2])">
 				<view class="center-btn" :class="tabVisuals.appoint.iconClass">
-					<text class="center-icon">{{ tabVisuals.appoint.icon }}</text>
+					<uni-icons :type="tabVisuals.appoint.iconType" :color="tabVisuals.appoint.iconColor" size="24"></uni-icons>
 				</view>
 				<text class="center-label" :class="tabVisuals.appoint.labelClass">预约</text>
 			</view>
@@ -44,9 +40,7 @@
 				@click="switchTab(tabs[3])"
 			>
 				<view class="tab-icon-wrap" :class="tabVisuals.group.iconClass">
-					<text class="tab-svg">
-						<text class="svg-path" :class="tabVisuals.group.pathClass">{{ tabVisuals.group.icon }}</text>
-					</text>
+					<uni-icons :type="tabVisuals.group.iconType" :color="tabVisuals.group.iconColor" size="24"></uni-icons>
 				</view>
 				<text class="tab-label" :class="tabVisuals.group.labelClass">组局</text>
 			</view>
@@ -58,9 +52,7 @@
 				@click="switchTab(tabs[4])"
 			>
 				<view class="tab-icon-wrap" :class="tabVisuals.user.iconClass">
-					<text class="tab-svg">
-						<text class="svg-path" :class="tabVisuals.user.pathClass">{{ tabVisuals.user.icon }}</text>
-					</text>
+					<uni-icons :type="tabVisuals.user.iconType" :color="tabVisuals.user.iconColor" size="24"></uni-icons>
 				</view>
 				<text class="tab-label" :class="tabVisuals.user.labelClass">我的</text>
 			</view>
@@ -70,6 +62,7 @@
 
 <script>
 import PLATFORM from '../common/platform.js';
+import UniIcons from '../uni_modules/uni-icons/components/uni-icons/uni-icons.vue';
 
 const TAB_KEYS = {
 	'/pages/index/index': 'index',
@@ -79,13 +72,23 @@ const TAB_KEYS = {
 	'/pages/user/user': 'user',
 };
 
+const TAB_ICONS = {
+	index: { normal: 'home', active: 'home-filled' },
+	voucher: { normal: 'wallet', active: 'wallet-filled' },
+	appoint: { normal: 'calendar', active: 'calendar-filled' },
+	group: { normal: 'staff', active: 'staff-filled' },
+	user: { normal: 'person', active: 'person-filled' }
+};
+
 export default {
+	components: {
+		UniIcons: UniIcons,
+	},
 	computed: {
 		wrapperStyleText() {
 			return 'padding-bottom:' + this.safeAreaBottom + 'px;';
 		},
 		tabVisuals() {
-			var icons = { index: '⌂', voucher: '券', appoint: '日', group: '局', user: '我' };
 			var result = {};
 			for (var i = 0; i < this.tabs.length; i++) {
 				var tab = this.tabs[i];
@@ -94,9 +97,9 @@ export default {
 				result[tab.key] = {
 					itemClass: active ? 'active' : '',
 					iconClass: (active ? 'active' : '') + (bump ? ' bump' : ''),
-					pathClass: active ? 'filled' : '',
 					labelClass: active ? 'active' : '',
-					icon: icons[tab.key]
+					iconType: active ? TAB_ICONS[tab.key].active : TAB_ICONS[tab.key].normal,
+					iconColor: active ? '#B85F37' : '#8A8179'
 				};
 			}
 			return result;
@@ -162,11 +165,8 @@ export default {
 
 <style lang="scss" scoped>
 $tab-bg: #FFFFFF;
-$primary: #C96B3F;
-$primary-light: #E6B08D;
-$green: #4E7754;
 $text: #8B8178;
-$text-active: #B05E37;
+$text-active: #A95330;
 
 .tabbar-wrapper {
 	position: fixed;
@@ -175,172 +175,75 @@ $text-active: #B05E37;
 	bottom: 0;
 	background: $tab-bg;
 	z-index: 9999;
-	box-shadow: 0 -4rpx 24rpx rgba(140, 100, 60, 0.06);
-	border-top: 1rpx solid rgba(240, 230, 216, 0.5);
+	box-shadow: 0 -6rpx 22rpx rgba(62, 45, 32, 0.07);
+	border-top: 1rpx solid #ECE7E1;
 }
 
 .tabbar-inner {
 	display: flex;
-	align-items: flex-start;
-	justify-content: space-around;
-	padding: 10rpx 12rpx;
-	height: 110rpx;
+	align-items: center;
+	padding: 8rpx 18rpx 10rpx;
+	height: 100rpx;
 }
 
-// ---- 普通 tab 项 ----
-.tab-item {
+.tab-item,
+.center-slot {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	justify-content: flex-start;
-	padding-top: 6rpx;
-	gap: 4rpx;
+	justify-content: center;
+	min-width: 0;
+	gap: 2rpx;
 	transition: transform 0.15s ease;
 
 	&:active {
-		transform: scale(0.92);
+		transform: scale(0.94);
 	}
 }
 
-.tab-icon-wrap {
-	width: 68rpx;
-	height: 68rpx;
-	border-radius: 22rpx;
+.tab-icon-wrap,
+.center-btn {
+	width: 58rpx;
+	height: 54rpx;
+	border-radius: 16rpx;
 	background: transparent;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+	transition: background-color 0.18s ease, transform 0.18s ease;
 	position: relative;
 
 	&.active {
-		background: $primary;
-		box-shadow: 0 6rpx 18rpx rgba($primary, 0.3);
+		background: #F8ECE5;
 	}
 
 	&.bump {
-		animation: iconBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+		animation: iconBounce 0.32s ease-out;
 	}
 }
 
-.tab-svg {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-
-.svg-path {
-	font-size: 28rpx;
-	font-weight: 800;
-	color: #81766D;
-	transition: all 0.22s;
-
-	&.filled {
-		color: #FFF;
-	}
-}
-
-.tab-label {
+.tab-label,
+.center-label {
 	font-size: 20rpx;
+	line-height: 1.25;
 	color: $text;
 	font-weight: 500;
-	transition: all 0.2s;
+	transition: color 0.18s ease;
 
 	&.active {
 		color: $text-active;
-		font-weight: 700;
+		font-weight: 600;
 	}
 }
 
-// ---- 中心按钮 ----
 .center-slot {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: flex-start;
-	padding-top: 0;
-	position: relative;
-	width: 80rpx;
+	cursor: pointer;
 }
 
-.center-label {
-	margin-top: 1rpx;
-	font-size: 20rpx;
-	font-weight: 600;
-	color: $text;
-	line-height: 1;
-
-	&.active {
-		color: $text-active;
-		font-weight: 700;
-	}
-}
-
-.center-btn {
-	width: 68rpx;
-	height: 68rpx;
-	border-radius: 22rpx;
-	background: $primary;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	position: relative;
-	z-index: 1;
-	margin-top: 0;
-	box-shadow:
-		0 8rpx 24rpx rgba($primary, 0.35),
-		0 2rpx 8rpx rgba($primary, 0.2),
-		inset 0 2rpx 4rpx rgba(255,255,255,0.3);
-	transition: all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-
-	&.active {
-		background: $green;
-		box-shadow:
-			0 10rpx 30rpx rgba($primary, 0.4),
-			0 2rpx 8rpx rgba($primary, 0.25),
-			inset 0 2rpx 4rpx rgba(255,255,255,0.35);
-		transform: scale(1.04);
-	}
-
-	&.bump {
-		animation: centerBounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-}
-
-.center-icon {
-	font-size: 28rpx;
-	font-weight: 800;
-	color: #FFF;
-	transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.center-btn.bump .center-icon {
-	animation: emojiPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-// ---- 动画 ----
 @keyframes iconBounce {
-	0%   { transform: scale(1); }
-	25%  { transform: scale(0.82) translateY(2rpx); }
-	55%  { transform: scale(1.18) translateY(-4rpx); }
-	80%  { transform: scale(0.96) translateY(1rpx); }
-	100% { transform: scale(1) translateY(0); }
-}
-
-@keyframes centerBounce {
-	0%   { transform: scale(1); }
-	25%  { transform: scale(0.88); }
-	55%  { transform: scale(1.22); }
-	80%  { transform: scale(0.96); }
+	0% { transform: scale(1); }
+	45% { transform: scale(0.88); }
 	100% { transform: scale(1); }
-}
-
-@keyframes emojiPop {
-	0%   { transform: scale(1) rotate(0deg); }
-	30%  { transform: scale(0.75) rotate(-8deg); }
-	60%  { transform: scale(1.25) rotate(8deg); }
-	80%  { transform: scale(0.95) rotate(-3deg); }
-	100% { transform: scale(1) rotate(0deg); }
 }
 </style>
