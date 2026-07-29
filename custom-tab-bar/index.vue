@@ -87,7 +87,8 @@ export default {
 		tabVisuals() {
 			var icons = { index: '⌂', voucher: '券', appoint: '日', group: '局', user: '我' };
 			var result = {};
-			this.tabs.forEach(function(tab) {
+			for (var i = 0; i < this.tabs.length; i++) {
+				var tab = this.tabs[i];
 				var active = this.current === tab.key;
 				var bump = this.bumpKey === tab.key;
 				result[tab.key] = {
@@ -97,7 +98,7 @@ export default {
 					labelClass: active ? 'active' : '',
 					icon: icons[tab.key]
 				};
-			}.bind(this));
+			}
 			return result;
 		}
 	},

@@ -1221,6 +1221,20 @@ export default {
                 this.submitting = false;
                 return;
             }
+            const bookingSelects = (
+                this.currentProduct && this.currentProduct.selects || []
+            ).slice().sort((a, b) => String(a && a[0] || '').localeCompare(String(b && b[0] || '')));
+            if (!bookingSelects.length) {
+                uni.showToast({ title: '预约时段已失效，请返回重新选择', icon: 'none' });
+                return;
+            }
+            for (let i = 1; i < bookingSelects.length; i += 1) {
+                if (bookingSelects[i - 1][1] !== bookingSelects[i][0]) {
+                    uni.showToast({ title: '预约时段需连续，分开到店请分别下单', icon: 'none' });
+                    return;
+                }
+            }
+            this.currentProduct.selects = bookingSelects;
             this.submitting = true;
 
             // 非强制请求订阅消息（失败不影响下单）
