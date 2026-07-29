@@ -42,8 +42,8 @@
 			"path": "pages/order/order",
 			"style": {
 				"navigationBarTitleText": "我的订单",
-				"navigationBarBackgroundColor": "#FF8C42",
-				"navigationBarTextStyle": "white"
+				"navigationBarBackgroundColor": "#FFFFFF",
+				"navigationBarTextStyle": "black"
 			}
 		},
 		{
@@ -99,8 +99,8 @@
 			"path": "pages/user/setting/setting",
 			"style": {
 				"navigationBarTitleText": "编辑资料",
-				"navigationBarBackgroundColor": "#FF8C42",
-				"navigationBarTextStyle": "white"
+				"navigationBarBackgroundColor": "#FFFFFF",
+				"navigationBarTextStyle": "black"
 			}
 		},
 		{

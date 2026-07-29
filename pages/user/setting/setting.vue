@@ -1,40 +1,25 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 头像区 -->
-		<view class="avatar-section">
+		<!-- 资料身份区 -->
+		<view class="profile-editor">
 			<view class="avatar-wrapper">
 				<button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="chooseAvatarEvent">
 					<image class="avatar-img" :src="avatarUrl || '/static/missing-face.png'" mode="aspectFill"></image>
 					<view class="avatar-edit-badge">
-						<text class="edit-icon">📷</text>
+						<text class="edit-icon">换</text>
 					</view>
 				</button>
 			</view>
-			<text class="user-nickname">{{ form.nickname || '游客' }}</text>
-			<text class="avatar-tip">点击更换头像</text>
-		</view>
-
-		<!-- 每日签到 -->
-		<view class="checkin-card" v-if="hasLogin">
-			<view class="checkin-left">
-				<text class="checkin-icon">📅</text>
-				<view class="checkin-info">
-					<text class="checkin-title">每日签到</text>
-					<text class="checkin-streak" v-if="checkInInfo.current_streak > 0">已连续 {{ checkInInfo.current_streak }} 天</text>
-					<text class="checkin-streak" v-else>今日未签到</text>
-				</view>
-			</view>
-			<view class="checkin-btn" :class="checkInButtonClass" @click="doCheckIn">
-				<text v-if="checkInLoading">签到中...</text>
-				<text v-else-if="checkInInfo.checked_in_today">已签到 ✓</text>
-				<text v-else-if="checkInInfo.can_check_in">签到 +{{ checkInInfo.next_points || (checkInInfo.config && checkInInfo.config.daily_points) || '?' }}积分</text>
-				<text v-else>明日再来</text>
+			<view class="profile-editor-copy">
+				<text class="user-nickname">{{ form.nickname || '完善个人资料' }}</text>
+				<text class="avatar-tip">头像和昵称会显示在组局及会员资料中</text>
+				<text class="avatar-action">点击头像更换</text>
 			</view>
 		</view>
 
 		<!-- 个人资料 -->
 		<view class="section">
-			<view class="section-title">个人资料</view>
+			<view class="section-title">基本资料</view>
 			<view class="card">
 				<view class="form-item">
 					<text class="form-label">昵称</text>
@@ -101,13 +86,13 @@
 			</view>
 		</view>
 
-		<!-- 设置 -->
+		<!-- 偏好设置 -->
 		<view class="section">
-			<view class="section-title">设置</view>
+			<view class="section-title">偏好与邀请</view>
 			<view class="card">
 				<view class="form-item subscribe-item">
 					<view class="item-left">
-						<text class="item-icon">🔔</text>
+						<text class="item-mark green">讯</text>
 						<view class="item-info">
 							<text class="item-label">消息通知</text>
 							<text class="item-desc">预约提醒、活动通知</text>
@@ -122,7 +107,7 @@
 
 				<view class="form-item" v-if="!form.invite_code" @click="showInviteCode">
 					<view class="item-left">
-						<text class="item-icon">🎁</text>
+						<text class="item-mark orange">礼</text>
 						<view class="item-info">
 							<text class="item-label">填写邀请码</text>
 							<text class="item-desc">双方均可获得积分奖励</text>
@@ -130,21 +115,16 @@
 					</view>
 					<text class="picker-arrow">›</text>
 				</view>
+			</view>
+		</view>
 
-				<view class="form-item" @click="clearCache">
-					<view class="item-left">
-						<text class="item-icon">🗑️</text>
-						<view class="item-info">
-							<text class="item-label">清除缓存</text>
-							<text class="item-desc">清理本地临时数据</text>
-						</view>
-					</view>
-					<text class="picker-arrow">›</text>
-				</view>
-
+		<!-- 帮助入口 -->
+		<view class="section">
+			<view class="section-title">帮助与其他</view>
+			<view class="card">
 				<view class="form-item" @click="showAbout">
 					<view class="item-left">
-						<text class="item-icon">ℹ️</text>
+						<text class="item-mark blue">关</text>
 						<view class="item-info">
 							<text class="item-label">关于我们</text>
 							<text class="item-desc">版本信息、联系方式</text>
@@ -155,7 +135,7 @@
 
 				<view class="form-item">
 					<view class="item-left">
-						<text class="item-icon">💬</text>
+						<text class="item-mark green">客</text>
 						<view class="item-info">
 							<text class="item-label">联系客服</text>
 							<text class="item-desc">有问题找我们</text>
@@ -166,15 +146,17 @@
 			</view>
 		</view>
 
-		<!-- 保存按钮 -->
-		<view class="save-btn" @tap="saveProfile">
-			<text class="btn-text">保存修改</text>
-		</view>
-
 		<!-- 退出登录 -->
 		<view class="logout-section">
 			<view class="logout-btn" @tap="logout">
 				<text class="logout-text">退出登录</text>
+			</view>
+		</view>
+
+		<!-- 固定保存栏 -->
+		<view class="save-bar">
+			<view :class="saveButtonClass" @tap="saveProfile">
+				<text class="btn-text">{{ saveButtonText }}</text>
 			</view>
 		</view>
 	</view>
@@ -186,7 +168,7 @@
 
 	export default {
 		computed: {
-			...mapState(['hasLogin', 'userInfo', 'token', 'subscribeAuthorized']),
+			...mapState(['userInfo', 'token', 'subscribeAuthorized']),
 			genderIndex() {
 				if (!this.form) return 0;
 				return this.form.gender === 0 ? 1 : 0;
@@ -208,10 +190,11 @@
 					};
 				});
 			},
-			checkInButtonClass() {
-				var names = [this.checkInInfo.can_check_in ? 'can' : 'done'];
-				if (this.checkInLoading) names.push('loading');
-				return names.join(' ');
+			saveButtonClass() {
+				return this.saving ? 'save-btn loading' : 'save-btn';
+			},
+			saveButtonText() {
+				return this.saving ? '保存中...' : '保存修改';
 			},
 		},
 		data() {
@@ -228,9 +211,8 @@
 					phone: '',
 					invite_code: '',
 				},
-				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, config: {} },
-				checkInLoading: false,
-				tagList: ['PS5', 'Switch', '桌游', '剧本杀', '漫画', '亲子阅读'],
+				saving: false,
+				tagList: ['桌游', '拼豆', 'PS5', 'Switch', '漫画', '小说', '剧本杀', '亲子阅读'],
 				selectedTags: [],
 			};
 		},
@@ -244,17 +226,9 @@
 				},
 			},
 		},
-		onLoad() {
-			if (this.hasLogin) {
-				this.loadCheckInInfo();
-			}
-		},
 		onShow() {
 			if (this.userInfo) {
 				this.syncFromUserInfo(this.userInfo);
-			}
-			if (this.hasLogin) {
-				this.loadCheckInInfo();
 			}
 		},
 		methods: {
@@ -388,13 +362,6 @@
 				});
 			},
 
-			async loadCheckInInfo() {
-				const res = await AUTH.checkInInfo(this.token);
-				if (res && res._status === 0 && res.data) {
-					this.checkInInfo = res.data;
-				}
-			},
-
 			toggleTag(tag) {
 				const idx = this.selectedTags.indexOf(tag);
 				if (idx > -1) {
@@ -403,89 +370,17 @@
 					this.selectedTags.push(tag);
 				}
 			},
-			async doCheckIn() {
-				if (this.checkInLoading) return;
-				if (!this.checkInInfo.can_check_in) {
-					uni.showToast({ title: '今日已签到', icon: 'none' });
-					return;
-				}
-				this.checkInLoading = true;
-				AUTH.trackEvent({
-					event: 'checkin_click',
-					page_path: 'pages/user/setting/setting',
-					source: 'setting'
-				}, this.token).catch(function() {});
-				try {
-					const res = await AUTH.checkIn(this.token);
-					const d = res.data;
-					if (d && d.points_earned !== undefined) {
-						this.checkInInfo.checked_in_today = true;
-						this.checkInInfo.can_check_in = false;
-						this.checkInInfo.current_streak = (this.checkInInfo.current_streak || 0) + 1;
-						var now = new Date();
-						var todayKey = now.getFullYear() + '-' + (now.getMonth() + 1) + '-' + now.getDate();
-						AUTH.trackEvent({
-							event: 'checkin_success',
-							page_path: 'pages/user/setting/setting',
-							source: 'setting',
-							_dedupe_key: 'checkin_success:setting:' + todayKey,
-							_dedupe_ttl_ms: 20 * 60 * 60 * 1000
-						}, this.token).catch(function() {});
-						this.getUserInfo();
-						await this.loadCheckInInfo();
-						this.showCheckInSuccess(d);
-					} else {
-						uni.showToast({ title: (d && d.message) || '签到失败', icon: 'none' });
-					}
-				} catch (e) {
-					uni.showToast({ title: '签到失败', icon: 'none' });
-				} finally {
-					this.checkInLoading = false;
-				}
-			},
-			showCheckInSuccess(data) {
-				data = data || {};
-				var content = '本次获得 ' + Number(data.points_earned || 0) + ' 积分';
-				if (this.checkInInfo.tomorrow_points) {
-					content += '\n明天继续签到可领 +' + this.checkInInfo.tomorrow_points + ' 积分';
-				} else {
-					content += '\n连续签到还有额外奖励';
-				}
-				uni.showModal({
-					title: '签到成功',
-					content: content,
-					confirmText: '看卡券',
-					cancelText: '知道了',
-					success: function(res) {
-						if (res.confirm) {
-							uni.switchTab({ url: '/pages/voucher/voucher' });
-						}
-					}
-				});
-			},
-
-			clearCache() {
-				uni.showModal({
-					title: '清除缓存',
-					content: '确定清除本地缓存吗？不会删除您的账号数据。',
-					success: (res) => {
-						if (res.confirm) {
-							uni.clearStorageSync();
-							uni.showToast({ title: '已清除', icon: 'success' });
-						}
-					}
-				});
-			},
-
 			showAbout() {
 				uni.showModal({
 					title: '关于我们',
-					content: '摸鱼划水吧 v1.0.0\n\n主机游戏 · 桌游 · 漫画小说 · 亲子阅读\n\n如有问题请联系客服',
+					content: '摸鱼划水吧 v1.0.0\n\n桌游 · 主机游戏 · 漫画小说 · 拼豆 · 独立包厢\n\n如有问题请联系客服',
 					showCancel: false,
 				});
 			},
 
 			saveProfile() {
+				if (this.saving) return;
+				this.saving = true;
 				uni.showLoading({ title: '保存中...' });
 				// 先同步到 Vuex，再调接口
 				this.updateUserInfo({
@@ -499,11 +394,13 @@
 				});
 				this.requestUpdateUserInfo().then((res) => {
 					uni.hideLoading();
+					this.saving = false;
 					uni.showToast({ title: '保存成功', icon: 'success' });
 					// 重新拉取用户信息确保同步
 					this.getUserInfo();
 				}).catch((err) => {
 					uni.hideLoading();
+					this.saving = false;
 					var reason = (err && err._reason) || err || '保存失败';
 					if (typeof reason !== 'string') reason = '保存失败';
 					if (reason.indexOf('违规信息') >= 0) reason = '你发布的内容含违规信息，请修改后再提交';
@@ -535,102 +432,6 @@
 		min-height: 100vh;
 		padding-top: env(safe-area-inset-top);
 		padding-bottom: calc(60rpx + env(safe-area-inset-bottom));
-	}
-
-	/* ===== 头像区 ===== */
-	.avatar-section {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 48rpx 0 32rpx;
-		.avatar-wrapper {
-			position: relative;
-			.avatar-btn {
-				width: 160rpx;
-				height: 160rpx;
-				padding: 0;
-				margin: 0;
-				background: none;
-				border: none;
-				line-height: 1;
-				.avatar-img {
-					width: 160rpx;
-					height: 160rpx;
-					border-radius: 50%;
-					border: 6rpx solid #FFF3E8;
-					box-shadow: 0 8rpx 24rpx rgba(255,140,66,0.2);
-				}
-				.avatar-edit-badge {
-					position: absolute;
-					bottom: 0;
-					right: 0;
-					width: 50rpx;
-					height: 50rpx;
-					background: linear-gradient(135deg, #FFCC80, #FF8C42);
-					border-radius: 50%;
-					display: flex;
-					align-items: center;
-					justify-content: center;
-					.edit-icon { font-size: 24rpx; }
-				}
-			}
-		}
-		.user-nickname {
-			font-size: 36rpx;
-			font-weight: bold;
-			color: #333;
-			margin-top: 20rpx;
-		}
-		.avatar-tip {
-			font-size: 24rpx;
-			color: #999;
-			margin-top: 8rpx;
-		}
-	}
-
-	/* ===== 签到卡片 ===== */
-	.checkin-card {
-		margin: 0 24rpx 24rpx;
-		background: linear-gradient(135deg, #FFF8F0, #FFF3E8);
-		border-radius: 20rpx;
-		padding: 28rpx 24rpx;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		box-shadow: 0 4rpx 16rpx rgba(255,140,66,0.12);
-		border: 1rpx solid #FFE8D6;
-		.checkin-left {
-			display: flex;
-			align-items: center;
-			.checkin-icon { font-size: 48rpx; margin-right: 16rpx; }
-			.checkin-info {
-				display: flex;
-				flex-direction: column;
-				.checkin-title { font-size: 30rpx; font-weight: bold; color: #333; }
-				.checkin-streak { font-size: 24rpx; color: #FF8C42; margin-top: 4rpx; }
-			}
-		}
-		.checkin-btn {
-			font-size: 26rpx;
-			padding: 14rpx 28rpx;
-			border-radius: 30rpx;
-			font-weight: bold;
-			transition: transform 0.1s;
-			&:active { transform: scale(0.95); }
-			&.can {
-				background: linear-gradient(135deg, #FFCC80, #FF8C42);
-				color: #FFF;
-				box-shadow: 0 4rpx 16rpx rgba(255,140,66,0.35);
-			}
-			&.done {
-				background: #F0F0F0;
-				color: #999;
-			}
-			&.loading {
-				opacity: 0.72;
-				transform: none;
-			}
-		}
 	}
 
 	/* ===== 分区标题 ===== */
@@ -686,7 +487,7 @@
 		}
 		.phone-btn {
 			font-size: 24rpx;
-			background: linear-gradient(135deg, #FFCC80, #FF8C42);
+			background: #C96B3F;
 			color: #FFF;
 			border-radius: 30rpx;
 			padding: 0 20rpx;
@@ -734,7 +535,7 @@
 			padding: 10rpx 24rpx;
 			transition: all 0.2s;
 			&.active {
-				background: linear-gradient(135deg, #FFCC80, #FF8C42);
+				background: #C96B3F;
 				color: #FFF;
 				box-shadow: 0 4rpx 12rpx rgba(255,140,66,0.3);
 			}
@@ -744,7 +545,7 @@
 		}
 	}
 
-	/* ===== 列表项左侧（消息通知/邀请码/清除缓存/关于我们/联系客服共用） ===== */
+	/* ===== 列表项左侧 ===== */
 	.form-item {
 		.item-left {
 			display: flex;
@@ -785,7 +586,7 @@
 		background: #E8E8E8;
 		position: relative;
 		transition: background 0.3s;
-		&.on { background: linear-gradient(135deg, #FFCC80, #FF8C42); }
+		&.on { background: #4E7754; }
 		.toggle-dot {
 			position: absolute;
 			top: 4rpx;
@@ -803,7 +604,7 @@
 	/* ===== 联系客服按钮 ===== */
 	.contact-btn {
 		font-size: 26rpx;
-		background: linear-gradient(135deg, #FFCC80, #FF8C42);
+		background: #4E7754;
 		color: #FFF;
 		border-radius: 30rpx;
 		padding: 0 24rpx;
@@ -819,7 +620,7 @@
 	/* ===== 保存按钮 ===== */
 	.save-btn {
 		margin: 40rpx 24rpx 24rpx;
-		background: linear-gradient(135deg, #FFCC80, #FF8C42);
+		background: #C96B3F;
 		border-radius: 50rpx;
 		padding: 28rpx;
 		text-align: center;
@@ -848,5 +649,289 @@
 				color: #FF6B6B;
 			}
 		}
+	}
+
+	/* ===== 编辑资料轻量化布局 ===== */
+	page {
+		background: #F7F5F1;
+	}
+
+	.page-wrapper {
+		padding-top: 0;
+		padding-bottom: calc(154rpx + env(safe-area-inset-bottom));
+	}
+
+	.profile-editor {
+		display: flex;
+		align-items: center;
+		gap: 24rpx;
+		padding: 30rpx 24rpx;
+		margin-bottom: 18rpx;
+		background: #4E7754;
+	}
+
+	.avatar-wrapper {
+		position: relative;
+		flex-shrink: 0;
+	}
+
+	.avatar-btn {
+		position: relative;
+		width: 122rpx;
+		height: 122rpx;
+		padding: 0;
+		margin: 0;
+		background: transparent;
+		line-height: 1;
+	}
+
+	.avatar-btn::after {
+		border: 0;
+	}
+
+	.avatar-img {
+		width: 122rpx;
+		height: 122rpx;
+		border-radius: 61rpx;
+		border: 4rpx solid rgba(255, 255, 255, 0.88);
+		box-sizing: border-box;
+	}
+
+	.avatar-edit-badge {
+		position: absolute;
+		right: -2rpx;
+		bottom: 0;
+		width: 40rpx;
+		height: 40rpx;
+		border-radius: 8rpx;
+		background: #C96B3F;
+		border: 2rpx solid #4E7754;
+		box-sizing: border-box;
+		text-align: center;
+		line-height: 36rpx;
+	}
+
+	.edit-icon {
+		font-size: 18rpx;
+		font-weight: 700;
+		color: #FFFFFF;
+	}
+
+	.profile-editor-copy {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.user-nickname {
+		display: block;
+		max-width: 100%;
+		font-size: 32rpx;
+		font-weight: 700;
+		color: #FFFFFF;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.avatar-tip,
+	.avatar-action {
+		display: block;
+		font-size: 21rpx;
+		line-height: 1.4;
+	}
+
+	.avatar-tip {
+		margin-top: 8rpx;
+		color: rgba(255, 255, 255, 0.72);
+	}
+
+	.avatar-action {
+		margin-top: 5rpx;
+		color: #FFD7C1;
+	}
+
+	.section {
+		margin: 0 0 18rpx;
+	}
+
+	.section .section-title {
+		margin-bottom: 10rpx;
+		padding: 0 24rpx;
+		font-size: 23rpx;
+		font-weight: 700;
+		color: #766E66;
+	}
+
+	.card {
+		border-radius: 0;
+		border-top: 1rpx solid #EAE5DF;
+		border-bottom: 1rpx solid #EAE5DF;
+		box-shadow: none;
+	}
+
+	.form-item {
+		min-height: 92rpx;
+		padding: 24rpx;
+		box-sizing: border-box;
+		border-bottom-color: #EEEAE5;
+	}
+
+	.form-item .form-label {
+		width: 128rpx;
+		font-size: 26rpx;
+		color: #554E47;
+	}
+
+	.form-item .form-input,
+	.form-item .phone-value,
+	.form-item .form-picker .picker-value {
+		font-size: 26rpx;
+		color: #332D28;
+	}
+
+	.form-item .form-input {
+		min-width: 0;
+	}
+
+	.form-item .phone-value {
+		max-width: 310rpx;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.form-item .phone-btn,
+	.contact-btn {
+		height: 54rpx;
+		padding: 0 18rpx;
+		border-radius: 8rpx;
+		font-size: 22rpx;
+		line-height: 54rpx;
+	}
+
+	.tag-item {
+		min-height: auto;
+		padding-bottom: 10rpx;
+	}
+
+	.tag-wrap {
+		gap: 12rpx;
+		padding: 0 24rpx 24rpx;
+	}
+
+	.tag-wrap .tag {
+		margin: 0;
+		padding: 9rpx 18rpx;
+		border-radius: 8rpx;
+		border: 1rpx solid #E4DFD9;
+		background: #F7F5F1;
+		color: #6F675F;
+		font-size: 23rpx;
+	}
+
+	.tag-wrap .tag.active {
+		border-color: #C96B3F;
+		background: #FFF0E7;
+		color: #B95D35;
+		box-shadow: none;
+	}
+
+	.form-item .item-left {
+		min-width: 0;
+	}
+
+	.item-mark {
+		flex-shrink: 0;
+		width: 44rpx;
+		height: 44rpx;
+		margin-right: 14rpx;
+		border-radius: 8rpx;
+		font-size: 20rpx;
+		font-weight: 700;
+		line-height: 44rpx;
+		text-align: center;
+	}
+
+	.item-mark.orange {
+		background: #FFF0E7;
+		color: #C96B3F;
+	}
+
+	.item-mark.green {
+		background: #EAF4EC;
+		color: #4E7754;
+	}
+
+	.item-mark.blue {
+		background: #EAF1F5;
+		color: #557A95;
+	}
+
+	.form-item .item-left .item-info .item-label {
+		font-size: 26rpx;
+		color: #332D28;
+	}
+
+	.form-item .item-left .item-info .item-desc {
+		font-size: 21rpx;
+		color: #8B8178;
+	}
+
+	.toggle {
+		width: 84rpx;
+		height: 46rpx;
+		border-radius: 23rpx;
+	}
+
+	.toggle .toggle-dot {
+		width: 38rpx;
+		height: 38rpx;
+		border-radius: 19rpx;
+	}
+
+	.toggle.on .toggle-dot {
+		left: 42rpx;
+	}
+
+	.logout-section {
+		padding: 10rpx 0 32rpx;
+	}
+
+	.logout-section .logout-btn {
+		padding: 14rpx 40rpx;
+	}
+
+	.logout-section .logout-btn .logout-text {
+		font-size: 25rpx;
+		color: #B85B5B;
+	}
+
+	.save-bar {
+		position: fixed;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 30;
+		padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+		background: rgba(255, 255, 255, 0.97);
+		border-top: 1rpx solid #E4DFD9;
+	}
+
+	.save-bar .save-btn {
+		height: 72rpx;
+		margin: 0;
+		padding: 0;
+		border-radius: 10rpx;
+		background: #C96B3F;
+		box-shadow: none;
+		line-height: 72rpx;
+	}
+
+	.save-bar .save-btn.loading {
+		opacity: 0.65;
+	}
+
+	.save-bar .save-btn .btn-text {
+		font-size: 27rpx;
 	}
 </style>
