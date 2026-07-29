@@ -169,9 +169,6 @@
         <view class="load-more" v-if="loading">
             <text class="load-text">加载中...</text>
         </view>
-
-        <!-- 自定义底部导航 -->
-        <custom-tab-bar></custom-tab-bar>
     </view>
 </template>
 
@@ -179,10 +176,8 @@
 import { mapState } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import { parseDateTime, toTimestamp } from '../../common/util.js';
-import customTabBar from '@/custom-tab-bar/index.vue';
 
 export default {
-    components: { customTabBar },
     data() {
         return {
             weekDays: [],
@@ -322,7 +317,6 @@ export default {
     },
 
     onShow() {
-        uni.$emit('tabBarChange', { key: 'group' });
         this.trackSquareView();
         this.ensureWeekDays();
         if (this.weekDays.length > 0) {
@@ -780,7 +774,7 @@ $cream: #FFF8F0;
 .container {
     min-height: 100vh;
     background: linear-gradient(180deg, #FFF0E0 0%, #FFF8F0 30%, #FFF8F0 70%, #E8F5E9 100%);
-    padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+    padding-bottom: 32rpx;
     position: relative;
 }
 .container::before {

@@ -212,8 +212,6 @@
             </view>
         </view>
 
-		<!-- 自定义底部导航 -->
-		<custom-tab-bar></custom-tab-bar>
     </view>
 </template>
 
@@ -222,10 +220,8 @@ import { mapState, mapActions } from 'vuex';
 import AUTH from '../../../utils/auth.js';
 import times from '@/components/pretty-times/pretty-times.vue';
 
-import customTabBar from '@/custom-tab-bar/index.vue';
-
 export default {
-    components: { times, customTabBar },
+    components: { times },
 
     data() {
         return {
@@ -288,7 +284,6 @@ export default {
     },
 
     onShow() {
-        uni.$emit('tabBarChange', { key: 'appoint' });
         this.loadGroupCreateIntent();
         // 房间列表无需登录即可浏览
         if (this.weekDays && this.weekDays.length > 0) {

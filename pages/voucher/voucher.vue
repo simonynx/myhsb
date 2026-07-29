@@ -91,7 +91,7 @@
 				</view>
 			</view>
 
-			<view style="height: 180rpx;"></view>
+			<view style="height: 32rpx;"></view>
 		</scroll-view>
 
 		<!-- ========== Tab 1: 小店 ========== -->
@@ -163,7 +163,7 @@
 				<text class="empty-text">暂无这类商品</text>
 			</view>
 
-			<view style="height: 180rpx;"></view>
+			<view style="height: 32rpx;"></view>
 		</scroll-view>
 
 		<!-- ========== Tab 2: 次卡/月卡 ========== -->
@@ -250,7 +250,7 @@
 				<text class="empty-text">暂无可购买的卡包</text>
 			</view>
 
-			<view style="height: 180rpx;"></view>
+			<view style="height: 32rpx;"></view>
 		</scroll-view>
 
 		<!-- ========== Tab 3: 积分兑换 ========== -->
@@ -369,11 +369,9 @@
 				<text class="empty-text">暂无可兑换商品</text>
 			</view>
 
-			<view style="height: 180rpx;"></view>
+			<view style="height: 32rpx;"></view>
 		</scroll-view>
 
-		<!-- 自定义底部导航 -->
-		<custom-tab-bar></custom-tab-bar>
 	</view>
 </template>
 
@@ -381,10 +379,8 @@
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import SUBSCRIPTION from '../../utils/subscription.js';
-import customTabBar from '@/custom-tab-bar/index.vue';
 
 export default {
-	components: { customTabBar },
 	computed: {
 		...mapState(['hasLogin', 'token', 'userInfo']),
 		safeUserInfo() {
@@ -525,7 +521,6 @@ export default {
 		};
 	},
 	onShow() {
-		uni.$emit('tabBarChange', { key: 'voucher' });
 		this.applyInitialTab();
 		this.refreshMall();
 	},

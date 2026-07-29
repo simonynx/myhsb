@@ -256,16 +256,13 @@
 			</swiper>
 		</view>
 
-		<custom-tab-bar></custom-tab-bar>
 	</view>
 </template>
 
 <script>
 	import AUTH from '../../utils/auth.js'
 	import { mapState, mapActions, mapMutations } from 'vuex';
-	import customTabBar from '@/custom-tab-bar/index.vue';
 	export default {
-		components: { customTabBar },
 		computed: {
 			...mapState(['hasLogin', 'constance', 'token', 'pending_invite_code']),
 			ticketPriceFen() {
@@ -536,7 +533,6 @@
 			};
 		},
 		onShow() {
-			uni.$emit('tabBarChange', { key: 'index' });
 			this.startStoreClock();
 			this.schedulePageViewTrack();
 			this.trackHomeBenefitView();
@@ -1304,7 +1300,7 @@ page {
 
 .page-wrapper {
 	min-height: 100vh;
-	padding-bottom: 150rpx;
+	padding-bottom: 32rpx;
 	background: #F7F5F1;
 }
 

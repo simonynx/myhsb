@@ -276,9 +276,8 @@
 		}
 	},
 	"tabBar": {
-		"custom": true,
-		"color": "#BBBBBB",
-		"selectedColor": "#FF8C42",
+		"color": "#8A8179",
+		"selectedColor": "#B85F37",
 		"borderStyle": "white",
 		"backgroundColor": "#FFFFFF",
 		"list": [
@@ -296,14 +295,14 @@
 			},
 			{
 				"pagePath": "pages/tabBar/appoint/appoint",
-				"iconPath": "static/tab-cart.png",
-				"selectedIconPath": "static/tab-cart-current.png",
+				"iconPath": "static/tab-appoint.png",
+				"selectedIconPath": "static/tab-appoint-current.png",
 				"text": "预约"
 			},
 			{
 				"pagePath": "pages/group/group",
-				"iconPath": "static/tab-my.png",
-				"selectedIconPath": "static/tab-my-current.png",
+				"iconPath": "static/tab-group.png",
+				"selectedIconPath": "static/tab-group-current.png",
 				"text": "组局"
 			},
 			{

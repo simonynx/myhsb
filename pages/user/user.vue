@@ -337,12 +337,6 @@
 			</view>
 		</view>
 
-		<!-- 底部占位 -->
-		<view style="height: 40rpx;"></view>
-
-		<!-- 自定义底部导航 -->
-		<custom-tab-bar></custom-tab-bar>
-
 		<!-- 隐藏 canvas 用于生成专属邀请海报 -->
 		<canvas id="invitePoster" type="2d" class="invite-poster-canvas"></canvas>
 	</view>
@@ -351,7 +345,6 @@
 <script>
 	import AUTH from '../../utils/auth.js'
 	import PLATFORM from '../../common/platform.js'
-	import customTabBar from '@/custom-tab-bar/index.vue';
 	import {
 		mapState,
 		mapActions,
@@ -360,7 +353,6 @@
 
 
 	export default {
-		components: { customTabBar },
 		computed: {
 			...mapState(['hasLogin', 'userInfo', 'token']),
 			avatarUrl() {
@@ -608,7 +600,6 @@
 			};
 		},
 		onShow() {
-			uni.$emit('tabBarChange', { key: 'user' });
 			if (this.hasLogin) {
 				if (!this.userInfo) {
 					this.getUserInfo();
@@ -1009,7 +1000,7 @@ page {
 .page-wrapper {
 	padding-top: 0;
 	min-height: 100vh;
-	padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+	padding-bottom: 32rpx;
 }
 
 .invite-poster-canvas {
