@@ -64,6 +64,8 @@ export default {
 			orderId: '',
 			type: 'order',
 			inviteCode: '',
+			benefitText: '',
+			benefitRetryCount: 0,
 		};
 	},
 	computed: {
@@ -76,11 +78,13 @@ export default {
 		title() {
 			if (this.type === 'exchange') return '兑换成功';
 			if (this.type === 'recharge') return '充值成功';
+			if (this.type === 'subscription') return '购买成功';
 			return '支付成功';
 		},
 		subtitle() {
 			if (this.type === 'exchange') return '兑换记录已生成，到店出示订单即可使用';
 			if (this.type === 'recharge') return '余额已经到账，下一次预约可以直接抵扣';
+			if (this.type === 'subscription') return '卡包权益已经到账，有效期从购买当天开始';
 			if (this.type === 'ticket') return '门票已放入票包，可以自己用，也可以转赠好友一起约';
 			return '订单已确认，期待你到店玩得开心';
 		},
@@ -89,7 +93,7 @@ export default {
 			return '实付金额';
 		},
 		rewardText() {
-			if (this.type !== 'recharge') return '';
+			if (this.type !== 'recharge') return this.benefitText;
 			var parts = [];
 			var present = Number(this.present || 0);
 			var bonus = Number(this.bonus || 0);
@@ -99,16 +103,19 @@ export default {
 		},
 		nextSubtitle() {
 			if (this.type === 'recharge') return '查看余额、预约房间，把这次充值用得更值';
+			if (this.type === 'subscription') return '查看剩余额度，或直接安排下一次到店';
 			if (this.type === 'ticket') return '查看票包、送朋友，或看看组局广场有没有人差位';
 			return '查看订单、领券签到，下次再来更省心';
 		},
 		primaryIcon() {
 			if (this.type === 'recharge') return '💎';
+			if (this.type === 'subscription') return '🎟️';
 			if (this.type === 'ticket') return '🎫';
 			return '📋';
 		},
 		primaryText() {
 			if (this.type === 'recharge') return '查看余额';
+			if (this.type === 'subscription') return '查看卡包';
 			if (this.type === 'ticket') return '查看票包';
 			return '查看订单';
 		},
@@ -122,11 +129,13 @@ export default {
 		},
 		tipTitle() {
 			if (this.type === 'recharge') return '余额小提示';
+			if (this.type === 'subscription') return '卡包小提示';
 			if (this.type === 'ticket') return '门票小提示';
 			return '到店小提示';
 		},
 		tipText() {
-			if (this.type === 'recharge') return '充值本金和赠送余额会一起进入账户；预约时可优先使用余额支付。';
+			if (this.type === 'recharge') return '充值本金和赠送余额会一起进入账户；预约消费可使用，次卡/月卡除外。';
+			if (this.type === 'subscription') return '卡包已含套餐优惠，购买时不叠加余额、优惠券、积分或会员折扣。';
 			if (this.type === 'ticket') return '门票未核销且未过期可退；想约朋友时，可在票包里把未使用门票转赠出去。';
 			return '到店后出示订单即可核验；如需布置或补给，建议提前联系店员确认。';
 		},
@@ -142,6 +151,7 @@ export default {
 		this.type = options.type || 'order';
 		this.inviteCode = this.userInfo && this.userInfo.invite_code ? this.userInfo.invite_code : '';
 		this.loadInviteCode();
+		this.loadOrderBenefit();
 		var paymentTrackData = {
 			event: 'payment_success',
 			page_path: 'pages/pay/success/success',
@@ -184,6 +194,56 @@ export default {
 		};
 	},
 	methods: {
+		loadOrderBenefit() {
+			if (!this.orderId || this.type === 'recharge' || this.type === 'exchange') return;
+			var token = this.token || uni.getStorageSync('token');
+			if (!token) return;
+			AUTH.getOrderList(-1, token).then(function(res) {
+				var data = res && res.data;
+				var orders = data && data.orders ? data.orders : [];
+				var order = orders.find(function(item) {
+					return String(item.object_id || '') === String(this.orderId)
+						|| String(item.order_number || '') === String(this.orderId);
+				}.bind(this));
+				if (order) {
+					var goodsInfo = order.goodsInfo || order.goods_info || {};
+					var context = goodsInfo.context || goodsInfo;
+					var growth = context.consume_growth || {};
+					var upgradeCoupons = Array.isArray(growth.upgrade_coupons) ? growth.upgrade_coupons : [];
+					var benefitParts = [];
+					var upgradePoints = Number(growth.upgrade_reward_points || 0);
+					if (upgradePoints > 0 || upgradeCoupons.length > 0) {
+						var upgradeText = '升级礼';
+						if (upgradePoints > 0) upgradeText += upgradePoints + '积分';
+						if (upgradeCoupons.length > 0) {
+							upgradeText += (upgradePoints > 0 ? '+' : '') + upgradeCoupons.length + '张券';
+						}
+						benefitParts.push(upgradeText);
+					}
+					var firstCoupon = context.first_consume_coupon;
+					if (firstCoupon && firstCoupon.name) {
+						benefitParts.push(firstCoupon.name);
+					}
+					if (context.granted_coupon_id) {
+						benefitParts.push('商城兑换券已放入卡券包');
+					}
+					if (benefitParts.length > 0) {
+						this.benefitText = '权益已到账：' + benefitParts.join(' · ');
+						return;
+					}
+				}
+				this.retryOrderBenefit();
+			}.bind(this)).catch(function() {
+				this.retryOrderBenefit();
+			}.bind(this));
+		},
+		retryOrderBenefit() {
+			if (this.benefitRetryCount >= 2) return;
+			this.benefitRetryCount += 1;
+			setTimeout(function() {
+				this.loadOrderBenefit();
+			}.bind(this), 1000);
+		},
 		loadInviteCode() {
 			if (this.inviteCode) return;
 			var token = this.token || uni.getStorageSync('token');
@@ -197,6 +257,10 @@ export default {
 		goOrder() {
 			if (this.type === 'recharge') {
 				uni.redirectTo({ url: '/pages/user/balance/balance' });
+				return;
+			}
+			if (this.type === 'subscription') {
+				uni.redirectTo({ url: '/pages/user/subscription/my' });
 				return;
 			}
 			if (this.type === 'ticket') {

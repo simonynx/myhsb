@@ -264,6 +264,7 @@ export default {
         balanceEligible() {
             if (!this.order) return false;
             if (this.isRechargeOrder) return false;
+            if (Number(this.order.order_type) === 7) return false;
             // 商品订单：检查商品是否支持余额支付
             if (this.order.order_type === 3) {
                 var goodsInfo = this.orderGoodsInfo;
@@ -319,6 +320,7 @@ export default {
         },
 
         balanceDeductAmount() {
+            if (!this.balanceEligible) return 0;
             if (this.storedBalanceAmount > 0) return this.storedBalanceAmount;
             if (!this.useBalance || !this.canUseBalance) return 0;
             return Math.min(this.availableBalance, this.orderTotalAmount);
@@ -326,6 +328,7 @@ export default {
 
         channelPayAmount() {
             if (!this.order) return 0;
+            if (!this.balanceEligible) return this.orderTotalAmount;
             if (this.storedBalanceAmount > 0) {
                 var storedChannel = Number(
                     this.order.channel_pay_amount
@@ -1034,7 +1037,7 @@ export default {
             this.paying = true;
             AUTH.platformPay(this.token, {
                 order_number: this.order.order_number,
-                use_balance: this.useBalance,
+                use_balance: this.balanceEligible && this.useBalance,
             })
                 .then(res => {
                     uni.hideLoading();
@@ -1084,6 +1087,8 @@ export default {
                 type = 'exchange';
             } else if (orderType === 6) {
                 type = 'ticket';
+			} else if (orderType === 7) {
+				type = 'subscription';
             }
             uni.redirectTo({
                 url: '/pages/pay/success/success?amount=' + amount + '&id=' + encodeURIComponent(id) + '&type=' + type

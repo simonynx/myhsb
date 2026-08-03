@@ -1,14 +1,10 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 账户余额预览 -->
+		<!-- 卡包购买提示 -->
 		<view class="balance-card">
 			<view class="balance-left">
-				<text class="balance-label">{{ hasLogin ? '账户余额' : '先看卡，确认购买时再登录' }}</text>
-				<view class="balance-amount" v-if="hasLogin">
-					<text class="yuan">¥</text>
-					<text class="num">{{ balanceText }}</text>
-				</view>
-				<text class="guest-balance" v-else>常来几次，就别每次都按原价</text>
+				<text class="balance-label">卡包专属价</text>
+				<text class="guest-balance">已含套餐优惠，仅支持微信支付</text>
 			</view>
 			<view class="balance-right" @tap="navToMyCards" v-if="hasLogin">
 				<text class="my-cards-btn">我的卡包 ➔</text>
@@ -117,7 +113,7 @@
 			<view class="section-header">
 				<view>
 					<text class="section-title">支付方式</text>
-					<text class="section-subtitle">购买后立即生效，有效期从购买当天开始</text>
+					<text class="section-subtitle">购买后立即生效，不支持余额、优惠券及积分抵扣</text>
 				</view>
 			</view>
 			<view class="pay-list">
@@ -126,19 +122,11 @@
 					<image class="pay-icon" src="/static/wxpay.png" mode="aspectFit"></image>
 					<view class="pay-name-wrap">
 						<text class="pay-name">微信支付</text>
-						<text class="pay-desc">{{ channelPayAmount > 0 ? '支付 ¥' + formatMoney(channelPayAmount) : '余额全额支付' }}</text>
+						<text class="pay-desc">支付 ¥{{ formatMoney(selectedCard.price) }}</text>
 					</view>
 					<view class="pay-check">
 						<text class="check-icon">✓</text>
 					</view>
-				</view>
-				<view class="pay-item balance-pay-item" :class="useBalance && currentBalanceFen > 0 ? 'active' : ''">
-					<text class="pay-icon">🪙</text>
-					<view class="pay-name-wrap">
-						<text class="pay-name">使用余额抵扣</text>
-						<text class="pay-desc">{{ balanceDeductText }}</text>
-					</view>
-					<switch color="#FF6432" :checked="useBalance && currentBalanceFen > 0" :disabled="currentBalanceFen <= 0" @change="onBalanceChange" />
 				</view>
 			</view>
 		</view>
@@ -153,7 +141,7 @@
 					<text class="sum-symbol">¥</text>
 					<text class="sum-price">{{ selectedCardView.priceFullText }}</text>
 				</view>
-				<text class="sum-extra">余额抵扣 ¥{{ formatMoney(balanceDeductAmount) }}，{{ channelPayAmount > 0 ? '渠道支付 ¥' + formatMoney(channelPayAmount) : '余额全额支付' }}</text>
+				<text class="sum-extra">卡包专属价，仅支持微信支付</text>
 			</view>
 			<view class="submit-btn" :class="purchaseDisabled ? 'disabled' : ''" @tap="doPurchase">
 				<text class="btn-text">{{ purchaseButtonText }}</text>
@@ -174,8 +162,6 @@ export default {
 			loading: true,
 			selectedCardId: '',
 			selectedCard: null,
-			paytype: 'wxpay',
-			useBalance: true,
 			buying: false,
 			preferredAmount: 0,
 			preferredCardId: '',
@@ -187,7 +173,7 @@ export default {
 		};
 	},
 	computed: {
-		...mapState(['hasLogin', 'userInfo', 'token']),
+		...mapState(['hasLogin', 'token']),
 		targetTabs() {
 			var tabs = [
 				{ name: '大厅卡', desc: '同行也能用', value: 1 },
@@ -217,33 +203,6 @@ export default {
 		purchaseDisabled() {
 			return this.buying || !this.selectedCard || !this.getCardCanPurchase(this.selectedCard);
 		},
-		balanceText() {
-			var balance = this.userInfo && this.userInfo.account_balance;
-			balance = Number(balance);
-			if (!isFinite(balance)) balance = 0;
-			return (balance / 100).toFixed(2);
-		},
-		currentBalanceFen() {
-			var balance = this.userInfo && this.userInfo.account_balance;
-			balance = Number(balance);
-			return isFinite(balance) ? balance : 0;
-		},
-		hasEnoughBalance() {
-			if (!this.selectedCard) return false;
-			return this.currentBalanceFen >= this.selectedCard.price;
-		},
-		balanceDeductAmount() {
-			if (!this.selectedCard || !this.useBalance) return 0;
-			return Math.min(this.currentBalanceFen, Number(this.selectedCard.price) || 0);
-		},
-		channelPayAmount() {
-			if (!this.selectedCard) return 0;
-			return Math.max(0, (Number(this.selectedCard.price) || 0) - this.balanceDeductAmount);
-		},
-		balanceDeductText() {
-			if (!this.selectedCard || this.currentBalanceFen <= 0) return '当前余额不足，仍可支付补差';
-			return '本次抵扣 ¥' + this.formatMoney(this.balanceDeductAmount) + '，可用 ¥' + this.balanceText;
-		}
 	},
 	onLoad(options) {
 		var amount = Number(options && options.amount || 0);
@@ -332,11 +291,6 @@ export default {
 			}
 			this.selectedCardId = card.object_id;
 			this.selectedCard = this.cards.find(item => item.object_id === card.object_id) || card;
-			if (this.currentBalanceFen >= card.price) {
-				this.paytype = 'balance';
-			} else {
-				this.paytype = 'wxpay';
-			}
 			if (shouldTrack !== false) {
 				this.trackSubscriptionEvent('subscription_card_select', {
 					card_id: card.object_id,
@@ -385,10 +339,12 @@ export default {
 			var totalLimit = Number(card.total_limit);
 			if (targetType === 1) {
 				if (totalLimit === 3) return '每人限购1次';
+				if (totalLimit === 5) return '轻量常客';
 				if (totalLimit === 8) return '双人月享';
 				if (totalLimit === 10) return '常客推荐';
 			}
 			if (targetType === 2) {
+				if (totalLimit === 4) return '每人限购1次';
 				if (totalLimit === 10) return '常客入门';
 				if (totalLimit === 20) return '固定小队推荐';
 			}
@@ -443,11 +399,13 @@ export default {
 			var targetType = this.getCardTargetType(card);
 			var totalLimit = Number(card && card.total_limit) || 0;
 			if (targetType === 2) {
+				if (totalLimit <= 4) return '先体验一次精选包厢，再决定长期方案';
 				if (totalLimit <= 10) return '至少覆盖3次常规组局，先锁定下次见面';
 				if (totalLimit <= 20) return '固定小队多次组局更合适';
 				return '适合社群活动和长期固定组局';
 			}
 			if (totalLimit <= 3) return '首次3人同行可一单抵完，之后升级常客卡';
+			if (totalLimit <= 5) return '两三次到店慢慢用，首次办卡压力更小';
 			if (totalLimit <= 8) return '双人每周来一次，30天刚好用完';
 			if (totalLimit <= 10) return '每单最多抵3人，保留后续到店额度';
 			return '高频到店或固定小队，单次最省';
@@ -499,9 +457,6 @@ export default {
 				validityText: (Number(card.validity_days) || 0) + '天，自购买日起算'
 			});
 		},
-		onBalanceChange(event) {
-			this.useBalance = !!(event && event.detail && event.detail.value);
-		},
 		navToMyCards() {
 			uni.navigateTo({ url: '/pages/user/subscription/my' });
 		},
@@ -518,7 +473,7 @@ export default {
 			this.trackSubscriptionEvent('subscription_buy_click', {
 				card_id: this.selectedCard.object_id,
 				card_price: Number(this.selectedCard.price) || 0,
-				payment_method: this.paytype,
+				payment_method: 'wxpay',
 				has_login: !!this.hasLogin
 			});
 			if (!this.hasLogin || !this.token) {
@@ -563,66 +518,15 @@ export default {
 				this.trackSubscriptionEvent('subscription_checkout_created', {
 					card_id: this.selectedCardId,
 					order_number: orderNumber,
-					payment_method: this.paytype
+					payment_method: 'wxpay'
 				});
 
-				if (this.useBalance && this.channelPayAmount === 0) {
-					this.payWithBalance(orderNumber);
-				} else {
-					this.payWithWechat(orderNumber);
-				}
+				this.payWithWechat(orderNumber);
 			}).catch(err => {
 				uni.hideLoading();
 				this.buying = false;
 				this.trackSubscriptionEvent('subscription_checkout_fail', { card_id: this.selectedCardId });
 				uni.showToast({ title: '下单失败，请重试', icon: 'none' });
-			});
-		},
-		payWithBalance(orderNumber) {
-			uni.showLoading({ title: '正在扣款...' });
-			this.trackSubscriptionEvent('subscription_payment_launch', {
-				card_id: this.selectedCardId,
-				order_number: orderNumber,
-				payment_method: 'balance'
-			});
-			AUTH.accountPay(this.token, { order_number: orderNumber }).then(res => {
-				uni.hideLoading();
-				this.buying = false;
-				if (res._status === 0) {
-					uni.showToast({ title: '购买成功', icon: 'success' });
-					this.trackSubscriptionEvent('subscription_payment_success', {
-						card_id: this.selectedCardId,
-						order_number: orderNumber,
-						payment_method: 'balance',
-						_dedupe_key: 'subscription_payment_success:' + orderNumber,
-						_dedupe_ttl_ms: 24 * 60 * 60 * 1000
-					});
-					this.trackSubscriptionEvent('payment_success', {
-						card_id: this.selectedCardId,
-						order_number: orderNumber,
-						payment_method: 'balance',
-						_dedupe_key: 'payment_success:subscription:' + orderNumber,
-						_dedupe_ttl_ms: 24 * 60 * 60 * 1000
-					});
-					this.getUserInfo(true).catch(function() {});
-					setTimeout(() => this.finishPurchaseNavigation(), 1200);
-				} else {
-					this.trackSubscriptionEvent('subscription_payment_fail', {
-						card_id: this.selectedCardId,
-						order_number: orderNumber,
-						payment_method: 'balance'
-					});
-					uni.showModal({ title: '支付失败', content: res._reason || '余额支付失败', showCancel: false });
-				}
-			}).catch(err => {
-				uni.hideLoading();
-				this.buying = false;
-				this.trackSubscriptionEvent('subscription_payment_fail', {
-					card_id: this.selectedCardId,
-					order_number: orderNumber,
-					payment_method: 'balance'
-				});
-				uni.showToast({ title: '支付失败，请稍后查看订单', icon: 'none' });
 			});
 		},
 		payWithWechat(orderNumber) {
@@ -634,7 +538,7 @@ export default {
 			});
 			AUTH.platformPay(this.token, {
 				order_number: orderNumber,
-				use_balance: this.useBalance,
+				use_balance: false,
 			}).then(res => {
 				uni.hideLoading();
 				this.buying = false;
@@ -663,7 +567,7 @@ export default {
 				if (payload.payment_completed) {
 					uni.showToast({ title: '购买成功', icon: 'success' });
 					this.getUserInfo(true).catch(function() {});
-					setTimeout(() => this.finishPurchaseNavigation(), 1200);
+					setTimeout(() => this.finishPurchaseNavigation(orderNumber), 1200);
 					return;
 				}
 				var payment = payload.payment || payload.wxpay || payload;
@@ -686,7 +590,7 @@ export default {
 						_dedupe_ttl_ms: 24 * 60 * 60 * 1000
 					});
 					this.getUserInfo(true).catch(function() {});
-					setTimeout(() => this.finishPurchaseNavigation(), 1200);
+					setTimeout(() => this.finishPurchaseNavigation(orderNumber), 1200);
 				}).catch(err => {
 					console.error('微信支付失败:', err);
 					this.buying = false;
@@ -728,7 +632,7 @@ export default {
 				});
 			});
 		},
-		finishPurchaseNavigation() {
+		finishPurchaseNavigation(orderNumber) {
 			if (this.returnToCheckout) {
 				uni.$emit('subscriptionPurchased', {
 					card_id: this.selectedCardId,
@@ -742,7 +646,12 @@ export default {
 				});
 				return;
 			}
-			uni.redirectTo({ url: '/pages/user/subscription/my' });
+			var amount = Number(this.selectedCard && this.selectedCard.price || 0);
+			uni.redirectTo({
+				url: '/pages/pay/success/success?amount=' + amount
+					+ '&id=' + encodeURIComponent(orderNumber || '')
+					+ '&type=subscription'
+			});
 		}
 	}
 };

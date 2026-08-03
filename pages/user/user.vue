@@ -176,6 +176,7 @@
 			<view class="member-progress">
 				<view class="member-progress-fill" :style="progressFillStyle"></view>
 			</view>
+			<text class="member-upgrade-gift" v-if="nextLevelGiftText">{{ nextLevelGiftText }}</text>
 			<view class="member-level-track">
 				<view v-for="lv in memberBenefitLevels" :key="lv.level" :class="lv.className">
 					<text class="member-level-icon">{{ lv.icon }}</text>
@@ -414,10 +415,13 @@
 				var level = (this.userInfo && this.userInfo.member_level) || 0;
 				var maxLevel = this.memberConfig.length > 0 ? Math.max(...this.memberConfig.map(l => l.level)) : 0;
 				if (level >= maxLevel) return null;
-				return this.memberConfig.find(l => l.level === level + 1) || null;
+				return this.memberConfig.find(l => l.level > level) || null;
 			},
 			nextLevelName() {
 				return (this.nextLevelData && this.nextLevelData.name) || '';
+			},
+			nextLevelGiftText() {
+				return (this.nextLevelData && this.nextLevelData.upgrade_gift_text) || '';
 			},
 			currentDiscountText() {
 				if (this.userInfo && this.userInfo.discount_text) return this.userInfo.discount_text;
@@ -1576,6 +1580,14 @@ page {
 	height: 100%;
 	border-radius: 5rpx;
 	transition: width 0.45s ease;
+}
+
+.member-upgrade-gift {
+	display: block;
+	margin-top: 12rpx;
+	font-size: 21rpx;
+	line-height: 1.5;
+	color: #B25B32;
 }
 
 .member-level-track {

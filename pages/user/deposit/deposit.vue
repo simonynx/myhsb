@@ -98,6 +98,7 @@
 			<view class="rules-list">
 				<text class="rule-item">· 余额仅限本小程序预约消费使用</text>
 				<text class="rule-item">· 赠送余额与本金一起到账，赠送积分可用于积分活动</text>
+				<text class="rule-item">· 次卡/月卡已享套餐价，不支持使用余额购买</text>
 				<text class="rule-item">· 余额不支持提现或转账</text>
 			</view>
 		</view>
@@ -334,7 +335,7 @@
 			showTerms() {
 				uni.showModal({
 					title: '充值服务协议',
-					content: '1. 充值金额仅限本小程序预约使用\n2. 余额不可提现\n3. 充值赠送的积分将在充值后自动到账\n4. 如有疑问请联系店主',
+					content: '1. 充值金额仅限本小程序消费使用\n2. 次卡/月卡已享套餐价，不支持余额购买\n3. 余额不可提现或转账\n4. 充值赠送积分将在支付后到账\n5. 如有疑问请联系店主',
 					showCancel: false,
 				});
 			},
