@@ -31,11 +31,11 @@
 			</view>
 			<view class="info-row">
 				<text class="info-label">可用范围</text>
-				<text class="info-value">到店出示订单即可使用</text>
+				<text class="info-value">{{ usageScopeText }}</text>
 			</view>
 			<view class="info-row">
 				<text class="info-label">有效期</text>
-				<text class="info-value">{{ formatDate(currentGoods.validity_period_start) }} ~ {{ formatDate(currentGoods.validity_period_end) }}</text>
+				<text class="info-value">{{ validityText }}</text>
 			</view>
 			<view class="info-row" v-if="currentGoods.description">
 				<text class="info-label">详情</text>
@@ -247,7 +247,9 @@ export default {
 			if (this.limitReached) return '本周期购买次数已经用完';
 			if (!this.memberLevelEnough) return '需 ' + this.getMemberLevelName(this.currentGoods.member_level_required) + ' 及以上';
 			if (!this.pointsEnough) return '签到和到店消费都能继续累积积分';
-			if (this.currentGoods && this.currentGoods.exchange_type === 2) return '兑换后可在订单列表查看和到店使用';
+			if (this.currentGoods && this.currentGoods.exchange_type === 2) {
+				return this.isCouponGoods ? '兑换后自动放入卡券包，下单时选择使用' : '兑换后可在订单列表查看和到店使用';
+			}
 			if (this.currentGoods && this.currentGoods.exchange_type === 3) return '需 ' + Number(this.currentGoods.points_price || 0) + ' 积分 + ¥' + this.actualPrice;
 			return this.canUseBalance ? '支持余额抵扣，剩余金额微信支付' : '确认后进入支付页';
 		},
@@ -275,6 +277,22 @@ export default {
 		canUseBalance() {
 			if (!this.currentGoods) return false;
 			return this.currentGoods.exchange_type === 1 && this.currentGoods.can_use_balance;
+		},
+		isCouponGoods() {
+			return !!this.currentGoods && Number(this.currentGoods.goods_type) === 5;
+		},
+		usageScopeText() {
+			if (this.isCouponGoods) return '兑换后放入卡券包，包厢预约或大厅票结算时选择使用';
+			return '到店出示订单即可使用';
+		},
+		validityText() {
+			if (this.isCouponGoods) return '兑换后30天内有效';
+			var start = this.currentGoods && this.currentGoods.validity_period_start;
+			var end = this.currentGoods && this.currentGoods.validity_period_end;
+			if (start && end) return this.formatDate(start) + ' ~ ' + this.formatDate(end);
+			if (start) return this.formatDate(start) + ' 起有效';
+			if (end) return '有效期至 ' + this.formatDate(end);
+			return '未设置固定期限';
 		},
 		goodsEmoji() {
 			if (!this.currentGoods) return '🎁';
@@ -430,14 +448,19 @@ export default {
 						uni.showToast({ title: (res && res._reason) || '兑换失败', icon: 'none' });
 						return;
 					}
+					var successContent = Number(goods.goods_type) === 5
+						? '已成功兑换「' + goods.name + '」，优惠券已放入卡券包，下单时可选择使用'
+						: '已成功兑换「' + goods.name + '」，可在订单列表查看';
 					uni.showModal({
 						title: '✨ 兑换成功',
-						content: `已成功兑换「${goods.name}」，可在订单列表查看`,
+						content: successContent,
 						showCancel: false,
 						success: () => {
 							this.getUserInfo();
+							var exchangeKind = Number(goods.goods_type) === 5 ? 'coupon' : 'goods';
 							uni.redirectTo({
-								url: '/pages/pay/success/success?amount=0&id=' + encodeURIComponent(res.data.object_id || '') + '&type=exchange'
+								url: '/pages/pay/success/success?amount=0&id=' + encodeURIComponent(res.data.object_id || '')
+									+ '&type=exchange&kind=' + exchangeKind
 							});
 						},
 					});

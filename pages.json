@@ -34,8 +34,8 @@
 			"path": "pages/product/product",
 			"style": {
 				"navigationBarTitleText": "详情",
-				"navigationBarBackgroundColor": "#FF8C42",
-				"navigationBarTextStyle": "white"
+				"navigationBarBackgroundColor": "#FFFFFF",
+				"navigationBarTextStyle": "black"
 			}
 		},
 		{

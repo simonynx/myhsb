@@ -63,6 +63,7 @@ export default {
 			bonus: 0,
 			orderId: '',
 			type: 'order',
+			exchangeKind: '',
 			inviteCode: '',
 			benefitText: '',
 			benefitRetryCount: 0,
@@ -82,7 +83,9 @@ export default {
 			return '支付成功';
 		},
 		subtitle() {
-			if (this.type === 'exchange') return '兑换记录已生成，到店出示订单即可使用';
+			if (this.type === 'exchange' && this.exchangeKind === 'coupon') return '优惠券已放入卡券包，下单结算时选择使用';
+			if (this.type === 'exchange' && this.exchangeKind === 'goods') return '兑换记录已生成，到店后出示订单领取';
+			if (this.type === 'exchange') return '兑换权益已到账，可在订单或卡券包中查看';
 			if (this.type === 'recharge') return '余额已经到账，下一次预约可以直接抵扣';
 			if (this.type === 'subscription') return '卡包权益已经到账，有效期从购买当天开始';
 			if (this.type === 'ticket') return '门票已放入票包，可以自己用，也可以转赠好友一起约';
@@ -111,12 +114,14 @@ export default {
 			if (this.type === 'recharge') return '💎';
 			if (this.type === 'subscription') return '🎟️';
 			if (this.type === 'ticket') return '🎫';
+			if (this.type === 'exchange' && this.exchangeKind === 'coupon') return '🎟️';
 			return '📋';
 		},
 		primaryText() {
 			if (this.type === 'recharge') return '查看余额';
 			if (this.type === 'subscription') return '查看卡包';
 			if (this.type === 'ticket') return '查看票包';
+			if (this.type === 'exchange' && this.exchangeKind === 'coupon') return '查看卡券';
 			return '查看订单';
 		},
 		secondaryIcon() {
@@ -131,12 +136,15 @@ export default {
 			if (this.type === 'recharge') return '余额小提示';
 			if (this.type === 'subscription') return '卡包小提示';
 			if (this.type === 'ticket') return '门票小提示';
+			if (this.type === 'exchange') return '兑换提示';
 			return '到店小提示';
 		},
 		tipText() {
 			if (this.type === 'recharge') return '充值本金和赠送余额会一起进入账户；预约消费可使用，次卡/月卡除外。';
 			if (this.type === 'subscription') return '卡包已含套餐优惠，购买时不叠加余额、优惠券、积分或会员折扣。';
 			if (this.type === 'ticket') return '门票未核销且未过期可退；想约朋友时，可在票包里把未使用门票转赠出去。';
+			if (this.type === 'exchange' && this.exchangeKind === 'coupon') return '优惠券有效期和使用门槛以卡券包显示为准，结算时会展示当前可用券。';
+			if (this.type === 'exchange') return '实物商品请凭兑换记录到店领取，领取前可联系店员确认库存。';
 			return '到店后出示订单即可核验；如需布置或补给，建议提前联系店员确认。';
 		},
 		sharePath() {
@@ -149,6 +157,7 @@ export default {
 		this.bonus = Number(options.bonus || 0);
 		this.orderId = options.id || '';
 		this.type = options.type || 'order';
+		this.exchangeKind = options.kind || '';
 		this.inviteCode = this.userInfo && this.userInfo.invite_code ? this.userInfo.invite_code : '';
 		this.loadInviteCode();
 		this.loadOrderBenefit();
@@ -255,6 +264,10 @@ export default {
 			}.bind(this)).catch(function() {});
 		},
 		goOrder() {
+			if (this.type === 'exchange' && this.exchangeKind === 'coupon') {
+				uni.redirectTo({ url: '/pages/my/coupons/coupons?tab=unused' });
+				return;
+			}
 			if (this.type === 'recharge') {
 				uni.redirectTo({ url: '/pages/user/balance/balance' });
 				return;
