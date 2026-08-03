@@ -122,25 +122,23 @@
 			</view>
 			<view class="pay-list">
 				<!-- 微信支付 -->
-				<view class="pay-item" :class="paytype === 'wxpay' ? 'active' : ''" @tap="paytype = 'wxpay'">
+				<view class="pay-item active">
 					<image class="pay-icon" src="/static/wxpay.png" mode="aspectFit"></image>
-					<text class="pay-name">微信支付</text>
+					<view class="pay-name-wrap">
+						<text class="pay-name">微信支付</text>
+						<text class="pay-desc">{{ channelPayAmount > 0 ? '支付 ¥' + formatMoney(channelPayAmount) : '余额全额支付' }}</text>
+					</view>
 					<view class="pay-check">
-						<text v-if="paytype === 'wxpay'" class="check-icon">✓</text>
+						<text class="check-icon">✓</text>
 					</view>
 				</view>
-				<!-- 余额支付 -->
-				<view 
-					class="pay-item" 
-					:class="[paytype === 'balance' ? 'active' : '', hasEnoughBalance ? '' : 'disabled']" 
-					@tap="selectBalancePay"
-				>
+				<view class="pay-item balance-pay-item" :class="useBalance && currentBalanceFen > 0 ? 'active' : ''">
 					<text class="pay-icon">🪙</text>
-					<text class="pay-name">余额支付 (可用 ¥{{ balanceText }})</text>
-					<text class="pay-insufficient" v-if="!hasEnoughBalance">余额不足</text>
-					<view class="pay-check" v-else>
-						<text v-if="paytype === 'balance'" class="check-icon">✓</text>
+					<view class="pay-name-wrap">
+						<text class="pay-name">使用余额抵扣</text>
+						<text class="pay-desc">{{ balanceDeductText }}</text>
 					</view>
+					<switch color="#FF6432" :checked="useBalance && currentBalanceFen > 0" :disabled="currentBalanceFen <= 0" @change="onBalanceChange" />
 				</view>
 			</view>
 		</view>
@@ -151,11 +149,11 @@
 		<view class="bottom-area" v-if="selectedCard">
 			<view class="price-summary">
 				<view class="sum-main">
-					<text class="sum-label">应付金额：</text>
+					<text class="sum-label">订单合计：</text>
 					<text class="sum-symbol">¥</text>
 					<text class="sum-price">{{ selectedCardView.priceFullText }}</text>
 				</view>
-				<text class="sum-extra" v-if="selectedCardView.unitPriceText">{{ selectedCardView.unitPriceText }}</text>
+				<text class="sum-extra">余额抵扣 ¥{{ formatMoney(balanceDeductAmount) }}，{{ channelPayAmount > 0 ? '渠道支付 ¥' + formatMoney(channelPayAmount) : '余额全额支付' }}</text>
 			</view>
 			<view class="submit-btn" :class="purchaseDisabled ? 'disabled' : ''" @tap="doPurchase">
 				<text class="btn-text">{{ purchaseButtonText }}</text>
@@ -177,6 +175,7 @@ export default {
 			selectedCardId: '',
 			selectedCard: null,
 			paytype: 'wxpay',
+			useBalance: true,
 			buying: false,
 			preferredAmount: 0,
 			preferredCardId: '',
@@ -232,6 +231,18 @@ export default {
 		hasEnoughBalance() {
 			if (!this.selectedCard) return false;
 			return this.currentBalanceFen >= this.selectedCard.price;
+		},
+		balanceDeductAmount() {
+			if (!this.selectedCard || !this.useBalance) return 0;
+			return Math.min(this.currentBalanceFen, Number(this.selectedCard.price) || 0);
+		},
+		channelPayAmount() {
+			if (!this.selectedCard) return 0;
+			return Math.max(0, (Number(this.selectedCard.price) || 0) - this.balanceDeductAmount);
+		},
+		balanceDeductText() {
+			if (!this.selectedCard || this.currentBalanceFen <= 0) return '当前余额不足，仍可支付补差';
+			return '本次抵扣 ¥' + this.formatMoney(this.balanceDeductAmount) + '，可用 ¥' + this.balanceText;
 		}
 	},
 	onLoad(options) {
@@ -258,6 +269,9 @@ export default {
 	},
 	methods: {
 		...mapActions(['loginAndRegister', 'getUserInfo']),
+		formatMoney(amount) {
+			return (Number(amount || 0) / 100).toFixed(2);
+		},
 		fetchCards() {
 			this.loading = true;
 			AUTH.getSubscriptionCards(this.token).then(res => {
@@ -485,12 +499,8 @@ export default {
 				validityText: (Number(card.validity_days) || 0) + '天，自购买日起算'
 			});
 		},
-		selectBalancePay() {
-			if (!this.hasEnoughBalance) {
-				uni.showToast({ title: '余额不足以购买此卡包', icon: 'none' });
-				return;
-			}
-			this.paytype = 'balance';
+		onBalanceChange(event) {
+			this.useBalance = !!(event && event.detail && event.detail.value);
 		},
 		navToMyCards() {
 			uni.navigateTo({ url: '/pages/user/subscription/my' });
@@ -538,7 +548,7 @@ export default {
 
 			AUTH.checkout(this.token, {
 				order_type: 7,
-				subscription_card_id: this.selectedCard.object_id
+				subscription_card_id: this.selectedCard.object_id,
 			}).then(res => {
 				uni.hideLoading();
 				if (res._status !== 0) {
@@ -556,7 +566,7 @@ export default {
 					payment_method: this.paytype
 				});
 
-				if (this.paytype === 'balance') {
+				if (this.useBalance && this.channelPayAmount === 0) {
 					this.payWithBalance(orderNumber);
 				} else {
 					this.payWithWechat(orderNumber);
@@ -622,7 +632,10 @@ export default {
 				order_number: orderNumber,
 				payment_method: 'wxpay'
 			});
-			AUTH.platformPay(this.token, { order_number: orderNumber }).then(res => {
+			AUTH.platformPay(this.token, {
+				order_number: orderNumber,
+				use_balance: this.useBalance,
+			}).then(res => {
 				uni.hideLoading();
 				this.buying = false;
 				if (!res) return;
@@ -647,6 +660,12 @@ export default {
 				}
 				
 				var payload = res.data || res;
+				if (payload.payment_completed) {
+					uni.showToast({ title: '购买成功', icon: 'success' });
+					this.getUserInfo(true).catch(function() {});
+					setTimeout(() => this.finishPurchaseNavigation(), 1200);
+					return;
+				}
 				var payment = payload.payment || payload.wxpay || payload;
 				var PLATFORM = require('../../../common/platform.js');
 				
@@ -1030,8 +1049,11 @@ page {
 	&:last-child { border-bottom: none; }
 	
 	.pay-icon { width: 44rpx; height: 44rpx; margin-right: 16rpx; display: flex; align-items: center; justify-content: center; font-size: 38rpx; }
-	.pay-name { flex: 1; font-size: 28rpx; color: #5C4B3A; }
+	.pay-name-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+	.pay-name { font-size: 28rpx; color: #5C4B3A; }
+	.pay-desc { margin-top: 4rpx; font-size: 22rpx; color: #8C7966; }
 	.pay-insufficient { font-size: 22rpx; color: #BBB; }
+	switch { flex-shrink: 0; margin-left: 16rpx; }
 	
 	.pay-check {
 		width: 36rpx;
@@ -1098,6 +1120,8 @@ page {
 		font-size: 22rpx;
 		color: #8C7966;
 		margin-top: 2rpx;
+		max-width: 430rpx;
+		line-height: 1.35;
 	}
 }
 .submit-btn {

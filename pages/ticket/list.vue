@@ -408,7 +408,11 @@ export default {
         const result = await AUTH.refundOrder(this.token, { order_number: item.order_number });
         uni.hideLoading();
         if (result && result._status === 0) {
-          uni.showToast({ title: '退款成功', icon: 'success' });
+          const refundResult = result.data || {};
+          uni.showToast({
+            title: refundResult.message || '退款申请已提交',
+            icon: 'none',
+          });
           this.loadTickets();
         } else {
           uni.showToast({ title: (result && result._reason) || '退款失败', icon: 'none' });

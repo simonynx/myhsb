@@ -122,7 +122,7 @@
 					<view class="balance-left">
 						<text class="balance-icon">💰</text>
 						<view class="balance-info">
-							<text class="balance-label">使用余额支付</text>
+							<text class="balance-label">使用余额抵扣</text>
 							<text class="balance-hint">当前余额 ¥{{ (safeUserInfo.account_balance / 100).toFixed(2) }}</text>
 						</view>
 					</view>
@@ -193,9 +193,13 @@ export default {
 			if (this.currentGoods.exchange_type === 3) {
 				return ((this.currentGoods.price || 0) / 100).toFixed(2);
 			}
-			// 现金商品 + 余额全额支付
-			if (this.useBalance && this.balanceEnough) {
-				return '0.00';
+			// 现金商品可使用余额抵扣，不足部分继续走渠道支付
+			if (this.useBalance) {
+				var balanceUsed = Math.min(
+					Number(this.safeUserInfo.account_balance || 0),
+					Number(this.currentGoods.price || 0)
+				);
+				return (Math.max(0, Number(this.currentGoods.price || 0) - balanceUsed) / 100).toFixed(2);
 			}
 			return ((this.currentGoods.price || 0) / 100).toFixed(2);
 		},
@@ -245,7 +249,7 @@ export default {
 			if (!this.pointsEnough) return '签到和到店消费都能继续累积积分';
 			if (this.currentGoods && this.currentGoods.exchange_type === 2) return '兑换后可在订单列表查看和到店使用';
 			if (this.currentGoods && this.currentGoods.exchange_type === 3) return '需 ' + Number(this.currentGoods.points_price || 0) + ' 积分 + ¥' + this.actualPrice;
-			return this.canUseBalance ? '支持余额或微信支付' : '确认后进入支付页';
+			return this.canUseBalance ? '支持余额抵扣，剩余金额微信支付' : '确认后进入支付页';
 		},
 		purchaseStateClass() {
 			if (this.submitDisabled) return 'blocked';
@@ -261,6 +265,7 @@ export default {
 			if (!this.pointsEnough) return '还差 ' + this.pointsShortfall + ' 积分';
 			if (this.currentGoods && this.currentGoods.exchange_type === 2) return '立即兑换';
 			if (this.useBalance && this.balanceEnough) return '余额支付';
+			if (this.useBalance && Number(this.safeUserInfo.account_balance || 0) > 0) return '余额抵扣并支付';
 			return '确认订单';
 		},
 		balanceEnough() {
@@ -303,10 +308,6 @@ export default {
 			if ((this.currentGoods.exchange_type === 2 || this.currentGoods.exchange_type === 3) && !this.pointsEnough) {
 				return true;
 			}
-			// 现金商品：如果选择余额支付但余额不足，则禁用
-			if (this.currentGoods.exchange_type === 1 && this.useBalance && !this.balanceEnough) {
-				return true;
-			}
 			return false;
 		},
 	},
@@ -314,6 +315,7 @@ export default {
 		return {
 			currentGoods: null,
 			useBalance: false,
+			balancePreferenceTouched: false,
 			userBoughtCount: 0,
 		};
 	},
@@ -322,6 +324,7 @@ export default {
 			if (option.data) {
 				this.currentGoods = JSON.parse(decodeURIComponent(option.data));
 				this.userBoughtCount = this.currentGoods.user_bought_count || 0;
+				this.useBalance = this.canUseBalance && Number(this.safeUserInfo.account_balance || 0) > 0;
 			}
 		} catch (e) {
 			console.error('商品数据解析失败', e);
@@ -330,7 +333,11 @@ export default {
 	},
 	onShow() {
 		if (this.token) {
-			this.getUserInfo(true).catch(() => {});
+			this.getUserInfo(true).then(() => {
+				if (!this.balancePreferenceTouched) {
+					this.useBalance = this.canUseBalance && Number(this.safeUserInfo.account_balance || 0) > 0;
+				}
+			}).catch(() => {});
 		}
 	},
 	methods: {
@@ -347,6 +354,7 @@ export default {
 
 		toggleBalance() {
 			if (!this.canUseBalance) return;
+			this.balancePreferenceTouched = true;
 			this.useBalance = !this.useBalance;
 		},
 
@@ -447,7 +455,7 @@ export default {
 				param.use_points = goods.points_price;
 			}
 			// 余额支付
-			if (goods.exchange_type === 1 && this.useBalance) {
+			if (goods.exchange_type === 1 && this.useBalance && this.canUseBalance) {
 				param.use_balance = true;
 			}
 			AUTH.checkout(this.token, param).then(res => {

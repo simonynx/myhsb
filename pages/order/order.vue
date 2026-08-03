@@ -638,6 +638,13 @@
 			},
 			getPayMethodText(item) {
 				if (item.order_type === 2) return '微信支付';
+				var balanceUsed = item.goodsInfo && Number(item.goodsInfo.use_balance || 0);
+				if (balanceUsed > 0) {
+					if (Number(item.pay_method) === 1) return '余额支付';
+					if (Number(item.pay_method) === 3) return '余额+抖音';
+					if (Number(item.pay_method) === 2) return '余额+微信';
+					if (Number(item.pay_method) === 9) return '余额+线下补差';
+				}
 				if (item.order_type === 1 && item.request_data) {
 					var totalFee = item.request_data.total_fee || 0;
 					if (item.goodsInfo && item.goodsInfo.use_balance && totalFee < parseInt(item.roomPrice * 100)) {
@@ -968,15 +975,22 @@
 						uni.showLoading({ title: '请稍后' });
 						AUTH.refundOrder(self.token, { order_number: item.order_number }).then(function(res) {
 							uni.hideLoading();
-							if (!res) return;
-							item.order_status = 10;
+							if (!res || res._status !== 0) {
+								uni.showToast({ title: (res && res._reason) || '退款失败', icon: 'none' });
+								return;
+							}
+							var refundResult = res.data || {};
+							item.order_status = refundResult.refund_status === 'SUCCESS' ? 6 : 10;
 							var stateResult = self.orderStateExp(item);
 							var stateTip = stateResult.stateTip;
 							var stateTipColor = stateResult.stateTipColor;
 							item.stateTip = stateTip;
 							item.stateTipColor = stateTipColor;
 							item.statusClass = self.getOrderStatusClass(item);
-							uni.showToast({ title: '退款申请已提交', icon: 'success' });
+							uni.showToast({
+								title: refundResult.message || '退款申请已提交',
+								icon: 'none'
+							});
 						}).catch(function(err) {
 							uni.hideLoading();
 							uni.showToast({ title: (err && err._reason) || '退款失败', icon: 'none' });

@@ -19,10 +19,10 @@
         <block v-else-if="order">
             <!-- 金额卡片 -->
             <view class="amount-card" v-if="order">
-                <view class="amount-label">需支付</view>
+                <view class="amount-label">订单合计</view>
                 <view class="amount-price">
                     <text class="yuan">¥</text>
-                    <text class="price">{{ formatMoney(order.pay_amount) }}</text>
+                    <text class="price">{{ formatMoney(orderTotalAmount) }}</text>
                 </view>
                 <view class="order-no">订单号 {{ order.order_number }}</view>
                 <view class="order-info" v-if="order.order_type === 4">
@@ -81,6 +81,10 @@
                 <view class="detail-row discount" v-if="orderCouponDiscount > 0">
                     <text class="detail-label">优惠券</text>
                     <text class="detail-value">-¥{{ formatMoney(orderCouponDiscount) }}</text>
+                </view>
+                <view class="detail-row discount" v-if="balanceDeductAmount > 0">
+                    <text class="detail-label">余额抵扣</text>
+                    <text class="detail-value">-¥{{ formatMoney(balanceDeductAmount) }}</text>
                 </view>
             </view>
 
@@ -157,47 +161,43 @@
                 <view class="points-tip disabled" v-else>{{ pointsUnavailableText }}</view>
             </view>
 
-            <!-- 支付方式 -->
-            <view class="pay-section">
-                <view class="section-title">选择支付方式</view>
-
-                <view class="pay-method" :class="payMethod === 'wechat' ? 'active' : ''" @click="selectPay('wechat')">
-                    <view class="method-left">
-                        <view class="method-icon" style="background:#07C160;">
-                            <image src="/static/wechat.png" mode="aspectFit" />
-                        </view>
-                        <view class="method-info">
-                            <view class="method-name">微信支付</view>
-                            <view class="method-desc">推荐安装微信用户使用</view>
-                        </view>
-                    </view>
-                    <view class="method-check">
-                        <view class="check-circle" :class="payMethod === 'wechat' ? 'active' : ''">
-                            <text v-if="payMethod === 'wechat'">✓</text>
-                        </view>
-                    </view>
-                </view>
-
-                <view class="pay-method" :class="[payMethod === 'balance' ? 'active' : '', !canUseBalance ? 'disabled' : '']" @click="selectPay('balance')">
+            <!-- 余额抵扣 -->
+            <view class="pay-section" v-if="balanceEligible">
+                <view class="section-title">余额抵扣</view>
+                <view class="pay-method" :class="[useBalance ? 'active' : '', !canUseBalance ? 'disabled' : '']">
                     <view class="method-left">
                         <view class="method-icon" style="background:#FFB933;">
                             <text class="icon-text">余额</text>
                         </view>
                         <view class="method-info">
-                            <view class="method-name">余额支付</view>
-                            <view class="method-desc" v-if="canUseBalance">
-                                {{ balanceDeductText }}
-                            </view>
-                            <view class="method-desc" v-else>
-                                可用余额 ¥{{ (safeUserInfo.account_balance / 100).toFixed(2) }}
-                                <text class="insufficient-tip">（还差 ¥{{ formatMoney(balanceShortfall) }}）</text>
-                            </view>
+                            <view class="method-name">使用账户余额</view>
+                            <view class="method-desc">{{ balanceDeductText }}</view>
                         </view>
                     </view>
-                    <view class="method-check" v-if="canUseBalance">
-                        <view class="check-circle" :class="payMethod === 'balance' ? 'active' : ''">
-                            <text v-if="payMethod === 'balance'">✓</text>
+                    <switch
+                        color="#FF6432"
+                        :checked="useBalance"
+                        :disabled="!canToggleBalance"
+                        @change="onBalanceChange"
+                    />
+                </view>
+            </view>
+
+            <!-- 剩余支付方式 -->
+            <view class="pay-section" v-if="channelPayAmount > 0">
+                <view class="section-title">剩余支付方式</view>
+                <view class="pay-method active">
+                    <view class="method-left">
+                        <view class="method-icon" style="background:#07C160;">
+                            <image src="/static/wechat.png" mode="aspectFit" />
                         </view>
+                        <view class="method-info">
+                            <view class="method-name">{{ platformPayName }}</view>
+                            <view class="method-desc">支付 ¥{{ formatMoney(channelPayAmount) }}</view>
+                        </view>
+                    </view>
+                    <view class="method-check">
+                        <view class="check-circle active">✓</view>
                     </view>
                 </view>
             </view>
@@ -215,11 +215,11 @@
             <!-- 底部栏 -->
             <view class="bottom-bar">
                 <view class="bottom-info">
-                    <text class="bottom-label">实付款</text>
-                    <text class="bottom-price">¥{{ formatMoney(order.pay_amount) }}</text>
+                    <text class="bottom-label">{{ bottomPaymentLabel }}</text>
+                    <text class="bottom-price">¥{{ formatMoney(bottomPayAmount) }}</text>
                 </view>
                 <view class="pay-btn" :class="paying ? 'disabled' : ''" @click="doPay">
-                    <text v-if="!paying">确认支付</text>
+                    <text v-if="!paying">{{ payButtonText }}</text>
                     <text v-else>支付中...</text>
                 </view>
             </view>
@@ -243,7 +243,6 @@ export default {
             entry: '1',
             overtime: false,
             countdownText: '',
-            payMethod: null,
             paying: false,
             interval: null,
             // 优惠券相关
@@ -253,6 +252,7 @@ export default {
             couponsLoaded: false,
             updatingCoupon: false,
             pointsInput: '',
+            useBalance: true,
         };
     },
 
@@ -261,25 +261,112 @@ export default {
         safeUserInfo() {
             return this.userInfo || { account_balance: 0 };
         },
-        canUseBalance() {
+        balanceEligible() {
             if (!this.order) return false;
             if (this.isRechargeOrder) return false;
             // 商品订单：检查商品是否支持余额支付
             if (this.order.order_type === 3) {
-                var goodsInfo = this.order.goodsInfo || {};
-                if (!goodsInfo.can_use_balance) return false;
+                var goodsInfo = this.orderGoodsInfo;
+                if (Number(goodsInfo.exchange_type || 0) !== 1 || Number(goodsInfo.can_use_balance || 0) !== 1) {
+                    return false;
+                }
             }
-            return (this.safeUserInfo.account_balance || 0) >= (this.order.pay_amount || 0);
+            return true;
+        },
+
+        storedBalanceAmount() {
+            var goodsInfo = this.orderGoodsInfo;
+            var pricing = goodsInfo.pricing || {};
+            var amount = Number(
+                (this.order && this.order.balance_used)
+                || goodsInfo.use_balance
+                || pricing.balance_deducted
+                || 0
+            );
+            return isFinite(amount) ? Math.max(0, amount) : 0;
+        },
+
+        balanceLocked() {
+            var goodsInfo = this.orderGoodsInfo;
+            var context = goodsInfo.context || goodsInfo;
+            return this.storedBalanceAmount > 0 && !!context.balance_reserved;
+        },
+
+        availableBalance() {
+            var amount = Number(this.safeUserInfo.account_balance || 0);
+            return isFinite(amount) ? Math.max(0, amount) : 0;
+        },
+
+        canUseBalance() {
+            return this.balanceEligible && (this.availableBalance > 0 || this.storedBalanceAmount > 0);
+        },
+
+        canToggleBalance() {
+            return this.canUseBalance && !this.balanceLocked && !(this.order && this.order.payment_started);
+        },
+
+        orderTotalAmount() {
+            if (!this.order) return 0;
+            var pricing = this.orderPricingInfo;
+            var amount = Number(
+                this.order.order_total_amount
+                || pricing.original_final_amount
+                || pricing.final_amount
+                || this.order.pay_amount
+                || 0
+            );
+            return isFinite(amount) ? Math.max(0, amount) : 0;
+        },
+
+        balanceDeductAmount() {
+            if (this.storedBalanceAmount > 0) return this.storedBalanceAmount;
+            if (!this.useBalance || !this.canUseBalance) return 0;
+            return Math.min(this.availableBalance, this.orderTotalAmount);
+        },
+
+        channelPayAmount() {
+            if (!this.order) return 0;
+            if (this.storedBalanceAmount > 0) {
+                var storedChannel = Number(
+                    this.order.channel_pay_amount
+                    || this.orderPricingInfo.channel_pay_amount
+                    || 0
+                );
+                return isFinite(storedChannel) ? Math.max(0, storedChannel) : 0;
+            }
+            return Math.max(0, this.orderTotalAmount - this.balanceDeductAmount);
         },
 
         balanceShortfall() {
-            if (!this.order) return 0;
-            return Math.max(0, (this.order.pay_amount || 0) - (this.safeUserInfo.account_balance || 0));
+            return this.channelPayAmount;
         },
 
         balanceDeductText() {
-            if (!this.canUseBalance || !this.order) return '';
-            return `可抵扣 ¥${this.formatMoney(this.order.pay_amount)}`;
+            if (this.balanceLocked) {
+                return `已为本单锁定 ¥${this.formatMoney(this.storedBalanceAmount)}`;
+            }
+            if (!this.canUseBalance) return '当前可用余额 ¥0.00';
+            if (!this.useBalance) return `可用余额 ¥${this.formatMoney(this.availableBalance)}`;
+            return `本次抵扣 ¥${this.formatMoney(this.balanceDeductAmount)}，可用 ¥${this.formatMoney(this.availableBalance)}`;
+        },
+
+        platformPayName() {
+            return PLATFORM.getPlatform() === 'toutiao' ? '抖音支付' : '微信支付';
+        },
+
+        bottomPaymentLabel() {
+            return this.channelPayAmount > 0 ? this.platformPayName : '余额支付';
+        },
+
+        bottomPayAmount() {
+            return this.channelPayAmount > 0 ? this.channelPayAmount : this.balanceDeductAmount;
+        },
+
+        payButtonText() {
+            if (this.channelPayAmount > 0) {
+                return this.platformPayName + ' ¥' + this.formatMoney(this.channelPayAmount);
+            }
+            return '余额支付 ¥' + this.formatMoney(this.orderTotalAmount);
         },
 
         isRechargeOrder() {
@@ -595,12 +682,21 @@ export default {
             this.normalizeOrderGoodsInfo(this.order);
             this.syncPointsInput();
             this.entry = (options && options.entry) || '1';
+            if (this.order && this.order.payment_started && this.storedBalanceAmount <= 0) {
+                this.useBalance = false;
+            } else {
+                this.useBalance = this.canUseBalance;
+            }
             if (this.token && (this.isOfflinePending || !this.userInfo)) {
                 this.getUserInfo(true).then(() => {
-                    this.$nextTick(() => this.syncPointsInput());
+                    this.$nextTick(() => {
+                        this.syncPointsInput();
+                        if (!(this.order && this.order.payment_started)) {
+                            this.useBalance = this.canUseBalance;
+                        }
+                    });
                 }).catch(function() {});
             }
-            this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
             this.startCountdown();
             if (this.order && this.order.order_type === 4 && this.order.order_status === 0) {
                 this.loadMyCoupons();
@@ -853,10 +949,7 @@ export default {
                 this.order = nextOrder;
                 this.selectedCoupon = confirmedCoupon;
                 this.pointsInput = appliedPoints > 0 ? String(appliedPoints) : '';
-                this.payMethod = this.canUseBalance ? 'balance' : 'wechat';
-                if (nextPayAmount === 0) {
-                    this.payMethod = 'balance';
-                }
+                this.useBalance = this.canUseBalance;
                 this.$forceUpdate();
                 return true;
             } catch (e) {
@@ -893,28 +986,9 @@ export default {
             this.interval = setInterval(tick, 1000);
         },
 
-        selectPay(method) {
-            if (method === 'balance' && this.isRechargeOrder) {
-                uni.showToast({ title: '充值订单只能使用微信支付', icon: 'none' });
-                this.payMethod = 'wechat';
-                return;
-            }
-            if (method === 'balance' && !this.canUseBalance) {
-                // 余额不足时引导充值
-                uni.showModal({
-                    title: '余额不足',
-                    content: `当前余额还差 ¥${this.formatMoney(this.balanceShortfall)}，是否去充值？`,
-                    confirmText: '去充值',
-                    cancelText: '取消',
-                    success: (res) => {
-                        if (res.confirm) {
-                            uni.navigateTo({ url: '/pages/user/deposit/deposit' });
-                        }
-                    }
-                });
-                return;
-            }
-            this.payMethod = method;
+        onBalanceChange(event) {
+            if (!this.canToggleBalance) return;
+            this.useBalance = !!(event && event.detail && event.detail.value);
         },
         
         doPay() {
@@ -930,10 +1004,8 @@ export default {
                 uni.showToast({ title: '请先应用积分抵扣', icon: 'none' });
                 return;
             }
-            // pay_amount 为 0 时，强制走余额支付完成订单。
-            const isZeroPay = this.order && Number(this.order.pay_amount || 0) === 0 && !this.isRechargeOrder;
-            if (this.payMethod === 'balance' || isZeroPay) {
-                // 余额足够时直接扣款
+            const isZeroPay = this.orderTotalAmount === 0 && !this.isRechargeOrder;
+            if (this.channelPayAmount === 0 || isZeroPay) {
                 this.paying = true;
                 uni.showLoading({ title: '支付中...' });
                 AUTH.accountPay(this.token, {
@@ -960,16 +1032,33 @@ export default {
         platformPay() {
             uni.showLoading({ title: '调起支付...' });
             this.paying = true;
-            AUTH.platformPay(this.token, { order_number: this.order.order_number })
+            AUTH.platformPay(this.token, {
+                order_number: this.order.order_number,
+                use_balance: this.useBalance,
+            })
                 .then(res => {
                     uni.hideLoading();
                     this.paying = false;
                     if (!res) return;
+                    var payload = res.data || {};
+                    if (payload.order) {
+                        this.normalizeOrderGoodsInfo(payload.order);
+                        this.order = payload.order;
+                        this.useBalance = Number(payload.balance_used || 0) > 0;
+                    }
+                    if (payload.payment_completed) {
+                        uni.showToast({ title: '支付成功', icon: 'success' });
+                        this.getUserInfo();
+                        this.goSuccess();
+                        return;
+                    }
                     this.requestPayment(res);
                 })
-                .catch(() => {
+                .catch((err) => {
                     uni.hideLoading();
                     this.paying = false;
+                    var msg = (err && (err._reason || err.message)) || '支付参数获取失败';
+                    uni.showToast({ title: msg, icon: 'none' });
                 });
         },
 
@@ -987,7 +1076,7 @@ export default {
         },
 
         goSuccess() {
-            const amount = (this.order && this.order.pay_amount) || 0;
+            const amount = this.orderTotalAmount;
             const id = (this.order && this.order.object_id) || '';
             const orderType = Number(this.order && this.order.order_type);
             let type = 'order';
@@ -1515,6 +1604,9 @@ page {
         }
 
         .method-info {
+            flex: 1;
+            min-width: 0;
+
             .method-name {
                 font-size: 30rpx;
                 color: $dark;
@@ -1531,6 +1623,11 @@ page {
                     font-size: 22rpx;
                 }
             }
+        }
+
+        switch {
+            flex-shrink: 0;
+            margin-left: 20rpx;
         }
 
         .method-check {
@@ -1587,6 +1684,8 @@ page {
     .bottom-info {
         display: flex;
         align-items: baseline;
+        flex: 1;
+        min-width: 0;
 
         .bottom-label { font-size: 26rpx; color: $gray; }
         .bottom-price {
@@ -1598,7 +1697,8 @@ page {
     }
 
     .pay-btn {
-        width: 240rpx;
+        width: 280rpx;
+        flex-shrink: 0;
         height: 80rpx;
         background: $primary;
         color: #fff;
@@ -1606,7 +1706,7 @@ page {
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 30rpx;
+        font-size: 28rpx;
         font-weight: bold;
 
         &.disabled { background: #CCC; }

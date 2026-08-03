@@ -22,17 +22,17 @@
 			<view class="record-card" v-for="(record, idx) in records" :key="idx">
 				<view class="record-main">
 					<!-- 左侧图标 -->
-					<view class="type-icon" :style="{ background: _typeStyle(record.reason).bg }">
-						<text class="type-emoji">{{ _typeStyle(record.reason).icon }}</text>
+					<view class="type-icon" :style="record.typeIconStyleText">
+						<text class="type-emoji">{{ record.typeIcon }}</text>
 					</view>
 
 					<!-- 中间信息 -->
 					<view class="record-body">
 						<view class="record-top">
-							<text class="type-tag" :style="{ color: _typeStyle(record.reason).color }">
-								{{ _typeStyle(record.reason).label }}
+							<text class="type-tag" :style="record.typeTagStyleText">
+								{{ record.typeLabel }}
 							</text>
-							<text class="record-reason" v-if="record.reason">{{ _beautifyReason(record.reason) }}</text>
+							<text class="record-reason" v-if="record.displayReason">{{ record.displayReason }}</text>
 						</view>
 						<view class="record-bottom">
 							<text class="record-time">{{ formatTime(record.created_at) }}</text>
@@ -65,8 +65,8 @@
 	// 交易类型配置
 	var TYPE_MAP = [
 		{ keywords: ['充值'], label: '充值', icon: '💰', color: '#E65100', bg: '#FFF3E0' },
-		{ keywords: ['余额支付', '购买商品', '扣款', '抵扣余额'], label: '消费', icon: '💸', color: '#C62828', bg: '#FFEBEE' },
-		{ keywords: ['退款', '退还', '退出拼团', '解散', '冲突'], label: '退款', icon: '↩️', color: '#1565C0', bg: '#E3F2FD' },
+		{ keywords: ['余额支付', '购买商品', '扣款', '抵扣余额', '预占余额'], label: '消费', icon: '💸', color: '#C62828', bg: '#FFEBEE' },
+		{ keywords: ['退款', '退还', '释放余额', '退出拼团', '解散', '冲突'], label: '退款', icon: '↩️', color: '#1565C0', bg: '#E3F2FD' },
 		{ keywords: ['积分兑换'], label: '兑换', icon: '🔄', color: '#F57C00', bg: '#FFF8E1' },
 		{ keywords: ['优惠券', '赠送余额'], label: '赠送', icon: '🎁', color: '#6A1B9A', bg: '#F3E5F5' },
 	];
@@ -90,6 +90,20 @@
 		},
 		methods: {
 			...mapActions(['getBalanceRecords']),
+			decorateRecords(records) {
+				if (!Array.isArray(records)) return [];
+				return records.map(function(record) {
+					record = record || {};
+					var type = this._typeStyle(record.reason);
+					return Object.assign({}, record, {
+						typeIcon: type.icon,
+						typeLabel: type.label,
+						typeIconStyleText: 'background: ' + type.bg + ';',
+						typeTagStyleText: 'color: ' + type.color + ';',
+						displayReason: this._beautifyReason(record.reason),
+					});
+				}.bind(this));
+			},
 			async loadRecords() {
 				this.errorMsg = '';
 				if (!this.hasLogin) {
@@ -110,7 +124,7 @@
 					}
 					// 兼容旧版 store：直接返回数组
 					if (Array.isArray(res)) {
-						this.records = res;
+						this.records = this.decorateRecords(res);
 						return;
 					}
 					// 兼容 HTML 字符串返回
@@ -130,7 +144,7 @@
 						this.records = [];
 						return;
 					}
-					this.records = res.data || [];
+					this.records = this.decorateRecords(res.data);
 				} catch (e) {
 					console.error('加载余额记录失败:', e);
 					this.errorMsg = typeof e === 'string' ? e : (e && e.message) || '网络请求失败(status=' + (e && e.statusCode) + ')';
@@ -160,6 +174,8 @@
 				if (reason.indexOf('余额支付订单 #') === 0) return '预约消费';
 				if (reason.indexOf('余额购买商品 #') === 0) return '购买商品';
 				if (reason.indexOf('更新订单重新抵扣余额 #') === 0) return '修改订单补扣余额';
+				if (reason.indexOf('订单支付预占余额 #') === 0) return '订单余额抵扣';
+				if (reason.indexOf('订单取消释放余额 #') === 0) return '订单取消退回';
 				if (reason === '拼团发起扣款') return '发起组局';
 				if (reason === '拼团加入扣款') return '加入组局';
 				if (reason.indexOf('退款（成员）') !== -1) return reason.replace('（成员）', '');

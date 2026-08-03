@@ -4,7 +4,7 @@
     <view class="bg-gradient"></view>
     
     <!-- 导航栏 -->
-    <view class="custom-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="custom-nav" :style="customNavStyle">
       <view class="nav-back-btn" @click="goHome">
         <text class="back-arrow">🏠</text>
       </view>
@@ -101,6 +101,9 @@ export default {
 
   computed: {
     ...mapState(['token']),
+    customNavStyle() {
+      return 'padding-top: ' + Number(this.statusBarHeight || 0) + 'px;';
+    },
   },
 
   onLoad(options) {

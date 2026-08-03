@@ -693,8 +693,13 @@ export default {
 
         payGroupOrder(payload) {
             uni.showLoading({ title: '调起支付...' });
-            AUTH.platformPay(this.token, { order_number: payload.order_number }).then(res => {
-                var paymentData = res && res.data && res.data.payment ? res.data.payment : (res && res.data ? res.data : res);
+            AUTH.platformPay(this.token, {
+                order_number: payload.order_number,
+                use_balance: true,
+            }).then(res => {
+                var responseData = res && res.data ? res.data : {};
+                if (responseData.payment_completed) return null;
+                var paymentData = responseData.payment || (res && res.data ? res.data : res);
                 return PLATFORM.requestPayment(paymentData);
             }).then(() => {
                 uni.hideLoading();
@@ -703,7 +708,7 @@ export default {
                 uni.hideLoading();
                 this.actionLoading = false;
                 var msg = err && err.errMsg ? err.errMsg : '支付失败';
-                if (msg.indexOf('cancel') >= 0) {
+                if (msg.indexOf('cancel') >= 0 || msg.indexOf('取消') >= 0) {
                     AUTH.cancelOrder(this.token, { order_number: payload.order_number }).catch(() => {});
                     this.trackGroupEvent('group_pay_failed', { reason: 'cancelled' });
                     uni.showToast({ title: '支付已取消', icon: 'none' });

@@ -11,10 +11,9 @@
 		<scroll-view scroll-x class="device-tabs" :show-scrollbar="false">
 			<view class="tab-row">
 				<view
-					v-for="tab in deviceTabs"
+					v-for="tab in deviceTabViews"
 					:key="tab.key"
-					class="device-tab"
-					:class="{ active: activeDevice === tab.key }"
+					:class="tab.className"
 					@tap="selectDevice(tab.key)"
 				>
 					<text class="tab-icon">{{ tab.icon }}</text>
@@ -284,6 +283,13 @@
 			};
 		},
 		computed: {
+			deviceTabViews() {
+				return this.deviceTabs.map(function(tab) {
+					return Object.assign({}, tab, {
+						className: this.activeDevice === tab.key ? 'device-tab active' : 'device-tab'
+					});
+				}.bind(this));
+			},
 			activeGuide() {
 				return this.guides[this.activeDevice] || this.guides.quick;
 			}

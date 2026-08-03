@@ -462,6 +462,7 @@
 				checkInInfo: { checked_in_today: false, current_streak: 0, can_check_in: true, points_earned_today: 0 },
 				checkInLoading: false,
 				checkInBoardExpanded: false,
+				checkInEntryLastTrackedAt: 0,
 				inviteInfo: {},
 				memberConfig: [],
 				claimableCouponCount: 0,
@@ -471,6 +472,7 @@
 		},
 		onShow() {
 			if (this.hasLogin) {
+				this.trackCheckInEntryView();
 				if (!this.userInfo) {
 					this.getUserInfo();
 				}
@@ -569,6 +571,17 @@
 			goOrderList(state) {
 				if (!this.ensureLoggedIn()) return;
 				this.navTo('/pages/order/order?state=' + state);
+			},
+			trackCheckInEntryView() {
+				var now = Date.now();
+				if (now - this.checkInEntryLastTrackedAt < 30000) return;
+				this.checkInEntryLastTrackedAt = now;
+				AUTH.trackEvent({
+					event: 'checkin_entry_view',
+					page_path: 'pages/user/user',
+					source: 'user_center',
+					has_login: true
+				}, this.token).catch(function() {});
 			},
 			toggleCheckInBoard() {
 				this.checkInBoardExpanded = !this.checkInBoardExpanded;
