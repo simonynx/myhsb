@@ -1,14 +1,5 @@
 <template>
     <view class="page">
-        <!-- 导航栏 -->
-        <view class="nav-bar" :class="scrolled ? 'solid' : 'transparent'">
-            <text class="nav-back yticon icon-fanhui" @tap="goBack"></text>
-            <text class="nav-title">{{ scrolled ? room.name : '包厢详情' }}</text>
-            <button class="nav-share" open-type="share" hover-class="none">
-                <text class="yticon icon-fenxiang2"></text>
-            </button>
-        </view>
-
         <!-- 轮播图 -->
         <view class="hero-section" @tap="previewImages">
             <swiper
@@ -32,6 +23,10 @@
                 <text>{{ statusText }}</text>
             </view>
 
+            <button class="hero-share" open-type="share" hover-class="none" @tap.stop>
+                <text class="yticon icon-fenxiang2"></text>
+            </button>
+
             <view class="hero-info">
                 <text class="hero-name">{{ room.name || '包厢详情' }}</text>
                 <text class="hero-sub">{{ heroSummary }}</text>
@@ -46,41 +41,40 @@
             <view class="hero-gradient"></view>
         </view>
 
-        <!-- 价格+名称卡片 -->
+        <!-- 核心价格与预约信息 -->
         <view class="price-card">
-            <view class="price-row">
+            <view class="price-head">
                 <view class="price-main">
                     <text class="price-yuan">¥</text>
                     <text class="price-num">{{ pricePerHourText }}</text>
                     <text class="price-unit">/小时</text>
                 </view>
                 <view class="original-price" v-if="room.original_price_per_hour && room.original_price_per_hour > room.price_per_hour">
-                    <text>¥{{ formatMoney(room.original_price_per_hour) }}</text>
+                    <text>¥{{ room.originalPriceText }}</text>
                 </view>
             </view>
 
-            <view class="room-name-row">
-                <view class="name-line">
-                    <text class="room-name">{{ room.name }}</text>
-                    <text class="seats-badge" v-if="room.seats_count">{{ room.seats_count }}人</text>
-                </view>
-                <view class="tags-row" v-if="room.tagsArr && room.tagsArr.length">
-                    <text class="tag" v-for="t in room.tagsArr" :key="t">{{ t }}</text>
-                </view>
+            <view class="pricing-explain">
+                <text class="pricing-title">费用组成</text>
+                <text class="pricing-copy">{{ pricingExplanation }}</text>
+            </view>
+
+            <view class="tags-row" v-if="room.tagsArr && room.tagsArr.length">
+                <text class="tag" v-for="t in room.tagsArr" :key="t">{{ t }}</text>
             </view>
 
             <view class="quick-info-row">
                 <view class="quick-info-item">
-                    <text class="qi-value">{{ availableSlotCount }}</text>
+                    <text class="qi-value">{{ seatCountText }}</text>
+                    <text class="qi-label">建议人数</text>
+                </view>
+                <view class="quick-info-item">
+                    <text class="qi-value accent">{{ availableSlotCount }}</text>
                     <text class="qi-label">可约时段</text>
                 </view>
                 <view class="quick-info-item">
                     <text class="qi-value">{{ openHoursText }}</text>
                     <text class="qi-label">营业时间</text>
-                </view>
-                <view class="quick-info-item">
-                    <text class="qi-value">{{ addonCountText }}</text>
-                    <text class="qi-label">可加选</text>
                 </view>
             </view>
         </view>
@@ -89,8 +83,8 @@
         <view class="slots-card">
             <view class="card-title">
                 <text>可选时段</text>
-                <view class="title-line"></view>
                 <text class="slots-date">{{ currentSelectDate }}</text>
+                <text class="slots-action" v-if="!isFullyBooked" @tap="goToAppoint">选择时段 ›</text>
             </view>
             <view class="slots-summary">
                 <text>{{ slotsSummary }}</text>
@@ -103,7 +97,7 @@
                     class="slot-item"
                     :class="slot.statusClass"
                 >
-                    <text class="slot-time">{{ formatDisplayHour(slot.start) }}</text>
+                    <text class="slot-time">{{ slot.displayTime }}</text>
                     <view class="slot-bar"></view>
                 </view>
             </view>
@@ -131,7 +125,6 @@
         <view class="facility-card" v-if="facilities.length">
             <view class="card-title">
                 <text>设施服务</text>
-                <view class="title-line"></view>
             </view>
             <view class="facility-grid">
                 <view class="facility-item" v-for="f in facilities" :key="f.name">
@@ -141,34 +134,41 @@
             </view>
         </view>
 
-        <!-- 增值服务 -->
-        <view class="addon-card" v-if="roomAddons.length > 0">
+        <!-- 房间介绍 -->
+        <view class="desc-card" v-if="room.description">
             <view class="card-title">
-                <text>🎁 可选升级体验</text>
-                <view class="title-line"></view>
+                <text>房间介绍</text>
             </view>
-            <view class="addon-list">
-                <view class="addon-item" v-for="a in roomAddons" :key="a.object_id">
-                    <text class="addon-icon">{{ a.icon || '🎁' }}</text>
-                    <view class="addon-info">
-                        <text class="addon-name">{{ formatAddonName(a.name) }}</text>
-                        <text class="addon-desc" v-if="a.description">{{ a.description }}</text>
-                    </view>
-                    <text class="addon-price">¥{{ formatAddonPrice(a.price) }}</text>
+            <view class="desc-text">
+                <rich-text :nodes="desc"></rich-text>
+            </view>
+        </view>
+
+        <!-- 增值服务仅作预告，具体选择放在确认预约页 -->
+        <view class="addon-card" v-if="roomAddonPreview.length > 0">
+            <view class="addon-head">
+                <view>
+                    <text class="addon-title">可选升级</text>
+                    <text class="addon-sub">共 {{ roomAddons.length }} 项，下单时按需选择</text>
+                </view>
+                <text class="addon-stage">确认页加选</text>
+            </view>
+            <view class="addon-preview">
+                <view class="addon-pill" v-for="a in roomAddonPreview" :key="a.object_id">
+                    <text class="addon-name">{{ a.displayName }}</text>
+                    <text class="addon-price">+¥{{ a.displayPrice }}</text>
                 </view>
             </view>
-            <text class="addon-tip">布置、补给等可在下单页提前加选</text>
         </view>
 
         <!-- 门店信息 -->
         <view class="store-card">
             <view class="store-header">
-                <text class="store-icon">🏠</text>
                 <text class="store-title">门店信息</text>
             </view>
             <view class="store-row">
                 <text class="store-label">店铺</text>
-                <text class="store-value">摸鱼划水吧</text>
+                <text class="store-value">{{ storeName }}</text>
             </view>
             <view class="store-row" v-if="storeAddress">
                 <text class="store-label">地址</text>
@@ -178,47 +178,36 @@
                 <text class="store-label">WiFi</text>
                 <text class="store-value">{{ wifiInfo }}</text>
             </view>
-            <view class="store-actions">
-                <view class="action-btn nav-btn" @tap="openMap">
+            <view class="store-actions" v-if="canOpenMap || canCallStore">
+                <view class="action-btn nav-btn" v-if="canOpenMap" @tap="openMap">
                     <text class="yticon icon-ditu"></text>
                     <text>导航</text>
                 </view>
-                <view class="action-btn call-btn" @tap="callPhone">
+                <view class="action-btn call-btn" v-if="canCallStore" @tap="callPhone">
                     <text class="yticon icon-dianhua"></text>
                     <text>拨打电话</text>
                 </view>
             </view>
         </view>
 
-        <!-- 房间介绍 -->
-        <view class="desc-card" v-if="room.description">
-            <view class="card-title">
-                <text>房间介绍</text>
-                <view class="title-line"></view>
-            </view>
-            <view class="desc-text">
-                <rich-text :nodes="desc"></rich-text>
-            </view>
-        </view>
-
         <!-- 预约说明 -->
         <view class="notice-card">
             <view class="notice-item">
-                <text class="notice-icon">⏰</text>
+                <text class="notice-mark">到店</text>
                 <view class="notice-content">
                     <text class="notice-title">预约说明</text>
                     <text class="notice-body">请在预约时段开始前到达门店，现场凭预约手机号核销使用</text>
                 </view>
             </view>
             <view class="notice-item">
-                <text class="notice-icon">❄️</text>
+                <text class="notice-mark">退款</text>
                 <view class="notice-content">
                     <text class="notice-title">取消政策</text>
-                    <text class="notice-body">预约开始前30分钟可免费取消，超时不可取消</text>
+                    <text class="notice-body">距预约开始超过1小时可申请退款；不足1小时请联系店员协助处理</text>
                 </view>
             </view>
             <view class="notice-item">
-                <text class="notice-icon">🎮</text>
+                <text class="notice-mark">使用</text>
                 <view class="notice-content">
                     <text class="notice-title">使用须知</text>
                     <text class="notice-body">房间内设施损坏需照价赔偿，请爱护公共物品</text>
@@ -233,9 +222,12 @@
         <!-- 底部操作栏 -->
         <view class="bottom-bar">
             <view class="price-info">
-                <text class="pi-label">包厢单价</text>
-                <text class="pi-price">¥{{ estimatePrice }}</text>
-                <text class="pi-sub">按所选时段结算</text>
+                <text class="pi-label">包厢费</text>
+                <view class="pi-price-line">
+                    <text class="pi-price">¥{{ pricePerHourText }}</text>
+                    <text class="pi-unit">/小时</text>
+                </view>
+                <text class="pi-sub">{{ personFeeHint }}</text>
             </view>
             <view
                 class="book-btn"
@@ -285,7 +277,7 @@
                     </view>
                     <view class="pf-btns">
                         <view class="pf-btn group" :class="specSelected.length ? '' : 'disabled'" @tap="specSelected.length && handleCreateGroup()">
-                            <text>找搭子</text>
+                            <text>发起组局</text>
                         </view>
                         <view class="pf-btn book" :class="specSelected.length ? '' : 'disabled'" @tap="specSelected.length && handleDirectBook()">
                             <text>直接预约</text>
@@ -301,10 +293,6 @@
 import { mapActions, mapState } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import times from '@/components/pretty-times/pretty-times.vue';
-
-const DEFAULT_STORE_PHONE = '13712345678';
-const STORE_LAT = 22.5431;
-const STORE_LNG = 114.0579;
 
 export default {
     components: { times },
@@ -322,17 +310,19 @@ export default {
             currentEndTime: '',
             disableTimeSlot: [],
             specSelected: [],
-            scrolled: false,
             currentImgIndex: 0,
+            storeName: '摸鱼划水吧',
             storeAddress: '',
             wifiInfo: '',
-            storePhone: DEFAULT_STORE_PHONE,
+            storePhone: '',
+            storeLatitude: null,
+            storeLongitude: null,
             facilities: [],
         };
     },
 
     computed: {
-        ...mapState(['hasLogin', 'token']),
+        ...mapState(['hasLogin', 'token', 'constance']),
         displaySlots() {
             if (!this.room.appoints) return [];
             return this.room.appoints;
@@ -354,9 +344,21 @@ export default {
         pricePerHourText() {
             return this.formatMoney(this.room.price_per_hour || 0);
         },
-        estimatePrice() {
-            if (!this.room.price_per_hour) return '0.00';
-            return this.formatMoney(this.room.price_per_hour);
+        personPriceText() {
+            return this.formatMoney(this.room.price_per_person || 0);
+        },
+        personFeeHint() {
+            if (!this.room.price_per_person) return '人数费用确认页显示';
+            return '另加 ¥' + this.personPriceText + '/人入场费';
+        },
+        pricingExplanation() {
+            if (!this.room.price_per_person) {
+                return '包厢费按所选时长计算，人数费用及优惠以确认页为准';
+            }
+            return '包厢费按时长计算 + 入场费 ¥' + this.personPriceText + '/人，优惠在确认页计算';
+        },
+        seatCountText() {
+            return this.room.seats_count ? this.room.seats_count + '人' : '--';
         },
         openHoursText() {
             if (this.room.opening_hours_start === undefined || this.room.opening_hours_end === undefined) return '--';
@@ -368,21 +370,28 @@ export default {
         bookedSlotCount() {
             return this.displaySlots.filter(function(slot) { return slot.status === 3; }).length;
         },
-        addonCountText() {
-            return this.roomAddons.length > 0 ? String(this.roomAddons.length) : '可到店选';
+        roomAddonPreview() {
+            return this.roomAddons.slice(0, 3);
+        },
+        canCallStore() {
+            return !!String(this.storePhone || '').replace(/[^\d+]/g, '');
+        },
+        canOpenMap() {
+            return isFinite(this.storeLatitude) && isFinite(this.storeLongitude)
+                && this.storeLatitude !== null && this.storeLongitude !== null;
         },
         heroSummary() {
             const parts = [];
             if (this.room.seats_count) parts.push('适合' + this.room.seats_count + '人');
             if (this.openHoursText !== '--') parts.push(this.openHoursText + '营业');
-            if (this.availableSlotCount > 0) parts.push('今日余' + this.availableSlotCount + '段');
+            if (this.availableSlotCount > 0) parts.push('余' + this.availableSlotCount + '段可约');
             return parts.length ? parts.join(' · ') : '桌游、聚会、休闲包厢';
         },
         slotsSummary() {
             if (this.displaySlots.length === 0) return '暂未开放预约时段';
             if (this.availableSlotCount > 0) return '还有 ' + this.availableSlotCount + ' 个时段可预约';
-            if (this.bookedSlotCount > 0) return '今天的可用时段已被约满';
-            return '今天暂无可预约时段';
+            if (this.bookedSlotCount > 0) return '所选日期的可用时段已被约满';
+            return '所选日期暂无可预约时段';
         },
         bottomButtonText() {
             if (this.isFullyBooked) return '当天已约满';
@@ -415,10 +424,6 @@ export default {
         }
     },
 
-    onPageScroll(e) {
-        this.scrolled = e.scrollTop > 200;
-    },
-
     onShareAppMessage() {
         return this.buildSharePayload();
     },
@@ -433,7 +438,7 @@ export default {
     },
 
     methods: {
-        ...mapActions(['loginAndRegister']),
+        ...mapActions(['loginAndRegister', 'getConstanceInfo']),
 
         buildSharePayload() {
             const roomId = this.room && this.room.object_id ? this.room.object_id : '';
@@ -444,7 +449,7 @@ export default {
             if (date) query.push('date=' + encodeURIComponent(date));
             if (query.length) path += '?' + query.join('&');
             return {
-                title: '摸鱼划水吧 · ' + ((this.room && this.room.name) || '包厢详情'),
+                title: this.storeName + ' · ' + ((this.room && this.room.name) || '包厢详情'),
                 path: path,
                 imageUrl: (this.room && this.room.image1) || '/static/logo_small.jpg',
             };
@@ -467,6 +472,7 @@ export default {
             if (r.tags && typeof r.tags === 'string' && !r.tagsArr) {
                 r.tagsArr = r.tags.split('$').map(t => t.trim()).filter(Boolean);
             }
+            r.originalPriceText = this.formatMoney(r.original_price_per_hour || 0);
             this.room = r;
             this.currentImgIndex = 0;
             this.buildImages();
@@ -530,21 +536,31 @@ export default {
             this.facilities = tags
                 .filter(t => tagMap[t.toLowerCase()])
                 .map(t => tagMap[t.toLowerCase()]);
-            // Always show WiFi if not in tags
-            if (!this.facilities.find(f => f.name === 'WiFi')) {
-                this.facilities.unshift({ icon: '📶', name: 'WiFi' });
-            }
         },
 
         buildStoreInfo() {
-            AUTH.getConstance().then(res => {
-                if (!res || res._status !== 0 || !res.data) return;
-                const cfg = res.data;
-                const address = (cfg.store_address || '') + (cfg.store_area || '');
-                if (address) this.storeAddress = address;
-                if (cfg.wifi_name) this.wifiInfo = cfg.wifi_name + (cfg.wifi_password ? ' / ' + cfg.wifi_password : '');
-                if (cfg.phone_number) this.storePhone = cfg.phone_number;
-            });
+            if (this.constance) this.applyStoreConfig(this.constance);
+            this.getConstanceInfo().then(res => {
+                if (res && res._status === 0 && res.data) this.applyStoreConfig(res.data);
+            }).catch(() => {});
+        },
+
+        applyStoreConfig(cfg) {
+            if (!cfg) return;
+            const address = String(cfg.store_address || '') + String(cfg.store_area || '');
+            const latitude = parseFloat(cfg.store_latitude);
+            const longitude = parseFloat(cfg.store_longitude);
+            if (cfg.store_name) this.storeName = String(cfg.store_name);
+            if (address) this.storeAddress = address;
+            if (cfg.wifi_name) {
+                this.wifiInfo = String(cfg.wifi_name) + (cfg.wifi_password ? ' / ' + cfg.wifi_password : '');
+                if (!this.facilities.find(item => item.name === 'WiFi')) {
+                    this.facilities = [{ icon: '📶', name: 'WiFi' }].concat(this.facilities);
+                }
+            }
+            if (cfg.phone_number) this.storePhone = String(cfg.phone_number);
+            this.storeLatitude = isFinite(latitude) ? latitude : null;
+            this.storeLongitude = isFinite(longitude) ? longitude : null;
         },
 
         initTimeConfig() {
@@ -554,6 +570,7 @@ export default {
             if (this.room.appoints) {
                 for (const slot of this.room.appoints) {
                     slot.statusClass = this._getSlotClass(slot.status);
+                    slot.displayTime = this.formatDisplayHour(slot.start);
                     if (slot.status === 3) {
                         this.disableTimeSlot.push([
                             this.currentSelectDate + ' ' + this._padHour(slot.start) + ':00:00',
@@ -650,6 +667,7 @@ export default {
                     end: h + 1,
                     status: status,
                     statusClass: this._getSlotClass(status),
+                    displayTime: this.formatDisplayHour(h),
                 });
             }
             return slots;
@@ -697,7 +715,10 @@ export default {
             try {
                 const res = await AUTH.getRoomAddons(this.token, roomId);
                 if (res && res._status === 0) {
-                    this.roomAddons = res.data || [];
+                    this.roomAddons = (res.data || []).map(item => Object.assign({}, item, {
+                        displayName: this.formatAddonName(item.name),
+                        displayPrice: this.formatAddonPrice(item.price),
+                    }));
                 }
             } catch (e) {
                 this.roomAddons = [];
@@ -830,83 +851,48 @@ export default {
             this._fetchDisableTimeSlot(date);
         },
 
-        callPhone() { uni.makePhoneCall({ phoneNumber: this.storePhone }); },
-
-        openMap() {
-            uni.openLocation({
-                latitude: STORE_LAT,
-                longitude: STORE_LNG,
-                name: '摸鱼划水吧',
-                address: this.storeAddress || '深圳市',
-            });
+        callPhone() {
+            const phone = String(this.storePhone || '').replace(/[^\d+]/g, '');
+            if (!phone) {
+                uni.showToast({ title: '门店电话暂未配置', icon: 'none' });
+                return;
+            }
+            uni.makePhoneCall({ phoneNumber: phone });
         },
 
-        goBack() { uni.navigateBack(); },
+        openMap() {
+            if (!this.canOpenMap) {
+                uni.showToast({ title: '门店位置暂未配置', icon: 'none' });
+                return;
+            }
+            uni.openLocation({
+                latitude: this.storeLatitude,
+                longitude: this.storeLongitude,
+                name: this.storeName,
+                address: this.storeAddress,
+            });
+        },
     },
 };
 </script>
 
 <style lang="scss">
-$primary: #FF6432;
-$gold: #FFB933;
-$green: #34C759;
-$red: #FF3B30;
-$dark: #333;
-$gray: #999;
-$light-gray: #F0F0F0;
-$bg: #F5F6F7;
+$primary: #D96337;
+$gold: #D99028;
+$green: #4F7652;
+$red: #B5534F;
+$dark: #302E2B;
+$gray: #817B73;
+$light-gray: #ECE9E4;
+$bg: #F7F6F2;
 $card-bg: #FFFFFF;
 
 page { background: $bg; padding-bottom: 120rpx; }
 
-// 导航栏
-.nav-bar {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 88rpx;
-    transition: background 0.3s;
-
-    &.transparent {
-        background: transparent;
-        .nav-back, .nav-title, .nav-share { color: #fff; text-shadow: 0 2rpx 8rpx rgba(0,0,0,0.3); }
-    }
-
-    &.solid {
-        background: #fff;
-        box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.08);
-        .nav-back, .nav-title, .nav-share { color: $dark; text-shadow: none; }
-    }
-
-    .nav-back { position: absolute; left: 30rpx; font-size: 36rpx; }
-    .nav-title { font-size: 32rpx; font-weight: bold; }
-    .nav-share {
-        position: absolute;
-        right: 18rpx;
-        width: 72rpx;
-        height: 72rpx;
-        padding: 0;
-        margin: 0;
-        border-radius: 50%;
-        background: transparent;
-        border: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-        font-size: 40rpx;
-        color: inherit;
-        &::after { border: none; }
-    }
-}
-
 // 轮播图
 .hero-section {
     position: relative;
-    height: 560rpx;
+    height: 500rpx;
     overflow: hidden;
 
     .hero-swiper { height: 100%; }
@@ -914,15 +900,37 @@ page { background: $bg; padding-bottom: 120rpx; }
 
     .hero-badge {
         position: absolute;
-        top: 112rpx; left: 24rpx;
-        padding: 8rpx 20rpx;
-        border-radius: 24rpx;
+        top: 24rpx; left: 24rpx;
+        z-index: 3;
+        padding: 8rpx 16rpx;
+        border-radius: 10rpx;
         font-size: 24rpx;
         font-weight: bold;
         color: #fff;
         &.available { background: rgba($green, 0.9); }
         &.partial { background: rgba($gold, 0.9); }
         &.full { background: rgba($red, 0.9); }
+    }
+
+    .hero-share {
+        position: absolute;
+        top: 18rpx;
+        right: 20rpx;
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 68rpx;
+        height: 68rpx;
+        padding: 0;
+        margin: 0;
+        border: none;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.92);
+        color: $dark;
+        font-size: 34rpx;
+        line-height: 1;
+        &::after { border: none; }
     }
 
     .hero-info {
@@ -953,6 +961,7 @@ page { background: $bg; padding-bottom: 120rpx; }
 
     .img-counter {
         position: absolute;
+        z-index: 3;
         bottom: 24rpx; right: 24rpx;
         background: rgba(0,0,0,0.38);
         color: #fff;
@@ -963,6 +972,7 @@ page { background: $bg; padding-bottom: 120rpx; }
 
     .hero-gradient {
         position: absolute;
+        z-index: 1;
         bottom: 0; left: 0; right: 0;
         height: 220rpx;
         background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.54));
@@ -972,25 +982,25 @@ page { background: $bg; padding-bottom: 120rpx; }
 // 价格卡片
 .price-card {
     background: #fff;
-    margin: -24rpx 20rpx 20rpx;
-    border-radius: 24rpx;
-    padding: 30rpx;
-    box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.08);
+    margin: -18rpx 20rpx 18rpx;
+    border: 1rpx solid #E5E0D9;
+    border-radius: 14rpx;
+    padding: 28rpx;
+    box-shadow: 0 4rpx 16rpx rgba(63, 50, 38, 0.06);
     position: relative;
     z-index: 1;
 
-    .price-row {
+    .price-head {
         display: flex;
         align-items: baseline;
-        justify-content: space-between;
-        margin-bottom: 16rpx;
+        gap: 14rpx;
     }
 
     .price-main {
         display: flex;
         align-items: baseline;
         .price-yuan { font-size: 28rpx; color: $primary; font-weight: bold; }
-        .price-num { font-size: 60rpx; font-weight: bold; color: $primary; line-height: 1; }
+        .price-num { font-size: 52rpx; font-weight: bold; color: $primary; line-height: 1; }
         .price-unit { font-size: 26rpx; color: $gray; margin-left: 4rpx; }
     }
 
@@ -1001,42 +1011,34 @@ page { background: $bg; padding-bottom: 120rpx; }
         text-decoration: line-through;
     }
 
-    .room-name-row {
+    .pricing-explain {
         display: flex;
-        flex-direction: column;
-        gap: 8rpx;
-    }
-
-    .name-line {
-        display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 16rpx;
-        min-width: 0;
+        margin-top: 20rpx;
+        padding: 16rpx 18rpx;
+        border-left: 5rpx solid #D7A264;
+        background: #FAF7F2;
     }
 
-    .room-name {
-        font-size: 36rpx;
-        font-weight: bold;
-        color: $dark;
-        line-height: 1.3;
-        flex: 1;
-        min-width: 0;
-    }
-
-    .seats-badge {
-        font-size: 24rpx;
-        color: #8B7355;
-        background: #F5F0E8;
-        padding: 4rpx 14rpx;
-        border-radius: 16rpx;
-        font-weight: 500;
+    .pricing-title {
         flex-shrink: 0;
+        font-size: 22rpx;
+        font-weight: 700;
+        color: #6C5141;
+    }
+
+    .pricing-copy {
+        font-size: 22rpx;
+        line-height: 1.55;
+        color: #6D6760;
     }
 
     .tags-row {
         display: flex;
         flex-wrap: wrap;
         gap: 8rpx;
+        margin-top: 18rpx;
     }
 
     .tag {
@@ -1044,7 +1046,7 @@ page { background: $bg; padding-bottom: 120rpx; }
         color: $primary;
         background: #FFF0EB;
         padding: 4rpx 14rpx;
-        border-radius: 10rpx;
+        border-radius: 8rpx;
     }
 
     .quick-info-row {
@@ -1075,6 +1077,8 @@ page { background: $bg; padding-bottom: 120rpx; }
         text-overflow: ellipsis;
     }
 
+    .qi-value.accent { color: $green; }
+
     .qi-label {
         font-size: 21rpx;
         color: $gray;
@@ -1085,9 +1089,8 @@ page { background: $bg; padding-bottom: 120rpx; }
 // 时段卡片
 .slots-card {
     background: #fff;
-    margin: 0 20rpx 20rpx;
-    border-radius: 20rpx;
-    padding: 24rpx;
+    margin: 0 0 16rpx;
+    padding: 28rpx;
 
     .card-title {
         font-size: 30rpx;
@@ -1096,26 +1099,26 @@ page { background: $bg; padding-bottom: 120rpx; }
         margin-bottom: 20rpx;
         display: flex;
         align-items: center;
-        gap: 12rpx;
-
-        .title-line {
-            flex: 1;
-            height: 4rpx;
-            background: linear-gradient(to right, $primary, transparent);
-            border-radius: 2rpx;
-        }
+        gap: 14rpx;
 
         .slots-date {
             font-size: 24rpx;
             color: $gray;
             font-weight: normal;
         }
+
+        .slots-action {
+            margin-left: auto;
+            font-size: 24rpx;
+            font-weight: 700;
+            color: $primary;
+        }
     }
 
     .slots-summary {
         margin-bottom: 18rpx;
         padding: 14rpx 18rpx;
-        border-radius: 14rpx;
+        border-radius: 8rpx;
         background: #FFF7F2;
         color: $primary;
         font-size: 24rpx;
@@ -1180,9 +1183,8 @@ page { background: $bg; padding-bottom: 120rpx; }
 // 设施卡片
 .facility-card {
     background: #fff;
-    margin: 0 20rpx 20rpx;
-    border-radius: 20rpx;
-    padding: 24rpx;
+    margin: 0 0 16rpx;
+    padding: 28rpx;
 
     .card-title {
         font-size: 30rpx;
@@ -1192,31 +1194,26 @@ page { background: $bg; padding-bottom: 120rpx; }
         display: flex;
         align-items: center;
         gap: 12rpx;
-
-        .title-line {
-            flex: 1;
-            height: 4rpx;
-            background: linear-gradient(to right, $primary, transparent);
-            border-radius: 2rpx;
-        }
     }
 
     .facility-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 20rpx;
+        gap: 12rpx;
 
         .facility-item {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
             gap: 8rpx;
-            min-width: 100rpx;
-            padding: 16rpx;
-            background: #FAFAFA;
-            border-radius: 16rpx;
+            width: calc(33.333% - 8rpx);
+            min-width: 0;
+            padding: 14rpx;
+            box-sizing: border-box;
+            background: #F7F6F2;
+            border-radius: 8rpx;
 
-            .facility-icon { font-size: 44rpx; }
+            .facility-icon { font-size: 32rpx; }
             .facility-name { font-size: 22rpx; color: $dark; }
         }
     }
@@ -1225,17 +1222,14 @@ page { background: $bg; padding-bottom: 120rpx; }
 // 门店卡片
 .store-card {
     background: #fff;
-    margin: 0 20rpx 20rpx;
-    border-radius: 20rpx;
-    padding: 24rpx;
+    margin: 0 0 16rpx;
+    padding: 28rpx;
 
     .store-header {
         display: flex;
         align-items: center;
-        gap: 10rpx;
         margin-bottom: 20rpx;
 
-        .store-icon { font-size: 36rpx; }
         .store-title { font-size: 30rpx; font-weight: bold; color: $dark; }
     }
 
@@ -1272,7 +1266,7 @@ page { background: $bg; padding-bottom: 120rpx; }
             justify-content: center;
             gap: 8rpx;
             padding: 20rpx;
-            border-radius: 16rpx;
+            border-radius: 10rpx;
             font-size: 28rpx;
             font-weight: bold;
 
@@ -1294,9 +1288,8 @@ page { background: $bg; padding-bottom: 120rpx; }
 // 介绍卡片
 .desc-card {
     background: #fff;
-    margin: 0 20rpx 20rpx;
-    border-radius: 20rpx;
-    padding: 24rpx;
+    margin: 0 0 16rpx;
+    padding: 28rpx;
 
     .card-title {
         font-size: 30rpx;
@@ -1306,13 +1299,6 @@ page { background: $bg; padding-bottom: 120rpx; }
         display: flex;
         align-items: center;
         gap: 12rpx;
-
-        .title-line {
-            flex: 1;
-            height: 4rpx;
-            background: linear-gradient(to right, $primary, transparent);
-            border-radius: 2rpx;
-        }
     }
 
     .desc-text {
@@ -1327,9 +1313,8 @@ page { background: $bg; padding-bottom: 120rpx; }
 // 预约说明卡片
 .notice-card {
     background: #fff;
-    margin: 0 20rpx 20rpx;
-    border-radius: 20rpx;
-    padding: 24rpx;
+    margin: 0 0 16rpx;
+    padding: 16rpx 28rpx;
 
     .notice-item {
         display: flex;
@@ -1339,7 +1324,18 @@ page { background: $bg; padding-bottom: 120rpx; }
 
         &:last-child { border-bottom: none; }
 
-        .notice-icon { font-size: 36rpx; flex-shrink: 0; margin-top: 4rpx; }
+        .notice-mark {
+            flex-shrink: 0;
+            min-width: 56rpx;
+            padding: 6rpx 8rpx;
+            margin-top: 2rpx;
+            border-radius: 7rpx;
+            background: #F3EEE8;
+            color: #6C5141;
+            font-size: 20rpx;
+            font-weight: 700;
+            text-align: center;
+        }
 
         .notice-content {
             flex: 1;
@@ -1361,34 +1357,57 @@ page { background: $bg; padding-bottom: 120rpx; }
 
 // 增值服务卡片
 .addon-card {
-    margin: 20rpx 24rpx;
-    padding: 24rpx;
+    margin: 0 0 16rpx;
+    padding: 28rpx;
     background: #FFF;
-    border-radius: 24rpx;
-    box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
-    .addon-list {
-        margin-top: 16rpx;
-        .addon-item {
-            display: flex;
-            align-items: center;
-            padding: 16rpx 0;
-            border-bottom: 1rpx solid #F5F5F5;
-            &:last-child { border-bottom: none; }
-            .addon-icon { font-size: 40rpx; margin-right: 16rpx; }
-            .addon-info {
-                flex: 1;
-                .addon-name { font-size: 28rpx; color: $dark; font-weight: 500; }
-                .addon-desc { font-size: 22rpx; color: $gray; margin-top: 4rpx; display: block; }
-            }
-            .addon-price { font-size: 28rpx; color: $primary; font-weight: bold; }
-        }
+
+    .addon-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
     }
-    .addon-tip {
+
+    .addon-title {
+        display: block;
+        font-size: 30rpx;
+        font-weight: 700;
+        color: $dark;
+    }
+
+    .addon-sub {
+        display: block;
+        margin-top: 5rpx;
         font-size: 22rpx;
         color: $gray;
-        margin-top: 12rpx;
-        display: block;
-        text-align: center;
+    }
+
+    .addon-stage {
+        flex-shrink: 0;
+        padding: 7rpx 10rpx;
+        border-radius: 7rpx;
+        background: #EEF3EC;
+        color: $green;
+        font-size: 20rpx;
+    }
+
+    .addon-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10rpx;
+        margin-top: 18rpx;
+    }
+
+    .addon-pill {
+        display: flex;
+        align-items: center;
+        gap: 8rpx;
+        padding: 10rpx 13rpx;
+        border: 1rpx solid #DDD9D2;
+        border-radius: 8rpx;
+        background: #FAF9F7;
+
+        .addon-name { font-size: 22rpx; color: #56514B; }
+        .addon-price { font-size: 21rpx; font-weight: 700; color: $primary; }
     }
 }
 
@@ -1412,18 +1431,28 @@ page { background: $bg; padding-bottom: 120rpx; }
     .price-info {
         display: flex;
         flex-direction: column;
+        min-width: 0;
+        padding-right: 18rpx;
 
         .pi-label { font-size: 22rpx; color: $gray; }
-        .pi-price { font-size: 44rpx; font-weight: bold; color: $primary; line-height: 1.1; }
-        .pi-sub { font-size: 20rpx; color: #B0A29A; margin-top: 2rpx; }
+        .pi-price-line { display: flex; align-items: baseline; }
+        .pi-price { font-size: 40rpx; font-weight: bold; color: $primary; line-height: 1.1; }
+        .pi-unit { margin-left: 3rpx; font-size: 21rpx; color: $gray; }
+        .pi-sub {
+            margin-top: 2rpx;
+            font-size: 20rpx;
+            color: #8E857D;
+            white-space: nowrap;
+        }
     }
 
     .book-btn {
         width: 320rpx;
+        flex-shrink: 0;
         height: 80rpx;
         background: $primary;
         color: #fff;
-        border-radius: 40rpx;
+        border-radius: 12rpx;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1455,7 +1484,7 @@ page { background: $bg; padding-bottom: 120rpx; }
         position: absolute;
         left: 0; right: 0; bottom: 0;
         background: #fff;
-        border-radius: 30rpx 30rpx 0 0;
+        border-radius: 16rpx 16rpx 0 0;
         height: 75vh;
         overflow: hidden;
         display: flex;
@@ -1520,7 +1549,7 @@ page { background: $bg; padding-bottom: 120rpx; }
 
         .pf-btn {
             height: 76rpx;
-            border-radius: 38rpx;
+            border-radius: 10rpx;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1531,14 +1560,19 @@ page { background: $bg; padding-bottom: 120rpx; }
             transition: background 0.2s;
 
             &.group {
-                background: linear-gradient(135deg, #FF9ECD, #FF6432);
+                border: 1rpx solid #D7A264;
+                background: #FFF;
+                color: #8A5A3C;
                 &.disabled {
-                    background: #CCC;
+                    border-color: #DDD;
+                    background: #F4F4F4;
+                    color: #AAA;
                 }
             }
 
             &.book {
                 background: $primary;
+                min-width: 190rpx;
                 &.disabled {
                     background: #CCC;
                 }

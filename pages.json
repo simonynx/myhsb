@@ -33,7 +33,7 @@
 		{
 			"path": "pages/product/product",
 			"style": {
-				"navigationBarTitleText": "详情",
+				"navigationBarTitleText": "包厢详情",
 				"navigationBarBackgroundColor": "#FFFFFF",
 				"navigationBarTextStyle": "black"
 			}
