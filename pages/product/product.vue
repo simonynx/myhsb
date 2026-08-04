@@ -147,16 +147,13 @@
         <!-- 增值服务仅作预告，具体选择放在确认预约页 -->
         <view class="addon-card" v-if="roomAddonPreview.length > 0">
             <view class="addon-head">
-                <view>
+                <view class="addon-copy">
                     <text class="addon-title">可选升级</text>
-                    <text class="addon-sub">共 {{ roomAddons.length }} 项，下单时按需选择</text>
+                    <text class="addon-sub">{{ addonPreviewText }}</text>
                 </view>
-                <text class="addon-stage">确认页加选</text>
-            </view>
-            <view class="addon-preview">
-                <view class="addon-pill" v-for="a in roomAddonPreview" :key="a.object_id">
-                    <text class="addon-name">{{ a.displayName }}</text>
-                    <text class="addon-price">+¥{{ a.displayPrice }}</text>
+                <view class="addon-side">
+                    <text class="addon-count">{{ roomAddons.length }}项</text>
+                    <text class="addon-stage">下单时选择</text>
                 </view>
             </view>
         </view>
@@ -192,22 +189,23 @@
 
         <!-- 预约说明 -->
         <view class="notice-card">
+            <text class="notice-section-title">预约须知</text>
             <view class="notice-item">
-                <text class="notice-mark">到店</text>
+                <view class="notice-line"></view>
                 <view class="notice-content">
-                    <text class="notice-title">预约说明</text>
+                    <text class="notice-title">到店与核销</text>
                     <text class="notice-body">请在预约时段开始前到达门店，现场凭预约手机号核销使用</text>
                 </view>
             </view>
             <view class="notice-item">
-                <text class="notice-mark">退款</text>
+                <view class="notice-line"></view>
                 <view class="notice-content">
-                    <text class="notice-title">取消政策</text>
+                    <text class="notice-title">取消与退款</text>
                     <text class="notice-body">距预约开始超过1小时可申请退款；不足1小时请联系店员协助处理</text>
                 </view>
             </view>
             <view class="notice-item">
-                <text class="notice-mark">使用</text>
+                <view class="notice-line"></view>
                 <view class="notice-content">
                     <text class="notice-title">使用须知</text>
                     <text class="notice-body">房间内设施损坏需照价赔偿，请爱护公共物品</text>
@@ -222,8 +220,8 @@
         <!-- 底部操作栏 -->
         <view class="bottom-bar">
             <view class="price-info">
-                <text class="pi-label">包厢费</text>
-                <view class="pi-price-line">
+                <view class="pi-main-line">
+                    <text class="pi-label">包厢</text>
                     <text class="pi-price">¥{{ pricePerHourText }}</text>
                     <text class="pi-unit">/小时</text>
                 </view>
@@ -372,6 +370,11 @@ export default {
         },
         roomAddonPreview() {
             return this.roomAddons.slice(0, 3);
+        },
+        addonPreviewText() {
+            const names = this.roomAddonPreview.map(item => item.displayName).filter(Boolean);
+            if (!names.length) return '下单时可按需加选布置、补给等服务';
+            return names.join('、') + (this.roomAddons.length > names.length ? '等可选服务' : '');
         },
         canCallStore() {
             return !!String(this.storePhone || '').replace(/[^\d+]/g, '');
@@ -1256,7 +1259,7 @@ page { background: $bg; padding-bottom: 120rpx; }
 
     .store-actions {
         display: flex;
-        gap: 16rpx;
+        gap: 12rpx;
         margin-top: 20rpx;
 
         .action-btn {
@@ -1265,21 +1268,21 @@ page { background: $bg; padding-bottom: 120rpx; }
             align-items: center;
             justify-content: center;
             gap: 8rpx;
-            padding: 20rpx;
+            padding: 16rpx;
+            border: 1rpx solid #DDD9D2;
             border-radius: 10rpx;
-            font-size: 28rpx;
-            font-weight: bold;
+            background: #FAF9F7;
+            font-size: 26rpx;
+            font-weight: 700;
 
-            .yticon { font-size: 36rpx; }
+            .yticon { font-size: 32rpx; }
         }
 
         .nav-btn {
-            background: #F0F9F0;
             color: $green;
         }
 
         .call-btn {
-            background: #FFF0EB;
             color: $primary;
         }
     }
@@ -1314,27 +1317,31 @@ page { background: $bg; padding-bottom: 120rpx; }
 .notice-card {
     background: #fff;
     margin: 0 0 16rpx;
-    padding: 16rpx 28rpx;
+    padding: 28rpx;
+
+    .notice-section-title {
+        display: block;
+        margin-bottom: 4rpx;
+        font-size: 30rpx;
+        font-weight: 700;
+        color: $dark;
+    }
 
     .notice-item {
         display: flex;
         gap: 16rpx;
-        padding: 16rpx 0;
+        padding: 20rpx 0;
         border-bottom: 1rpx solid $light-gray;
 
         &:last-child { border-bottom: none; }
 
-        .notice-mark {
+        .notice-line {
             flex-shrink: 0;
-            min-width: 56rpx;
-            padding: 6rpx 8rpx;
-            margin-top: 2rpx;
-            border-radius: 7rpx;
-            background: #F3EEE8;
-            color: #6C5141;
-            font-size: 20rpx;
-            font-weight: 700;
-            text-align: center;
+            width: 5rpx;
+            height: 38rpx;
+            margin-top: 3rpx;
+            border-radius: 3rpx;
+            background: #D7A264;
         }
 
         .notice-content {
@@ -1363,8 +1370,9 @@ page { background: $bg; padding-bottom: 120rpx; }
 
     .addon-head {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
+        gap: 18rpx;
     }
 
     .addon-title {
@@ -1374,40 +1382,36 @@ page { background: $bg; padding-bottom: 120rpx; }
         color: $dark;
     }
 
+    .addon-copy {
+        flex: 1;
+        min-width: 0;
+    }
+
     .addon-sub {
         display: block;
         margin-top: 5rpx;
         font-size: 22rpx;
+        line-height: 1.5;
         color: $gray;
     }
 
-    .addon-stage {
+    .addon-side {
         flex-shrink: 0;
-        padding: 7rpx 10rpx;
-        border-radius: 7rpx;
-        background: #EEF3EC;
-        color: $green;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4rpx;
+    }
+
+    .addon-count {
+        font-size: 23rpx;
+        font-weight: 700;
+        color: #56514B;
+    }
+
+    .addon-stage {
         font-size: 20rpx;
-    }
-
-    .addon-preview {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10rpx;
-        margin-top: 18rpx;
-    }
-
-    .addon-pill {
-        display: flex;
-        align-items: center;
-        gap: 8rpx;
-        padding: 10rpx 13rpx;
-        border: 1rpx solid #DDD9D2;
-        border-radius: 8rpx;
-        background: #FAF9F7;
-
-        .addon-name { font-size: 22rpx; color: #56514B; }
-        .addon-price { font-size: 21rpx; font-weight: 700; color: $primary; }
+        color: $green;
     }
 }
 
@@ -1434,9 +1438,9 @@ page { background: $bg; padding-bottom: 120rpx; }
         min-width: 0;
         padding-right: 18rpx;
 
-        .pi-label { font-size: 22rpx; color: $gray; }
-        .pi-price-line { display: flex; align-items: baseline; }
-        .pi-price { font-size: 40rpx; font-weight: bold; color: $primary; line-height: 1.1; }
+        .pi-main-line { display: flex; align-items: baseline; }
+        .pi-label { margin-right: 7rpx; font-size: 21rpx; color: $gray; }
+        .pi-price { font-size: 36rpx; font-weight: bold; color: $primary; line-height: 1.1; }
         .pi-unit { margin-left: 3rpx; font-size: 21rpx; color: $gray; }
         .pi-sub {
             margin-top: 2rpx;
