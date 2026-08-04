@@ -230,30 +230,29 @@
 		<view class="review-section" v-if="reviews.length > 0">
 			<view class="section-heading compact">
 				<view>
-					<text class="section-kicker">真实到店体验</text>
-					<text class="section-title">玩家怎么说</text>
+					<text class="section-kicker">来自真实消费</text>
+					<text class="section-title">到店玩家评价</text>
 					<text class="section-summary">{{ reviewSummaryText }}</text>
 				</view>
-				<text class="section-link" @tap="goToMyReviews">{{ hasLogin ? '写评价 ›' : '登录评价 ›' }}</text>
+				<text class="section-link" @tap="goToMyReviews">查看全部 ›</text>
 			</view>
-			<swiper class="reviews-swiper" vertical autoplay circular interval="4000">
-				<swiper-item v-for="rev in reviews" :key="rev.key">
-					<view class="review-card">
-						<view class="review-header">
-							<text class="review-avatar">{{ rev.avatarText }}</text>
-							<view class="review-meta">
-								<text class="review-name">{{ rev.displayName }}</text>
-								<view class="review-stars">
-									<text v-for="s in 5" :key="s" :class="s <= rev.ratingNumber ? 'star filled' : 'star'">★</text>
-								</view>
+			<view class="home-review-list">
+				<view class="review-card" v-for="rev in reviews" :key="rev.key">
+					<view class="review-header">
+						<view class="review-avatar">{{ rev.avatarText }}</view>
+						<view class="review-meta">
+							<text class="review-name">{{ rev.displayName }}</text>
+							<view class="review-stars">
+								<text v-for="s in 5" :key="s" :class="s <= rev.ratingNumber ? 'star filled' : 'star'">★</text>
 							</view>
-							<text class="review-badge">{{ rev.recommendText }}</text>
 						</view>
-						<text class="review-text">{{ rev.contentText }}</text>
-						<text class="review-time">{{ rev.shortTime }}</text>
+						<text class="review-badge">{{ rev.badgeText }}</text>
 					</view>
-				</swiper-item>
-			</swiper>
+					<text class="review-tag-line" v-if="rev.tagText">{{ rev.tagText }}</text>
+					<text class="review-text">{{ rev.contentText }}</text>
+					<text class="review-time">{{ rev.shortTime }}</text>
+				</view>
+			</view>
 		</view>
 
 	</view>
@@ -456,9 +455,9 @@
 			},
 			reviewSummaryText() {
 				if (this.reviewAverageText) {
-					return this.reviewAverageText + ' · ' + this.reviewTotalCount + '条真实体验';
+					return this.reviewAverageText + ' · ' + this.reviewTotalCount + '条已到店评价';
 				}
-				return this.reviewTotalCount + '条真实体验';
+				return this.reviewTotalCount + '条已到店评价';
 			},
 		},
 		watch: {
@@ -1040,18 +1039,11 @@
 				}
 			},
 			goToMyReviews() {
-				if (!this.hasLogin) {
-					uni.showModal({
-						title: '提示',
-						content: '登录后可以发表自己的体验',
-						success: (res) => {
-							if (res.confirm) {
-								this.loginAndRegister().catch(() => {});
-							}
-						}
-					});
-					return;
-				}
+				AUTH.trackEvent({
+					event: 'review_list_click',
+					page_path: 'pages/index/index',
+					source: 'home_reviews',
+				}).catch(function() {});
 				uni.navigateTo({ url: '/pages/my/reviews' });
 			},
 			async loadData() {
@@ -1091,30 +1083,36 @@
 				}
 				this.reviewsLoading = true;
 				try {
-					var list = await this.getReviewList();
+					var payload = await this.getReviewList();
 					this.reviewsLoaded = true;
 					this.reviewsLastLoadedAt = Date.now();
-					if (!list || list.length === 0) {
+					payload = payload || {};
+					var list = Array.isArray(payload.homepage_reviews) ? payload.homepage_reviews : [];
+					var summary = payload.summary || {};
+					if (list.length === 0) {
 						this.reviews = [];
-						this.reviewTotalCount = 0;
-						this.reviewAverageText = '';
+						this.reviewTotalCount = Number(summary.total_count || 0);
+						this.reviewAverageText = Number(summary.average_rating || 0) > 0 ? Number(summary.average_rating).toFixed(1) + '分' : '';
 						return;
 					}
 					var prepared = [];
-					var ratingTotal = 0;
-					var ratingCount = 0;
 					for (var i = 0; i < list.length; i++) {
 						var item = this.prepareReviewItem(list[i], i);
 						if (!item) continue;
 						prepared.push(item);
-						if (item.ratingNumber > 0) {
-							ratingTotal += item.ratingNumber;
-							ratingCount += 1;
-						}
 					}
-					this.reviewTotalCount = prepared.length;
-					this.reviewAverageText = ratingCount > 0 ? (ratingTotal / ratingCount).toFixed(1) + '分' : '';
-					this.reviews = prepared.slice(0, 5);
+					this.reviewTotalCount = Number(summary.total_count || prepared.length);
+					this.reviewAverageText = Number(summary.average_rating || 0) > 0 ? Number(summary.average_rating).toFixed(1) + '分' : '';
+					this.reviews = prepared.slice(0, 2);
+					if (this.reviews.length > 0) {
+						AUTH.trackEvent({
+							event: 'review_section_view',
+							page_path: 'pages/index/index',
+							source: 'home_reviews',
+							_dedupe_key: 'review_section_view',
+							_dedupe_ttl_ms: 6 * 60 * 60 * 1000,
+						}).catch(function() {});
+					}
 				} catch (e) {
 					console.error('加载评价失败:', e);
 					this.reviewsLoaded = true;
@@ -1134,14 +1132,15 @@
 				if (rating < 0) rating = 0;
 				if (rating > 5) rating = 5;
 				var name = raw.user_nickname || '匿名玩家';
-				var text = content.length > 58 ? content.slice(0, 58) + '...' : content;
+				var text = content.length > 72 ? content.slice(0, 72) + '...' : content;
 				var time = raw.created_at || '';
 				var shortTime = time;
 				if (time.length >= 10) {
 					shortTime = time.slice(5, 10);
 				}
-				var avatar = raw.user_avatar || '';
-				var avatarText = avatar && avatar.indexOf('http') !== 0 && avatar.length <= 4 ? avatar : '😄';
+				var sceneText = raw.scene_text || '到店体验';
+				var avatarText = sceneText.indexOf('包厢') >= 0 ? '包' : (sceneText.indexOf('大厅') >= 0 ? '厅' : '到');
+				var tags = Array.isArray(raw.tags) ? raw.tags.slice(0, 2) : [];
 				return {
 					key: raw.object_id || 'review-' + index,
 					object_id: raw.object_id,
@@ -1151,7 +1150,8 @@
 					ratingNumber: rating,
 					contentText: text,
 					shortTime: shortTime,
-					recommendText: rating >= 5 ? '超推荐' : (rating >= 4 ? '推荐' : '体验反馈'),
+					badgeText: '已到店 · ' + sceneText,
+					tagText: tags.length > 0 ? tags.map(function(tag) { return '#' + tag; }).join('  ') : '',
 				};
 			},
 			swiperChange(e) {
@@ -2207,13 +2207,13 @@ page {
 	color: #8A8077;
 }
 
-.reviews-swiper {
-	height: 260rpx;
+.home-review-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12rpx;
 }
 
 .review-card {
-	height: calc(100% - 12rpx);
-	margin: 6rpx 0;
 	padding: 22rpx;
 	box-sizing: border-box;
 	border: 1rpx solid #DDD7CF;
@@ -2265,16 +2265,25 @@ page {
 .star.filled { color: #D99028; }
 
 .review-badge {
+	flex-shrink: 0;
 	padding: 5rpx 10rpx;
 	border-radius: 8rpx;
 	background: #F3ECE5;
 	font-size: 18rpx;
 	color: #9A5C3D;
+	white-space: nowrap;
+}
+
+.review-tag-line {
+	display: block;
+	margin-top: 13rpx;
+	font-size: 19rpx;
+	color: #4E7754;
 }
 
 .review-text {
 	display: -webkit-box;
-	margin-top: 16rpx;
+	margin-top: 11rpx;
 	overflow: hidden;
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;

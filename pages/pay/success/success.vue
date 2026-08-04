@@ -33,6 +33,10 @@
 					<text class="action-icon">⭐</text>
 					<text class="action-text">签到拿积分</text>
 				</view>
+				<view class="action-item review-action" v-if="reviewOrderId" @click="goReview">
+					<text class="action-icon">★</text>
+					<text class="action-text">评价本次</text>
+				</view>
 				<button class="action-item share-btn" open-type="share">
 					<text class="action-icon">↗</text>
 					<text class="action-text">约朋友来玩</text>
@@ -67,6 +71,7 @@ export default {
 			inviteCode: '',
 			benefitText: '',
 			benefitRetryCount: 0,
+			reviewOrderId: '',
 		};
 	},
 	computed: {
@@ -161,6 +166,7 @@ export default {
 		this.inviteCode = this.userInfo && this.userInfo.invite_code ? this.userInfo.invite_code : '';
 		this.loadInviteCode();
 		this.loadOrderBenefit();
+		this.loadReviewOpportunity();
 		var paymentTrackData = {
 			event: 'payment_success',
 			page_path: 'pages/pay/success/success',
@@ -203,6 +209,20 @@ export default {
 		};
 	},
 	methods: {
+		loadReviewOpportunity() {
+			if (!this.orderId) return;
+			var token = this.token || uni.getStorageSync('token');
+			if (!token) return;
+			AUTH.getReviewList(token).then(function(res) {
+				var data = res && res._status === 0 ? res.data : null;
+				var orders = data && Array.isArray(data.reviewable_orders) ? data.reviewable_orders : [];
+				var match = orders.find(function(order) {
+					return String(order.object_id || '') === String(this.orderId)
+						|| String(order.order_number || '') === String(this.orderId);
+				}.bind(this));
+				this.reviewOrderId = match ? String(match.object_id) : '';
+			}.bind(this)).catch(function() {});
+		},
 		loadOrderBenefit() {
 			if (!this.orderId || this.type === 'recharge' || this.type === 'exchange') return;
 			var token = this.token || uni.getStorageSync('token');
@@ -312,6 +332,17 @@ export default {
 		},
 		goCheckIn() {
 			uni.switchTab({ url: '/pages/user/user' });
+		},
+		goReview() {
+			if (!this.reviewOrderId) return;
+			AUTH.trackEvent({
+				event: 'review_list_click',
+				page_path: 'pages/pay/success/success',
+				source: 'payment_success',
+			}, this.token).catch(function() {});
+			uni.redirectTo({
+				url: '/pages/my/reviews?order_id=' + this.reviewOrderId,
+			});
 		},
 		goHome() {
 			uni.switchTab({ url: '/pages/index/index' });
@@ -458,6 +489,11 @@ page {
 	&.primary-soft {
 		background: #FFF8E8;
 		border-color: rgba(255, 185, 51, 0.32);
+	}
+
+	&.review-action {
+		background: #EEF4EC;
+		border-color: rgba(70, 112, 75, 0.28);
 	}
 }
 

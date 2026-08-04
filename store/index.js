@@ -355,9 +355,20 @@ const store = new Vuex.Store({
     getReviewList: function({ state, commit }) {
       // 评价列表公开，无需登录
       return AUTH.getReviewList(state.token || null).then((res) => {
-        if (!res || res._status !== 0) return [];
-        return res.data || [];
-      }).catch(() => []);
+        if (!res || res._status !== 0) return null;
+        if (Array.isArray(res.data)) {
+          return {
+            summary: { total_count: res.data.length, average_rating: 0, top_tags: [] },
+            reviews: res.data,
+            homepage_reviews: res.data.slice(0, 2),
+            my_reviews: [],
+            reviewable_orders: [],
+            reviewable_count: 0,
+            available_tags: [],
+          };
+        }
+        return res.data || null;
+      }).catch(() => null);
     },
 
     /**
@@ -367,7 +378,9 @@ const store = new Vuex.Store({
       if (!state.token) return Promise.reject('未登录');
       var rating = payload && payload.rating;
       var content = payload && payload.content;
-      return AUTH.submitReview(state.token, rating, content).then((res) => {
+      var orderId = payload && payload.order_id;
+      var tags = payload && payload.tags;
+      return AUTH.submitReview(state.token, rating, content, orderId, tags).then((res) => {
         if (!res || res._status !== 0) return Promise.reject(res._reason || '提交失败');
         return res;
       }).catch((err) => {

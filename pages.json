@@ -154,9 +154,9 @@
 		{
 			"path": "pages/my/reviews",
 			"style": {
-				"navigationBarTitleText": "我的评价",
-				"navigationBarBackgroundColor": "#FF8C42",
-				"navigationBarTextStyle": "white"
+				"navigationBarTitleText": "到店评价",
+				"navigationBarBackgroundColor": "#F7F6F2",
+				"navigationBarTextStyle": "black"
 			}
 		},
 		{

@@ -235,7 +235,7 @@
 					 @click='_confirmOrder' :data-id="orderData.id">确认收货</text>
 					<view class="check" v-if="orderData.payment_status==1 && (orderData.status==3 && orderData.delivery_id == 1)"
 					 @click='showOrderCode' :data-no="orderData.check_code">核销码</view>
-					<text class="theme-btn" v-if="status==4" @click='toEvaluate' :data-id="orderData.id">评价晒单</text>
+					<text class="theme-btn" v-if="status==4" @click='toEvaluate' :data-id="orderData.id">评价</text>
 					<text class="theme-btn" v-if="status==10">退款中</text>
 					<text class="theme-btn" v-if="status==6">已退款</text>
 					<!-- <text class="theme-btn">邀请好友参团</text> -->
@@ -593,9 +593,10 @@
 			},
 			//评价晒单
 			toEvaluate: function(event) {
-				var id = order.getDataSet(event, 'id');
+				var id = this.orderData && (this.orderData.object_id || this.orderData.id);
+				if (!id) id = order.getDataSet(event, 'id');
 				uni.navigateTo({
-					url: '../evaluate/list?order_id=' + id
+					url: '/pages/my/reviews?order_id=' + id
 				});
 			},
 

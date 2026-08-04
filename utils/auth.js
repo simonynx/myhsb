@@ -302,8 +302,14 @@ function getReviewList(token) {
   return request('/reviews/', 'GET', null, token);
 }
 
-function submitReview(token, rating, content) {
-  var data = { rating: rating, content: content, platform: PLATFORM.getPlatform() };
+function submitReview(token, rating, content, orderId, tags) {
+  var data = {
+    rating: rating,
+    content: content,
+    order_id: orderId,
+    tags: Array.isArray(tags) ? tags : [],
+    platform: PLATFORM.getPlatform()
+  };
   return request('/reviews/', 'POST', data, token);
 }
 
