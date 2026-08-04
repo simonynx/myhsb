@@ -31,13 +31,14 @@
 			</view>
 
 			<view class="review-form" v-if="selectedOrder">
-				<picker :range="orderOptionLabels" :value="selectedOrderIndex" @change="handleOrderChange">
+				<picker :range="orderOptionLabels" :value="selectedOrderIndex" :disabled="!canSwitchOrder" @change="handleOrderChange">
 					<view class="order-picker">
 						<view class="order-picker-copy">
-							<text class="field-label">本次消费</text>
+							<text class="field-label">评价哪次到店</text>
 							<text class="order-picker-value">{{ selectedOrder.label }}</text>
 						</view>
-						<text class="picker-action">切换 ›</text>
+						<text class="picker-action" v-if="canSwitchOrder">更换记录 ›</text>
+						<text class="picker-single" v-else>当前仅这一笔</text>
 					</view>
 				</picker>
 
@@ -172,6 +173,9 @@
 			orderOptionLabels() {
 				return this.orderOptions.map(function(order) { return order.label; });
 			},
+			canSwitchOrder() {
+				return this.orderOptions.length > 1;
+			},
 		},
 		data() {
 			return {
@@ -209,12 +213,19 @@
 				var sceneText = raw.scene_text || '到店体验';
 				var title = raw.title || sceneText;
 				var amountText = raw.amount_text || '';
+				var completedAt = String(raw.completed_at || '');
+				var dateText = completedAt ? completedAt.slice(0, 10).replace(/-/g, '.') : '';
+				var labelParts = [];
+				if (dateText) labelParts.push(dateText);
+				labelParts.push(sceneText);
+				if (title !== sceneText) labelParts.push(title);
+				if (amountText) labelParts.push(amountText);
 				return {
 					key: String(raw.object_id),
 					object_id: String(raw.object_id),
 					sceneText: sceneText,
 					title: title,
-					label: sceneText + ' · ' + title + (amountText ? ' · ' + amountText : ''),
+					label: labelParts.join(' · '),
 				};
 			},
 			prepareReview(raw, index) {
@@ -490,6 +501,7 @@
 	.field-label { font-size: 23rpx; font-weight: 700; color: #56514B; }
 	.order-picker-value { display: block; margin-top: 7rpx; font-size: 25rpx; line-height: 1.45; color: #282623; }
 	.picker-action { flex-shrink: 0; font-size: 22rpx; color: #B35431; }
+	.picker-single { flex-shrink: 0; font-size: 20rpx; color: #918A82; }
 
 	.rating-row { display: flex; align-items: center; margin-top: 22rpx; }
 	.rating-stars { display: flex; gap: 8rpx; margin-left: 20rpx; }
