@@ -1,47 +1,49 @@
 <template>
     <view class="page">
-        <!-- 顶部状态栏占位 -->
-        <view class="status-bar-placeholder"></view>
-
-        <!-- 店铺信息头部 -->
-        <view class="shop-header">
-            <view class="shop-logo">
-                <image src="/static/logo_small.jpg" mode="aspectFill" />
-            </view>
-            <view class="shop-info">
-                <text class="shop-name">摸鱼划水吧</text>
-                <text class="shop-tag">桌游 · 棋牌 · 休闲</text>
-            </view>
-        </view>
-
-        <!-- 房间信息卡片 -->
+        <!-- 预约摘要 -->
         <view class="room-card">
             <view class="room-top">
-                <view class="room-name">{{ currentProduct.name || '房间' }}</view>
-                <view class="room-badge">{{ memberLevelName }}</view>
+                <view class="room-heading-copy">
+                    <text class="summary-kicker">本次预约</text>
+                    <text class="room-name">{{ currentProduct.name || '包厢' }}</text>
+                </view>
+                <view class="room-badge" v-if="memberLevelName">{{ memberLevelName }}</view>
             </view>
-            <view class="room-details">
-                <text class="detail-item">📅 {{ selectDate }}</text>
-                <view class="time-slots">
-                    <view class="time-slot-chip" v-for="(t, idx) in selectTimes" :key="idx">{{ t }}</view>
+
+            <view class="booking-meta">
+                <view class="meta-row">
+                    <text class="meta-label">日期</text>
+                    <text class="meta-value">{{ selectDate }}</text>
+                </view>
+                <view class="meta-row">
+                    <text class="meta-label">时段</text>
+                    <text class="meta-value accent">{{ selectedTimeSummary }}</text>
                 </view>
             </view>
+
             <view class="people-modifier">
-                <text class="modifier-label">👥 人数</text>
+                <view class="people-copy">
+                    <text class="modifier-label">到店人数</text>
+                    <text class="modifier-hint">{{ capacityText }}</text>
+                </view>
                 <view class="stepper">
                     <view class="stepper-btn" @click="decPeople">-</view>
                     <text class="stepper-num">{{ numOfPeople }}</text>
                     <view class="stepper-btn" @click="incPeople">+</view>
                 </view>
             </view>
+
             <view class="room-prices" v-if="currentProduct">
-                <view class="price-row">
-                    <text class="price-label">包厢 {{ (currentProduct.price_per_hour / 100).toFixed(0) }}/小时 × {{ selectedRoomHours }}小时</text>
-                    <text class="price-value">¥{{ roomPrice }}</text>
+                <view class="base-price-item">
+                    <text class="base-price-label">包厢费</text>
+                    <text class="base-price-value">¥{{ roomPrice }}</text>
+                    <text class="base-price-note">{{ roomHourlyPriceText }}/小时 × {{ selectedRoomHours }}小时</text>
                 </view>
-                <view class="price-row" v-if="numOfPeople > 0">
-                    <text class="price-label">入场券 × {{ numOfPeople }}人</text>
-                    <text class="price-value">¥{{ peoplePrice }}</text>
+                <view class="price-plus">+</view>
+                <view class="base-price-item">
+                    <text class="base-price-label">入场费</text>
+                    <text class="base-price-value">¥{{ peoplePrice }}</text>
+                    <text class="base-price-note">{{ personPriceText }}/人 × {{ numOfPeople }}人</text>
                 </view>
             </view>
         </view>
@@ -50,158 +52,110 @@
         <view class="addons-section" v-if="roomAddons.length > 0">
             <view class="section-title" @click="toggleAddons">
                 <view class="addon-title-main">
-                    <text class="addon-title-text">🎁 升级体验（可选）</text>
+                    <text class="addon-title-text">升级体验</text>
                     <text class="addon-title-sub">{{ addonTitleSub }}</text>
                 </view>
                 <view class="title-right">
                     <text class="addon-summary" v-if="selectedAddons.length > 0">已选{{ selectedAddons.length }}项 +¥{{ addonsPrice }}</text>
-                    <text class="addon-arrow">{{ addonsOpen ? '▼' : '▶' }}</text>
+                    <text class="addon-arrow">{{ addonsOpen ? '收起' : '查看' }} ›</text>
                 </view>
             </view>
             <view class="addon-content" v-if="addonsOpen">
                 <view
-                    class="addon-recommend-card"
-                    v-if="primaryAddonRecommendation"
-                    @click.stop="toggleAddon(primaryAddonRecommendation.addon)"
+                    class="addon-item"
+                    v-for="a in displayRoomAddons"
+                    :key="a.object_id"
+                    @click="toggleAddon(a)"
                 >
-                    <view class="recommend-icon-wrap">
-                        <text class="recommend-icon">{{ primaryAddonRecommendation.addon.icon || '🎁' }}</text>
-                    </view>
-                    <view class="recommend-main">
-                        <view class="recommend-title-row">
-                            <text class="recommend-badge">{{ primaryAddonRecommendation.tag }}</text>
-                            <text class="recommend-title">{{ primaryAddonRecommendation.title }}</text>
+                    <view class="addon-info">
+                        <view class="addon-name-row">
+                            <text class="addon-name">{{ a.displayName }}</text>
+                            <text class="addon-recommend-tag" v-if="a.recommendTag">{{ a.recommendTag }}</text>
                         </view>
-                        <text class="recommend-desc">{{ primaryAddonRecommendation.reason }}</text>
+                        <text class="addon-desc" v-if="a.recommendReason || a.description">{{ a.recommendReason || a.description }}</text>
                     </view>
-                    <view class="recommend-side">
-                        <text class="recommend-price">+¥{{ formatAddonPrice(primaryAddonRecommendation.addon.price) }}</text>
-                        <text class="recommend-action" :class="primaryAddonRecommendation.selected ? 'selected' : ''">
-                            {{ primaryAddonRecommendation.selected ? '已加选' : '加选' }}
-                        </text>
-                    </view>
-                </view>
-
-                <view class="addon-groups" v-if="addonGroups.length > 0">
-                    <view class="addon-group" v-for="group in addonGroups" :key="group.key">
-                        <view class="addon-group-head">
-                            <text class="addon-group-title">{{ group.title }}</text>
-                            <text class="addon-group-desc">{{ group.desc }}</text>
-                        </view>
-                        <view
-                            class="addon-item"
-                            v-for="a in group.items"
-                            :key="a.object_id"
-                            @click="toggleAddon(a)"
-                        >
-                            <text class="addon-icon">{{ a.icon || '🎁' }}</text>
-                            <view class="addon-info">
-                                <view class="addon-name-row">
-                                    <text class="addon-name">{{ formatAddonName(a.name) }}</text>
-                                    <text class="addon-recommend-tag" v-if="a.recommendTag">{{ a.recommendTag }}</text>
-                                </view>
-                                <text class="addon-desc" v-if="a.recommendReason || a.description">{{ a.recommendReason || a.description }}</text>
-                            </view>
-                            <view class="addon-action">
-                                <text class="addon-price">¥{{ formatAddonPrice(a.price) }}</text>
-                                <view class="addon-check" :class="a.selectedClass">
-                                    <text v-if="a.selected">✓</text>
-                                </view>
-                            </view>
+                    <view class="addon-action">
+                        <text class="addon-price">+¥{{ a.displayPrice }}</text>
+                        <view class="addon-check" :class="a.selectedClass">
+                            <text v-if="a.selected">✓</text>
                         </view>
                     </view>
                 </view>
             </view>
-            <view class="addon-tip" v-if="addonsOpen">布置类建议提前预约，补给类以到店库存为准。</view>
         </view>
 
-        <!-- 价格明细 -->
+        <!-- 优惠与支付 -->
         <view class="price-section">
-            <view class="section-title">费用明细</view>
+            <view class="price-heading">
+                <view class="price-heading-copy">
+                    <text class="section-title">优惠与支付</text>
+                    <text class="section-subtitle">系统会自动计算当前可用权益</text>
+                </view>
+                <text class="saving-total" v-if="totalDiscountFen > 0">已省 ¥{{ totalDiscountText }}</text>
+            </view>
             <view class="price-list">
-                <!-- 基础费用 -->
-                <view class="price-group-title">基础费用</view>
-                <view class="price-row detail-row">
-                    <text class="row-label">包厢费 {{ roomHourlyPriceText }}/小时 × {{ selectedRoomHours }}小时</text>
-                    <text class="row-value">¥{{ roomPrice }}</text>
-                </view>
-                <view class="price-row detail-row">
-                    <text class="row-label">入场券 × {{ numOfPeople }}人</text>
-                    <text class="row-value">¥{{ peoplePrice }}</text>
-                </view>
-                <view class="price-row subtotal-row">
-                    <text class="row-label">基础费用小计</text>
-                    <text class="row-value">¥{{ roomSubtotal }}</text>
-                </view>
-
-                <!-- 升级体验 -->
-                <view class="price-row" v-if="addonsPriceFen > 0">
-                    <text class="row-label">升级体验</text>
-                    <text class="row-value">+¥{{ addonsPrice }}</text>
+                <view class="order-amount-row">
+                    <view>
+                        <text class="benefit-title">订单金额</text>
+                        <text class="benefit-desc">包厢、入场及已选升级服务</text>
+                    </view>
+                    <text class="order-amount">¥{{ originalPrice }}</text>
                 </view>
 
                 <!-- 次卡/月卡折抵 -->
-                <view class="price-row coupon-row subscription-price-row" @click="openSubscriptionPicker">
-                    <text class="row-label">
-                        <text class="tag" :class="hasSubscriptionDiscount ? 'tag-active' : 'tag-gray'">卡包</text>
-                        {{ subscriptionSummaryText }}
-                    </text>
-                    <view class="coupon-right">
-                        <text class="coupon-value" v-if="hasSubscriptionDiscount">
-                            -¥{{ formatMoney(subscriptionDiscountAmountFen) }}
-                        </text>
-                        <text class="cell-more yticon icon-you" :class="hasSubscriptionDiscount ? 'cell-active' : 'cell-inactive'">
-                            {{ subscriptionActionText }}
-                        </text>
+                <view class="benefit-row clickable" @click="openSubscriptionPicker">
+                    <view class="benefit-copy">
+                        <text class="benefit-title">卡包抵扣</text>
+                        <text class="benefit-desc">{{ subscriptionSummaryText }}</text>
+                    </view>
+                    <view class="benefit-right">
+                        <text class="benefit-saving" v-if="hasSubscriptionDiscount">-¥{{ subscriptionDiscountText }}</text>
+                        <text class="benefit-action">{{ subscriptionActionText }} ›</text>
                     </view>
                 </view>
                 <view class="subscription-breakdown" v-if="hasSubscriptionDiscount">
                     <view class="breakdown-row" v-if="subscriptionRoomDiscountFen > 0">
                         <text>抵扣 {{ subscriptionDeductedHours }}小时包厢费</text>
-                        <text>-¥{{ formatMoney(subscriptionRoomDiscountFen) }}</text>
+                        <text>-¥{{ subscriptionRoomDiscountText }}</text>
                     </view>
                     <view class="breakdown-row" v-if="selfEntryFeeDiscountFen > 0">
                         <text>大厅次卡抵本人入场费</text>
-                        <text>-¥{{ formatMoney(selfEntryFeeDiscountFen) }}</text>
+                        <text>-¥{{ selfEntryFeeDiscountText }}</text>
                     </view>
                 </view>
 
                 <!-- 会员折扣 -->
-                <view class="price-row discount-row" v-if="memberDiscountAmountFen > 0">
-                    <text class="row-label">
-                        <text class="tag">会员</text>
-                        {{ memberLevelName }}专享{{ memberDiscountText }}
-                    </text>
-                    <text class="row-value discount">-¥{{ memberDiscountAmount }}</text>
+                <view class="benefit-row" v-if="memberDiscountAmountFen > 0">
+                    <view class="benefit-copy">
+                        <text class="benefit-title">会员折扣</text>
+                        <text class="benefit-desc">{{ memberLevelName }}专享{{ memberDiscountText }}，已自动使用</text>
+                    </view>
+                    <text class="benefit-saving">-¥{{ memberDiscountAmount }}</text>
                 </view>
 
                 <!-- 优惠券 -->
-                <view class="price-row coupon-row" @click="openCouponPicker">
-                    <text class="row-label">
-                        <text class="tag" :class="selectedCoupon ? 'tag-active' : 'tag-gray'">券</text>
-                        <block v-if="selectedCoupon">{{ selectedCoupon.name }}</block>
-                        <block v-else-if="availableCoupons.length > 0">{{ availableCoupons.length }}张可用</block>
-                        <block v-else>优惠券</block>
-                    </text>
-                    <view class="coupon-right">
-                        <text class="coupon-value" v-if="selectedCoupon">
-                            -¥{{ couponDiscount }}
-                        </text>
-                        <text class="cell-more yticon icon-you" :class="selectedCoupon ? 'cell-active' : 'cell-inactive'">
-                            {{ selectedCoupon ? '已选' : (availableCoupons.length > 0 ? '去选择' : '暂无可用') }}
-                        </text>
+                <view class="benefit-row clickable" @click="openCouponPicker">
+                    <view class="benefit-copy">
+                        <text class="benefit-title">优惠券</text>
+                        <text class="benefit-desc" v-if="selectedCoupon">{{ selectedCoupon.name }}</text>
+                        <text class="benefit-desc" v-else-if="availableCoupons.length > 0">{{ availableCoupons.length }}张可用</text>
+                        <text class="benefit-desc" v-else>本单暂无可用优惠券</text>
+                    </view>
+                    <view class="benefit-right">
+                        <text class="benefit-saving" v-if="selectedCoupon">-¥{{ couponDiscount }}</text>
+                        <text class="benefit-action">{{ selectedCoupon ? '已选' : (availableCoupons.length > 0 ? '选择' : '查看') }} ›</text>
                     </view>
                 </view>
 
                 <!-- 积分兑换 -->
-                <view class="price-row points-row" v-if="canUsePoints">
+                <view class="benefit-row points-row" v-if="canUsePoints">
                     <view class="points-header">
-                        <view class="points-info">
-                            <text class="tag">积分</text>
+                        <view class="benefit-copy">
+                            <text class="benefit-title">积分抵扣</text>
                             <text class="points-balance">当前 {{ safeUserInfo.points }} 积分，最多抵 ¥{{ maxPointsConvertMoney }}</text>
                         </view>
                         <switch
-                            color="#FFCC33"
+                            color="#4F7652"
                             :checked="usePoints"
                             @change="togglePoints"
                             :disabled="!canUsePoints"
@@ -218,8 +172,8 @@
                                 :min="pointsMinUse"
                                 :max="maxUsablePoints"
                                 :step="pointsStep"
-                                activeColor="#FFCC33"
-                                backgroundColor="#E0E0E0"
+                                activeColor="#D96337"
+                                backgroundColor="#DDD9D2"
                                 block-size="18"
                                 @change="onPointsChange"
                             />
@@ -232,34 +186,32 @@
                 </view>
 
                 <!-- 无积分时提示 -->
-                <view class="price-row points-zero-row" v-else>
-                    <text class="row-label">
-                        <text class="tag">积分</text>
-                        {{ pointsUnavailableText }}
-                    </text>
+                <view class="benefit-row" v-else>
+                    <view class="benefit-copy">
+                        <text class="benefit-title">积分抵扣</text>
+                        <text class="benefit-desc">{{ pointsUnavailableText }}</text>
+                    </view>
                 </view>
 
-                <!-- 余额提示 -->
-                <view class="price-row balance-row">
-                    <text class="row-label">
-                        <text class="tag" :class="balanceEnough ? 'tag-active' : 'tag-gray'">余额</text>
-                        账户余额 ¥{{ (safeUserInfo.account_balance / 100).toFixed(2) }}
-                    </text>
-                    <text v-if="balanceEnough" class="balance-status enough">可抵扣 ¥{{ (afterCouponPriceFen / 100).toFixed(2) }}</text>
-                    <text v-else class="balance-status short">还差 ¥{{ (balanceShortfall / 100).toFixed(2) }}</text>
+                <!-- 余额仅作下一步支付参考 -->
+                <view class="benefit-row balance-row">
+                    <view class="benefit-copy">
+                        <text class="benefit-title">账户余额</text>
+                        <text class="benefit-desc">余额 ¥{{ accountBalanceText }}，下一步可选择余额支付</text>
+                    </view>
+                    <text v-if="balanceEnough" class="balance-status enough">余额充足</text>
+                    <text v-else class="balance-status short">还差 ¥{{ balanceShortfallText }}</text>
                 </view>
                 <view class="balance-hint" v-if="!balanceEnough" @click="goRecharge">
-                    <text class="hint-text">余额不足？建议</text>
-                    <text class="hint-link">{{ rechargeRecommendText }}</text>
-                    <text class="hint-text"> →</text>
+                    <text class="hint-text">余额不足不影响微信支付</text>
+                    <text class="hint-link">{{ rechargeRecommendText }} ›</text>
                 </view>
 
-                <!-- 分隔线 -->
-                <view class="divider"></view>
-
-                <!-- 实付金额 -->
-                <view class="price-row final-row">
-                    <text class="row-label">实付款</text>
+                <view class="final-row">
+                    <view>
+                        <text class="final-label">待支付</text>
+                        <text class="final-desc">优惠与抵扣已计入</text>
+                    </view>
                     <text class="final-price">¥{{ actualPrice }}</text>
                 </view>
             </view>
@@ -267,25 +219,24 @@
 
         <!-- 备注 -->
         <view class="remark-section">
-            <text class="remark-label">备注</text>
+            <view class="remark-copy">
+                <text class="remark-label">订单备注</text>
+                <text class="remark-hint">选填</text>
+            </view>
             <input
                 class="remark-input"
                 v-model="desc"
-                placeholder="有特殊需求请备注(选填)"
+                placeholder="例如需要儿童椅、晚到或其他需求"
                 placeholder-class="placeholder"
             />
         </view>
 
         <!-- 预约须知 -->
         <view class="booking-notice">
-            <view class="booking-notice-title">📋 预约须知</view>
+            <view class="booking-notice-title">预约须知</view>
             <view class="booking-notice-row">
                 <text class="booking-notice-dot"></text>
                 <text class="booking-notice-text">包厢和主机按预约时段保留使用，超时需要按店内规则补时。</text>
-            </view>
-            <view class="booking-notice-row">
-                <text class="booking-notice-dot"></text>
-                <text class="booking-notice-text">大厅入场按实际人数购买；儿童、会员等优惠以店内核验为准。</text>
             </view>
             <view class="booking-notice-row">
                 <text class="booking-notice-dot"></text>
@@ -293,16 +244,16 @@
             </view>
             <view class="booking-notice-row">
                 <text class="booking-notice-dot"></text>
-                <text class="booking-notice-text">桌游、漫画和设备请爱惜使用，如有损坏或缺件请及时告知店员。</text>
+                <text class="booking-notice-text">入场按实际人数计费；设备损坏或缺件请及时联系店员处理。</text>
             </view>
         </view>
 
         <!-- 底部提交栏 -->
         <view class="bottom-bar">
             <view class="bottom-info">
-                <text class="bottom-label">实付款</text>
+                <text class="bottom-label">待支付</text>
                 <text class="bottom-price">¥{{ actualPrice }}</text>
-                <text class="bottom-points" v-if="usePoints && pointsToUse > 0">(含{{ pointsToUse }}积分)</text>
+                <text class="bottom-points" v-if="totalDiscountFen > 0">已优惠 ¥{{ totalDiscountText }}</text>
             </view>
             <view class="submit-btn" :class="submitting ? 'btn-disabled' : ''" @click="submitOrder">
                 <text v-if="!submitting">提交订单</text>
@@ -407,7 +358,7 @@
                                     <text class="subscription-tag strong">{{ sub.primary_tag }}</text>
                                     <text class="subscription-tag muted" v-if="sub.secondary_tag">{{ sub.secondary_tag }}</text>
                                 </view>
-                                <view class="subscription-saving">本次节省 ¥{{ formatMoney(sub.discount_amount_fen) }}</view>
+                                <view class="subscription-saving">本次节省 ¥{{ sub.discountAmountText }}</view>
                                 <view class="subscription-meta">
                                     使用后剩 {{ sub.remaining_after_use }}{{ slotView.unit }} · 有效期至 {{ sub.formatted_expire }}
                                 </view>
@@ -475,7 +426,7 @@ export default {
             // 增值服务
             roomAddons: [],
             selectedAddons: [],
-            addonsOpen: true,
+            addonsOpen: false,
 
             // 提交状态
             submitting: false,
@@ -504,6 +455,20 @@ export default {
             return this.selectTimes.join(', ');
         },
 
+        selectedTimeSummary() {
+            if (!this.selectTimes.length) return '请返回重新选择';
+            const first = String(this.selectTimes[0] || '').split('~');
+            const last = String(this.selectTimes[this.selectTimes.length - 1] || '').split('~');
+            const begin = first[0] || '';
+            const end = last[1] || first[1] || '';
+            return begin + '-' + end + ' · ' + this.selectedRoomHours + '小时';
+        },
+
+        capacityText() {
+            const seats = this.currentProduct && Number(this.currentProduct.seats_count || 0);
+            return seats > 0 ? '最多' + seats + '人' : '按实际到店人数计费';
+        },
+
         selectedRoomHours() {
             const selects = this.currentProduct && this.currentProduct.selects;
             const hours = getSelectsTotalHours(selects);
@@ -529,10 +494,7 @@ export default {
         },
 
         addonTitleSub() {
-            if (this.numOfPeople >= 4) {
-                return '当前' + this.numOfPeople + '人，建议提前加小食或补给，到店不用中途加单';
-            }
-            return '当前' + this.numOfPeople + '人，补给包更适合小局，布置类按需要加选';
+            return this.roomAddons.length + '项可选，布置和补给可提前准备';
         },
 
         addonRecommendationMap() {
@@ -602,19 +564,6 @@ export default {
             return map;
         },
 
-        primaryAddonRecommendation() {
-            const items = this.displayRoomAddons.filter(a => a.recommendPriority > 0);
-            if (!items.length) return null;
-            const addon = items[0];
-            return {
-                addon: addon,
-                tag: addon.recommendTag,
-                title: addon.recommendTitle || this.formatAddonName(addon.name),
-                reason: addon.recommendReason,
-                selected: addon.selected
-            };
-        },
-
         displayRoomAddons() {
             const recommendationMap = this.addonRecommendationMap;
             return this.roomAddons.map(a => {
@@ -623,6 +572,8 @@ export default {
                 return Object.assign({}, a, {
                     selected: selected,
                     selectedClass: selected ? 'checked' : '',
+                    displayName: this.formatAddonName(a.name),
+                    displayPrice: this.formatAddonPrice(a.price),
                     recommendPriority: recommendation.priority || 0,
                     recommendTag: recommendation.tag || '',
                     recommendTitle: recommendation.title || '',
@@ -634,45 +585,6 @@ export default {
                 }
                 return 0;
             });
-        },
-
-        addonGroups() {
-            const primaryId = this.primaryAddonRecommendation && this.primaryAddonRecommendation.addon
-                ? this.primaryAddonRecommendation.addon.object_id
-                : '';
-            const groups = [
-                {
-                    key: 'supply',
-                    title: '补给小食',
-                    desc: '饮品、零食、小食，适合边玩边吃',
-                    items: [],
-                },
-                {
-                    key: 'decor',
-                    title: '生日布置',
-                    desc: '生日、庆祝、拍照氛围，建议提前预约',
-                    items: [],
-                },
-                {
-                    key: 'other',
-                    title: '其他可选',
-                    desc: '按需要加选',
-                    items: [],
-                },
-            ];
-            const groupMap = {
-                supply: groups[0],
-                decor: groups[1],
-                other: groups[2],
-            };
-
-            for (let i = 0; i < this.displayRoomAddons.length; i++) {
-                const addon = this.displayRoomAddons[i];
-                if (addon.object_id === primaryId) continue;
-                groupMap[this.getAddonGroupKey(addon)].items.push(addon);
-            }
-
-            return groups.filter(group => group.items.length > 0);
         },
 
         originalPriceFen() {
@@ -699,6 +611,11 @@ export default {
         roomHourlyPriceText() {
             const price = this.currentProduct && this.currentProduct.price_per_hour || 0;
             const amount = price / 100;
+            return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
+        },
+
+        personPriceText() {
+            const amount = Number(this.singlePersonPrice || 0) / 100;
             return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
         },
 
@@ -743,6 +660,7 @@ export default {
                     items: slotView.items.map(sub => Object.assign({}, sub, {
                         selected: SUBSCRIPTION.isSelected(selectedBySlot, slotView.key, sub),
                         selectedClass: SUBSCRIPTION.isSelected(selectedBySlot, slotView.key, sub) ? 'selected' : '',
+                        discountAmountText: this.formatMoney(sub.discount_amount_fen),
                     })),
                 });
             });
@@ -787,6 +705,18 @@ export default {
 
         subscriptionDiscountAmountFen() {
             return this.subscriptionMetrics.totalDiscountFen;
+        },
+
+        subscriptionDiscountText() {
+            return this.formatMoney(this.subscriptionDiscountAmountFen);
+        },
+
+        subscriptionRoomDiscountText() {
+            return this.formatMoney(this.subscriptionRoomDiscountFen);
+        },
+
+        selfEntryFeeDiscountText() {
+            return this.formatMoney(this.selfEntryFeeDiscountFen);
         },
 
         subscriptionUsagesPayload() {
@@ -909,6 +839,18 @@ export default {
             return (this.finalPriceFen / 100).toFixed(2);
         },
 
+        totalDiscountFen() {
+            return Math.max(0, this.originalPriceFen - this.finalPriceFen);
+        },
+
+        totalDiscountText() {
+            return this.formatMoney(this.totalDiscountFen);
+        },
+
+        accountBalanceText() {
+            return this.formatMoney(this.safeUserInfo.account_balance || 0);
+        },
+
         // 余额是否足够支付优惠后金额（仅提示用，不在下单时抵扣）
         balanceEnough() {
             return (this.safeUserInfo.account_balance || 0) >= this.afterCouponPriceFen;
@@ -916,6 +858,10 @@ export default {
 
         balanceShortfall() {
             return Math.max(0, this.afterCouponPriceFen - (this.safeUserInfo.account_balance || 0));
+        },
+
+        balanceShortfallText() {
+            return this.formatMoney(this.balanceShortfall);
         },
 
         rechargeRecommendAmount() {
@@ -1332,17 +1278,6 @@ export default {
             return this.selectedAddons.some(a => a.object_id === addon.object_id);
         },
 
-        getAddonGroupKey(addon) {
-            const text = String(addon.name || '') + String(addon.description || '');
-            if (text.indexOf('生日') >= 0 || text.indexOf('布置') >= 0 || text.indexOf('氛围') >= 0 || text.indexOf('气球') >= 0 || text.indexOf('桌花') >= 0) {
-                return 'decor';
-            }
-            if (text.indexOf('饮品') >= 0 || text.indexOf('零食') >= 0 || text.indexOf('小食') >= 0 || text.indexOf('补给') >= 0) {
-                return 'supply';
-            }
-            return 'other';
-        },
-
         findAddonByAllKeywords(include, exclude) {
             return this.findAddonByKeywords(include, exclude || [], true);
         },
@@ -1392,16 +1327,18 @@ export default {
 </script>
 
 <style lang="scss">
-$page-color: #F5F6F7;
-$primary: #FF6432;
-$gold: #FFB933;
-$dark: #333;
-$gray: #999;
-$light-gray: #E8E8E8;
+$page-color: #F7F6F2;
+$primary: #D96337;
+$gold: #D99028;
+$green: #4F7652;
+$dark: #302E2B;
+$gray: #817B73;
+$light-gray: #ECE9E4;
 
 page {
     background: $page-color;
-    padding-bottom: 120rpx;
+    padding-bottom: 180rpx;
+    padding-bottom: calc(150rpx + env(safe-area-inset-bottom));
 }
 
 .page {
@@ -1409,86 +1346,91 @@ page {
     background: $page-color;
 }
 
-.status-bar-placeholder {
-    height: 88rpx;
-    background: #fff;
-}
-
-// 店铺头部
-.shop-header {
-    display: flex;
-    align-items: center;
-    padding: 20rpx 30rpx;
-    background: #fff;
-
-    .shop-logo {
-        width: 80rpx;
-        height: 80rpx;
-        border-radius: 50%;
-        overflow: hidden;
-        margin-right: 20rpx;
-        image { width: 100%; height: 100%; }
-    }
-
-    .shop-info {
-        display: flex;
-        flex-direction: column;
-        .shop-name { font-size: 32rpx; font-weight: bold; color: $dark; }
-        .shop-tag { font-size: 24rpx; color: $gray; margin-top: 4rpx; }
-    }
-}
-
-// 房间卡片
+// 预约摘要
 .room-card {
-    margin: 20rpx;
-    padding: 30rpx;
+    margin: 0 0 16rpx;
+    padding: 28rpx;
     background: #fff;
-    border-radius: 20rpx;
 
     .room-top {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        margin-bottom: 16rpx;
-        .room-name { font-size: 32rpx; font-weight: bold; color: $dark; }
+        gap: 20rpx;
+
+        .summary-kicker {
+            display: block;
+            margin-bottom: 4rpx;
+            font-size: 20rpx;
+            font-weight: 700;
+            color: #A64F2F;
+        }
+
+        .room-heading-copy {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .room-name {
+            display: block;
+            font-size: 34rpx;
+            font-weight: 750;
+            line-height: 1.35;
+            color: $dark;
+        }
+
         .room-badge {
+            flex-shrink: 0;
             font-size: 22rpx;
-            color: #FF6432;
+            color: #A64F2F;
             background: #FFF0EB;
-            padding: 4rpx 12rpx;
-            border-radius: 20rpx;
+            padding: 6rpx 10rpx;
+            border-radius: 7rpx;
         }
     }
 
-    .room-details {
+    .booking-meta {
+        margin-top: 22rpx;
+        padding: 16rpx 0;
+        border-top: 1rpx solid $light-gray;
+        border-bottom: 1rpx solid $light-gray;
+    }
+
+    .meta-row {
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
-        gap: 16rpx;
-        margin-bottom: 16rpx;
-        .detail-item { font-size: 24rpx; color: $gray; }
+        min-height: 48rpx;
     }
 
-    .time-slots {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8rpx;
-        .time-slot-chip {
-            background: #FFF0EB;
-            color: #FF6432;
-            font-size: 22rpx;
-            padding: 4rpx 12rpx;
-            border-radius: 8rpx;
-        }
+    .meta-label {
+        width: 90rpx;
+        flex-shrink: 0;
+        font-size: 24rpx;
+        color: $gray;
+    }
+
+    .meta-value {
+        flex: 1;
+        font-size: 27rpx;
+        font-weight: 600;
+        color: $dark;
+        &.accent { color: #A64F2F; }
     }
 
     .people-modifier {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 16rpx 0 4rpx;
-        border-top: 1rpx solid $light-gray;
-        .modifier-label { font-size: 28rpx; color: $dark; }
+        padding: 20rpx 0;
+
+        .people-copy {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modifier-label { font-size: 27rpx; font-weight: 650; color: $dark; }
+        .modifier-hint { margin-top: 4rpx; font-size: 21rpx; color: $gray; }
+
         .stepper {
             display: flex;
             align-items: center;
@@ -1497,18 +1439,18 @@ page {
             border-radius: 8rpx;
             overflow: hidden;
             .stepper-btn {
-                width: 64rpx;
-                height: 56rpx;
-                line-height: 56rpx;
+                width: 60rpx;
+                height: 52rpx;
+                line-height: 52rpx;
                 text-align: center;
                 font-size: 32rpx;
                 color: $primary;
                 background: #FFF;
             }
             .stepper-num {
-                min-width: 64rpx;
-                height: 56rpx;
-                line-height: 56rpx;
+                min-width: 62rpx;
+                height: 52rpx;
+                line-height: 52rpx;
                 text-align: center;
                 font-size: 28rpx;
                 color: $dark;
@@ -1522,18 +1464,24 @@ page {
     }
 
     .room-prices {
-        border-top: 1rpx solid $light-gray;
-        padding-top: 20rpx;
-        .price-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 28rpx;
-            color: $dark;
-            margin-bottom: 10rpx;
-            .price-label { color: $gray; }
-            .price-value { font-weight: bold; }
-        }
+        display: flex;
+        align-items: center;
+        padding: 18rpx 20rpx;
+        background: #FAF7F2;
+        border-left: 5rpx solid #D7A264;
     }
+
+    .base-price-item {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .base-price-label { font-size: 21rpx; color: $gray; }
+    .base-price-value { margin-top: 3rpx; font-size: 31rpx; font-weight: 750; color: $dark; }
+    .base-price-note { margin-top: 3rpx; font-size: 20rpx; color: #918A82; }
+    .price-plus { flex-shrink: 0; padding: 0 22rpx; font-size: 28rpx; color: #B8AEA5; }
 }
 
 // 价格明细
@@ -1823,135 +1771,16 @@ page {
         margin-top: 22rpx;
     }
 
-    .addon-recommend-card {
-        display: flex;
-        align-items: center;
-        gap: 18rpx;
-        padding: 20rpx 0 22rpx;
-        border-bottom: 1rpx solid #F0E6D8;
-        &:active { opacity: 0.86; }
-    }
-
-    .recommend-icon-wrap {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 62rpx;
-        height: 62rpx;
-        border-radius: 16rpx;
-        background: #FFF1E8;
-        flex-shrink: 0;
-    }
-
-    .recommend-icon {
-        font-size: 34rpx;
-    }
-
-    .recommend-main {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .recommend-title-row {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 10rpx;
-    }
-
-    .recommend-badge,
     .addon-recommend-tag {
         display: inline-flex;
         align-items: center;
         height: 32rpx;
         padding: 0 10rpx;
-        border-radius: 999rpx;
+        border-radius: 6rpx;
         background: #EAF7F1;
         color: #15945F;
         font-size: 20rpx;
         font-weight: bold;
-    }
-
-    .recommend-badge {
-        background: $primary;
-        color: #fff;
-    }
-
-    .recommend-title {
-        font-size: 29rpx;
-        color: $dark;
-        font-weight: bold;
-        line-height: 1.25;
-    }
-
-    .recommend-desc {
-        display: block;
-        margin-top: 8rpx;
-        font-size: 23rpx;
-        line-height: 1.4;
-        color: #7A6A58;
-    }
-
-    .recommend-side {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        flex-shrink: 0;
-        gap: 10rpx;
-    }
-
-    .recommend-price {
-        font-size: 28rpx;
-        color: $primary;
-        font-weight: bold;
-    }
-
-    .recommend-action {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 82rpx;
-        height: 42rpx;
-        padding: 0 14rpx;
-        border-radius: 999rpx;
-        background: #263238;
-        color: #fff;
-        font-size: 22rpx;
-        font-weight: bold;
-        box-sizing: border-box;
-        &.selected {
-            background: #EAF7F1;
-            color: #15945F;
-        }
-    }
-
-    .addon-groups {
-        margin-top: 20rpx;
-    }
-
-    .addon-group {
-        margin-top: 22rpx;
-        &:first-child { margin-top: 0; }
-    }
-
-    .addon-group-head {
-        margin-bottom: 8rpx;
-    }
-
-    .addon-group-title {
-        display: block;
-        font-size: 25rpx;
-        color: $dark;
-        font-weight: bold;
-        line-height: 1.3;
-    }
-
-    .addon-group-desc {
-        display: block;
-        margin-top: 4rpx;
-        font-size: 21rpx;
-        color: #9A8A7B;
-        line-height: 1.35;
     }
 
     .addon-item {
@@ -1961,14 +1790,6 @@ page {
         border-bottom: 1rpx solid $light-gray;
         &:last-child { border-bottom: none; }
         &:active { background: #FAFAFA; }
-
-        .addon-icon {
-            width: 46rpx;
-            font-size: 36rpx;
-            margin-right: 14rpx;
-            text-align: center;
-            flex-shrink: 0;
-        }
 
         .addon-info {
             flex: 1;
@@ -2028,12 +1849,6 @@ page {
         }
     }
 
-    .addon-tip {
-        margin-top: 14rpx;
-        font-size: 22rpx;
-        line-height: 1.4;
-        color: $gray;
-    }
 }
 
 // 备注
@@ -2145,6 +1960,351 @@ page {
     }
 }
 
+// 确认页信息层级
+.price-section {
+    margin: 0 0 16rpx;
+    padding: 28rpx;
+    border-radius: 0;
+    background: #FFF;
+
+    .price-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18rpx;
+        margin-bottom: 18rpx;
+    }
+
+    .price-heading-copy {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .section-title {
+        display: block;
+        margin: 0;
+        font-size: 30rpx;
+        font-weight: 750;
+        color: $dark;
+    }
+
+    .section-subtitle {
+        display: block;
+        margin-top: 4rpx;
+        font-size: 21rpx;
+        color: $gray;
+    }
+
+    .saving-total {
+        flex-shrink: 0;
+        padding-top: 4rpx;
+        font-size: 23rpx;
+        font-weight: 700;
+        color: $primary;
+    }
+
+    .order-amount-row,
+    .benefit-row,
+    .final-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20rpx;
+        padding: 20rpx 0;
+        border-bottom: 1rpx solid $light-gray;
+    }
+
+    .order-amount-row {
+        padding-top: 16rpx;
+        border-top: 1rpx solid $light-gray;
+    }
+
+    .order-amount {
+        flex-shrink: 0;
+        font-size: 30rpx;
+        font-weight: 750;
+        color: $dark;
+    }
+
+    .benefit-row.clickable:active { background: #FAF9F7; }
+
+    .benefit-copy {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .benefit-title {
+        font-size: 27rpx;
+        font-weight: 650;
+        line-height: 1.4;
+        color: $dark;
+    }
+
+    .benefit-desc,
+    .points-balance {
+        display: block;
+        margin-top: 5rpx;
+        font-size: 21rpx;
+        line-height: 1.45;
+        color: $gray;
+    }
+
+    .benefit-right {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 4rpx;
+    }
+
+    .benefit-saving {
+        font-size: 25rpx;
+        font-weight: 700;
+        color: $primary;
+    }
+
+    .benefit-action {
+        font-size: 21rpx;
+        color: #8A8179;
+    }
+
+    .subscription-breakdown {
+        margin: -1rpx 0 0;
+        padding: 12rpx 16rpx;
+        border-radius: 0;
+        background: #FAF7F2;
+        color: #8A5A3C;
+    }
+
+    .points-row {
+        width: 100%;
+        margin: 0;
+        padding: 20rpx 0;
+        border-radius: 0;
+        background: #FFF;
+        box-sizing: border-box;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .points-header {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .points-slider {
+        width: 100%;
+        margin-top: 14rpx;
+        padding-top: 14rpx;
+        border-top: 1rpx solid $light-gray;
+        box-sizing: border-box;
+    }
+
+    .balance-row {
+        .balance-status {
+            flex-shrink: 0;
+            font-size: 22rpx;
+            font-weight: 700;
+            &.enough { color: $green; }
+            &.short { color: #B5534F; }
+        }
+    }
+
+    .balance-hint {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 13rpx 0 18rpx;
+
+        .hint-text { font-size: 21rpx; color: $gray; }
+        .hint-link { font-size: 22rpx; font-weight: 700; color: $primary; }
+    }
+
+    .final-row {
+        padding: 24rpx 0 2rpx;
+        border-bottom: none;
+
+        .final-label {
+            display: block;
+            font-size: 28rpx;
+            font-weight: 750;
+            color: $dark;
+        }
+
+        .final-desc {
+            display: block;
+            margin-top: 4rpx;
+            font-size: 20rpx;
+            color: $gray;
+        }
+
+        .final-price {
+            flex-shrink: 0;
+            font-size: 40rpx;
+            font-weight: 750;
+            color: $primary;
+        }
+    }
+}
+
+.addons-section {
+    margin: 0 0 16rpx;
+    padding: 28rpx;
+    border-radius: 0;
+
+    .section-title {
+        gap: 20rpx;
+    }
+
+    .addon-title-main {
+        min-width: 0;
+    }
+
+    .addon-title-text {
+        font-size: 30rpx;
+        font-weight: 750;
+    }
+
+    .addon-title-sub {
+        margin-top: 5rpx;
+        font-size: 21rpx;
+        line-height: 1.45;
+    }
+
+    .title-right { gap: 8rpx; }
+    .addon-summary { font-size: 22rpx; font-weight: 700; }
+    .addon-arrow { font-size: 21rpx; color: $green; }
+
+    .addon-content {
+        margin-top: 18rpx;
+        border-top: 1rpx solid $light-gray;
+    }
+
+    .addon-item {
+        padding: 20rpx 0;
+
+        .addon-name { font-size: 27rpx; font-weight: 650; }
+        .addon-desc { font-size: 21rpx; line-height: 1.45; }
+        .addon-price { margin-right: 14rpx; font-size: 25rpx; }
+        .addon-check {
+            width: 36rpx;
+            height: 36rpx;
+            border-radius: 7rpx;
+        }
+        .addon-recommend-tag {
+            height: 30rpx;
+            padding: 0 8rpx;
+            border-radius: 6rpx;
+            background: #EEF3EC;
+            color: $green;
+            font-size: 19rpx;
+        }
+    }
+}
+
+.remark-section {
+    margin: 0 0 16rpx;
+    padding: 24rpx 28rpx;
+    border-radius: 0;
+    gap: 20rpx;
+
+    .remark-copy {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .remark-label {
+        margin: 0;
+        font-size: 27rpx;
+        font-weight: 650;
+        color: $dark;
+    }
+
+    .remark-hint { margin-top: 3rpx; font-size: 20rpx; color: $gray; }
+
+    .remark-input {
+        height: 68rpx;
+        padding: 0 16rpx;
+        border-radius: 8rpx;
+        background: #F7F6F2;
+        font-size: 24rpx;
+    }
+}
+
+.booking-notice {
+    margin: 0 0 16rpx;
+    padding: 28rpx;
+    border: none;
+    border-radius: 0;
+    background: #FFF;
+
+    .booking-notice-title {
+        margin-bottom: 12rpx;
+        font-size: 30rpx;
+        font-weight: 750;
+    }
+
+    .booking-notice-row {
+        gap: 14rpx;
+        margin: 0;
+        padding: 14rpx 0;
+        border-bottom: 1rpx solid $light-gray;
+        &:last-child { border-bottom: none; }
+    }
+
+    .booking-notice-dot {
+        width: 5rpx;
+        height: 32rpx;
+        margin-top: 3rpx;
+        border-radius: 3rpx;
+        background: #D7A264;
+    }
+
+    .booking-notice-text {
+        font-size: 23rpx;
+        line-height: 1.55;
+        color: #6D6760;
+    }
+}
+
+.bottom-bar {
+    height: auto;
+    min-height: 104rpx;
+    padding: 14rpx 28rpx calc(14rpx + env(safe-area-inset-bottom));
+    box-sizing: border-box;
+
+    .bottom-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        padding-right: 18rpx;
+
+        .bottom-label { font-size: 22rpx; }
+        .bottom-price { margin-left: 7rpx; font-size: 40rpx; }
+        .bottom-points {
+            width: 100%;
+            margin: 2rpx 0 0;
+            font-size: 20rpx;
+            color: $primary;
+        }
+    }
+
+    .submit-btn {
+        width: 250rpx;
+        height: 76rpx;
+        flex-shrink: 0;
+        border-radius: 12rpx;
+        font-size: 28rpx;
+    }
+}
+
 // 优惠券面板
 .mask {
     position: fixed;
@@ -2166,7 +2326,7 @@ page {
     bottom: 0;
     max-height: 75vh;
     background: #fff;
-    border-radius: 30rpx 30rpx 0 0;
+    border-radius: 16rpx 16rpx 0 0;
     transform: translateY(100%);
     transition: transform 0.3s;
     z-index: 9991;
@@ -2207,7 +2367,7 @@ page {
         .coupon-card {
             display: flex;
             background: #FFF5F0;
-            border-radius: 16rpx;
+            border-radius: 12rpx;
             margin-bottom: 16rpx;
             overflow: hidden;
             border: 2rpx solid transparent;
@@ -2264,20 +2424,20 @@ page {
             display: flex;
             background: #FFF9F5;
             border: 2rpx solid #FFE1D2;
-            border-radius: 18rpx;
+            border-radius: 12rpx;
             margin-bottom: 16rpx;
             overflow: hidden;
             position: relative;
             &.selected {
                 border-color: $primary;
                 background: #FFF2EC;
-                box-shadow: 0 6rpx 18rpx rgba(255, 100, 50, 0.12);
+                box-shadow: 0 4rpx 12rpx rgba(112, 72, 52, 0.08);
             }
 
             .subscription-meter {
                 width: 170rpx;
                 flex-shrink: 0;
-                background: linear-gradient(135deg, #FF8A3D, #FF6432);
+                background: #D96337;
                 color: #FFF;
                 display: flex;
                 flex-direction: column;
@@ -2286,7 +2446,7 @@ page {
                 padding: 22rpx 12rpx;
                 box-sizing: border-box;
                 &.entry {
-                    background: linear-gradient(135deg, #36B37E, #1F9D68);
+                    background: #4F7652;
                 }
             }
             .meter-main {
@@ -2426,7 +2586,7 @@ page {
             .picker-done-btn {
                 height: 76rpx;
                 line-height: 76rpx;
-                border-radius: 38rpx;
+                border-radius: 10rpx;
                 background: $primary;
                 color: #fff;
                 text-align: center;

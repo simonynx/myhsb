@@ -50,8 +50,8 @@
 			"path": "pages/order/createOrder",
 			"style": {
 				"navigationBarTitleText": "确认预约",
-				"navigationBarBackgroundColor": "#FF8C42",
-				"navigationBarTextStyle": "white"
+				"navigationBarBackgroundColor": "#FFFFFF",
+				"navigationBarTextStyle": "black"
 			}
 		},
 		{
