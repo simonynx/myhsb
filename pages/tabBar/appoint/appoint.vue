@@ -20,9 +20,15 @@
                 >
                     <text class="day-week">{{ day.week }}</text>
                     <text class="day-date">{{ day.date }}</text>
+                    <text class="day-promo" v-if="day.isPromo">{{ day.promoText }}</text>
                     <view class="day-dot" v-if="day.isToday"></view>
                 </view>
             </view>
+        </view>
+
+        <!-- 优惠日提示条：所选日期命中全局半价时展示 -->
+        <view class="promo-strip" v-if="selectedDayPromo.visible">
+            <text class="promo-strip-text">{{ selectedDayPromo.text }}</text>
         </view>
 
         <!-- 加载中 -->
@@ -129,6 +135,10 @@
                             <text class="price-yuan">¥</text>
                             <text class="price-num">{{ room.price_per_hour / 100 }}</text>
                             <text class="price-unit">/小时</text>
+                            <view class="offpeak-tag" v-if="room.offpeakDayText">
+                                <text>🔥 {{ room.offpeakDayCoupleText }}</text>
+                                <text class="offpeak-tag-window" v-if="room.offpeakDayWindow">{{ room.offpeakDayWindow }} · ¥{{ room.offpeakDayPriceText }}/时</text>
+                            </view>
                         </view>
                         <view
                             class="book-btn"
@@ -208,6 +218,7 @@
 <script>
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../../utils/auth.js';
+import OFFPEAK from '../../../utils/offpeak.js';
 import times from '@/components/pretty-times/pretty-times.vue';
 
 export default {
@@ -242,6 +253,42 @@ export default {
         selectedDayInfo() {
             return this.weekDays[this.selectedDayIndex] || {};
         },
+        // 所选日期的优惠提示（房间规则优先，退回全局配置），文案预生成、模板不调函数
+        selectedDayPromo() {
+            const weekday = OFFPEAK.isoWeekday(this.currentSelectDate);
+            if (!weekday) return { visible: false };
+            let cheapest = null;
+            const rooms = this.roomList || [];
+            for (let i = 0; i < rooms.length; i++) {
+                const rule = OFFPEAK.lowestRuleForWeekday(rooms[i], this.currentSelectDate);
+                if (!rule) continue;
+                const total = OFFPEAK.coupleTotalFen(rooms[i], rule);
+                if (!cheapest || total < cheapest.total) {
+                    cheapest = {
+                        total: total,
+                        roomName: rooms[i].name,
+                        window: rule.hour_start + ':00-' + rule.hour_end + ':00',
+                    };
+                }
+            }
+            if (cheapest) {
+                return {
+                    visible: true,
+                    text: '🔥 本日双人 2 小时 ¥' + OFFPEAK.formatYuan(cheapest.total)
+                        + '起（' + cheapest.roomName + '）· ' + cheapest.window + ' 整段命中自动生效，只折包厢费',
+                };
+            }
+            const meta = OFFPEAK.weekdayDiscountFromConstance(this.constance);
+            if (meta.enabled && meta.weekdays.indexOf(weekday) !== -1) {
+                const offText = OFFPEAK.formatDiscountText(meta.percent) || '特惠';
+                return {
+                    visible: true,
+                    text: '🔥 本日包间费' + offText + '：' + meta.hour_start + ':00-' + meta.hour_end
+                        + ':00 整段命中自动生效，只折小时费',
+                };
+            }
+            return { visible: false };
+        },
         groupButtonClass() {
             return this.specSelected.length ? 'pf-btn group' : 'pf-btn group disabled';
         },
@@ -275,6 +322,8 @@ export default {
 
     onShow() {
         this.loadGroupCreateIntent();
+        // 优惠日当天给本 tab 挂角标（pages.json 里预约是第 3 个 tab）
+        OFFPEAK.syncPromoTabBadge(this.constance, 2, this.roomList);
         // 房间列表无需登录即可浏览
         if (this.weekDays && this.weekDays.length > 0) {
             this.fetchRoomList();
@@ -282,6 +331,14 @@ export default {
         if (this.hasLogin && !this.userInfo) {
             this.getUserInfo();
         }
+    },
+
+    watch: {
+        // constance 异步加载完成后补打日期标记和角标
+        constance(value) {
+            this.markPromoDays();
+            OFFPEAK.syncPromoTabBadge(value, 2, this.roomList);
+        },
     },
 
     methods: {
@@ -331,12 +388,27 @@ export default {
                     month: d.getMonth() + 1,
                     week: weekLabels[d.getDay()],
                     isToday,
+                    // 优惠日标记（constance 加载后由 markPromoDays 回填）
+                    isPromo: false,
+                    promoText: '',
                     fullDate: d,
                 });
             }
             this.weekDays = days;
             this.selectedDayIndex = 0;
             this.currentSelectDate = this.formatDate(days[0].fullDate);
+            this.markPromoDays();
+        },
+
+        // 按房间闲时规则 + 全局配置给日期栏打「特惠」标记
+        markPromoDays() {
+            const meta = OFFPEAK.promoSummary(this.roomList, this.constance);
+            this.weekDays.forEach(function(d) {
+                const raw = d.fullDate ? d.fullDate.getDay() : 0;
+                const iso = raw === 0 ? 7 : raw;
+                d.isPromo = !!(meta.enabled && meta.weekdays.indexOf(iso) !== -1);
+                d.promoText = '特惠';
+            });
         },
 
         selectDay(idx) {
@@ -401,10 +473,24 @@ export default {
                         item.statusText = '可预约';
                     }
                     item.isFullyBooked = allBooked;
+                    // 闲时价：按当前选中日期判断哪些窗口可用
+                    item.offpeakDayText = OFFPEAK.describeForWeekday(item, dateKey);
+                    var cheapestRule = OFFPEAK.lowestRuleForWeekday(item, dateKey);
+                    item.offpeakDayPriceText = OFFPEAK.formatYuan(
+                        OFFPEAK.lowestPriceForWeekday(item, dateKey));
+                    item.offpeakDayCoupleText = cheapestRule
+                        ? ('双人2h ¥' + OFFPEAK.formatYuan(OFFPEAK.coupleTotalFen(item, cheapestRule)))
+                        : '';
+                    item.offpeakDayWindow = cheapestRule
+                        ? (cheapestRule.hour_start + ':00-' + cheapestRule.hour_end + ':00')
+                        : '';
                 });
                 this.roomList = data.rooms || [];
                 this.roomDataKey = dateKey;
                 this.roomLastLoadedAt = Date.now();
+                // 房间规则到位：补打日期标记和角标
+                this.markPromoDays();
+                OFFPEAK.syncPromoTabBadge(this.constance, 2, this.roomList);
             }).catch((err) => {
             }).then(() => {
                 if (requestSeq === this.roomRequestSeq) {
@@ -705,6 +791,10 @@ page {
             .day-dot {
                 background: $primary;
             }
+
+            .day-promo {
+                background: #FFDDC4;
+            }
         }
 
         &:active {
@@ -723,15 +813,44 @@ page {
             color: $dark;
         }
 
+        .day-promo {
+            margin-top: 6rpx;
+            font-size: 17rpx;
+            font-weight: 700;
+            line-height: 1.2;
+            color: #E85D2A;
+            background: #FFE8CC;
+            border-radius: 6rpx;
+            padding: 1rpx 8rpx;
+        }
+
         .day-dot {
             width: 8rpx;
             height: 8rpx;
             border-radius: 50%;
             background: $primary;
             position: absolute;
-            bottom: 8rpx;
+            top: 10rpx;
+            right: 10rpx;
         }
     }
+}
+
+// 优惠日提示条
+.promo-strip {
+    display: flex;
+    align-items: center;
+    margin: 12rpx 24rpx 0;
+    padding: 12rpx 18rpx;
+    border-radius: 12rpx;
+    background: linear-gradient(120deg, #FFF3E0, #FFE8CC);
+}
+
+.promo-strip-text {
+    font-size: 22rpx;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #C25E1E;
 }
 
 // 加载骨架
@@ -1002,6 +1121,26 @@ page {
         align-items: center;
         justify-content: space-between;
         margin-top: 10rpx;
+    }
+
+    .offpeak-tag {
+        display: flex;
+        flex-direction: column;
+        margin-top: 6rpx;
+        padding: 3rpx 10rpx;
+        border-radius: 8rpx;
+        font-size: 19rpx;
+        font-weight: 700;
+        color: #C25E1E;
+        background: #FFE8CC;
+        align-self: flex-start;
+    }
+
+    .offpeak-tag-window {
+        margin-top: 2rpx;
+        font-size: 17rpx;
+        font-weight: 500;
+        color: #B26A3B;
     }
 
     .card-price {

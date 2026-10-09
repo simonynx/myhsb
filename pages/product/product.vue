@@ -54,6 +54,15 @@
                 </view>
             </view>
 
+            <view class="offpeak-hint" v-if="room.hasOffpeak">
+                <text class="offpeak-hint-label">🔥 优惠价 低至 ¥{{ room.offpeakLowestText }}/时</text>
+                <text class="offpeak-hint-text" v-if="room.offpeakCoupleText">双人 2 小时全包 ¥{{ room.offpeakCoupleText }} 起</text>
+                <text class="offpeak-hint-text">{{ room.offpeakText }}</text>
+                <text class="offpeak-hint-text" v-if="room.showPersonFeeNote">只折包厢小时费，人头费仍按 ¥{{ personPriceText }}/人</text>
+                <text class="offpeak-hint-text" v-else>只折包厢小时费</text>
+                <text class="offpeak-hint-text">下单选中对应日期时段自动生效</text>
+            </view>
+
             <view class="pricing-explain">
                 <text class="pricing-title">费用组成</text>
                 <text class="pricing-copy">{{ pricingExplanation }}</text>
@@ -290,6 +299,7 @@
 <script>
 import { mapActions, mapState } from 'vuex';
 import AUTH from '../../utils/auth.js';
+import OFFPEAK from '../../utils/offpeak.js';
 import times from '@/components/pretty-times/pretty-times.vue';
 
 export default {
@@ -350,10 +360,11 @@ export default {
             return '另加 ¥' + this.personPriceText + '/人入场费';
         },
         pricingExplanation() {
+            const offpeakNote = this.room.hasOffpeak ? '；命中闲时时段会自动按闲时价计算，只在闲时时段生效' : '';
             if (!this.room.price_per_person) {
-                return '包厢费按所选时长计算，人数费用及优惠以确认页为准';
+                return '包厢费按所选时长计算，人数费用及优惠以确认页为准' + offpeakNote;
             }
-            return '包厢费按时长计算 + 入场费 ¥' + this.personPriceText + '/人，优惠在确认页计算';
+            return '包厢费按时长计算 + 入场费 ¥' + this.personPriceText + '/人，优惠在确认页计算' + offpeakNote;
         },
         seatCountText() {
             return this.room.seats_count ? this.room.seats_count + '人' : '--';
@@ -476,6 +487,14 @@ export default {
                 r.tagsArr = r.tags.split('$').map(t => t.trim()).filter(Boolean);
             }
             r.originalPriceText = this.formatMoney(r.original_price_per_hour || 0);
+            r.hasOffpeak = OFFPEAK.hasOffpeak(r);
+            r.offpeakText = OFFPEAK.describeRules(r);
+            r.offpeakLowestText = OFFPEAK.formatYuan(OFFPEAK.lowestOffpeakPrice(r));
+            r.showPersonFeeNote = Number(r.price_per_person || 0) > 0;
+            var lowestHourFen = OFFPEAK.lowestOffpeakPrice(r);
+            r.offpeakCoupleText = lowestHourFen
+                ? OFFPEAK.formatYuan(lowestHourFen * 2 + Number(r.price_per_person || 0) * 2)
+                : '';
             this.room = r;
             this.currentImgIndex = 0;
             this.buildImages();
@@ -1013,6 +1032,17 @@ page { background: $bg; padding-bottom: 120rpx; }
         color: $gray;
         text-decoration: line-through;
     }
+
+    .offpeak-hint {
+        display: flex;
+        flex-direction: column;
+        margin-top: 20rpx;
+        padding: 16rpx 18rpx;
+        border-radius: 14rpx;
+        background: linear-gradient(135deg, #FFF3E0, #FFE8CC);
+    }
+    .offpeak-hint-label { font-size: 25rpx; font-weight: 750; color: #C25E1E; }
+    .offpeak-hint-text { margin-top: 6rpx; font-size: 22rpx; line-height: 1.45; color: #8A6647; }
 
     .pricing-explain {
         display: flex;

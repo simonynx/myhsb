@@ -3,7 +3,12 @@
   "compileType": "miniprogram",
   "libVersion": "2.32.0",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "tests"
+      }
+    ],
     "include": []
   },
   "setting": {

@@ -33,6 +33,12 @@
                 </view>
             </view>
 
+            <view class="offpeak-banner" v-if="isOffpeakActive">
+                <text class="offpeak-banner-title">🔥 {{ offpeakTagText }}</text>
+                <text class="offpeak-banner-sub">小时费 {{ offpeakOriginalHourlyText }}/时 → {{ offpeakHourlyText }}/时，本单省 ¥{{ offpeakSaveAmount }}</text>
+                <text class="offpeak-banner-sub" v-if="offpeakBlocksCoupon">已享半价，本单不再叠加优惠券</text>
+            </view>
+
             <view class="room-prices" v-if="currentProduct">
                 <view class="base-price-item">
                     <text class="base-price-label">包厢费</text>
@@ -134,16 +140,17 @@
                 </view>
 
                 <!-- 优惠券 -->
-                <view class="benefit-row clickable" @click="openCouponPicker">
+                <view class="benefit-row" :class="offpeakBlocksCoupon ? '' : 'clickable'" @click="openCouponPicker">
                     <view class="benefit-copy">
                         <text class="benefit-title">优惠券</text>
                         <text class="benefit-desc" v-if="selectedCoupon">{{ selectedCoupon.name }}</text>
+                        <text class="benefit-desc" v-else-if="offpeakBlocksCoupon">半价订单不可叠加优惠券</text>
                         <text class="benefit-desc" v-else-if="availableCoupons.length > 0">{{ availableCoupons.length }}张可用</text>
                         <text class="benefit-desc" v-else>本单暂无可用优惠券</text>
                     </view>
                     <view class="benefit-right">
                         <text class="benefit-saving" v-if="selectedCoupon">-¥{{ couponDiscount }}</text>
-                        <text class="benefit-action">{{ selectedCoupon ? '已选' : (availableCoupons.length > 0 ? '选择' : '查看') }} ›</text>
+                        <text class="benefit-action">{{ selectedCoupon ? '已选' : (offpeakBlocksCoupon ? '—' : (availableCoupons.length > 0 ? '选择' : '查看')) }} ›</text>
                     </view>
                 </view>
 
@@ -383,6 +390,7 @@
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import COUPON from '../../utils/coupon.js';
+import OFFPEAK from '../../utils/offpeak.js';
 import SUBSCRIPTION from '../../utils/subscription.js';
 
 function getHourFromDateTime(value) {
@@ -440,7 +448,7 @@ export default {
     },
 
     computed: {
-        ...mapState(['hasLogin', 'token', 'userInfo']),
+        ...mapState(['hasLogin', 'token', 'userInfo', 'constance']),
 
         safeUserInfo() {
             return this.userInfo || { points: 0, account_balance: 0, points_config: {} };
@@ -475,10 +483,77 @@ export default {
             return hours > 0 ? hours : this.selectTimes.length;
         },
 
-        // 原始价格(分)
+        // ===== 闲时价（分时定价）：规则取自房间 offpeak_rules，与后端 room_pricing.py 同源 =====
+        offpeakTimeList() {
+            const list = [];
+            (this.selectTimes || []).forEach(function(item) {
+                const parts = String(item || '').split('~');
+                if (parts.length !== 2) return;
+                const begin = parseInt(String(parts[0]).split(':')[0], 10);
+                const end = parseInt(String(parts[1]).split(':')[0], 10);
+                if (!isNaN(begin) && !isNaN(end) && end > begin) list.push([begin, end]);
+            });
+            return list;
+        },
+
+        offpeakResolved() {
+            return OFFPEAK.resolveHourPrice(this.currentProduct, this.currentSelectDate, this.offpeakTimeList);
+        },
+
+        // 本次预约实际生效的小时单价（分）
+        effectiveHourPriceFen() {
+            const resolved = this.offpeakResolved;
+            if (resolved && resolved.price) return resolved.price;
+            return Number(this.currentProduct && this.currentProduct.price_per_hour) || 0;
+        },
+
+        isOffpeakActive() {
+            return !!(this.offpeakResolved && this.offpeakResolved.isOffpeak);
+        },
+
+        offpeakTagText() {
+            return (this.offpeakResolved && this.offpeakResolved.label) || '闲时特惠';
+        },
+
+        offpeakOriginalHourlyText() {
+            return '¥' + OFFPEAK.formatYuan(this.currentProduct && this.currentProduct.price_per_hour);
+        },
+
+        offpeakHourlyText() {
+            return '¥' + OFFPEAK.formatYuan(this.effectiveHourPriceFen);
+        },
+
+        offpeakSaveAmount() {
+            const base = Number(this.currentProduct && this.currentProduct.price_per_hour) || 0;
+            return OFFPEAK.formatYuan((base - this.effectiveHourPriceFen) * this.selectedRoomHours);
+        },
+
+        isNightOffpeak() {
+            return OFFPEAK.isNightRule(this.offpeakResolved && this.offpeakResolved.rule);
+        },
+
+        // 禁券规则（与后端 blocks_coupon 一致）：
+        // 1) 房间规则显式 coupon_allowed=false（如双人引流价）；2) 全局半价且后台未放开叠加
+        offpeakBlocksCoupon() {
+            const rule = this.offpeakResolved && this.offpeakResolved.rule;
+            if (!rule) return false;
+            if (rule.coupon_allowed === false) return true;
+            if (rule.source === 'weekday_discount') {
+                const meta = OFFPEAK.weekdayDiscountFromConstance(this.constance);
+                return !meta.coupon_allowed;
+            }
+            return false;
+        },
+
+        // 禁券时券池置空：选择面板不展示、也不再自动挑最优券
+        couponPool() {
+            return this.offpeakBlocksCoupon ? [] : this.myCoupons;
+        },
+
+        // 原始价格(分) —— 闲时价生效时用闲时单价
         roomPriceFen() {
             if (!this.currentProduct || !this.currentProduct.price_per_hour) return 0;
-            return this.currentProduct.price_per_hour * this.selectedRoomHours;
+            return this.effectiveHourPriceFen * this.selectedRoomHours;
         },
 
         peoplePriceFen() {
@@ -494,6 +569,7 @@ export default {
         },
 
         addonTitleSub() {
+            if (this.isNightOffpeak) return '夜场特惠，加份小食更配';
             return this.roomAddons.length + '项可选，布置和补给可提前准备';
         },
 
@@ -609,7 +685,7 @@ export default {
         },
 
         roomHourlyPriceText() {
-            const price = this.currentProduct && this.currentProduct.price_per_hour || 0;
+            const price = this.effectiveHourPriceFen;
             const amount = price / 100;
             return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
         },
@@ -729,10 +805,12 @@ export default {
         memberDiscountAmountFen() {
             const d = this.userDiscount;
             if (!d || d >= 100 || !this.currentProduct || !this.currentProduct.price_per_hour) return 0;
-            const remainingRoomFee = Math.max(0, (this.selectedRoomHours - this.subscriptionDeductedHours) * this.currentProduct.price_per_hour);
+            const remainingRoomFee = Math.max(0, (this.selectedRoomHours - this.subscriptionDeductedHours) * this.effectiveHourPriceFen);
             const remainingPeopleFee = Math.max(0, (this.numOfPeople - this.subscriptionEntryDeductedPeople) * this.singlePersonPrice);
             const memberDiscountBase = remainingRoomFee + remainingPeopleFee;
-            return Math.floor(memberDiscountBase * (1 - d / 100));
+            // 与后端 PricingEngine 完全一致：折扣 = base - int(base * 折扣率 / 100)
+            // 用 (1 - rate/100) 再取整在非整除时会与后端差 1 分
+            return memberDiscountBase - Math.floor(memberDiscountBase * d / 100);
         },
 
         memberDiscountAmount() {
@@ -823,11 +901,11 @@ export default {
         // 可用/不可用优惠券
         // 门槛判断基于 afterMemberPriceFen(会员折扣后),和后端一致
         availableCoupons() {
-            return COUPON.getAvailableCoupons(this.myCoupons, this.afterMemberPriceFen);
+            return COUPON.getAvailableCoupons(this.couponPool, this.afterMemberPriceFen);
         },
 
         unavailableCoupons() {
-            return COUPON.getUnavailableCoupons(this.myCoupons, this.afterMemberPriceFen);
+            return COUPON.getUnavailableCoupons(this.couponPool, this.afterMemberPriceFen);
         },
 
         // 最终实付金额(分) — 仅含优惠(会员+优惠券+积分)，余额在支付页面处理
@@ -901,6 +979,15 @@ export default {
             this.syncCouponSelection();
         },
 
+        // 切到半价时段时清掉已选优惠券（券池置空不会自动清掉旧选择）
+        offpeakBlocksCoupon(value) {
+            if (value && this.selectedCoupon) {
+                this.selectedCoupon = null;
+                this.couponManuallySelected = false;
+                this.couponPickerOpen = false;
+            }
+        },
+
         mySubscriptions() {
             this.syncSubscriptionSelection();
         },
@@ -944,6 +1031,10 @@ export default {
         }
 
         this.singlePersonPrice = this.currentProduct.price_per_person || 0;
+        // 夜场闲时价命中时默认展开增值服务，顺手引导加购小食
+        if (this.isNightOffpeak) this.addonsOpen = true;
+        // 半价禁券开关读自 constance，直接进本页时也要确保已加载（store 内有缓存）
+        this.$store.dispatch('getConstanceInfo').catch(() => {});
         this.loadMyCoupons();
         this.loadMySubscriptions();
         this.loadRoomAddons();
@@ -1071,6 +1162,10 @@ export default {
 
         // 打开优惠券选择面板
         openCouponPicker() {
+            if (this.offpeakBlocksCoupon) {
+                uni.showToast({ title: '已享半价优惠，本单不可再叠加优惠券', icon: 'none' });
+                return;
+            }
             this.couponPickerOpen = true;
         },
 
@@ -1087,7 +1182,7 @@ export default {
 
         syncCouponSelection() {
             const result = COUPON.resolveCouponSelection(
-                this.myCoupons,
+                this.couponPool,
                 this.selectedCoupon,
                 this.afterMemberPriceFen,
                 this.couponManuallySelected
@@ -1462,6 +1557,17 @@ page {
             }
         }
     }
+
+    .offpeak-banner {
+        margin-bottom: 14rpx;
+        padding: 14rpx 18rpx;
+        background: linear-gradient(135deg, #FFF3E0, #FFE8CC);
+        border-radius: 12rpx;
+        display: flex;
+        flex-direction: column;
+    }
+    .offpeak-banner-title { font-size: 23rpx; font-weight: 750; color: #C25E1E; }
+    .offpeak-banner-sub { margin-top: 4rpx; font-size: 21rpx; color: #8A6647; }
 
     .room-prices {
         display: flex;
