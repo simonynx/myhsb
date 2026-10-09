@@ -44,19 +44,26 @@
         <!-- 核心价格与预约信息 -->
         <view class="price-card">
             <view class="price-head">
-                <view class="price-main">
+                <view class="price-main" v-if="room.hasOffpeak">
+                    <text class="price-yuan offpeak">¥</text>
+                    <text class="price-num offpeak">{{ room.offpeakLowestText }}</text>
+                    <text class="price-unit">/小时起</text>
+                    <text class="price-strike">门市 ¥{{ pricePerHourText }}/时</text>
+                    <text class="price-discount-badge" v-if="room.offpeakDiscountText">{{ room.offpeakDiscountText }}</text>
+                </view>
+                <view class="price-main" v-else>
                     <text class="price-yuan">¥</text>
                     <text class="price-num">{{ pricePerHourText }}</text>
                     <text class="price-unit">/小时</text>
                 </view>
-                <view class="original-price" v-if="room.original_price_per_hour && room.original_price_per_hour > room.price_per_hour">
+                <view class="original-price" v-if="!room.hasOffpeak && room.original_price_per_hour && room.original_price_per_hour > room.price_per_hour">
                     <text>¥{{ room.originalPriceText }}</text>
                 </view>
             </view>
 
             <view class="offpeak-hint" v-if="room.hasOffpeak">
-                <text class="offpeak-hint-label">🔥 优惠价 低至 ¥{{ room.offpeakLowestText }}/时</text>
-                <text class="offpeak-hint-text" v-if="room.offpeakCoupleText">双人 2 小时全包 ¥{{ room.offpeakCoupleText }} 起</text>
+                <text class="offpeak-hint-label" v-if="room.offpeakCoupleText">🔥 闲时价 低至 ¥{{ room.offpeakLowestText }}/时 · 双人2小时全包 ¥{{ room.offpeakCoupleText }} 起</text>
+                <text class="offpeak-hint-label" v-else>🔥 闲时价 低至 ¥{{ room.offpeakLowestText }}/时</text>
                 <text class="offpeak-hint-text">{{ room.offpeakText }}</text>
                 <text class="offpeak-hint-text" v-if="room.showPersonFeeNote">只折包厢小时费，人头费仍按 ¥{{ personPriceText }}/人</text>
                 <text class="offpeak-hint-text" v-else>只折包厢小时费</text>
@@ -462,8 +469,14 @@ export default {
             if (roomId) query.push('id=' + encodeURIComponent(roomId));
             if (date) query.push('date=' + encodeURIComponent(date));
             if (query.length) path += '?' + query.join('&');
+            // 房间有闲时价时分享标题带到手价钩子，帮工作日拉新
+            let title = this.storeName + ' · ' + ((this.room && this.room.name) || '包厢详情');
+            if (this.room && this.room.hasOffpeak && this.room.offpeakCoupleText) {
+                title = '双人2小时 ¥' + this.room.offpeakCoupleText + ' 起包间！'
+                    + this.storeName + ' · ' + ((this.room && this.room.name) || '包厢');
+            }
             return {
-                title: this.storeName + ' · ' + ((this.room && this.room.name) || '包厢详情'),
+                title: title,
                 path: path,
                 imageUrl: (this.room && this.room.image1) || '/static/logo_small.jpg',
             };
@@ -494,6 +507,9 @@ export default {
             var lowestHourFen = OFFPEAK.lowestOffpeakPrice(r);
             r.offpeakCoupleText = lowestHourFen
                 ? OFFPEAK.formatYuan(lowestHourFen * 2 + Number(r.price_per_person || 0) * 2)
+                : '';
+            r.offpeakDiscountText = lowestHourFen
+                ? OFFPEAK.discountText(lowestHourFen, r.price_per_hour)
                 : '';
             this.room = r;
             this.currentImgIndex = 0;
@@ -1024,6 +1040,24 @@ page { background: $bg; padding-bottom: 120rpx; }
         .price-yuan { font-size: 28rpx; color: $primary; font-weight: bold; }
         .price-num { font-size: 52rpx; font-weight: bold; color: $primary; line-height: 1; }
         .price-unit { font-size: 26rpx; color: $gray; margin-left: 4rpx; }
+        .price-yuan.offpeak,
+        .price-num.offpeak { color: #E85D2A; }
+        .price-strike {
+            margin-left: 12rpx;
+            font-size: 26rpx;
+            color: #B8A99A;
+            text-decoration: line-through;
+        }
+        .price-discount-badge {
+            margin-left: 14rpx;
+            font-size: 20rpx;
+            font-weight: 800;
+            color: #fff;
+            background: linear-gradient(120deg, #E85D2A, #FF7A3D);
+            border-radius: 8rpx;
+            padding: 4rpx 12rpx;
+            align-self: center;
+        }
     }
 
     .original-price {

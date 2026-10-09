@@ -325,6 +325,15 @@ function formatDiscountText(percent) {
   return (value / 10) + '折';
 }
 
+/** 现价/原价折算文案：7/25 -> 2.8折，18/30 -> 6折；价格非法返回空 */
+function discountText(priceFen, baseFen) {
+  const p = toInt(priceFen) || 0;
+  const b = toInt(baseFen) || 0;
+  if (!b || !p || p >= b) return '';
+  const zhe = Math.round((p / b) * 100) / 10;
+  return (zhe % 1 === 0 ? String(zhe) : zhe.toFixed(1)) + '折';
+}
+
 /**
  * 优惠日当天给「预约」tab 挂角标（如"特惠"），其余日子清除。
  * 数据源：房间闲时规则 + 全局 Constance 折扣，二者任一命中当天即挂。
@@ -366,6 +375,7 @@ export default {
   isNightRule: isNightRule,
   weekdayDiscountFromConstance: weekdayDiscountFromConstance,
   formatDiscountText: formatDiscountText,
+  discountText: discountText,
   syncPromoTabBadge: syncPromoTabBadge,
   formatYuan: formatYuan,
 };

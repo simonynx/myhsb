@@ -115,7 +115,7 @@
 			</view>
 		</view>
 
-		<!-- 周二半价常驻横幅：首页核心活动位，非弹窗、不打扰，点击直达预约 -->
+		<!-- 工作日优惠常驻横幅：首页核心活动位，非弹窗、不打扰，点击直达预约 -->
 		<view class="weekday-banner" v-if="weekdayBanner.visible" @tap="goToReserve">
 			<view class="weekday-banner-main">
 				<view class="weekday-banner-badge">{{ weekdayBanner.badgeText }}</view>
@@ -662,6 +662,11 @@
 				'带娃+打游戏两不误，这家店的老板太懂了',
 				'我的精神避难所，今天忍痛分享给你 🤫',
 			];
+			// 有闲时优惠时，用到手价文案做分享钩子（随机一半概率出现，避免每次都是卖货脸）
+			const promo = this.weekdayDiscount;
+			if (promo.enabled && promo.dealText && Math.random() < 0.5) {
+				titles.push('工作日包间特惠！' + promo.dealText + '，快约我');
+			}
 			AUTH.trackEvent({
 				event: 'share_home',
 				page_path: 'pages/index/index',

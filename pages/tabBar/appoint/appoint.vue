@@ -26,7 +26,7 @@
             </view>
         </view>
 
-        <!-- 优惠日提示条：所选日期命中全局半价时展示 -->
+        <!-- 优惠日提示条：所选日期命中闲时规则时展示 -->
         <view class="promo-strip" v-if="selectedDayPromo.visible">
             <text class="promo-strip-text">{{ selectedDayPromo.text }}</text>
         </view>
@@ -59,6 +59,10 @@
             <view class="legend-item">
                 <view class="legend-dot past"></view>
                 <text>已过</text>
+            </view>
+            <view class="legend-item" v-if="hasOffpeakToday">
+                <view class="legend-dot offpeak"></view>
+                <text>闲时优惠</text>
             </view>
         </view>
 
@@ -117,7 +121,7 @@
                             v-for="(slot, si) in room.appoints.slice(0, 10)"
                             :key="si"
                             class="slot-block"
-                            :class="slot.statusClass"
+                            :class="[slot.statusClass, slot.isOffpeak ? 'offpeak' : '']"
                         >
                             <text class="slot-hour">{{ String(slot.start).padStart(2, '0') }}</text>
                         </view>
@@ -132,12 +136,21 @@
                     <!-- 价格和按钮 -->
                     <view class="card-footer">
                         <view class="card-price">
-                            <text class="price-yuan">¥</text>
-                            <text class="price-num">{{ room.price_per_hour / 100 }}</text>
-                            <text class="price-unit">/小时</text>
+                            <view class="price-now" v-if="room.offpeakDayText">
+                                <text class="price-yuan offpeak">¥</text>
+                                <text class="price-num offpeak">{{ room.offpeakDayPriceText }}</text>
+                                <text class="price-unit">/小时</text>
+                                <text class="price-strike">¥{{ room.price_per_hour / 100 }}/时</text>
+                                <text class="discount-badge" v-if="room.offpeakDiscountText">{{ room.offpeakDiscountText }}</text>
+                            </view>
+                            <view class="price-now" v-else>
+                                <text class="price-yuan">¥</text>
+                                <text class="price-num">{{ room.price_per_hour / 100 }}</text>
+                                <text class="price-unit">/小时</text>
+                            </view>
                             <view class="offpeak-tag" v-if="room.offpeakDayText">
-                                <text>🔥 {{ room.offpeakDayCoupleText }}</text>
-                                <text class="offpeak-tag-window" v-if="room.offpeakDayWindow">{{ room.offpeakDayWindow }} · ¥{{ room.offpeakDayPriceText }}/时</text>
+                                <text class="offpeak-tag-deal">🔥 双人2小时 ¥{{ room.offpeakDayCoupleText }}</text>
+                                <text class="offpeak-tag-window" v-if="room.offpeakDayWindow">{{ room.offpeakDayWindow }} 闲时</text>
                             </view>
                         </view>
                         <view
@@ -169,7 +182,14 @@
                         <image class="panel-thumb" :src="currentSelectItem ? currentSelectItem.image1 : ''" mode="aspectFill" />
                         <view class="panel-meta">
                             <text class="panel-name">{{ currentSelectItem ? currentSelectItem.name : '' }}</text>
-                            <text class="panel-price">¥{{ currentSelectItem ? currentSelectItem.price_per_hour / 100 : 0 }}/小时</text>
+                            <view class="panel-price" v-if="panelHeadOffpeak">
+                                <text class="panel-price-num">¥{{ panelHeadOffpeak.priceText }}</text>
+                                <text class="panel-price-unit">/小时起</text>
+                                <text class="panel-price-strike">¥{{ panelHeadOffpeak.strikeText }}</text>
+                                <text class="panel-price-badge" v-if="panelHeadOffpeak.discountText">{{ panelHeadOffpeak.discountText }}</text>
+                                <text class="panel-price-window">{{ panelHeadOffpeak.windowText }} 闲时</text>
+                            </view>
+                            <text class="panel-price" v-else>¥{{ currentSelectItem ? currentSelectItem.price_per_hour / 100 : 0 }}/小时</text>
                         </view>
                     </view>
                     <text class="panel-close yticon icon-guanbi" @click="closePopup"></text>
@@ -198,6 +218,7 @@
                         <text class="pf-label">已选时段</text>
                         <text class="pf-count" v-if="specSelected.length">{{ specSelected.length }} 个时段</text>
                         <text class="pf-count zero" v-else>请选择预约时段</text>
+                        <text class="pf-estimate" v-if="panelEstimate">包厢费 ¥{{ panelEstimate.roomText }}<text class="pf-estimate-strike" v-if="panelEstimate.isOffpeak">¥{{ panelEstimate.baseText }}</text><text class="pf-estimate-save" v-if="panelEstimate.saveText">省¥{{ panelEstimate.saveText }}</text></text>
                         <text class="pf-social-tip" v-if="specSelected.length">{{ groupValueText }}</text>
                     </view>
                     <view class="pf-btns">
@@ -288,6 +309,48 @@ export default {
                 };
             }
             return { visible: false };
+        },
+        // 弹窗头部价格：所选日期命中闲时规则时展示闲时价 + 划线门市价
+        panelHeadOffpeak() {
+            const room = this.currentSelectItem;
+            if (!room) return null;
+            const rule = OFFPEAK.lowestRuleForWeekday(room, this.currentSelectDate);
+            if (!rule) return null;
+            return {
+                priceText: OFFPEAK.formatYuan(rule.price_per_hour),
+                strikeText: OFFPEAK.formatYuan(room.price_per_hour),
+                discountText: OFFPEAK.discountText(rule.price_per_hour, room.price_per_hour),
+                windowText: rule.hour_start + ':00-' + rule.hour_end + ':00',
+            };
+        },
+        // 弹窗底部实时估价：按已选时段整段命中判断是否享闲时价
+        panelEstimate() {
+            const room = this.currentSelectItem;
+            if (!room || !this.specSelected.length) return null;
+            let hours = 0;
+            const timeList = [];
+            for (let i = 0; i < this.specSelected.length; i++) {
+                const pair = this.specSelected[i] || [];
+                const b = parseInt(String(pair[0] || '').split(' ')[1], 10);
+                const e = parseInt(String(pair[1] || '').split(' ')[1], 10);
+                if (isNaN(b) || isNaN(e) || e <= b) continue;
+                timeList.push([b, e]);
+                hours += e - b;
+            }
+            if (!hours) return null;
+            const resolved = OFFPEAK.resolveHourPrice(room, this.currentSelectDate, timeList);
+            const baseFen = (Number(room.price_per_hour) || 0) * hours;
+            const roomFen = resolved.price * hours;
+            return {
+                roomText: OFFPEAK.formatYuan(roomFen),
+                baseText: OFFPEAK.formatYuan(baseFen),
+                isOffpeak: !!resolved.isOffpeak,
+                saveText: baseFen > roomFen ? OFFPEAK.formatYuan(baseFen - roomFen) : '',
+            };
+        },
+        // 当天任一房间有闲时规则时，时段图例展示"闲时优惠"
+        hasOffpeakToday() {
+            return (this.roomList || []).some(function(r) { return !!r.offpeakDayText; });
         },
         groupButtonClass() {
             return this.specSelected.length ? 'pf-btn group' : 'pf-btn group disabled';
@@ -454,10 +517,15 @@ export default {
                     } else {
                         item.tagsArr = [];
                     }
+                    // 闲时段小时集合：卡片时段块高亮用
+                    const offpeakHours = {};
+                    (OFFPEAK.rulesForWeekday(item, dateKey) || []).forEach(function(r) {
+                        for (let h = r.hour_start; h < r.hour_end; h++) offpeakHours[h] = 1;
+                    });
                     for (let i = item.opening_hours_start; i < item.opening_hours_end; i++) {
                         const status = i <= currentHour ? 2 : (this.isBookedSlot(bookedSlots, item.object_id, i) ? 3 : 1);
                         const statusClass = status === 1 ? 'available' : status === 2 ? 'past' : 'booked';
-                        item.appoints.push({ start: i, end: i + 1, status, statusClass });
+                        item.appoints.push({ start: i, end: i + 1, status, statusClass, isOffpeak: !!offpeakHours[i] });
                     }
                     // Room-level status properties
                     const hasAppointments = item.appoints.some(s => s.status === 3);
@@ -479,7 +547,10 @@ export default {
                     item.offpeakDayPriceText = OFFPEAK.formatYuan(
                         OFFPEAK.lowestPriceForWeekday(item, dateKey));
                     item.offpeakDayCoupleText = cheapestRule
-                        ? ('双人2h ¥' + OFFPEAK.formatYuan(OFFPEAK.coupleTotalFen(item, cheapestRule)))
+                        ? OFFPEAK.formatYuan(OFFPEAK.coupleTotalFen(item, cheapestRule))
+                        : '';
+                    item.offpeakDiscountText = cheapestRule
+                        ? OFFPEAK.discountText(cheapestRule.price_per_hour, item.price_per_hour)
                         : '';
                     item.offpeakDayWindow = cheapestRule
                         ? (cheapestRule.hour_start + ':00-' + cheapestRule.hour_end + ':00')
@@ -1075,6 +1146,11 @@ page {
                 color: #2E7D32;
                 border: 1rpx solid rgba(46,125,50,0.2);
             }
+            &.offpeak.available {
+                background: #FFE8CC;
+                color: #C24E17;
+                border: 1rpx solid #FFC894;
+            }
             &.past {
                 background: #F5F5F5;
                 color: #BBB;
@@ -1125,33 +1201,69 @@ page {
 
     .offpeak-tag {
         display: flex;
-        flex-direction: column;
-        margin-top: 6rpx;
-        padding: 3rpx 10rpx;
+        align-items: center;
+        margin-top: 10rpx;
+    }
+
+    .offpeak-tag-deal {
+        font-size: 20rpx;
+        font-weight: 800;
+        color: #C24E17;
+        background: linear-gradient(120deg, #FFF3E0, #FFE2C2);
+        border: 1rpx solid #FFD9B0;
         border-radius: 8rpx;
-        font-size: 19rpx;
-        font-weight: 700;
-        color: #C25E1E;
-        background: #FFE8CC;
-        align-self: flex-start;
+        padding: 5rpx 12rpx;
     }
 
     .offpeak-tag-window {
-        margin-top: 2rpx;
-        font-size: 17rpx;
+        margin-left: 12rpx;
+        font-size: 19rpx;
         font-weight: 500;
-        color: #B26A3B;
+        color: #B2825F;
     }
 
     .card-price {
         display: flex;
-        align-items: baseline;
+        flex-direction: column;
+        align-items: flex-start;
+
+        .price-now {
+            display: flex;
+            align-items: baseline;
+        }
 
         .price-yuan {
             font-size: 24rpx;
             color: $primary;
             font-weight: bold;
             margin-right: 2rpx;
+        }
+
+        .price-yuan.offpeak,
+        .price-num.offpeak {
+            color: #E85D2A;
+        }
+
+        .price-num.offpeak {
+            font-size: 48rpx;
+        }
+
+        .price-strike {
+            margin-left: 12rpx;
+            font-size: 22rpx;
+            color: #B8A99A;
+            text-decoration: line-through;
+        }
+
+        .discount-badge {
+            margin-left: 14rpx;
+            font-size: 20rpx;
+            font-weight: 800;
+            color: #fff;
+            background: linear-gradient(120deg, #E85D2A, #FF7A3D);
+            border-radius: 8rpx;
+            padding: 4rpx 10rpx;
+            align-self: center;
         }
 
         .price-icon {
@@ -1254,6 +1366,7 @@ page {
         &.available { background: #E8F5E9; border: 1rpx solid rgba(124,179,66,0.15); }
         &.booked { background: #FFEBEE; border: 1rpx solid rgba(229,57,53,0.1); }
         &.past { background: #F5F5F5; }
+        &.offpeak { background: #FFE8CC; border: 1rpx solid #FFC894; }
     }
 }
 
@@ -1371,6 +1484,44 @@ page {
                 font-size: 26rpx;
                 color: $primary;
                 font-weight: bold;
+                display: flex;
+                align-items: baseline;
+                flex-wrap: wrap;
+
+                .panel-price-num {
+                    font-size: 30rpx;
+                    color: #E85D2A;
+                    font-weight: 800;
+                }
+                .panel-price-unit {
+                    font-size: 20rpx;
+                    color: $gray;
+                    font-weight: normal;
+                    margin-left: 2rpx;
+                }
+                .panel-price-strike {
+                    margin-left: 10rpx;
+                    font-size: 20rpx;
+                    color: #B8A99A;
+                    font-weight: normal;
+                    text-decoration: line-through;
+                }
+                .panel-price-badge {
+                    margin-left: 10rpx;
+                    font-size: 18rpx;
+                    font-weight: 800;
+                    color: #fff;
+                    background: linear-gradient(120deg, #E85D2A, #FF7A3D);
+                    border-radius: 6rpx;
+                    padding: 2rpx 8rpx;
+                    align-self: center;
+                }
+                .panel-price-window {
+                    margin-left: 12rpx;
+                    font-size: 20rpx;
+                    color: #B2825F;
+                    font-weight: normal;
+                }
             }
         }
     }
@@ -1413,6 +1564,27 @@ page {
                 font-weight: bold;
                 color: $primary;
                 &.zero { color: #999; font-weight: normal; }
+            }
+
+            .pf-estimate {
+                display: flex;
+                align-items: baseline;
+                font-size: 22rpx;
+                color: #8A6647;
+                margin-top: 4rpx;
+
+                .pf-estimate-strike {
+                    margin-left: 8rpx;
+                    font-size: 20rpx;
+                    color: #B8A99A;
+                    text-decoration: line-through;
+                }
+                .pf-estimate-save {
+                    margin-left: 10rpx;
+                    font-size: 20rpx;
+                    font-weight: 800;
+                    color: #E85D2A;
+                }
             }
 
             .pf-social-tip {
