@@ -295,6 +295,8 @@
                         <text class="pf-label">已选时段</text>
                         <text class="pf-count" v-if="specSelected.length">{{ selectedSummaryText }}</text>
                         <text class="pf-count zero" v-else>请选择预约时段</text>
+                        <text class="pf-estimate" v-if="panelEstimate">包厢费 ¥{{ panelEstimate.roomText }}<text class="pf-estimate-strike" v-if="panelEstimate.isOffpeak">¥{{ panelEstimate.baseText }}</text><text class="pf-estimate-save" v-if="panelEstimate.saveText">省¥{{ panelEstimate.saveText }}</text></text>
+                        <text class="pf-estimate-segments" v-if="panelEstimate && panelEstimate.segmentText">{{ panelEstimate.segmentText }}</text>
                     </view>
                     <view class="pf-btns">
                         <view class="pf-btn group" :class="specSelected.length ? '' : 'disabled'" @tap="specSelected.length && handleCreateGroup()">
@@ -445,6 +447,25 @@ export default {
             if (this.isFullyBooked) return '当天已约满';
             if (this.availableSlotCount > 0) return '选择时段预约';
             return '查看可选时段';
+        },
+        // 弹窗底部估价：逐小时分段计价，跨闲时/门市价时各段各按各价
+        panelEstimate() {
+            if (!this.room || !this.specSelected.length) return null;
+            const timeList = [];
+            this.specSelected.forEach(function(pair) {
+                const b = parseInt(String((pair || [])[0] || '').split(' ')[1], 10);
+                const e = parseInt(String((pair || [])[1] || '').split(' ')[1], 10);
+                if (!isNaN(b) && !isNaN(e) && e > b) timeList.push([b, e]);
+            });
+            if (!timeList.length) return null;
+            const quote = OFFPEAK.priceAppointment(this.room, this.currentSelectDate, timeList);
+            return {
+                roomText: OFFPEAK.formatYuan(quote.roomFee),
+                baseText: OFFPEAK.formatYuan(quote.baseFee),
+                isOffpeak: quote.isOffpeak,
+                saveText: quote.saveFee > 0 ? OFFPEAK.formatYuan(quote.saveFee) : '',
+                segmentText: quote.mixed ? OFFPEAK.describeSegments(quote.segments) : '',
+            };
         },
         selectedSummaryText() {
             if (!this.specSelected.length) return '请选择预约时段';
@@ -896,10 +917,8 @@ export default {
                 date: this.currentSelectDate,
                 begin_time: beginTime,
             }, this.token).catch(() => {});
-            const groupOffpeak = OFFPEAK.resolveHourPrice(room, this.currentSelectDate,
+            const groupQuote = OFFPEAK.priceAppointment(room, this.currentSelectDate,
                 [[parseInt(beginTime.split(':')[0]), parseInt(endTime.split(':')[0])]]);
-            groupOffpeak.price = groupOffpeak.isOffpeak ? groupOffpeak.price : 0;
-            groupOffpeak.label = groupOffpeak.isOffpeak ? groupOffpeak.label : '';
             const query = 'room_id=' + room.object_id
                 + '&room_name=' + encodeURIComponent(room.name || '')
                 + '&room_image=' + encodeURIComponent(room.image1 || '')
@@ -909,8 +928,9 @@ export default {
                 + '&duration=' + duration
                 + '&price_per_person=' + (room.price_per_person || 0)
                 + '&price_per_hour=' + (room.price_per_hour || 0)
-                + '&offpeak_price=' + groupOffpeak.price
-                + '&offpeak_label=' + encodeURIComponent(groupOffpeak.label)
+                + '&offpeak_room_fee=' + (groupQuote.isOffpeak ? groupQuote.roomFee : 0)
+                + '&offpeak_label=' + encodeURIComponent(groupQuote.isOffpeak ? groupQuote.label : '')
+                + '&offpeak_segments=' + encodeURIComponent(groupQuote.mixed ? OFFPEAK.describeSegments(groupQuote.segments) : '')
                 + '&time_list=' + encodeURIComponent(JSON.stringify(timeList))
                 + '&source=product_panel';
             uni.navigateTo({ url: '/pages/group/create?' + query });
@@ -1662,6 +1682,35 @@ page { background: $bg; padding-bottom: 120rpx; }
                 font-weight: bold;
                 color: $primary;
                 &.zero { color: #999; font-weight: normal; }
+            }
+
+            .pf-estimate {
+                display: flex;
+                align-items: baseline;
+                font-size: 22rpx;
+                color: $offpeak-text;
+                margin-top: 4rpx;
+
+                .pf-estimate-strike {
+                    margin-left: 8rpx;
+                    font-size: 20rpx;
+                    color: $offpeak-strike;
+                    text-decoration: line-through;
+                }
+                .pf-estimate-save {
+                    margin-left: 10rpx;
+                    font-size: 20rpx;
+                    font-weight: 800;
+                    color: $offpeak-primary;
+                }
+            }
+
+            .pf-estimate-segments {
+                display: block;
+                font-size: 20rpx;
+                color: $offpeak-muted;
+                margin-top: 2rpx;
+                line-height: 1.35;
             }
         }
 

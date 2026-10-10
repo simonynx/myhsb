@@ -219,6 +219,7 @@
                         <text class="pf-count" v-if="specSelected.length">{{ specSelected.length }} 个时段</text>
                         <text class="pf-count zero" v-else>请选择预约时段</text>
                         <text class="pf-estimate" v-if="panelEstimate">包厢费 ¥{{ panelEstimate.roomText }}<text class="pf-estimate-strike" v-if="panelEstimate.isOffpeak">¥{{ panelEstimate.baseText }}</text><text class="pf-estimate-save" v-if="panelEstimate.saveText">省¥{{ panelEstimate.saveText }}</text></text>
+                        <text class="pf-estimate-segments" v-if="panelEstimate && panelEstimate.segmentText">{{ panelEstimate.segmentText }}</text>
                         <text class="pf-social-tip" v-if="specSelected.length">{{ groupValueText }}</text>
                     </view>
                     <view class="pf-btns">
@@ -296,7 +297,7 @@ export default {
                 return {
                     visible: true,
                     text: '🔥 本日双人 2 小时 ¥' + OFFPEAK.formatYuan(cheapest.total)
-                        + '起（' + cheapest.roomName + '）· ' + cheapest.window + ' 整段命中自动生效，只折包厢费',
+                        + '起（' + cheapest.roomName + '）· ' + cheapest.window + ' 时段内的小时自动按闲时价，只折包厢费',
                 };
             }
             const meta = OFFPEAK.weekdayDiscountFromConstance(this.constance);
@@ -305,7 +306,7 @@ export default {
                 return {
                     visible: true,
                     text: '🔥 本日包间费' + offText + '：' + meta.hour_start + ':00-' + meta.hour_end
-                        + ':00 整段命中自动生效，只折小时费',
+                        + ':00 时段内的小时自动生效，只折小时费',
                 };
             }
             return { visible: false };
@@ -323,7 +324,7 @@ export default {
                 windowText: rule.hour_start + ':00-' + rule.hour_end + ':00',
             };
         },
-        // 弹窗底部实时估价：按已选时段整段命中判断是否享闲时价
+        // 弹窗底部实时估价：已选时段逐小时分段计价
         panelEstimate() {
             const room = this.currentSelectItem;
             if (!room || !this.specSelected.length) return null;
@@ -338,14 +339,14 @@ export default {
                 hours += e - b;
             }
             if (!hours) return null;
-            const resolved = OFFPEAK.resolveHourPrice(room, this.currentSelectDate, timeList);
-            const baseFen = (Number(room.price_per_hour) || 0) * hours;
-            const roomFen = resolved.price * hours;
+            // 逐小时分段计价：跨闲时/门市价时各段各按各价，与后端 price_appointment 一致
+            const quote = OFFPEAK.priceAppointment(room, this.currentSelectDate, timeList);
             return {
-                roomText: OFFPEAK.formatYuan(roomFen),
-                baseText: OFFPEAK.formatYuan(baseFen),
-                isOffpeak: !!resolved.isOffpeak,
-                saveText: baseFen > roomFen ? OFFPEAK.formatYuan(baseFen - roomFen) : '',
+                roomText: OFFPEAK.formatYuan(quote.roomFee),
+                baseText: OFFPEAK.formatYuan(quote.baseFee),
+                isOffpeak: quote.isOffpeak,
+                saveText: quote.saveFee > 0 ? OFFPEAK.formatYuan(quote.saveFee) : '',
+                segmentText: quote.mixed ? OFFPEAK.describeSegments(quote.segments) : '',
             };
         },
         // 当天任一房间有闲时规则时，时段图例展示"闲时优惠"
@@ -358,6 +359,19 @@ export default {
         bookButtonClass() {
             return this.specSelected.length ? 'pf-btn book' : 'pf-btn book disabled';
         },
+        // 组局按首个时段开始到末个时段结束的整段计费
+        selectedHourRange() {
+            let begin = null;
+            let end = null;
+            (this.specSelected || []).forEach(function(pair) {
+                const b = parseInt(String((pair || [])[0] || '').split(' ')[1], 10);
+                const e = parseInt(String((pair || [])[1] || '').split(' ')[1], 10);
+                if (isNaN(b) || isNaN(e) || e <= b) return;
+                if (begin === null || b < begin) begin = b;
+                if (end === null || e > end) end = e;
+            });
+            return begin === null ? null : [begin, end];
+        },
         selectedDurationHours() {
             return this.specSelected && this.specSelected.length ? this.specSelected.length : 0;
         },
@@ -367,9 +381,11 @@ export default {
         },
         groupValueText() {
             if (!this.currentSelectItem || !this.selectedDurationHours) return '';
-            const hourCost = (this.currentSelectItem.price_per_hour || 0) * this.selectedDurationHours;
-            const personCost = (this.currentSelectItem.price_per_person || 0) * 2;
-            const total = Math.ceil((hourCost + personCost) * this.groupDiscountPercent / 100);
+            const range = this.selectedHourRange;
+            if (!range) return '';
+            // 与后端 compute_group_cost 同口径：分段闲时价与组局折扣取更低者
+            const total = OFFPEAK.resolveGroupCost(this.currentSelectItem, this.currentSelectDate,
+                range[0], range[1], 2, this.groupDiscountPercent).baseCost;
             if (!total) return '发起2人局，满员后自动锁房';
             const perPerson = Math.ceil(total / 2 / 100);
             return '2人局约人均 ¥' + perPerson + ' 起，满员锁房';
@@ -762,10 +778,8 @@ export default {
                 date: this.currentSelectDate,
                 begin_time: beginTime,
             }, this.token).catch(() => {});
-            const groupOffpeak = OFFPEAK.resolveHourPrice(room, this.currentSelectDate,
+            const groupQuote = OFFPEAK.priceAppointment(room, this.currentSelectDate,
                 [[parseInt(beginTime.split(':')[0]), parseInt(endTime.split(':')[0])]]);
-            groupOffpeak.price = groupOffpeak.isOffpeak ? groupOffpeak.price : 0;
-            groupOffpeak.label = groupOffpeak.isOffpeak ? groupOffpeak.label : '';
             const query = 'room_id=' + room.object_id
                 + '&room_name=' + encodeURIComponent(room.name || '')
                 + '&room_image=' + encodeURIComponent(room.image1 || '')
@@ -775,8 +789,9 @@ export default {
                 + '&duration=' + duration
                 + '&price_per_person=' + (room.price_per_person || 0)
                 + '&price_per_hour=' + (room.price_per_hour || 0)
-                + '&offpeak_price=' + groupOffpeak.price
-                + '&offpeak_label=' + encodeURIComponent(groupOffpeak.label)
+                + '&offpeak_room_fee=' + (groupQuote.isOffpeak ? groupQuote.roomFee : 0)
+                + '&offpeak_label=' + encodeURIComponent(groupQuote.isOffpeak ? groupQuote.label : '')
+                + '&offpeak_segments=' + encodeURIComponent(groupQuote.mixed ? OFFPEAK.describeSegments(groupQuote.segments) : '')
                 + '&time_list=' + encodeURIComponent(JSON.stringify(timeList))
                 + '&source=' + encodeURIComponent(this.appointmentEntrySource);
             this.clearGroupCreateIntent();
@@ -1591,6 +1606,14 @@ page {
                     font-weight: 800;
                     color: $offpeak-primary;
                 }
+            }
+
+            .pf-estimate-segments {
+                display: block;
+                font-size: 20rpx;
+                color: $offpeak-muted;
+                margin-top: 2rpx;
+                line-height: 1.35;
             }
 
             .pf-social-tip {

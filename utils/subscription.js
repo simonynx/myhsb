@@ -128,6 +128,28 @@ function isStackable(sub) {
   return template.stackable !== false;
 }
 
+// 可用小时卡抵扣的各小时单价（从高到低）；闲时规则默认不可用卡，与后端 apply_appointment 一致
+function cardHourPrices(ctx) {
+  var hourly = Number(ctx.currentProduct && ctx.currentProduct.price_per_hour) || 0;
+  var hourPrices = ctx.hourPrices;
+  if (!Array.isArray(hourPrices) || !hourPrices.length) {
+    var count = Number(ctx.selectedRoomHours) || 0;
+    var list = [];
+    for (var i = 0; i < count; i++) list.push(hourly);
+    return list;
+  }
+  return hourPrices
+    .filter(function(item) { return !item.rule || item.rule.card_allowed === true; })
+    .map(function(item) { return Number(item.price) || 0; })
+    .sort(function(a, b) { return b - a; });
+}
+
+function sumTop(prices, count) {
+  var total = 0;
+  for (var i = 0; i < count && i < prices.length; i++) total += prices[i];
+  return total;
+}
+
 function canUseForSlot(slot, sub, ctx) {
   var def = getSlotDef(slot);
   if (!def || !sub) return false;
@@ -142,8 +164,7 @@ function canUseForSlot(slot, sub, ctx) {
 
   if (slot === SLOT_ROOM_HOURS) {
     // 闲时优惠价时段默认不可抵扣小时卡（规则 card_allowed=true 才放开），与后端一致
-    var offpeakRule = ctx.offpeakRule;
-    if (offpeakRule && offpeakRule.card_allowed !== true) return false;
+    if (!cardHourPrices(ctx).length) return false;
     var usableRooms = template.usable_rooms || [];
     if (usableRooms.length > 0) {
       var roomId = ctx.currentProduct && ctx.currentProduct.object_id;
@@ -164,12 +185,12 @@ function decorateForSlot(slot, sub, ctx) {
   var viewKey = slot + '_' + sub.object_id;
 
   if (slot === SLOT_ROOM_HOURS) {
-    var selectedHours = Number(ctx.selectedRoomHours) || 0;
+    var cardPrices = cardHourPrices(ctx);
+    var selectedHours = cardPrices.length;
     var ruleMaxHours = Number(rule.max_per_order) || 0;
     var hourLimit = ruleMaxHours > 0 ? Math.min(selectedHours, ruleMaxHours) : selectedHours;
     var deductedHours = Math.min(hourLimit, remaining);
-    var hourlyPrice = ctx.currentProduct && ctx.currentProduct.price_per_hour || 0;
-    var roomDiscountFen = deductedHours * hourlyPrice;
+    var roomDiscountFen = sumTop(cardPrices, deductedHours);
     return Object.assign({}, sub, {
       deducted_limit: deductedHours,
       deducted_hours: deductedHours,
@@ -315,9 +336,9 @@ function getMetrics(ctx) {
   var selectedBySlot = ctx.selectedBySlot || {};
   var roomSub = getSelected(selectedBySlot, SLOT_ROOM_HOURS);
   var entrySub = getSelected(selectedBySlot, SLOT_SELF_ENTRY_FEE);
-  var selectedRoomHours = Number(ctx.selectedRoomHours) || 0;
+  var cardPrices = cardHourPrices(ctx);
+  var selectedRoomHours = cardPrices.length;
   var singlePersonPrice = Number(ctx.singlePersonPrice) || 0;
-  var roomHourlyPrice = ctx.currentProduct && ctx.currentProduct.price_per_hour || 0;
   var numOfPeople = Number(ctx.numOfPeople) || 0;
   var roomRule = roomSub ? getUsageRule(roomSub.card_template || {}, SLOT_ROOM_HOURS) : null;
   var entryRule = entrySub ? getUsageRule(entrySub.card_template || {}, SLOT_SELF_ENTRY_FEE) : null;
@@ -328,7 +349,7 @@ function getMetrics(ctx) {
   var entryRuleMax = Number(entryRule && entryRule.max_per_order) || 1;
   var entryLimit = entryRuleMax > 0 ? Math.min(numOfPeople, entryRuleMax) : numOfPeople;
   var entryDeductedCount = entrySub && numOfPeople > 0 ? Math.min(entryLimit, Number(entrySub.remaining_limit) || 0) : 0;
-  var roomDiscountFen = deductedHours * roomHourlyPrice;
+  var roomDiscountFen = sumTop(cardPrices, deductedHours);
   var entryDiscountFen = entryDeductedCount * singlePersonPrice;
 
   return {

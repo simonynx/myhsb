@@ -5,7 +5,7 @@
  *   [{ label, weekdays: [1..7], hour_start, hour_end, price_per_hour }]
  * - weekdays 用 ISO 编号：1=周一 … 7=周日
  * - hour_start/hour_end 为 24 小时制整点、左闭右开
- * - 整段使用时间全部落在同一窗口内才生效，跨窗口按门市价
+ * - 逐小时计价：每个整点按所在窗口的价格，窗口外按门市价；跨窗口时各段各按各价
  * - 只折小时费，不含每人入场费
  */
 
@@ -93,24 +93,123 @@ function matchRule(rules, weekday, hourStartUsed, hourEndUsed) {
   return matched;
 }
 
+/** 单个整点 [hour, hour+1) 命中的最低价规则 */
+function hourRule(rules, weekday, hour) {
+  var matched = null;
+  for (var i = 0; i < rules.length; i++) {
+    var rule = rules[i];
+    if (rule.weekdays.indexOf(weekday) === -1) continue;
+    if (hour >= rule.hour_start && hour < rule.hour_end) {
+      if (!matched || rule.price_per_hour < matched.price_per_hour) matched = rule;
+    }
+  }
+  return matched;
+}
+
+function uniqueLabels(rules) {
+  const labels = [];
+  (rules || []).forEach(function(rule) {
+    const label = rule && rule.label;
+    if (label && labels.indexOf(label) === -1) labels.push(label);
+  });
+  return labels;
+}
+
 /**
- * 解析某次预约生效的小时单价
- * @returns {{ price:number, rule:object|null, isOffpeak:boolean, label:string }}
+ * 预约逐小时分段计价：与后端 room_pricing.price_appointment 同源。
+ * 每个整点按所在窗口的价格算，窗口外按门市价；跨白天/夜场/高峰时各段各按各价。
+ * segments: [{ start, end, hours, price, rule, isOffpeak, label }]
+ */
+function priceAppointment(room, dateStr, timeList) {
+  const base = toInt(room && room.price_per_hour) || 0;
+  const hours = hoursFromTimeList(timeList);
+  const weekday = isoWeekday(dateStr);
+  const rules = weekday && hours.length ? normalizeRules(room) : [];
+  const hourPrices = hours.map(function(hour) {
+    const rule = rules.length ? hourRule(rules, weekday, hour) : null;
+    return { hour: hour, price: rule ? rule.price_per_hour : base, rule: rule };
+  });
+
+  const segments = [];
+  hourPrices.forEach(function(item) {
+    const last = segments[segments.length - 1];
+    if (last && last.end === item.hour && last.price === item.price && last.rule === item.rule) {
+      last.end = item.hour + 1;
+      last.hours += 1;
+    } else {
+      segments.push({
+        start: item.hour,
+        end: item.hour + 1,
+        hours: 1,
+        price: item.price,
+        rule: item.rule,
+        isOffpeak: !!item.rule,
+        label: item.rule ? (item.rule.label || '闲时特惠') : '门市价',
+      });
+    }
+  });
+
+  const matched = [];
+  let offpeakHours = 0;
+  let roomFee = 0;
+  hourPrices.forEach(function(item) {
+    roomFee += item.price;
+    if (item.rule) {
+      offpeakHours += 1;
+      if (matched.indexOf(item.rule) === -1) matched.push(item.rule);
+    }
+  });
+  const baseFee = base * hourPrices.length;
+  return {
+    hours: hourPrices.length,
+    roomFee: roomFee,
+    baseFee: baseFee,
+    saveFee: Math.max(0, baseFee - roomFee),
+    segments: segments,
+    hourPrices: hourPrices,
+    rules: matched,
+    rule: matched[0] || null,
+    offpeakHours: offpeakHours,
+    isOffpeak: offpeakHours > 0,
+    allOffpeak: hourPrices.length > 0 && offpeakHours === hourPrices.length,
+    // 单价不唯一（闲时+门市价，或多个不同价窗口），界面要按段展示
+    mixed: segments.length > 1,
+    label: uniqueLabels(matched).join('、') || (matched.length ? '闲时特惠' : ''),
+  };
+}
+
+/** 分段文案：14-17点 ¥21/时、17-20点 ¥30/时 */
+function describeSegments(segments) {
+  return (segments || []).map(function(seg) {
+    return seg.start + '-' + seg.end + '点 ¥' + formatYuan(seg.price) + '/时';
+  }).join('、');
+}
+
+/** 任一命中规则禁券则整单禁券，与后端 rules_block_coupon 一致 */
+function rulesBlockCoupon(rules, constance) {
+  return (rules || []).some(function(rule) {
+    if (!rule) return false;
+    if (rule.coupon_allowed === false) return true;
+    if (rule.source === 'weekday_discount') {
+      return !weekdayDiscountFromConstance(constance).coupon_allowed;
+    }
+    return false;
+  });
+}
+
+/**
+ * 兼容旧调用：平均小时单价（向下取整）+ 主规则。
+ * 时段跨多种价格时 price 只是均价，算总价请用 priceAppointment().roomFee。
  */
 function resolveHourPrice(room, dateStr, timeList) {
   const base = toInt(room && room.price_per_hour) || 0;
-  const fallback = { price: base, rule: null, isOffpeak: false, label: '' };
-  const hours = hoursFromTimeList(timeList);
-  if (!hours.length) return fallback;
-  const weekday = isoWeekday(dateStr);
-  if (!weekday) return fallback;
-  const rule = matchRule(normalizeRules(room), weekday, hours[0], hours[hours.length - 1] + 1);
-  if (!rule) return fallback;
+  const quote = priceAppointment(room, dateStr, timeList);
+  if (!quote.hours) return { price: base, rule: null, isOffpeak: false, label: '' };
   return {
-    price: rule.price_per_hour,
-    rule: rule,
-    isOffpeak: true,
-    label: rule.label || '闲时特惠',
+    price: Math.floor(quote.roomFee / quote.hours),
+    rule: quote.rule,
+    isOffpeak: quote.isOffpeak,
+    label: quote.label,
   };
 }
 
@@ -122,8 +221,7 @@ function cardAllowed(rule) {
 
 /**
  * 拼团总价（分）：与后端 room_pricing.compute_group_cost 同源。
- * 闲时价与拼团折扣不叠加，取更低者；折扣向上取整，避免前后端差 1 分。
- * @returns {{ originalCost:number, baseCost:number, hourPrice:number, offpeakApplied:boolean, label:string }}
+ * 小时费逐段计价后整单与拼团折扣比较，取更低者，不叠加；折扣向上取整。
  */
 function resolveGroupCost(room, dateStr, beginHour, endHour, maxMembers, groupDiscountPercent) {
   const base = toInt(room && room.price_per_hour) || 0;
@@ -142,28 +240,31 @@ function resolveGroupCost(room, dateStr, beginHour, endHour, maxMembers, groupDi
   let offpeakApplied = false;
   let label = '';
   let hourPrice = base;
+  let roomFee = base * duration;
+  let segments = [];
   if (begin !== null && end !== null && end > begin) {
-    const resolved = resolveHourPrice(room, dateStr, [[begin, end]]);
-    if (resolved.isOffpeak) {
-      const offpeakCost = resolved.price * duration + personCost;
-      if (offpeakCost < discountedCost) {
-        baseCost = offpeakCost;
-        offpeakApplied = true;
-        label = resolved.label;
-        hourPrice = resolved.price;
-      }
+    const quote = priceAppointment(room, dateStr, [[begin, end]]);
+    if (quote.isOffpeak && quote.roomFee + personCost < discountedCost) {
+      baseCost = quote.roomFee + personCost;
+      offpeakApplied = true;
+      label = quote.label;
+      hourPrice = Math.floor(quote.roomFee / duration);
+      roomFee = quote.roomFee;
+      segments = quote.segments;
     }
   }
   return {
     originalCost: originalCost,
     baseCost: baseCost,
     hourPrice: hourPrice,
+    roomFee: roomFee,
+    segments: segments,
     offpeakApplied: offpeakApplied,
     label: label,
   };
 }
 
-/** 只取生效单价（数字），供算价使用 */
+/** 平均生效单价（数字）；算总价请用 priceAppointment */
 function effectiveHourPrice(room, dateStr, timeList) {
   return resolveHourPrice(room, dateStr, timeList).price;
 }
@@ -410,6 +511,9 @@ export default {
   isoWeekday: isoWeekday,
   hoursFromTimeList: hoursFromTimeList,
   matchRule: matchRule,
+  priceAppointment: priceAppointment,
+  describeSegments: describeSegments,
+  rulesBlockCoupon: rulesBlockCoupon,
   resolveHourPrice: resolveHourPrice,
   effectiveHourPrice: effectiveHourPrice,
   cardAllowed: cardAllowed,

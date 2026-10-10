@@ -26,11 +26,15 @@
         <view class="price-ref-card">
             <view class="price-ref-title">🏷️ 房间定价</view>
             <view class="price-ref-row">
-                <text class="ref-label">房间每小时</text>
+                <text class="ref-label">{{ isMixedPrice ? '房间每小时（均价）' : '房间每小时' }}</text>
                 <text class="ref-value">
                     <text class="ref-strike" v-if="isOffpeakApplied">¥{{ (pricePerHour / 100).toFixed(2) }}</text>
                     ¥{{ (effectiveHourPrice / 100).toFixed(2) }}
                 </text>
+            </view>
+            <view class="price-ref-row" v-if="isMixedPrice">
+                <text class="ref-label">分段计价</text>
+                <text class="ref-value">{{ offpeakSegmentsText }}</text>
             </view>
             <view class="price-ref-row" v-if="isOffpeakApplied">
                 <text class="ref-label">本时段</text>
@@ -77,7 +81,8 @@
 
             <view class="cost-formula">
                 <view class="formula-line">
-                    <text class="formula-text">时长费用 = ¥{{ (effectiveHourPrice / 100).toFixed(2) }} × {{ duration }}小时</text>
+                    <text class="formula-text" v-if="isMixedPrice">时长费用 = {{ offpeakSegmentsText }}</text>
+                    <text class="formula-text" v-else>时长费用 = ¥{{ (effectiveHourPrice / 100).toFixed(2) }} × {{ duration }}小时</text>
                     <text class="formula-result">¥{{ timeCost }}</text>
                 </view>
                 <view class="formula-line">
@@ -298,8 +303,9 @@ export default {
             endTime: '',
             duration: 1,
             pricePerHour: 0,
-            offpeakPrice: 0,
+            offpeakRoomFee: 0,
             offpeakLabel: '',
+            offpeakSegmentsText: '',
             pricePerPersonRef: 0,
             maxMembers: 2,
             initiatorInputYuan: '0.00',
@@ -326,12 +332,13 @@ export default {
             return (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
         },
         timeCost() {
-            return ((this.effectiveHourPrice * this.duration) / 100).toFixed(2);
+            return (this.effectiveRoomFeeFen / 100).toFixed(2);
         },
         // 闲时价总额；与后端 room_pricing.compute_group_cost 同一口径
+        // 闲时总额：小时费已按分段计价（跨闲时/门市价各按各价），与后端 compute_group_cost 同口径
         offpeakCostFen() {
-            if (!(this.offpeakPrice > 0)) return 0;
-            return this.offpeakPrice * this.duration + this.pricePerPersonRef * this.maxMembers;
+            if (!(this.offpeakRoomFee > 0)) return 0;
+            return this.offpeakRoomFee + this.pricePerPersonRef * this.maxMembers;
         },
         discountedCostFen() {
             if (this.groupDiscountPercent >= 100) return this.roomTotalCostFen;
@@ -341,8 +348,15 @@ export default {
         isOffpeakApplied() {
             return this.offpeakCostFen > 0 && this.offpeakCostFen < this.discountedCostFen;
         },
+        effectiveRoomFeeFen() {
+            return this.isOffpeakApplied ? this.offpeakRoomFee : this.pricePerHour * this.duration;
+        },
+        // 分段计价时单价不唯一，展示均价
         effectiveHourPrice() {
-            return this.isOffpeakApplied ? this.offpeakPrice : this.pricePerHour;
+            return this.duration > 0 ? Math.floor(this.effectiveRoomFeeFen / this.duration) : this.pricePerHour;
+        },
+        isMixedPrice() {
+            return this.isOffpeakApplied && !!this.offpeakSegmentsText;
         },
         personCost() {
             return ((this.pricePerPersonRef * this.maxMembers) / 100).toFixed(2);
@@ -443,8 +457,9 @@ export default {
         this.endTime = options.end_time || '';
         this.duration = parseInt(options.duration) || 1;
         this.pricePerHour = parseInt(options.price_per_hour) || 0;
-        this.offpeakPrice = parseInt(options.offpeak_price) || 0;
+        this.offpeakRoomFee = parseInt(options.offpeak_room_fee) || 0;
         this.offpeakLabel = decodeURIComponent(options.offpeak_label || '');
+        this.offpeakSegmentsText = decodeURIComponent(options.offpeak_segments || '');
         this.pricePerPersonRef = parseInt(options.price_per_person) || 0;
 
         // 时段列表

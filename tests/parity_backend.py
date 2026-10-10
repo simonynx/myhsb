@@ -80,7 +80,9 @@ SAT = date(2026, 10, 17)  # 周六
 CASES = [
     ('A 周二10-13 半价vs白天1800', ROOM_A, TUE, [[10, 13]]),
     ('A 周二19-22 半价vs夜场2100', ROOM_A, TUE, [[19, 22]]),
-    ('A 周二16-19 跨白天窗口→仅半价', ROOM_A, TUE, [[16, 19]]),
+    ('A 周二16-19 跨白天窗口→逐时取最低', ROOM_A, TUE, [[16, 19]]),
+    ('A 周一14-20 跨白天+门市', ROOM_A, MON, [[14, 20]]),
+    ('A 周一16-21 白天+门市+夜场', ROOM_A, MON, [[16, 21]]),
     ('A 周一10-13 自有白天价', ROOM_A, MON, [[10, 13]]),
     ('A 周六 全价', ROOM_A, SAT, [[10, 13]]),
     ('B(豁免) 周二10-13 无折扣', ROOM_B, TUE, [[10, 13]]),
@@ -88,13 +90,15 @@ CASES = [
     ('C 周二12-14 自有1200<半价1250', ROOM_C, TUE, [[12, 14]]),
     ('C 周二10-12 半价', ROOM_C, TUE, [[10, 12]]),
     ('D 周二11-16 仅全局半价', ROOM_D, TUE, [[11, 16]]),
-    ('D 周二22-24 超出窗口→全价', ROOM_D, TUE, [[22, 24]]),
-    ('D 周二9-12 早于窗口→全价', ROOM_D, TUE, [[9, 12]]),
+    ('D 周二22-24 22点半价23点门市', ROOM_D, TUE, [[22, 24]]),
+    ('D 周二9-12 早于窗口→9点门市其余半价', ROOM_D, TUE, [[9, 12]]),
+    ('D 周二21-24 部分半价', ROOM_D, TUE, [[21, 24]]),
 ]
 
 out = []
 for name, room, day, time_list in CASES:
     price, rule = rp.resolve_appointment_price(room, day, time_list)
+    quote = rp.price_appointment(room, day, time_list)
     out.append({
         'name': name,
         'date': day.isoformat(),
@@ -103,6 +107,8 @@ for name, room, day, time_list in CASES:
         # to_dict() 下发给前端的合并规则（含全局半价与豁免处理）
         'offpeak_rules': rp.normalize_rules(room),
         'expect_price': price,
+        'expect_room_fee': quote['room_fee'],
+        'expect_segments': [[seg['start'], seg['end'], seg['price']] for seg in quote['segments']],
         'expect_source': (rule or {}).get('source') or '',
     })
 

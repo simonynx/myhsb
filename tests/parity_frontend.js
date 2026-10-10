@@ -33,13 +33,17 @@ cases.forEach(function(c) {
   const room = { price_per_hour: c.base, offpeak_rules: c.offpeak_rules };
   const resolved = OFFPEAK.resolveHourPrice(room, c.date, c.time_list);
   const source = resolved.rule ? (resolved.rule.source || '') : '';
-  const priceOk = resolved.price === c.expect_price;
+  const quote = OFFPEAK.priceAppointment(room, c.date, c.time_list);
+  const segs = JSON.stringify(quote.segments.map(function(seg) { return [seg.start, seg.end, seg.price]; }));
+  const priceOk = resolved.price === c.expect_price
+    && quote.roomFee === c.expect_room_fee
+    && segs === JSON.stringify(c.expect_segments);
   const sourceOk = source === c.expect_source;
   if (!priceOk || !sourceOk) fail += 1;
   console.log(
     (priceOk && sourceOk ? 'PASS' : 'FAIL') +
     ' | ' + c.name +
-    ' | price ' + resolved.price + '/' + c.expect_price +
+    ' | fee ' + quote.roomFee + '/' + c.expect_room_fee +
     ' | source ' + (source || '-') + '/' + (c.expect_source || '-')
   );
 });
