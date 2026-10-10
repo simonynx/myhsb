@@ -342,7 +342,7 @@
                 </view>
                 <scroll-view scroll-y class="picker-body">
                     <view class="unavailable-hint" v-if="availableSubscriptionCount === 0">
-                        <text>暂无可用次卡或月卡</text>
+                        <text>{{ isOffpeakActive ? '本时段已是闲时优惠价，包厢小时卡不可叠加使用（周末或高峰时段可用）' : '暂无可用次卡或月卡' }}</text>
                     </view>
                     <view class="subscription-slot-group" v-for="slotView in subscriptionSlotViews" :key="slotView.key">
                         <view class="coupon-group-title">{{ slotView.title }}</view>
@@ -729,6 +729,7 @@ export default {
                 selectedBySlot: this.selectedSubscriptionBySlot,
                 skippedBySlot: this.subscriptionSkippedBySlot,
                 currentProduct: this.currentProduct,
+                offpeakRule: this.offpeakResolved && this.offpeakResolved.rule,
                 selectedRoomHours: this.selectedRoomHours,
                 numOfPeople: this.numOfPeople,
                 singlePersonPrice: this.singlePersonPrice,
@@ -760,7 +761,9 @@ export default {
         },
 
         subscriptionSummaryText() {
-            if (this.availableSubscriptionCount === 0) return '独立包厢常约可用小时卡';
+            if (this.availableSubscriptionCount === 0) {
+                return this.isOffpeakActive ? '闲时优惠价不叠加小时卡' : '独立包厢常约可用小时卡';
+            }
             return SUBSCRIPTION.getSummaryText(this.subscriptionContext);
         },
 
@@ -1144,6 +1147,10 @@ export default {
 
         openSubscriptionPicker() {
             if (this.availableSubscriptionCount === 0) {
+                if (this.isOffpeakActive) {
+                    uni.showToast({ title: '闲时优惠价不可叠加包厢小时卡', icon: 'none' });
+                    return;
+                }
                 this.goBuySubscription();
                 return;
             }
@@ -1570,14 +1577,14 @@ page {
     .offpeak-banner {
         margin-bottom: 14rpx;
         padding: 14rpx 18rpx;
-        background: linear-gradient(135deg, #FFF3E0, #FFE8CC);
+        background: linear-gradient(135deg, $offpeak-bg-start, $offpeak-bg-end);
         border-radius: 12rpx;
         display: flex;
         flex-direction: column;
     }
-    .offpeak-banner-title { font-size: 23rpx; font-weight: 750; color: #C25E1E; }
-    .offpeak-banner-sub { margin-top: 6rpx; font-size: 21rpx; color: #8A6647; }
-    .offpeak-banner-note { margin-top: 6rpx; font-size: 20rpx; color: #A07A4A; }
+    .offpeak-banner-title { font-size: 23rpx; font-weight: 750; color: $offpeak-title; }
+    .offpeak-banner-sub { margin-top: 6rpx; font-size: 21rpx; color: $offpeak-text; }
+    .offpeak-banner-note { margin-top: 6rpx; font-size: 20rpx; color: $offpeak-text; }
     .offpeak-banner-row {
         display: flex;
         align-items: center;
@@ -1587,16 +1594,16 @@ page {
         font-size: 20rpx;
         font-weight: 800;
         color: #fff;
-        background: #E85D2A;
+        background: $offpeak-primary;
         border-radius: 999rpx;
         padding: 4rpx 16rpx;
     }
     .offpeak-banner-strike {
-        color: #B8A99A;
+        color: $offpeak-strike;
         text-decoration: line-through;
     }
     .offpeak-banner-now {
-        color: #E85D2A;
+        color: $offpeak-primary;
         font-weight: 800;
         font-size: 24rpx;
     }
@@ -1622,7 +1629,7 @@ page {
         margin-left: 8rpx;
         font-size: 21rpx;
         font-weight: 400;
-        color: #B8A99A;
+        color: $offpeak-strike;
         text-decoration: line-through;
     }
     .base-price-note { margin-top: 3rpx; font-size: 20rpx; color: #918A82; }

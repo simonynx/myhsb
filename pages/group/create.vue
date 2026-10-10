@@ -27,7 +27,14 @@
             <view class="price-ref-title">🏷️ 房间定价</view>
             <view class="price-ref-row">
                 <text class="ref-label">房间每小时</text>
-                <text class="ref-value">¥{{ (pricePerHour / 100).toFixed(2) }}</text>
+                <text class="ref-value">
+                    <text class="ref-strike" v-if="isOffpeakApplied">¥{{ (pricePerHour / 100).toFixed(2) }}</text>
+                    ¥{{ (effectiveHourPrice / 100).toFixed(2) }}
+                </text>
+            </view>
+            <view class="price-ref-row" v-if="isOffpeakApplied">
+                <text class="ref-label">本时段</text>
+                <text class="ref-offpeak-tag">🔥 {{ offpeakLabel || '闲时特惠' }}，与组局折扣不叠加</text>
             </view>
             <view class="price-ref-row">
                 <text class="ref-label">每人附加费</text>
@@ -70,7 +77,7 @@
 
             <view class="cost-formula">
                 <view class="formula-line">
-                    <text class="formula-text">时长费用 = ¥{{ (pricePerHour / 100).toFixed(2) }} × {{ duration }}小时</text>
+                    <text class="formula-text">时长费用 = ¥{{ (effectiveHourPrice / 100).toFixed(2) }} × {{ duration }}小时</text>
                     <text class="formula-result">¥{{ timeCost }}</text>
                 </view>
                 <view class="formula-line">
@@ -83,7 +90,7 @@
 
             <!-- 拼团折扣（全员共享） -->
             <view class="cost-row" v-if="groupDiscountAmount > 0">
-                <text class="cost-label">组局折扣（{{ groupDiscountPercent }}折）</text>
+                <text class="cost-label">{{ isOffpeakApplied ? (offpeakLabel || '闲时特惠') + '（已享，不叠加组局折扣）' : '组局折扣（' + groupDiscountPercent + '折）' }}</text>
                 <text class="cost-value discount">-¥{{ (groupDiscountAmount / 100).toFixed(2) }}</text>
             </view>
 
@@ -291,6 +298,8 @@ export default {
             endTime: '',
             duration: 1,
             pricePerHour: 0,
+            offpeakPrice: 0,
+            offpeakLabel: '',
             pricePerPersonRef: 0,
             maxMembers: 2,
             initiatorInputYuan: '0.00',
@@ -317,7 +326,23 @@ export default {
             return (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
         },
         timeCost() {
-            return ((this.pricePerHour * this.duration) / 100).toFixed(2);
+            return ((this.effectiveHourPrice * this.duration) / 100).toFixed(2);
+        },
+        // 闲时价总额；与后端 room_pricing.compute_group_cost 同一口径
+        offpeakCostFen() {
+            if (!(this.offpeakPrice > 0)) return 0;
+            return this.offpeakPrice * this.duration + this.pricePerPersonRef * this.maxMembers;
+        },
+        discountedCostFen() {
+            if (this.groupDiscountPercent >= 100) return this.roomTotalCostFen;
+            return Math.ceil(this.roomTotalCostFen * this.groupDiscountPercent / 100);
+        },
+        // 闲时价与组局折扣不叠加，取更低者
+        isOffpeakApplied() {
+            return this.offpeakCostFen > 0 && this.offpeakCostFen < this.discountedCostFen;
+        },
+        effectiveHourPrice() {
+            return this.isOffpeakApplied ? this.offpeakPrice : this.pricePerHour;
         },
         personCost() {
             return ((this.pricePerPersonRef * this.maxMembers) / 100).toFixed(2);
@@ -329,8 +354,7 @@ export default {
         // ===== 全员共享部分 =====
         // 拼团折扣后的基础总价（所有人共享）
         baseCostFen() {
-            if (this.groupDiscountPercent >= 100) return this.roomTotalCostFen;
-            return Math.ceil(this.roomTotalCostFen * this.groupDiscountPercent / 100);
+            return this.isOffpeakApplied ? this.offpeakCostFen : this.discountedCostFen;
         },
         baseCostYuan() {
             return (this.baseCostFen / 100).toFixed(2);
@@ -419,6 +443,8 @@ export default {
         this.endTime = options.end_time || '';
         this.duration = parseInt(options.duration) || 1;
         this.pricePerHour = parseInt(options.price_per_hour) || 0;
+        this.offpeakPrice = parseInt(options.offpeak_price) || 0;
+        this.offpeakLabel = decodeURIComponent(options.offpeak_label || '');
         this.pricePerPersonRef = parseInt(options.price_per_person) || 0;
 
         // 时段列表
@@ -440,8 +466,7 @@ export default {
         this.loadConfigAndCoupons();
 
         // 默认发起人承担份额 = 基础人均（均摊）
-        const total = (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
-        this.initiatorInputYuan = (Math.ceil(total / this.maxMembers) / 100).toFixed(2);
+        this.initiatorInputYuan = this.basePerPersonYuan;
         this.trackCreateView(options || {});
         this.startExpireTicker();
     },
@@ -773,6 +798,20 @@ $border: #EEEEEE;
         .ref-value {
             font-size: 28rpx;
             color: $dark;
+            font-weight: bold;
+        }
+
+        .ref-strike {
+            font-size: 24rpx;
+            color: $gray;
+            font-weight: normal;
+            text-decoration: line-through;
+            margin-right: 8rpx;
+        }
+
+        .ref-offpeak-tag {
+            font-size: 24rpx;
+            color: $offpeak-primary;
             font-weight: bold;
         }
     }

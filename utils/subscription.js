@@ -141,6 +141,9 @@ function canUseForSlot(slot, sub, ctx) {
   }
 
   if (slot === SLOT_ROOM_HOURS) {
+    // 闲时优惠价时段默认不可抵扣小时卡（规则 card_allowed=true 才放开），与后端一致
+    var offpeakRule = ctx.offpeakRule;
+    if (offpeakRule && offpeakRule.card_allowed !== true) return false;
     var usableRooms = template.usable_rooms || [];
     if (usableRooms.length > 0) {
       var roomId = ctx.currentProduct && ctx.currentProduct.object_id;

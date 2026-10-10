@@ -41,33 +41,33 @@
             <view class="hero-gradient"></view>
         </view>
 
-        <!-- 核心价格与预约信息 -->
-        <view class="price-card">
+            <!-- 核心价格与预约信息 -->
+            <view class="price-card">
             <view class="price-head">
-                <view class="price-main" v-if="room.hasOffpeak">
+                <view class="price-main" v-if="offpeakTodayView">
                     <text class="price-yuan offpeak">¥</text>
-                    <text class="price-num offpeak">{{ room.offpeakLowestText }}</text>
+                    <text class="price-num offpeak">{{ offpeakTodayView.priceText }}</text>
                     <text class="price-unit">/小时起</text>
-                    <text class="price-strike">门市 ¥{{ pricePerHourText }}/时</text>
-                    <text class="price-discount-badge" v-if="room.offpeakDiscountText">{{ room.offpeakDiscountText }}</text>
+                    <text class="price-strike">门市 ¥{{ offpeakTodayView.strikeText }}/时</text>
+                    <text class="price-discount-badge" v-if="offpeakTodayView.discountText">{{ offpeakTodayView.discountText }}</text>
                 </view>
                 <view class="price-main" v-else>
                     <text class="price-yuan">¥</text>
                     <text class="price-num">{{ pricePerHourText }}</text>
                     <text class="price-unit">/小时</text>
                 </view>
-                <view class="original-price" v-if="!room.hasOffpeak && room.original_price_per_hour && room.original_price_per_hour > room.price_per_hour">
+                <view class="original-price" v-if="!offpeakTodayView && room.original_price_per_hour && room.original_price_per_hour > room.price_per_hour">
                     <text>¥{{ room.originalPriceText }}</text>
                 </view>
             </view>
 
             <view class="offpeak-hint" v-if="room.hasOffpeak">
-                <text class="offpeak-hint-label" v-if="room.offpeakCoupleText">🔥 闲时价 低至 ¥{{ room.offpeakLowestText }}/时 · 双人2小时全包 ¥{{ room.offpeakCoupleText }} 起</text>
-                <text class="offpeak-hint-label" v-else>🔥 闲时价 低至 ¥{{ room.offpeakLowestText }}/时</text>
+                <text class="offpeak-hint-label">{{ offpeakHintLabel }}</text>
                 <text class="offpeak-hint-text">{{ room.offpeakText }}</text>
                 <text class="offpeak-hint-text" v-if="room.showPersonFeeNote">只折包厢小时费，人头费仍按 ¥{{ personPriceText }}/人</text>
                 <text class="offpeak-hint-text" v-else>只折包厢小时费</text>
                 <text class="offpeak-hint-text">下单选中对应日期时段自动生效</text>
+                <text class="offpeak-hint-text" v-if="room.offpeakNoCard">闲时价已是底价，不叠加包厢小时卡；高峰时段可正常用卡</text>
             </view>
 
             <view class="pricing-explain">
@@ -261,7 +261,14 @@
                         <image class="panel-thumb" :src="room.image1" mode="aspectFill" />
                         <view class="panel-meta">
                             <text class="panel-name">{{ room.name }}</text>
-                            <text class="panel-price">¥{{ pricePerHourText }}/小时 · {{ currentSelectDate }}</text>
+                            <view class="panel-price" v-if="offpeakTodayView">
+                                <text class="panel-price-num">¥{{ offpeakTodayView.priceText }}</text>
+                                <text class="panel-price-unit">/小时起</text>
+                                <text class="panel-price-strike">¥{{ offpeakTodayView.strikeText }}</text>
+                                <text class="panel-price-badge" v-if="offpeakTodayView.discountText">{{ offpeakTodayView.discountText }}</text>
+                                <text class="panel-price-window">{{ offpeakTodayView.windowText }} 闲时 · {{ currentSelectDate }}</text>
+                            </view>
+                            <text class="panel-price" v-else>¥{{ pricePerHourText }}/小时 · {{ currentSelectDate }}</text>
                         </view>
                     </view>
                     <text class="panel-close yticon icon-guanbi" @tap="closePopup"></text>
@@ -365,6 +372,26 @@ export default {
         personFeeHint() {
             if (!this.room.price_per_person) return '人数费用确认页显示';
             return '另加 ¥' + this.personPriceText + '/人入场费';
+        },
+        // 所选日期命中的闲时规则（价格头/弹窗按日期切换：非优惠日不拿闲时价当主价，避免误导）
+        offpeakTodayView() {
+            if (!this.room || !this.room.hasOffpeak) return null;
+            const rule = OFFPEAK.lowestRuleForWeekday(this.room, this.currentSelectDate);
+            if (!rule) return null;
+            return {
+                priceText: OFFPEAK.formatYuan(rule.price_per_hour),
+                strikeText: OFFPEAK.formatYuan(this.room.price_per_hour),
+                discountText: OFFPEAK.discountText(rule.price_per_hour, this.room.price_per_hour),
+                windowText: rule.hour_start + ':00-' + rule.hour_end + ':00',
+            };
+        },
+        // 提示块首行：所选日期命中 → "现在就享"；未命中 → "工作日"预告，保留种草但不冒充今日价
+        offpeakHintLabel() {
+            if (!this.room || !this.room.hasOffpeak) return '';
+            const base = '闲时价 低至 ¥' + this.room.offpeakLowestText + '/时';
+            const couple = this.room.offpeakCoupleText
+                ? ' · 双人2小时全包 ¥' + this.room.offpeakCoupleText + ' 起' : '';
+            return this.offpeakTodayView ? ('🔥 ' + base + couple) : ('📅 工作日' + base + couple);
         },
         pricingExplanation() {
             const offpeakNote = this.room.hasOffpeak ? '；命中闲时时段会自动按闲时价计算，只在闲时时段生效' : '';
@@ -511,6 +538,7 @@ export default {
             r.offpeakDiscountText = lowestHourFen
                 ? OFFPEAK.discountText(lowestHourFen, r.price_per_hour)
                 : '';
+            r.offpeakNoCard = OFFPEAK.normalizeRules(r).some(function(rule) { return !OFFPEAK.cardAllowed(rule); });
             this.room = r;
             this.currentImgIndex = 0;
             this.buildImages();
@@ -868,6 +896,10 @@ export default {
                 date: this.currentSelectDate,
                 begin_time: beginTime,
             }, this.token).catch(() => {});
+            const groupOffpeak = OFFPEAK.resolveHourPrice(room, this.currentSelectDate,
+                [[parseInt(beginTime.split(':')[0]), parseInt(endTime.split(':')[0])]]);
+            groupOffpeak.price = groupOffpeak.isOffpeak ? groupOffpeak.price : 0;
+            groupOffpeak.label = groupOffpeak.isOffpeak ? groupOffpeak.label : '';
             const query = 'room_id=' + room.object_id
                 + '&room_name=' + encodeURIComponent(room.name || '')
                 + '&room_image=' + encodeURIComponent(room.image1 || '')
@@ -877,6 +909,8 @@ export default {
                 + '&duration=' + duration
                 + '&price_per_person=' + (room.price_per_person || 0)
                 + '&price_per_hour=' + (room.price_per_hour || 0)
+                + '&offpeak_price=' + groupOffpeak.price
+                + '&offpeak_label=' + encodeURIComponent(groupOffpeak.label)
                 + '&time_list=' + encodeURIComponent(JSON.stringify(timeList))
                 + '&source=product_panel';
             uni.navigateTo({ url: '/pages/group/create?' + query });
@@ -1041,11 +1075,11 @@ page { background: $bg; padding-bottom: 120rpx; }
         .price-num { font-size: 52rpx; font-weight: bold; color: $primary; line-height: 1; }
         .price-unit { font-size: 26rpx; color: $gray; margin-left: 4rpx; }
         .price-yuan.offpeak,
-        .price-num.offpeak { color: #E85D2A; }
+        .price-num.offpeak { color: $offpeak-primary; }
         .price-strike {
             margin-left: 12rpx;
             font-size: 26rpx;
-            color: #B8A99A;
+            color: $offpeak-strike;
             text-decoration: line-through;
         }
         .price-discount-badge {
@@ -1053,7 +1087,7 @@ page { background: $bg; padding-bottom: 120rpx; }
             font-size: 20rpx;
             font-weight: 800;
             color: #fff;
-            background: linear-gradient(120deg, #E85D2A, #FF7A3D);
+            background: $offpeak-badge-gradient;
             border-radius: 8rpx;
             padding: 4rpx 12rpx;
             align-self: center;
@@ -1073,10 +1107,10 @@ page { background: $bg; padding-bottom: 120rpx; }
         margin-top: 20rpx;
         padding: 16rpx 18rpx;
         border-radius: 14rpx;
-        background: linear-gradient(135deg, #FFF3E0, #FFE8CC);
+        background: linear-gradient(135deg, $offpeak-bg-start, $offpeak-bg-end);
     }
-    .offpeak-hint-label { font-size: 25rpx; font-weight: 750; color: #C25E1E; }
-    .offpeak-hint-text { margin-top: 6rpx; font-size: 22rpx; line-height: 1.45; color: #8A6647; }
+    .offpeak-hint-label { font-size: 25rpx; font-weight: 750; color: $offpeak-title; }
+    .offpeak-hint-text { margin-top: 6rpx; font-size: 22rpx; line-height: 1.45; color: $offpeak-text; }
 
     .pricing-explain {
         display: flex;
@@ -1573,7 +1607,29 @@ page { background: $bg; padding-bottom: 120rpx; }
         .panel-thumb { width: 80rpx; height: 80rpx; border-radius: 12rpx; margin-right: 16rpx; }
         .panel-meta {
             .panel-name { font-size: 30rpx; font-weight: bold; color: $dark; display: block; margin-bottom: 4rpx; }
-            .panel-price { font-size: 26rpx; color: $primary; font-weight: bold; }
+            .panel-price {
+                font-size: 26rpx;
+                color: $primary;
+                font-weight: bold;
+                display: flex;
+                align-items: baseline;
+                flex-wrap: wrap;
+
+                .panel-price-num { font-size: 30rpx; color: $offpeak-primary; font-weight: 800; }
+                .panel-price-unit { font-size: 20rpx; color: $gray; font-weight: normal; margin-left: 2rpx; }
+                .panel-price-strike { margin-left: 10rpx; font-size: 20rpx; color: $offpeak-strike; font-weight: normal; text-decoration: line-through; }
+                .panel-price-badge {
+                    margin-left: 10rpx;
+                    font-size: 18rpx;
+                    font-weight: 800;
+                    color: #fff;
+                    background: $offpeak-badge-gradient;
+                    border-radius: 6rpx;
+                    padding: 2rpx 8rpx;
+                    align-self: center;
+                }
+                .panel-price-window { margin-left: 12rpx; font-size: 20rpx; color: $offpeak-muted; font-weight: normal; }
+            }
         }
         .panel-close { font-size: 44rpx; color: $gray; padding: 10rpx; }
     }

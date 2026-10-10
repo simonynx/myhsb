@@ -106,3 +106,15 @@ $uni-color-error: #dd524d;
 
 
 
+
+/* 闲时特惠色板（预约列表 / 房间详情 / 下单 / 组局 / 后台编辑器 统一使用） */
+$offpeak-primary: #E85D2A;     // 闲时价数字、主强调
+$offpeak-primary-light: #FF7A3D; // 渐变尾色
+$offpeak-title: #C25E1E;       // 提示条标题
+$offpeak-text: #8A6647;        // 提示条正文
+$offpeak-muted: #B2825F;       // 次要说明
+$offpeak-strike: #B8A99A;      // 划线门市价
+$offpeak-bg-start: #FFF3E0;    // 提示条渐变背景
+$offpeak-bg-end: #FFE8CC;
+$offpeak-border: #FFC894;
+$offpeak-badge-gradient: linear-gradient(120deg, #E85D2A, #FF7A3D);

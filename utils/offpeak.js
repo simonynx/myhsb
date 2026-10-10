@@ -45,6 +45,8 @@ function normalizeRules(room) {
       source: item.source || '',
       // coupon_allowed: false 表示命中本条规则的订单禁用优惠券
       coupon_allowed: item.coupon_allowed !== false,
+      // card_allowed: true 才允许命中本条规则的订单抵扣包厢小时卡（默认不可用）
+      card_allowed: item.card_allowed === true,
     });
   });
   return rules;
@@ -109,6 +111,55 @@ function resolveHourPrice(room, dateStr, timeList) {
     rule: rule,
     isOffpeak: true,
     label: rule.label || '闲时特惠',
+  };
+}
+
+/** 命中的闲时规则是否允许抵扣包厢小时卡；无规则视为允许 */
+function cardAllowed(rule) {
+  if (!rule) return true;
+  return rule.card_allowed === true;
+}
+
+/**
+ * 拼团总价（分）：与后端 room_pricing.compute_group_cost 同源。
+ * 闲时价与拼团折扣不叠加，取更低者；折扣向上取整，避免前后端差 1 分。
+ * @returns {{ originalCost:number, baseCost:number, hourPrice:number, offpeakApplied:boolean, label:string }}
+ */
+function resolveGroupCost(room, dateStr, beginHour, endHour, maxMembers, groupDiscountPercent) {
+  const base = toInt(room && room.price_per_hour) || 0;
+  const personCost = (toInt(room && room.price_per_person) || 0) * (toInt(maxMembers) || 0);
+  const begin = toInt(beginHour);
+  const end = toInt(endHour);
+  const duration = Math.max(1, (end === null || begin === null ? 1 : end - begin));
+  const originalCost = base * duration + personCost;
+
+  const discount = toInt(groupDiscountPercent) || 100;
+  const discountedCost = discount > 0 && discount < 100
+    ? Math.ceil(originalCost * discount / 100)
+    : originalCost;
+
+  let baseCost = discountedCost;
+  let offpeakApplied = false;
+  let label = '';
+  let hourPrice = base;
+  if (begin !== null && end !== null && end > begin) {
+    const resolved = resolveHourPrice(room, dateStr, [[begin, end]]);
+    if (resolved.isOffpeak) {
+      const offpeakCost = resolved.price * duration + personCost;
+      if (offpeakCost < discountedCost) {
+        baseCost = offpeakCost;
+        offpeakApplied = true;
+        label = resolved.label;
+        hourPrice = resolved.price;
+      }
+    }
+  }
+  return {
+    originalCost: originalCost,
+    baseCost: baseCost,
+    hourPrice: hourPrice,
+    offpeakApplied: offpeakApplied,
+    label: label,
   };
 }
 
@@ -361,6 +412,8 @@ export default {
   matchRule: matchRule,
   resolveHourPrice: resolveHourPrice,
   effectiveHourPrice: effectiveHourPrice,
+  cardAllowed: cardAllowed,
+  resolveGroupCost: resolveGroupCost,
   describeWeekdays: describeWeekdays,
   describeRule: describeRule,
   describeRules: describeRules,

@@ -762,6 +762,10 @@ export default {
                 date: this.currentSelectDate,
                 begin_time: beginTime,
             }, this.token).catch(() => {});
+            const groupOffpeak = OFFPEAK.resolveHourPrice(room, this.currentSelectDate,
+                [[parseInt(beginTime.split(':')[0]), parseInt(endTime.split(':')[0])]]);
+            groupOffpeak.price = groupOffpeak.isOffpeak ? groupOffpeak.price : 0;
+            groupOffpeak.label = groupOffpeak.isOffpeak ? groupOffpeak.label : '';
             const query = 'room_id=' + room.object_id
                 + '&room_name=' + encodeURIComponent(room.name || '')
                 + '&room_image=' + encodeURIComponent(room.image1 || '')
@@ -771,6 +775,8 @@ export default {
                 + '&duration=' + duration
                 + '&price_per_person=' + (room.price_per_person || 0)
                 + '&price_per_hour=' + (room.price_per_hour || 0)
+                + '&offpeak_price=' + groupOffpeak.price
+                + '&offpeak_label=' + encodeURIComponent(groupOffpeak.label)
                 + '&time_list=' + encodeURIComponent(JSON.stringify(timeList))
                 + '&source=' + encodeURIComponent(this.appointmentEntrySource);
             this.clearGroupCreateIntent();
@@ -889,8 +895,8 @@ page {
             font-size: 17rpx;
             font-weight: 700;
             line-height: 1.2;
-            color: #E85D2A;
-            background: #FFE8CC;
+            color: $offpeak-primary;
+            background: $offpeak-bg-end;
             border-radius: 6rpx;
             padding: 1rpx 8rpx;
         }
@@ -914,14 +920,14 @@ page {
     margin: 12rpx 24rpx 0;
     padding: 12rpx 18rpx;
     border-radius: 12rpx;
-    background: linear-gradient(120deg, #FFF3E0, #FFE8CC);
+    background: linear-gradient(120deg, $offpeak-bg-start, $offpeak-bg-end);
 }
 
 .promo-strip-text {
     font-size: 22rpx;
     font-weight: 600;
     line-height: 1.4;
-    color: #C25E1E;
+    color: $offpeak-title;
 }
 
 // 加载骨架
@@ -1147,9 +1153,9 @@ page {
                 border: 1rpx solid rgba(46,125,50,0.2);
             }
             &.offpeak.available {
-                background: #FFE8CC;
-                color: #C24E17;
-                border: 1rpx solid #FFC894;
+                background: $offpeak-bg-end;
+                color: $offpeak-title;
+                border: 1rpx solid $offpeak-border;
             }
             &.past {
                 background: #F5F5F5;
@@ -1208,9 +1214,9 @@ page {
     .offpeak-tag-deal {
         font-size: 20rpx;
         font-weight: 800;
-        color: #C24E17;
-        background: linear-gradient(120deg, #FFF3E0, #FFE2C2);
-        border: 1rpx solid #FFD9B0;
+        color: $offpeak-title;
+        background: linear-gradient(120deg, $offpeak-bg-start, $offpeak-bg-end);
+        border: 1rpx solid $offpeak-border;
         border-radius: 8rpx;
         padding: 5rpx 12rpx;
     }
@@ -1219,7 +1225,7 @@ page {
         margin-left: 12rpx;
         font-size: 19rpx;
         font-weight: 500;
-        color: #B2825F;
+        color: $offpeak-muted;
     }
 
     .card-price {
@@ -1241,7 +1247,7 @@ page {
 
         .price-yuan.offpeak,
         .price-num.offpeak {
-            color: #E85D2A;
+            color: $offpeak-primary;
         }
 
         .price-num.offpeak {
@@ -1251,7 +1257,7 @@ page {
         .price-strike {
             margin-left: 12rpx;
             font-size: 22rpx;
-            color: #B8A99A;
+            color: $offpeak-strike;
             text-decoration: line-through;
         }
 
@@ -1260,7 +1266,7 @@ page {
             font-size: 20rpx;
             font-weight: 800;
             color: #fff;
-            background: linear-gradient(120deg, #E85D2A, #FF7A3D);
+            background: $offpeak-badge-gradient;
             border-radius: 8rpx;
             padding: 4rpx 10rpx;
             align-self: center;
@@ -1366,7 +1372,7 @@ page {
         &.available { background: #E8F5E9; border: 1rpx solid rgba(124,179,66,0.15); }
         &.booked { background: #FFEBEE; border: 1rpx solid rgba(229,57,53,0.1); }
         &.past { background: #F5F5F5; }
-        &.offpeak { background: #FFE8CC; border: 1rpx solid #FFC894; }
+        &.offpeak { background: $offpeak-bg-end; border: 1rpx solid $offpeak-border; }
     }
 }
 
@@ -1490,7 +1496,7 @@ page {
 
                 .panel-price-num {
                     font-size: 30rpx;
-                    color: #E85D2A;
+                    color: $offpeak-primary;
                     font-weight: 800;
                 }
                 .panel-price-unit {
@@ -1502,7 +1508,7 @@ page {
                 .panel-price-strike {
                     margin-left: 10rpx;
                     font-size: 20rpx;
-                    color: #B8A99A;
+                    color: $offpeak-strike;
                     font-weight: normal;
                     text-decoration: line-through;
                 }
@@ -1511,7 +1517,7 @@ page {
                     font-size: 18rpx;
                     font-weight: 800;
                     color: #fff;
-                    background: linear-gradient(120deg, #E85D2A, #FF7A3D);
+                    background: $offpeak-badge-gradient;
                     border-radius: 6rpx;
                     padding: 2rpx 8rpx;
                     align-self: center;
@@ -1519,7 +1525,7 @@ page {
                 .panel-price-window {
                     margin-left: 12rpx;
                     font-size: 20rpx;
-                    color: #B2825F;
+                    color: $offpeak-muted;
                     font-weight: normal;
                 }
             }
@@ -1570,20 +1576,20 @@ page {
                 display: flex;
                 align-items: baseline;
                 font-size: 22rpx;
-                color: #8A6647;
+                color: $offpeak-text;
                 margin-top: 4rpx;
 
                 .pf-estimate-strike {
                     margin-left: 8rpx;
                     font-size: 20rpx;
-                    color: #B8A99A;
+                    color: $offpeak-strike;
                     text-decoration: line-through;
                 }
                 .pf-estimate-save {
                     margin-left: 10rpx;
                     font-size: 20rpx;
                     font-weight: 800;
-                    color: #E85D2A;
+                    color: $offpeak-primary;
                 }
             }
 
