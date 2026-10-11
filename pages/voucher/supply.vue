@@ -1,20 +1,15 @@
 <template>
 	<view class="supply-page">
 		<view class="heading">
-			<text class="eyebrow">需要时，再添一点</text>
-			<text class="page-title">到店补给</text>
-			<text class="muted">门票已含零食茶水，以下为额外付费商品。</text>
-			<text class="pickup-note">门店领取，不配送；领取方式请查看商品详情。</text>
+			<view class="heading-top"><text class="page-title">到店补给</text><button class="text-button" @tap="goOrders">我的订单 ›</button></view>
+			<text class="pickup-note">额外付费 · 店内领取</text>
+			<text class="muted">门票已含零食茶水，无需另购。</text>
 		</view>
-		<view class="intro-links">
-			<button class="text-button" @tap="goOrders">我的订单 ›</button>
-			<button class="text-button" v-if="!signedIn" @tap="goSignIn">去登录</button>
-		</view>
-		<view class="account-note" v-if="signedIn && accountLoading"><text>正在更新账户，购买资格待确认…</text></view>
+		<view class="account-note" v-if="signedIn && accountLoading"><text>账户更新中，购买资格待确认…</text></view>
 		<view class="account-note" v-else-if="signedIn && accountError">
 			<text>{{ accountError }}</text><button class="text-button" @tap="refreshPage">刷新账户</button>
 		</view>
-		<view class="guest-note" v-else-if="!signedIn"><text>可以先浏览；购买时在商品详情登录并确认条件。</text></view>
+		<view class="guest-note" v-else-if="!signedIn"><text>先浏览，登录后确认购买资格</text><button class="text-button" @tap="goSignIn">去登录</button></view>
 
 		<view class="state-card" v-if="goodsLoading"><text>正在加载到店补给…</text></view>
 		<view class="state-card" v-else-if="goodsError">
@@ -25,18 +20,19 @@
 				<button :class="category.itemClass" v-for="category in categories" :key="category.value" @tap="selectCategory(category.value)">{{ category.name }} {{ category.count }}</button>
 			</view>
 			<view :class="item.itemClass" v-for="item in filteredGoods" :key="item.object_id" @tap="openGoods(item, 'card')">
-				<view class="item-top"><text class="item-title">{{ item.name }}</text><text class="tag">{{ item.categoryText }}</text></view>
-				<text class="muted" v-if="item.description">{{ item.description }}</text>
-				<text class="state-text">{{ item.purchaseStateText }}</text>
-				<text class="muted">{{ item.stockText }}</text>
-				<text class="muted" v-if="item.levelText">{{ item.levelText }}</text>
-				<text class="muted" v-if="item.limitText">{{ item.limitText }}</text>
-				<text class="muted">{{ item.deliveryText }}</text>
-				<view class="item-footer"><text class="price">{{ item.priceText }}</text><button class="primary-button" @tap.stop="openGoods(item, 'button')">{{ item.purchaseActionText }}</button></view>
+				<view :class="item.markClass" :aria-label="item.categoryText"><text>{{ item.markText }}</text></view>
+				<view class="item-content">
+					<text class="item-title">{{ item.name }}</text>
+					<text class="price">{{ item.priceText }}</text>
+					<text class="stock-text" v-if="!item.soldOut">{{ item.stockText }}</text>
+					<text class="state-text" v-if="item.blockedText">{{ item.blockedText }}</text>
+					<text class="condition-text" v-if="item.conditionText">{{ item.conditionText }}</text>
+				</view>
+				<button :class="item.buttonClass" @tap.stop="openGoods(item, 'button')">{{ item.purchaseActionText }}</button>
 			</view>
 			<view class="state-card" v-if="!filteredGoods.length"><text>当前分类暂无商品</text><button class="secondary-button" @tap="selectCategory('all')">查看全部</button></view>
 		</view>
-		<view class="state-card" v-else><text>暂无额外付费商品</text><text class="muted">门票已含的零食茶水不在这里重复售卖。</text></view>
+		<view class="state-card" v-else><text>暂无额外付费商品</text></view>
 	</view>
 </template>
 
@@ -93,12 +89,17 @@ export default {
 			else if (this.eligibilityKnown && item.limitReached) stateText = '已达到本期限购上限';
 			else if (this.eligibilityKnown && item.locked) stateText = '当前会员等级未满足购买条件';
 			const stock = goods.stock == null ? null : Number(goods.stock);
+			const levelText = Number(goods.member_level_required) > 0 ? '需会员等级' + goods.member_level_required + '及以上' : '';
+			const blocked = item.soldOut || this.eligibilityKnown && (item.limitReached || item.locked);
+			const blockedText = item.soldOut ? '暂时售罄' : this.eligibilityKnown && item.limitReached ? '已达本期限购上限' : this.eligibilityKnown && item.locked ? '会员等级未满足' : '';
 			return Object.assign({}, item, {
-				categoryText: this.categoryName(goods.goods_type), limitText,
-				levelText: Number(goods.member_level_required) > 0 ? '需会员等级' + goods.member_level_required + '及以上' : '',
-				stockText: stock === 0 ? '库存：已售罄' : stock > 0 ? '当前库存' + stock + '件，以详情为准' : '库存以商品详情为准',
-				purchaseStateText: stateText, purchaseActionText: item.soldOut ? '查看商品' : this.eligibilityKnown && (item.locked || item.limitReached) ? '查看条件' : '查看详情',
-				itemClass: 'supply-item' + (item.soldOut || this.eligibilityKnown && (item.limitReached || item.locked) ? ' unavailable' : ''),
+				categoryText: this.categoryName(goods.goods_type), limitText, levelText,
+				conditionText: [levelText, limitText].filter(Boolean).join(' · '), blockedText,
+				markText: { 2: '食', 3: '用', 4: '玩', 5: '盒' }[Number(goods.goods_type)], markClass: 'product-mark mark-' + Number(goods.goods_type),
+				stockText: stock === 0 ? '已售罄' : stock > 0 ? '库存' + stock + '件' : '库存以详情为准',
+				purchaseStateText: stateText, purchaseActionText: item.soldOut ? '查看商品' : blocked ? '查看条件' : '查看详情',
+				buttonClass: blocked || !this.eligibilityKnown ? 'secondary-button' : 'primary-button',
+				itemClass: 'supply-item' + (blocked ? ' unavailable' : ''),
 			});
 		},
 		async refreshPage() {
@@ -122,7 +123,7 @@ export default {
 					this.accountToken = identity;
 				}
 			} catch (e) {
-				if (!this._unloaded && request === this._accountRequest && identity === this.identity) this.accountError = '账户更新失败，购买资格待确认；可继续浏览。';
+				if (!this._unloaded && request === this._accountRequest && identity === this.identity) this.accountError = '账户更新失败，购买资格待确认。';
 			} finally {
 				if (!this._unloaded && request === this._accountRequest) this.accountLoading = false;
 			}
@@ -173,31 +174,36 @@ export default {
 </script>
 
 <style scoped>
-.supply-page { min-height: 100vh; box-sizing: border-box; padding: 30rpx 26rpx 64rpx; background: #FAF7F0; color: #42362D; }
-.heading { padding: 6rpx 4rpx 16rpx; }
-.eyebrow { display: block; color: #A56343; font-size: 22rpx; letter-spacing: 2rpx; }
-.page-title { display: block; font-size: 42rpx; font-weight: 700; margin: 10rpx 0 14rpx; }
-.muted { display: block; font-size: 24rpx; color: #7A6C5F; line-height: 1.65; }
-.pickup-note { display: block; margin-top: 12rpx; font-size: 24rpx; color: #9B4D30; line-height: 1.6; }
-.intro-links { display: flex; flex-wrap: wrap; gap: 28rpx; margin: 0 4rpx 20rpx; }
-button { margin: 0; line-height: 1.5; font-size: 24rpx; border-radius: 14rpx; }
+.supply-page { min-height: 100vh; box-sizing: border-box; padding: 24rpx 24rpx 64rpx; background: #F7F5F1; color: #3C332B; }
+.heading { padding: 0 0 24rpx; }
+.heading-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12rpx; }
+.page-title { display: block; font-size: 38rpx; font-weight: 700; }
+.muted, .stock-text, .condition-text { display: block; font-size: 24rpx; color: #786F65; line-height: 1.6; }
+.pickup-note { display: block; margin: 4rpx 0 10rpx; font-size: 26rpx; color: #B95730; line-height: 1.5; }
+button { display: flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 76rpx; min-width: 76rpx; margin: 0; line-height: 1.4; font-size: 26rpx; border-radius: 20rpx; }
 button::after { border: none; }
-.text-button { padding: 8rpx 0; background: transparent; color: #9B4D30; text-align: left; }
-.account-note, .guest-note { padding: 18rpx 22rpx; background: #F2E8DC; border-radius: 16rpx; margin-bottom: 20rpx; font-size: 24rpx; color: #7A6C5F; line-height: 1.6; }
+.text-button { padding: 12rpx 8rpx; background: transparent; color: #B95730; font-size: 24rpx; }
+.account-note, .guest-note { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12rpx; margin-bottom: 20rpx; padding: 12rpx 24rpx; background: #F2E9E0; border-radius: 20rpx; font-size: 24rpx; color: #786F65; line-height: 1.6; }
 .category-pills { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 24rpx; }
-.category-pill { padding: 12rpx 20rpx; background: #FFFCF7; color: #7A6C5F; border: 1rpx solid #E7DCCD; }
-.category-pill.active { color: #9B4D30; background: #F3E1D0; border-color: #C89371; }
-.supply-item, .state-card { padding: 26rpx; margin-bottom: 20rpx; background: #FFFCF7; border: 1rpx solid #E7DCCD; border-radius: 24rpx; }
-.item-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12rpx; margin-bottom: 10rpx; }
-.item-title { flex: 1; min-width: 180rpx; font-size: 29rpx; font-weight: 700; }
-.tag { font-size: 21rpx; background: #F3E8DC; color: #876049; padding: 6rpx 12rpx; border-radius: 8rpx; }
-.state-text { display: block; margin-top: 8rpx; color: #9B4D30; font-size: 24rpx; line-height: 1.6; }
-.item-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 18rpx; margin-top: 20rpx; }
-.price { font-size: 34rpx; color: #A54E2D; font-weight: 700; }
-.primary-button, .secondary-button { padding: 16rpx 24rpx; }
-.primary-button { background: #B65E3D; color: #FFF; }
-.secondary-button { background: #F3E8DC; color: #9B4D30; }
-.unavailable { background: #F3F0EA; }
-.state-card { text-align: center; font-size: 26rpx; color: #7A6C5F; padding: 40rpx 26rpx; }
-.state-card button { display: inline-block; margin-top: 20rpx; }
+.category-pill { padding: 14rpx 20rpx; background: #FFFCF7; color: #786F65; border: 1rpx solid #E9E3D9; font-size: 24rpx; }
+.category-pill.active { color: #B95730; background: #F2E9E0; border-color: #D5B7A5; }
+.supply-item, .state-card { padding: 24rpx; margin-bottom: 20rpx; background: #FFFCF7; border: 1rpx solid #E9E3D9; border-radius: 24rpx; }
+.supply-item { display: flex; align-items: flex-start; gap: 16rpx; }
+.product-mark { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 76rpx; height: 76rpx; border-radius: 20rpx; font-size: 30rpx; font-weight: 700; background: #F2E9E0; color: #8B684F; }
+.mark-2 { background: #F3E8D8; }
+.mark-3 { background: #ECE7E0; }
+.mark-4 { background: #E9ECE5; color: #64705C; }
+.mark-5 { background: #F1E4DE; color: #B95730; }
+.item-content { flex: 1; min-width: 0; }
+.item-title { display: block; font-size: 28rpx; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.price { display: block; margin: 8rpx 0; font-size: 30rpx; color: #B95730; font-weight: 700; }
+.state-text { display: block; margin-top: 8rpx; color: #B95730; font-size: 24rpx; line-height: 1.5; }
+.condition-text { margin-top: 8rpx; }
+.supply-item > button { flex-shrink: 0; margin-top: 4rpx; font-size: 24rpx; }
+.primary-button, .secondary-button { padding: 14rpx 20rpx; }
+.primary-button { background: #B95730; color: #FFFCF7; }
+.secondary-button { background: #F2E9E0; color: #B95730; }
+.unavailable { background: #F1EEE8; }
+.state-card { text-align: center; font-size: 26rpx; color: #786F65; padding: 40rpx 24rpx; }
+.state-card button { display: inline-flex; margin-top: 20rpx; }
 </style>

@@ -109,14 +109,31 @@ const last = array => array[array.length - 1];
   assert(template.includes(':class="selectedCardView.itemClass"'));
   assert(template.includes('@tap.stop="toggleCardDetails(selectedCardId)"'));
   const important = template.match(/<view class="important-rules">([\s\S]*?)<\/view>/)[1];
+  const details = template.match(/<view class="card-details" v-if="selectedCardView.detailsExpanded">([\s\S]*?)<\/view>/)[1];
+  const collapsed = template.replace(details, '');
   assert(!important.includes('detailsExpanded'), 'important restrictions cannot be hidden');
   assert(important.includes('class="restriction-text" v-if="selectedCardView.showRestrictionText"'));
-  assert(important.includes('class="rule-text" v-for="rule in selectedCardView.importantRuleLines"'));
-  for (const field of ['restrictionText', 'importantRuleLines', 'roomScopeText', 'orderLimitText', 'purchaseRuleText', 'unavailableReason']) {
+  assert(important.includes('class="rule-text" v-for="rule in selectedCardView.visibleRuleLines"'));
+  for (const field of ['restrictionSummary', 'visibleRuleLines', 'mixedRightsText', 'accountLimitText', 'unavailableReason']) {
     assert(important.includes('selectedCardView.' + field));
   }
-  for (const field of ['priceFullText', 'limitText', 'validityText', 'activationText', 'sellingPoint', 'usageExample']) {
-    assert(template.includes('selectedCardView.' + field));
+  for (const field of ['priceFullText', 'limitText', 'validityText', 'activationSummary']) {
+    assert(collapsed.includes('selectedCardView.' + field), 'key information always visible: ' + field);
+  }
+  for (const field of ['usageText', 'sellingPoint', 'usageExample', 'unitPriceText', 'saveText', 'detailRuleLines', 'combinationText']) {
+    assert(details.includes('selectedCardView.' + field), 'secondary explanation remains available: ' + field);
+    assert(!collapsed.includes('selectedCardView.' + field), 'secondary explanation defaults closed: ' + field);
+  }
+  for (const field of ['restrictionText', 'importantRuleLines', 'secondaryRuleLines', 'ruleLines', 'roomScopeText', 'orderLimitText', 'recommendLabel', 'purchaseRuleText']) {
+    assert(!template.includes('selectedCardView.' + field), 'no second rendering of the full helper section: ' + field);
+  }
+  assert(template.includes('<text>使用规则</text>'));
+  assert.strictEqual((template.match(/selectedCardView\.priceFullText/g) || []).length, 2, 'card price and checkout total only');
+  assert.strictEqual((template.match(/selectedCardView\.activationSummary/g) || []).length, 1, 'activation caveat is not repeated in payment section');
+  assert(collapsed.includes('购卡不支持余额、优惠券及积分抵扣'));
+  assert(!/font-size:\s*(?:1\d|2[0-3])rpx/.test(source), 'text stays at least 24rpx');
+  for (const selector of ['balance-right', 'retry-btn', 'details-toggle', 'submit-btn']) {
+    assert(new RegExp('\\.' + selector + '\\s*\\{[^}]*min-height:\\s*76rpx').test(source), 'tap target is at least 76rpx: ' + selector);
   }
   assert(template.includes('v-else-if="loadError"') && template.includes('@tap="fetchCards"'));
   assert(template.includes('v-else-if="!selectedCard"') && template.includes('@tap="goMall">去商城选卡'));
@@ -145,6 +162,15 @@ const last = array => array[array.length - 1];
   assert.strictEqual(hallView.showRestrictionText, true);
   assert(!hallView.importantRuleLines.some(rule => rule.text === hallView.restrictionText));
   assert(hallView.activationText.includes('支付成功'));
+  assert.strictEqual(hallView.activationSummary, '支付成功起算，非首次使用激活');
+  assert.strictEqual(hallView.restrictionSummary, '持卡账号下单，其他账号不可独立用卡');
+  assert.strictEqual(hallView.accountLimitText, '每账号限购2次，不按同行人数');
+  assert.strictEqual(hallView.detailsExpanded, false);
+  assert(hallView.visibleRuleLines.some(rule => /大厅按人次.*同行每张票扣1次/.test(rule.text)));
+  assert(hallView.visibleRuleLines.some(rule => /大厅每单最多抵3张票.*超出另付/.test(rule.text)));
+  assert(hallView.visibleRuleLines.some(rule => /扣1次抵本人入场费.*同行另付/.test(rule.text)));
+  assert(hallView.mixedRightsText.includes('大厅票 / 包厢入场费二选一'));
+  assert(hallView.mixedRightsText.includes('共用额度；本卡每单仅选一种权益'));
   const roomView = vm.buildCardView(room);
   assert.strictEqual(roomView.orderLimitText, '每单最多抵6小时房费');
   assert.strictEqual(roomView.roomScopeText, '暖厅');
@@ -154,6 +180,12 @@ const last = array => array[array.length - 1];
   assert(roomView.importantRuleLines.some(rule => /不含本人及同行人的入场费/.test(rule.text)));
   assert.strictEqual(roomView.importantRuleLines.filter(rule => /闲时/.test(rule.text)).length, 1);
   assert(roomView.importantRuleLines.some(rule => /闲时.*规则明确允许时除外.*混合预约仅抵允许用卡的小时/.test(rule.text)));
+  assert.strictEqual(roomView.mixedRightsText, '', 'room-only card must not imply entry benefits');
+  assert(roomView.visibleRuleLines.some(rule => /只抵房费.*本人及同行入场费另付/.test(rule.text)));
+  assert(roomView.visibleRuleLines.some(rule => /房费每单最多抵6小时/.test(rule.text)));
+  assert(roomView.visibleRuleLines.some(rule => /适用房间：暖厅/.test(rule.text)));
+  assert.strictEqual(roomView.visibleRuleLines.filter(rule => /闲时/.test(rule.text)).length, 1);
+  assert(roomView.visibleRuleLines.some(rule => /闲时特惠默认不可抵.*规则允许除外.*混合预约仅抵允许用卡的小时/.test(rule.text)));
   const roomWithEntry = vm.buildCardView(Object.assign({}, room, {
     usage_rules: room.usage_rules.concat({ slot: 'self_entry_fee', max_per_order: 1 }),
   }));
@@ -161,6 +193,59 @@ const last = array => array[array.length - 1];
   assert(roomWithEntry.importantRuleLines.some(rule => /抵本人入场费，不抵同行入场费/.test(rule.text)));
   assert(roomWithEntry.importantRuleLines.some(rule => /规则明确允许时除外.*混合预约/.test(rule.text)));
   assert.strictEqual(roomView.recommendLabel, '', 'no invented quota');
+  assert.strictEqual(roomWithEntry.mixedRightsText, '房费 / 包厢入场费二选一，共用额度；本卡每单仅选一种权益');
+  assert(!roomWithEntry.visibleRuleLines.some(rule => /本人及同行入场费另付/.test(rule.text)), 'entry right is not falsely removed');
+  assert(roomWithEntry.visibleRuleLines.some(rule => /抵本人入场费.*同行另付/.test(rule.text)));
+
+  // Exercise the real helper's rights and limits, not shortened fixture-only strings.
+  const presentationCards = cards.concat([
+    { ...hall, usage_rules: [{ slot: 'ticket', max_per_order: 1 }] },
+    { ...hall, usage_rules: [{ slot: 'ticket', max_per_order: 0 }] },
+    { ...hall, usage_rules: [{ slot: 'self_entry_fee', max_per_order: 0 }] },
+    { ...hall, usage_rules: [{ slot: 'self_entry_fee', max_per_order: 3 }] },
+    { ...hall, usage_rules: [{ slot: 'ticket', enabled: false }] },
+    { ...room, usable_rooms: [] },
+    { ...room, usable_rooms: ['r1'] },
+    { ...room, usage_rules: [{ slot: 'room_hours' }, { slot: 'self_entry_fee', max_per_order: 1 }] },
+    { ...room, usage_rules: [{ slot: 'room_hours' }, { slot: 'ticket', max_per_order: 2 }] },
+    { ...room, usage_rules: [{ slot: 'room_hours' }, { slot: 'ticket' }, { slot: 'self_entry_fee', max_per_order: 3 }], stackable: false },
+  ]);
+  for (const card of presentationCards) {
+    const view = vm.buildCardView(card);
+    const helper = PRESENTATION.buildCardView(card);
+    for (const [key, value] of Object.entries(helper)) assert.deepStrictEqual(view[key], value, 'unchanged helper field: ' + key);
+    assert.strictEqual(view.detailsExpanded, false, 'every card starts collapsed');
+    assert.deepStrictEqual(view.importantRuleLines.concat(view.secondaryRuleLines).map(rule => rule.key).sort(),
+      helper.ruleLines.map(rule => rule.key).sort(), 'all full rules retained without duplication');
+    for (const rule of helper.ruleLines.filter(rule => /大厅购票|房费|入场费|闲时|适用房间|每个账号限购|同一订单不可/.test(rule.text))) {
+      assert(view.importantRuleLines.some(item => item.key === rule.key), 'must-know rule stays important: ' + rule.text);
+      if (/每个账号限购/.test(rule.text)) assert(view.accountLimitText.includes('不按同行人数'));
+      else if (/^(大厅购票与包厢入场抵扣共用额度|房费与入场费为二选一用途)/.test(rule.text)) assert(view.mixedRightsText.includes('共用额度'));
+      else assert(view.visibleRuleLines.some(item => item.key === rule.key), 'short visible filter retains the right: ' + rule.text);
+    }
+    const rights = [SUBSCRIPTION.SLOT_ROOM_HOURS, SUBSCRIPTION.SLOT_TICKET, SUBSCRIPTION.SLOT_SELF_ENTRY_FEE]
+      .filter(slot => PRESENTATION.presentationRule(card, slot));
+    assert.strictEqual(!!view.mixedRightsText, rights.length > 1);
+    if (rights.length > 1) {
+      assert(view.mixedRightsText.includes('本卡每单仅选一种权益'));
+      assert(!view.visibleRuleLines.some(rule => /共用额度|同一卡包每单/.test(rule.text)), 'mixed-rights summary appears only once');
+      assert(!view.combinationText.includes('同一卡包每单'), 'expanded section does not repeat the mixed-rights warning');
+    }
+    for (const rule of view.visibleRuleLines) {
+      assert(!view.detailRuleLines.some(item => item.key === rule.key), 'expanded section does not repeat visible rules');
+    }
+    assert.strictEqual(new Set(view.visibleRuleLines.map(rule => rule.key)).size, view.visibleRuleLines.length);
+    if (card.stackable === false) assert(view.visibleRuleLines.some(rule => /不可与其他卡包/.test(rule.text)));
+  }
+  const entryMany = vm.buildCardView({ ...hall, usage_rules: [{ slot: 'self_entry_fee', max_per_order: 3 }] });
+  assert(!entryMany.showRestrictionText, 'entry-only card does not invent a hall-sharing rule');
+  assert.strictEqual(entryMany.mixedRightsText, '');
+  assert(entryMany.visibleRuleLines.some(rule => /最多抵3人，以结算页为准/.test(rule.text)));
+  assert(!entryMany.visibleRuleLines.some(rule => /同行另付/.test(rule.text)), 'multi-person entry rights are not reduced to self-only');
+  const mixedHallRoom = vm.buildCardView({ ...room, usage_rules: [{ slot: 'room_hours' }, { slot: 'ticket' }] });
+  assert(mixedHallRoom.showRestrictionText && mixedHallRoom.mixedRightsText.includes('大厅票'));
+  assert(mixedHallRoom.visibleRuleLines.some(rule => /大厅按人次/.test(rule.text)));
+  assert(mixedHallRoom.visibleRuleLines.some(rule => /本人及同行入场费另付/.test(rule.text)), 'hall tickets do not imply room entry benefits');
 
   const routed = instance();
   const returnUrl = '/pages/order/createOrder?room_id=r1&date=2026-10-11&mall_return_id=draft-token';
@@ -286,6 +371,10 @@ const last = array => array[array.length - 1];
   loadCards = () => Promise.resolve({ _status: 0, data: cards });
   await routed.fetchCards();
   assert.strictEqual(routed.selectedCard, room, 'retry restores only the explicit route selection');
+  routed.toggleCardDetails('room');
+  assert.strictEqual(routed.selectedCardView.detailsExpanded, true);
+  await routed.fetchCards();
+  assert.strictEqual(routed.selectedCardView.detailsExpanded, false, 'reload resets the optional section to closed');
   const older = deferred(), newer = deferred();
   loadCards = () => older.promise;
   const oldRequest = routed.fetchCards();

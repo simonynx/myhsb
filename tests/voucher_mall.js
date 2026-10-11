@@ -39,9 +39,8 @@ async function run() {
   const app = instance();
   assert.strictEqual(app.mainTabs, undefined);
   app.userInfo = { points: 200, member_level: 0 };
-  app.goodsList = [{object_id:'pure',goods_type:2,exchange_type:2,points_price:180,stock:3}, {object_id:'mixed',goods_type:2,exchange_type:3,points_price:100,price:400,stock:3}, {object_id:'empty',goods_type:2,exchange_type:2,points_price:50,stock:0}];
-  assert.strictEqual(app.featuredBenefits.length, 1);
-  assert.strictEqual(app.featuredBenefits[0].object_id, 'pure');
+  assert.strictEqual(app.featuredBenefits, undefined);
+  assert.strictEqual(app.loadGoods, undefined, 'mall no longer duplicates the points catalog request');
   assert.strictEqual(app.pointsSummary.valueText, '');
   app.goPoints(); assert.strictEqual(actions.pop(), '/pages/voucher/points');
   app.goSupply(); assert.strictEqual(actions.pop(), '/pages/voucher/supply?source=mall_secondary');
@@ -53,6 +52,9 @@ async function run() {
   assert(!view.sellingPoint.includes('3次'));
   assert.strictEqual(view.buyText, '查看详情');
   assert.strictEqual(view.detailsOpen, undefined);
+  const combination = app.buildSubscriptionCardView(Object.assign({},room,{usage_rules:[{slot:'room_hours'},{slot:'self_entry_fee',max_per_order:1}]}));
+  assert(combination.shortPolicy.includes('每单选一项'));
+  assert(!combination.shortPolicy.includes('入场费另计'));
   subscriptions = () => Promise.reject(new Error('network'));
   await app.loadSubscriptionCards();
   assert.strictEqual(app.subscriptionsLoading, false);
@@ -105,13 +107,10 @@ async function run() {
   assert.strictEqual(actions.pop(), '/pages/voucher/supply?source=mall_secondary');
   app.selectInitialTab();
   assert.strictEqual(app.mainTab, 2);
-  goods = () => Promise.reject(new Error('network'));
-  await app.loadGoods();
-  assert(app.goodsError.includes('失败'));
-  goods = () => Promise.resolve({ _status: 0, data: { goods: [] } });
-  await app.loadGoods();
-  assert.strictEqual(app.goodsError, '');
-  assert.strictEqual(app.goodsLoading, false);
+  let goodsLoads = 0;
+  goods = () => { goodsLoads++; return Promise.reject(new Error('unused request')); };
+  await app.loadAll();
+  assert.strictEqual(goodsLoads, 0);
   const resolvers = [];
   subscriptions = () => new Promise(resolve => resolvers.push(resolve));
   const first = app.loadSubscriptionCards();
@@ -131,6 +130,12 @@ async function run() {
   assert(!template.includes('main-tabs'));
   assert(!template.includes('goods-grid'));
   assert(template.includes('loyalty-summary'));
+  assert(!template.includes('loyalty-previews'));
+  assert(!template.includes('pointsSummary.usageText'));
+  assert(!template.includes('card.usageExample'));
+  assert(!template.includes('card.restrictionText'));
+  assert(view.shortPolicy.includes('房费'));
+  assert(view.roomPolicy.includes('闲时默认不可抵'));
   console.log('Mall: card-focused layout, compact loyalty summary, separated supply/points and checkout return passed');
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

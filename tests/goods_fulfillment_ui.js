@@ -2,6 +2,68 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const root = path.join(__dirname, '..');
+const detailText = fs.readFileSync(path.join(root, 'pages/voucher/detail.vue'), 'utf8');
+const successText = fs.readFileSync(path.join(root, 'pages/pay/success/success.vue'), 'utf8');
+
+// Evaluate the real templates' v-if chains and bindings without a browser dependency.
+// This checks visible copy/controls, not a mocked list of expected screen strings.
+function templateTree(source) {
+  const tree = { tag: 'root', attrs: {}, children: [] };
+  const stack = [tree];
+  const template = source.match(/<template>([\s\S]*?)<\/template>/)[1];
+  const tokens = template.match(/<!--[\s\S]*?-->|<\/?[a-z][\w-]*(?:[^>"']|"[^"]*"|'[^']*')*>|[^<]+/g) || [];
+  for (const token of tokens) {
+    if (token.startsWith('<!--')) continue;
+    if (token.startsWith('</')) {
+      assert.strictEqual(stack.pop().tag, token.slice(2, -1).trim(), 'balanced template tags');
+    } else if (token.startsWith('<')) {
+      const opening = token.match(/^<([\w-]+)([\s\S]*?)\/?\s*>$/);
+      const node = { tag: opening[1], attrs: {}, children: [] };
+      for (const attr of opening[2].matchAll(/([:@\w-]+)(?:="([^"]*)")?/g)) node.attrs[attr[1]] = attr[2] === undefined ? true : attr[2];
+      stack[stack.length - 1].children.push(node);
+      if (!token.endsWith('/>')) stack.push(node);
+    } else if (token.trim()) {
+      stack[stack.length - 1].children.push({ text: token });
+    }
+  }
+  assert.strictEqual(stack.length, 1, 'all template tags closed');
+  return tree;
+}
+const detailTemplate = templateTree(detailText);
+const successTemplate = templateTree(successText);
+function visibleTemplate(tree, vm) {
+  const evaluate = expression => new Function('vm', 'with (vm) { return (' + expression + '); }')(vm);
+  function children(nodes) {
+    let branchTaken = false;
+    return nodes.flatMap(node => {
+      if (node.text !== undefined) return [{ text: node.text.replace(/\{\{([\s\S]*?)\}\}/g, (_, expression) => String(evaluate(expression))) }];
+      const attrs = node.attrs;
+      let visible = true;
+      if ('v-if' in attrs) branchTaken = visible = !!evaluate(attrs['v-if']);
+      else if ('v-else-if' in attrs) { visible = !branchTaken && !!evaluate(attrs['v-else-if']); branchTaken = branchTaken || visible; }
+      else if ('v-else' in attrs) { visible = !branchTaken; branchTaken = true; }
+      else branchTaken = false;
+      if (!visible) return [];
+      const renderedAttrs = Object.fromEntries(Object.entries(attrs).map(([key, value]) => key.startsWith(':') ? [key.slice(1), evaluate(value)] : [key, value]));
+      if (attrs.class && attrs[':class']) renderedAttrs.class = attrs.class + ' ' + renderedAttrs.class;
+      return [{ tag: node.tag, attrs: renderedAttrs, children: children(node.children) }];
+    });
+  }
+  return { tag: 'root', attrs: {}, children: children(tree.children) };
+}
+function visibleText(node) {
+  return node.text !== undefined ? node.text.trim() : (node.children || []).map(visibleText).join(' ').replace(/\s+/g, ' ').trim();
+}
+function findNodes(node, predicate) {
+  return (predicate(node) ? [node] : []).concat((node.children || []).flatMap(child => findNodes(child, predicate)));
+}
+const byClass = (tree, name) => findNodes(tree, node => node.attrs && String(node.attrs.class || '').split(/\s+/).includes(name));
+const countText = (text, phrase) => text.split(phrase).length - 1;
+function tap(tree, vm, method) {
+  const control = findNodes(tree, node => node.attrs && (node.attrs['@tap'] === method || node.attrs['@click'] === method))[0];
+  assert(control, 'visible control for ' + method);
+  vm[method]();
+}
 
 // Execute the real shared helper and SFC hooks, computed values and methods.
 function load(file, bindings = {}) {
@@ -84,7 +146,8 @@ function reset() { Object.values(calls).forEach(list => { list.length = 0; }); }
   Detail.onLoad.call(vm, { id: 'goods/1' });
   await flush();
   assert.strictEqual(vm.isCouponGoods, true);
-  assert.strictEqual(vm.validityText, '以实际到账券为准');
+  assert(vm.usageScopeText.includes('有效期') && vm.usageScopeText.includes('以实际到账券为准'));
+  assert(visibleText(visibleTemplate(detailTemplate, vm)).includes('以实际到账券为准'));
   vm.goMyCoupons();
   assert.strictEqual(calls.routes.pop(), '/pages/my/coupons/coupons?tab=unused');
 
@@ -123,12 +186,125 @@ function reset() { Object.values(calls).forEach(list => { list.length = 0; }); }
   assert.strictEqual(vm.actualPrice, '25.00');
   assert.strictEqual(vm.canUseBalance, false);
   assert.strictEqual(vm.pointsDiscountMoney, undefined);
-  assert(vm.purchaseStateDescription.includes('300 积分 + ¥25.00'));
+  assert.strictEqual(vm.purchaseStateTitle, '', 'no ready-state paragraph duplicates the purchase action');
+  const mixedScreen = visibleTemplate(detailTemplate, vm);
+  assert(visibleText(byClass(mixedScreen, 'product-price')[0]).includes('¥25.00 + 300 积分'));
+  assert(visibleText(byClass(mixedScreen, 'price-line')[0]).includes('¥25.00 + 300 积分'));
+  assert(visibleText(mixedScreen).includes('积分另付，不抵现金'));
+  assert(visibleText(mixedScreen).includes('实际现金金额按结算核定（含适用会员优惠）'));
+  assert.strictEqual(countText(visibleText(mixedScreen), '¥25.00'), 2, 'main price and bottom amount only');
   assert(vm.usageScopeText.includes('不配送') && vm.usageScopeText.includes('免费茶水'));
   checkoutResponse = response(order({ order_status: 0 }));
   vm.handleSubmit();
   await flush();
   assert.deepStrictEqual(calls.checkout[0], { token: 'token', param: { order_type: 3, goods_id: 'goods/1', use_points: 300 } });
+
+  // Authoritative restrictions remain visible; secondary generated fees start closed.
+  for (const exchangeType of [1, 2, 3]) {
+    vm = instance(Detail, {
+      currentGoods: goods({ exchange_type: exchangeType, description: '仅工作日使用；满100元可用；7天有效。',
+        member_level_required: 2, max_buy_per_user: 2, max_buy_period: 'week',
+        validity_period_start: '2026-01-01T00:00:00+08:00', validity_period_end: '2026-12-31T23:59:59+08:00' }),
+      goodsVerified: true, userBoughtCount: 1,
+    });
+    assert.strictEqual(vm.detailsExpanded, false);
+    let screen = visibleTemplate(detailTemplate, vm);
+    let copy = visibleText(screen);
+    assert(copy.includes(vm.exchangeLabel) && copy.includes(vm.productPriceText));
+    assert.strictEqual(countText(copy, '门店领取，不配送'), 1);
+    assert.strictEqual(countText(copy, '非门票内免费茶水'), 1);
+    assert(copy.includes('烈金大魔导士及以上'));
+    assert(copy.includes('每周限购 2件 · 已购 1件'));
+    assert(copy.includes('2026-01-01 ~ 2026-12-31'));
+    assert(copy.includes(vm.currentGoods.description), 'catalog descriptions may contain binding weekday, threshold and expiry restrictions');
+    assert(!copy.includes('费用明细'));
+    assert.strictEqual(countText(copy, vm.currentGoods.description), 1);
+    assert.strictEqual(byClass(screen, 'details-body').length, 0);
+    assert.strictEqual(byClass(screen, 'purchase-state').length, 0);
+    assert.strictEqual(byClass(screen, 'details-toggle')[0].attrs['aria-expanded'], false);
+    tap(screen, vm, 'toggleDetails');
+    screen = visibleTemplate(detailTemplate, vm);
+    copy = visibleText(screen);
+    assert(copy.includes(vm.currentGoods.description) && copy.includes('费用明细'));
+    assert(copy.includes('库存 4 件'));
+    assert.strictEqual(countText(copy, vm.currentGoods.description), 1);
+    assert.strictEqual(byClass(screen, 'details-toggle')[0].attrs['aria-expanded'], true);
+    assert(!byClass(screen, 'details-body')[0].children.some(node => visibleText(node).includes('组合价')));
+    assert.strictEqual(vm.submitDisabled, false, 'expansion never changes purchase eligibility');
+    tap(screen, vm, 'toggleDetails');
+    assert.strictEqual(vm.detailsExpanded, false);
+    assert(visibleText(visibleTemplate(detailTemplate, vm)).includes(vm.currentGoods.description));
+    assert(!visibleText(visibleTemplate(detailTemplate, vm)).includes('费用明细'));
+  }
+  vm = instance(Detail, { currentGoods: goods({ coupon_template_id: 'real-template', description: '仅工作日；满100元；领券后7天有效。',
+    validity_period_start: '2026-10-01', validity_period_end: '2026-11-01' }), goodsVerified: true });
+  let screen = visibleTemplate(detailTemplate, vm);
+  assert(visibleText(screen).includes('有效期、适用范围与门槛以实际到账券为准'));
+  assert(visibleText(screen).includes(vm.currentGoods.description), 'coupon restrictions cannot be hidden before purchase');
+  assert(visibleText(screen).includes('购买时间 2026-10-01 ~ 2026-11-01'), 'coupon purchase dates do not override actual card expiry');
+  assert(!visibleText(screen).includes('免费茶水') && !visibleText(screen).includes('不配送'));
+  assert.strictEqual(vm.goodsMark, '券');
+  for (const dates of [{ validity_period_start: '2026-10-01' }, { validity_period_end: '2026-11-01' }]) {
+    vm = instance(Detail, { currentGoods: goods(dates), goodsVerified: true });
+    assert(vm.purchaseDatesText);
+    assert(visibleText(visibleTemplate(detailTemplate, vm)).includes(vm.purchaseDatesText));
+  }
+  vm = instance(Detail, { currentGoods: goods(), goodsVerified: true });
+  assert.strictEqual(vm.purchaseDatesText, '');
+  assert(!visibleText(visibleTemplate(detailTemplate, vm)).includes('购买时间'));
+
+  for (const blocked of [
+    { currentGoods: goods({ stock: 0 }), expected: '本期已售罄' },
+    { currentGoods: goods({ max_buy_per_user: 1 }), userBoughtCount: 1, expected: '本期限购已达上限' },
+    { currentGoods: goods({ member_level_required: 2 }), userInfo: { member_level: 1, points: 1000 }, expected: '会员等级暂未达到' },
+    { currentGoods: goods({ exchange_type: 2, points_price: 300 }), userInfo: { member_level: 3, points: 120 }, expected: '还差 180 积分' },
+    { currentGoods: goods({ exchange_type: 3, points_price: 300 }), userInfo: { member_level: 3, points: 120 }, expected: '还差 180 积分' },
+  ]) {
+    vm = instance(Detail, Object.assign({ goodsVerified: true }, blocked));
+    const blockedScreen = visibleTemplate(detailTemplate, vm);
+    assert.strictEqual(vm.detailsExpanded, false);
+    assert.strictEqual(vm.submitDisabled, true);
+    assert(visibleText(byClass(blockedScreen, 'purchase-state')[0]).includes(blocked.expected));
+    if (blocked.expected.includes('还差')) {
+      assert(findNodes(blockedScreen, node => node.attrs && node.attrs['@tap'] === 'goEarnPoints').length);
+    }
+  }
+
+  // Balance selection stays outside the accordion and preserves partial/full/off payment payloads.
+  reset();
+  goodsRequest = () => Promise.resolve(response({ goods: [goods({ exchange_type: 1, can_use_balance: true, price: 2500 })] }));
+  vm = instance(Detail, { goodsId: 'goods/1', userInfo: { member_level: 3, points: 1000, account_balance: 700 } });
+  await vm.refreshGoods();
+  screen = visibleTemplate(detailTemplate, vm);
+  assert.strictEqual(vm.detailsExpanded, false);
+  assert.strictEqual(byClass(screen, 'balance-row').length, 1, 'supported balance control is visible before expanding');
+  assert.strictEqual(byClass(screen, 'balance-row')[0].tag, 'button');
+  assert.strictEqual(byClass(screen, 'balance-row')[0].attrs['aria-pressed'], true);
+  assert(byClass(screen, 'balance-row')[0].attrs['aria-label'].includes('7.00'));
+  assert.strictEqual(vm.actualPrice, '18.00');
+  assert.strictEqual(vm.footerAmountLabel, '预估现金金额', 'catalog-minus-balance is not an authoritative checkout amount');
+  assert(visibleText(screen).includes('余额不足，剩余金额需微信支付'));
+  tap(screen, vm, 'toggleBalance');
+  assert.strictEqual(vm.useBalance, false);
+  assert.strictEqual(vm.balancePreferenceTouched, true);
+  assert.strictEqual(vm.actualPrice, '25.00');
+  assert.strictEqual(vm.footerAmountLabel, '商品价');
+  await vm.refreshGoods();
+  assert.strictEqual(vm.useBalance, false, 'refresh preserves the explicit balance preference');
+  checkoutResponse = response(order({ order_status: 0, order_type: 3 }));
+  vm.handleSubmit(); await flush();
+  assert.deepStrictEqual(calls.checkout[0].param, { order_type: 3, goods_id: 'goods/1' });
+  assert(calls.routes.pop().startsWith('/pages/order/payment?parent_sn=SN1&entry=3&data='));
+  tap(visibleTemplate(detailTemplate, vm), vm, 'toggleBalance');
+  vm.handleSubmit(); await flush();
+  assert.deepStrictEqual(calls.checkout[1].param, { order_type: 3, goods_id: 'goods/1', use_balance: true });
+  vm.userInfo.account_balance = 10000;
+  assert.strictEqual(vm.actualPrice, '0.00');
+  assert.strictEqual(vm.submitButtonText, '余额支付');
+  checkoutResponse = response(order({ order_type: 3 }));
+  vm.handleSubmit(); await flush();
+  calls.modals.pop().success();
+  assert(calls.routes.pop().startsWith('/pages/pay/success/success?amount=2500&id=real%2Forder&type=voucher'));
 
   // Actual exchange checkout does not announce a blind box as a coupon or invent arrival.
   reset();
@@ -189,12 +365,16 @@ function reset() { Object.values(calls).forEach(list => { list.length = 0; }); }
   vm = instance(Success);
   Success.onLoad.call(vm, { type: 'exchange', kind: 'coupon', id: 'real/order' });
   assert.strictEqual(vm.title, '核对订单中');
+  assert.strictEqual(vm.statusIcon, '…');
+  assert(visibleText(visibleTemplate(successTemplate, vm)).includes('核对订单中'));
   assert(!vm.subtitle.includes('已放入'));
   vm.goOrder();
   assert(calls.routes.pop().startsWith('/pages/order/order?'));
   resolveOrder(response({ orders: [order({ goods_fulfillment: { kind: 'pickup', status: 'pending' } })] }));
   await flush();
   assert.strictEqual(vm.fulfillment.status, 'pending');
+  assert.strictEqual(vm.title, '待到店领取');
+  assert.strictEqual(vm.statusIcon, '↓');
   assert.strictEqual(vm.primaryText, '去我的订单');
   assert(vm.subtitle.includes('出示订单号'));
   assert.strictEqual(vm.confirmedOrderNumber, 'SN1');
@@ -203,8 +383,12 @@ function reset() { Object.values(calls).forEach(list => { list.length = 0; }); }
   orderRequest = () => Promise.resolve(response({ orders: [order({ goods_fulfillment: { kind: 'coupon', status: 'issued' }, goodsInfo: { context: { granted_coupon_id: 'real-coupon' } } })] }));
   await vm.loadOrderBenefit();
   assert.strictEqual(vm.primaryText, '我的优惠券');
+  assert.strictEqual(vm.title, '优惠券已到账');
+  assert.strictEqual(vm.statusIcon, '✓');
   orderRequest = () => Promise.resolve(response({orders:[order({goods_fulfillment:{kind:'coupon',status:'closed'},goodsInfo:{context:{granted_coupon_id:'old-coupon'}}})]}));
   await vm.loadOrderBenefit();
+  assert.strictEqual(vm.title, '订单已退款或关闭');
+  assert.strictEqual(vm.statusIcon, '−');
   assert(!vm.benefitText.includes('商城兑换券已放入'));
   orderRequest = () => Promise.resolve(response({orders:[order({goods_fulfillment:{kind:'coupon',status:'issued'},goodsInfo:{context:{granted_coupon_id:'real-coupon'}}})]}));
   await vm.loadOrderBenefit();
@@ -247,19 +431,125 @@ function reset() { Object.values(calls).forEach(list => { list.length = 0; }); }
   assert(vm.orderError);
   assert.strictEqual(vm.primaryText, '去我的订单');
 
-  const detailText = fs.readFileSync(path.join(root, 'pages/voucher/detail.vue'), 'utf8');
-  const successText = fs.readFileSync(path.join(root, 'pages/pay/success/success.vue'), 'utf8');
+  // Every real status is visible once in the hero, never hidden in a duplicate card.
+  const successCases = [
+    { actual: order({ goods_fulfillment: { kind: 'pickup', status: 'pending' } }), status: 'pending', icon: '↓' },
+    { actual: order({ goods_fulfillment: { kind: 'pickup', status: 'processing' } }), status: 'processing', icon: '…' },
+    { actual: order({ goods_fulfillment: { kind: 'coupon', status: 'processing' } }), status: 'processing', icon: '…' },
+    { actual: order({ goods_fulfillment: { kind: 'coupon', status: 'issued' } }), status: 'processing', icon: '…' },
+    { actual: order(), status: 'unknown', icon: '?' },
+    { actual: order({ goods_fulfillment: { kind: 'pickup', status: 'received' } }), status: 'unknown', icon: '?' },
+    { actual: order({ goods_fulfillment: { kind: 'coupon', status: 'unknown' }, goodsInfo: { context: { granted_coupon_id: 'stale-id' } } }), status: 'unknown', icon: '?' },
+    { actual: order({ goods_fulfillment: { kind: 'coupon', status: 'closed' }, goodsInfo: { context: { granted_coupon_id: 'stale-id' } } }), status: 'closed', icon: '−' },
+    { actual: order({ order_status: 10, goods_fulfillment: { kind: 'coupon', status: 'issued' }, goodsInfo: { context: { granted_coupon_id: 'stale-id' } } }), status: 'closed', icon: '−' },
+    { actual: order({ order_status: 6, goods_fulfillment: { kind: 'pickup', status: 'received', received_at: '2026-10-11T11:22:33+08:00' } }), status: 'closed', icon: '−' },
+    { actual: order({ order_status: 0, goods_fulfillment: { kind: 'pickup', status: 'pending' } }), status: 'notpaid', icon: '!' },
+    { actual: order({ order_status: 0, goods_fulfillment: { kind: 'coupon', status: 'issued' }, goodsInfo: { context: { granted_coupon_id: 'stale-id' } } }), status: 'notpaid', icon: '!' },
+    { actual: order({ goods_fulfillment: { kind: 'coupon', status: 'issued' }, goodsInfo: { context: { granted_coupon_id: 'real-id' } } }), status: 'issued', icon: '✓' },
+    { actual: order({ goods_fulfillment: { kind: 'pickup', status: 'received', received_at: '2026-10-11T11:22:33+08:00' } }), status: 'received', icon: '✓' },
+  ];
+  for (const routeType of ['exchange', 'voucher', 'order']) {
+    for (const testCase of successCases) {
+      orderRequest = () => Promise.resolve(response({ orders: [testCase.actual] }));
+      vm = instance(Success);
+      Success.onLoad.call(vm, { type: routeType, id: 'real/order', kind: 'coupon' });
+      await flush();
+      const statusScreen = visibleTemplate(successTemplate, vm);
+      const hero = byClass(statusScreen, 'success-card')[0];
+      const copy = visibleText(hero);
+      assert.strictEqual(vm.fulfillment.status, testCase.status);
+      assert.strictEqual(vm.title, vm.fulfillment.title);
+      assert.strictEqual(visibleText(byClass(hero, 'success-title')[0]), vm.fulfillment.title);
+      assert.strictEqual(vm.statusIcon, testCase.icon);
+      assert.strictEqual(visibleText(byClass(hero, 'status-icon')[0]), testCase.icon);
+      assert.strictEqual(countText(copy, vm.title), 1);
+      assert.strictEqual(countText(visibleText(statusScreen), vm.subtitle), 1, 'one next step, no duplicated fulfillment description');
+      assert.strictEqual(byClass(statusScreen, 'fulfillment-card').length, 0);
+      assert.strictEqual(byClass(statusScreen, 'success-sub').length, 1);
+      assert.strictEqual(byClass(statusScreen, 'primary-action').length, 1);
+      assert(copy.includes('订单号 SN1'));
+      assert.strictEqual(byClass(statusScreen, 'notes-card').length, 0, 'no repeated goods how-to at bottom');
+      if (testCase.status === 'received') {
+        assert.strictEqual(countText(copy, '2026-10-11 11:22:33'), 1, 'actual receipt timestamp is secondary, once');
+        assert.strictEqual(byClass(hero, 'received-time').length, 1);
+      } else {
+        assert.strictEqual(byClass(hero, 'received-time').length, 0);
+      }
+      if (['issued', 'received'].includes(testCase.status)) {
+        assert.strictEqual(vm.statusIcon, '✓');
+      } else {
+        assert(!copy.includes('优惠券已到账') && !copy.includes('已领取') && !copy.includes('兑换成功') && !copy.includes('支付成功'));
+        assert(!vm.benefitText.includes('商城兑换券已放入'));
+      }
+      if (testCase.status === 'issued') assert(copy.includes('以实际到账券为准'));
+      if (testCase.status === 'closed') assert(copy.includes('当前订单不可领取'));
+      tap(statusScreen, vm, 'goOrder');
+      const route = calls.routes.pop();
+      assert(testCase.status === 'issued' ? route === '/pages/my/coupons/coupons?tab=unused' : route.startsWith('/pages/order/order?'));
+    }
+  }
+
+  // Secondary actions and old non-goods branches remain, with long tips closed by default.
+  for (const branch of [
+    { type: 'recharge', label: '查看余额', route: '/pages/user/balance/balance' },
+    { type: 'subscription', label: '查看卡包', route: '/pages/user/subscription/my' },
+    { type: 'ticket', label: '查看票包', route: '/pages/ticket/list' },
+    { type: 'order', label: '查看订单', route: '/pages/order/order?state=0&id=non-goods' },
+  ]) {
+    vm = instance(Success, { type: branch.type, orderId: 'non-goods', confirmedOrder: { order_type: 1, order_number: 'NG1' }, reviewOrderId: 'review/1' });
+    assert.strictEqual(vm.notesExpanded, false);
+    screen = visibleTemplate(successTemplate, vm);
+    assert.strictEqual(visibleText(byClass(screen, 'primary-action')[0]), branch.label);
+    assert(!visibleText(screen).includes(vm.tipText));
+    tap(screen, vm, 'toggleNotes');
+    assert(visibleText(visibleTemplate(successTemplate, vm)).includes(vm.tipText));
+    tap(visibleTemplate(successTemplate, vm), vm, 'toggleNotes');
+    assert.strictEqual(vm.notesExpanded, false);
+    tap(screen, vm, 'goOrder'); assert.strictEqual(calls.routes.pop(), branch.route);
+    tap(screen, vm, 'goSecondaryAction');
+    assert.strictEqual(calls.routes.pop(), branch.type === 'ticket' ? '/pages/group/group' : '/pages/tabBar/appoint/appoint');
+    assert.strictEqual(vm.actionsExpanded, false);
+    assert(!visibleText(screen).includes('查看积分福利'));
+    assert.strictEqual(findNodes(screen, node => node.attrs && node.attrs['open-type'] === 'share').length, 0);
+    tap(screen, vm, 'toggleActions');
+    screen = visibleTemplate(successTemplate, vm);
+    assert.strictEqual(vm.actionsExpanded, true);
+    tap(screen, vm, 'goVoucher'); assert.strictEqual(calls.routes.pop(), '/pages/voucher/voucher');
+    tap(screen, vm, 'goCheckIn'); assert.strictEqual(calls.routes.pop(), '/pages/user/user');
+    tap(screen, vm, 'goReview'); assert.strictEqual(calls.routes.pop(), '/pages/my/reviews?order_id=review/1');
+    tap(screen, vm, 'goHome'); assert.strictEqual(calls.routes.pop(), '/pages/index/index');
+    assert.strictEqual(findNodes(screen, node => node.attrs && node.attrs['open-type'] === 'share').length, 1);
+    vm.inviteCode = 'INVITE';
+    assert.strictEqual(Success.onShareAppMessage.call(vm).path, '/pages/index/index?invite_code=INVITE');
+  }
+  vm = instance(Success, { type: 'recharge', present: 500, bonus: 20 });
+  assert(visibleText(byClass(visibleTemplate(successTemplate, vm), 'secondary-card')[0]).includes('额外到账 ¥5.00 · 赠送 20 积分'));
+  vm = instance(Success, { type: 'voucher', orderId: 'real/order', orderError: '请登录后核对订单。' });
+  assert.strictEqual(vm.title, '订单状态待确认');
+  assert.strictEqual(vm.statusIcon, '?');
+  screen = visibleTemplate(successTemplate, vm);
+  assert(visibleText(byClass(screen, 'success-card')[0]).includes('查询编号 real/order'));
+  assert(visibleText(screen).includes(vm.orderError));
+  assert(findNodes(screen, node => node.attrs && node.attrs['@tap'] === 'loadOrderBenefit').length);
+
   assert(detailText.includes('实际现金金额按结算核定'));
-  assert(detailText.includes('商品组合价'));
-  assert(detailText.includes('<text>组合价</text>'));
+  assert(detailText.includes('商品说明') && detailText.includes('detailsExpanded: false'));
   assert(!detailText.includes('现金需全额支付'));
   assert(!detailText.includes('兑换后30天内有效'));
+  assert(!detailText.includes('sky-header') && !detailText.includes('goods-emoji'));
+  assert(!/<image\b/.test(detailText.split('</template>')[0]), 'no invented product pictures');
   assert(successText.includes('查看积分福利'));
+  for (const source of [detailText, successText]) {
+    const css = source.split('<style')[1];
+    for (const match of css.matchAll(/font-size:\s*(\d+)rpx/g)) assert(Number(match[1]) >= 24, 'readable mobile text');
+    assert(css.includes('min-height: 76rpx') && css.includes('min-height: 88rpx'));
+    assert(css.includes('flex-wrap: wrap') && css.includes('env(safe-area-inset-bottom)'));
+  }
   for (const text of [detailText, successText]) {
     const template = text.split('</template>')[0];
     assert(!/:class="[^"]*\w+\([^\"]*"/.test(template));
     assert(!/:style="[^"]*\w+\([^\"]*"/.test(template));
     assert(!/\{\{[^\n]*\{\}/.test(template));
   }
-  console.log('goods_fulfillment_ui: PASS (real methods, authoritative refresh, coupon/blind-box, mixed price, fulfillment safety)');
+  console.log('goods_fulfillment_ui: PASS (real templates/methods, closed secondary details, visible constraints, balance payloads, authoritative status/CTA safety)');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1,64 +1,39 @@
 <template>
 	<view class="page">
 		<view class="success-card">
-			<view class="success-icon">✓</view>
+			<view class="status-icon" :class="statusClass">{{ statusIcon }}</view>
 			<text class="success-title">{{ title }}</text>
 			<text class="success-sub">{{ subtitle }}</text>
+			<view class="order-meta" v-if="confirmedOrderNumber || orderId">
+				<text class="meta-label">{{ confirmedOrderNumber ? '订单号' : '查询编号' }}</text>
+				<text class="order-number" selectable>{{ confirmedOrderNumber || orderId }}</text>
+			</view>
+			<text class="received-time" v-if="isGoodsSuccess && !orderLoading && !orderError && fulfillment.receivedAtText">实际领取时间：{{ fulfillment.receivedAtText }}</text>
 			<view class="amount-row" v-if="amountText">
-				<text class="amount-label">{{ amountLabel }}</text>
-				<text class="amount-value">¥{{ amountText }}</text>
+				<text class="meta-label">{{ amountLabel }}</text><text class="amount-value">¥{{ amountText }}</text>
 			</view>
-			<view class="reward-row" v-if="rewardText">
-				<text class="reward-text">{{ rewardText }}</text>
-			</view>
+			<button class="primary-action" @tap="goOrder">{{ primaryText }}</button>
 		</view>
 
-		<view class="tip-card fulfillment-card" v-if="isGoodsSuccess">
-			<text class="tip-title">{{ fulfillmentTitle }}</text>
-			<text class="tip-text">{{ fulfillmentDescription }}</text>
-			<text class="tip-text" v-if="confirmedOrderNumber">订单号：{{ confirmedOrderNumber }}</text>
-			<text class="tip-text" v-if="fulfillment.receivedAtText">实际领取时间：{{ fulfillment.receivedAtText }}</text>
-			<view class="next-sub" v-if="!orderLoading" @tap="loadOrderBenefit">刷新订单状态</view>
-		</view>
-
-		<view class="next-card">
-			<view class="next-title">接下来可以</view>
-			<view class="next-sub">{{ nextSubtitle }}</view>
+		<view class="secondary-card">
 			<view class="action-grid">
-				<view class="action-item primary" @click="goOrder">
-					<text class="action-icon">{{ primaryIcon }}</text>
-					<text class="action-text">{{ primaryText }}</text>
-				</view>
-				<view class="action-item primary-soft" @click="goSecondaryAction">
-					<text class="action-icon">{{ secondaryIcon }}</text>
-					<text class="action-text">{{ secondaryText }}</text>
-				</view>
-				<view class="action-item" @click="goVoucher">
-					<text class="action-icon">🌟</text>
-					<text class="action-text">查看积分福利</text>
-				</view>
-				<view class="action-item" @click="goCheckIn">
-					<text class="action-icon">⭐</text>
-					<text class="action-text">签到拿积分</text>
-				</view>
-				<view class="action-item review-action" v-if="reviewOrderId" @click="goReview">
-					<text class="action-icon">★</text>
-					<text class="action-text">评价本次</text>
-				</view>
-				<button class="action-item share-btn" open-type="share">
-					<text class="action-icon">↗</text>
-					<text class="action-text">约朋友来玩</text>
-				</button>
-				<view class="action-item" @click="goHome">
-					<text class="action-icon">🏠</text>
-					<text class="action-text">回到首页</text>
-				</view>
+				<button class="action-item" v-if="isGoodsSuccess && !orderLoading" @tap="loadOrderBenefit">刷新订单状态</button>
+				<button class="action-item" @tap="goSecondaryAction">{{ secondaryText }}</button>
+				<button class="action-item" @tap="goHome">回到首页</button>
+				<button class="action-item review-action" v-if="reviewOrderId" @tap="goReview">评价本次</button>
+					<button class="action-item" v-if="actionsExpanded" @tap="goVoucher">查看积分福利</button>
+					<button class="action-item" v-if="actionsExpanded" @tap="goCheckIn">签到拿积分</button>
+					<button class="action-item share-btn" v-if="actionsExpanded" open-type="share">约朋友来玩</button>
 			</view>
+				<button class="notes-toggle" @tap="toggleActions" :aria-expanded="actionsExpanded"><text>更多操作</text><text>{{ actionsExpanded ? '收起 −' : '展开 +' }}</text></button>
+				<text class="reward-text" v-if="rewardText">{{ rewardText }}</text>
 		</view>
 
-		<view class="tip-card">
-			<text class="tip-title">{{ tipTitle }}</text>
-			<text class="tip-text">{{ tipText }}</text>
+		<view class="notes-card" v-if="!isGoodsSuccess">
+			<button class="notes-toggle" @tap="toggleNotes" :aria-expanded="notesExpanded">
+				<text>{{ tipTitle }}</text><text>{{ notesExpanded ? '收起 −' : '展开 +' }}</text>
+			</button>
+			<text class="tip-text" v-if="notesExpanded">{{ tipText }}</text>
 		</view>
 	</view>
 </template>
@@ -84,6 +59,8 @@ export default {
 			benefitText: '',
 			benefitRetryCount: 0,
 			reviewOrderId: '',
+				notesExpanded: false,
+				actionsExpanded: false,
 		};
 	},
 	computed: {
@@ -96,14 +73,37 @@ export default {
 			return GOODS_FULFILLMENT.goodsFulfillmentView(this.confirmedOrder);
 		},
 		fulfillmentTitle() {
-			if (this.orderLoading) return '正在核对订单与领取状态';
-			if (this.orderError) return '领取状态暂未确认';
+			if (this.orderLoading) return '核对订单中';
+			if (this.orderError || !this.confirmedOrder) return '订单状态待确认';
 			return this.fulfillment.title;
 		},
 		fulfillmentDescription() {
-			if (this.orderLoading) return '以实际订单和到账记录为准，请稍候。';
+			if (this.orderLoading) return '正在核对实际订单，请稍候。';
 			if (this.orderError) return this.orderError;
-			return this.fulfillment.description;
+			// Short next steps follow the trusted helper's status, never route hints.
+			if (this.fulfillment.status === 'closed') return '当前订单不可领取，请查看订单及退款状态。';
+			if (this.fulfillment.status === 'notpaid') return '请在我的订单核对支付，确认后再领取。';
+			if (this.fulfillment.status === 'issued') return '到我的优惠券查看，有效期与范围以实际到账券为准。';
+			if (this.fulfillment.status === 'processing') {
+				return this.fulfillment.kind === 'coupon' ? '尚未确认到账，请稍后刷新或联系店员。' : '尚未确认可领取，请刷新或联系店员。';
+			}
+			if (this.fulfillment.status === 'pending') return '到店出示订单号领取，不配送。';
+			if (this.fulfillment.status === 'received') return '可在我的订单查看领取记录。';
+			return '请在我的订单出示订单号，由店员确认。';
+		},
+		statusClass() {
+			if (!this.isGoodsSuccess) return 'confirmed';
+			if (this.orderLoading) return 'checking';
+			if (this.orderError || !this.confirmedOrder) return 'unknown';
+			return this.fulfillment.status;
+		},
+		statusIcon() {
+			if (['confirmed', 'issued', 'received'].indexOf(this.statusClass) >= 0) return '✓';
+			if (this.statusClass === 'closed') return '−';
+			if (this.statusClass === 'pending') return '↓';
+			if (this.statusClass === 'notpaid') return '!';
+			if (this.statusClass === 'checking' || this.statusClass === 'processing') return '…';
+			return '?';
 		},
 		confirmedOrderNumber() {
 			return this.confirmedOrder && this.confirmedOrder.order_number ? this.confirmedOrder.order_number : '';
@@ -114,22 +114,17 @@ export default {
 			return (Number(this.amount || 0) / 100).toFixed(2);
 		},
 		title() {
-			if (this.isGoodsSuccess) {
-				if (this.orderLoading) return '核对订单中';
-				if (this.orderError || !this.confirmedOrder) return '订单状态待确认';
-				if (Number(this.confirmedOrder.order_status) !== 1) return this.fulfillment.title;
-				return this.type === 'exchange' ? '兑换成功' : '支付成功';
-			}
+			if (this.isGoodsSuccess) return this.fulfillmentTitle;
 			if (this.type === 'recharge') return '充值成功';
 			if (this.type === 'subscription') return '购买成功';
 			return '支付成功';
 		},
 		subtitle() {
 			if (this.isGoodsSuccess) return this.fulfillmentDescription;
-			if (this.type === 'recharge') return '余额已经到账，下一次预约可以直接抵扣';
-			if (this.type === 'subscription') return '卡包权益已经到账，有效期从购买当天开始';
-			if (this.type === 'ticket') return '门票已放入票包，可以自己用，也可以转赠好友一起约';
-			return '订单已确认，期待你到店玩得开心';
+			if (this.type === 'recharge') return '余额已到账，可用于下一次预约。';
+			if (this.type === 'subscription') return '到我的卡包查看权益与有效期。';
+			if (this.type === 'ticket') return '到我的票包使用或转赠好友。';
+			return '到店出示订单核验。';
 		},
 		amountLabel() {
 			if (this.type === 'recharge') return '充值金额';
@@ -144,30 +139,12 @@ export default {
 			if (bonus > 0) parts.push('赠送 ' + bonus + ' 积分');
 			return parts.join(' · ');
 		},
-		nextSubtitle() {
-			if (this.isGoodsSuccess) return '领取或到账以实际订单为准；积分福利适用时可留给下次，不必马上购买';
-			if (this.type === 'recharge') return '查看余额、预约房间，把这次充值用得更值';
-			if (this.type === 'subscription') return '查看剩余额度，或直接安排下一次到店';
-			if (this.type === 'ticket') return '查看票包、送朋友，或看看组局广场有没有人差位';
-			return '查看订单、领券签到，下次再来更省心';
-		},
-		primaryIcon() {
-			if (this.isGoodsSuccess) return !this.orderLoading && !this.orderError && this.fulfillment.action === 'coupons' ? '🎟️' : '📋';
-			if (this.type === 'recharge') return '💎';
-			if (this.type === 'subscription') return '🎟️';
-			if (this.type === 'ticket') return '🎫';
-			return '📋';
-		},
 		primaryText() {
 			if (this.isGoodsSuccess) return !this.orderLoading && !this.orderError ? this.fulfillment.actionText : '去我的订单';
 			if (this.type === 'recharge') return '查看余额';
 			if (this.type === 'subscription') return '查看卡包';
 			if (this.type === 'ticket') return '查看票包';
 			return '查看订单';
-		},
-		secondaryIcon() {
-			if (this.type === 'ticket') return '👥';
-			return '📅';
 		},
 		secondaryText() {
 			if (this.type === 'ticket') return '找人组局';
@@ -244,6 +221,12 @@ export default {
 		};
 	},
 	methods: {
+		toggleActions() {
+			this.actionsExpanded = !this.actionsExpanded;
+		},
+		toggleNotes() {
+			this.notesExpanded = !this.notesExpanded;
+		},
 		loadReviewOpportunity() {
 			if (!this.orderId) return;
 			var token = this.token || uni.getStorageSync('token');
@@ -421,188 +404,46 @@ export default {
 </script>
 
 <style lang="scss">
-$primary: #FF6432;
-$gold: #FFB933;
-$dark: #333;
-$gray: #888;
-$bg: #FDF8F0;
+$primary: #B65E3D;
+$bg: #FAF7F0;
+$text: #42362D;
+$muted: #7A6C5F;
+$line: #E7DCCD;
 
-page {
-	background: $bg;
-	min-height: 100vh;
-}
-
-.page {
-	min-height: 100vh;
-	padding: 56rpx 24rpx 40rpx;
-	box-sizing: border-box;
-}
-
-.success-card,
-.next-card,
-.tip-card {
-	background: #FFF;
-	border-radius: 24rpx;
-	box-shadow: 0 8rpx 28rpx rgba(160, 120, 80, 0.08);
-}
-
-.success-card {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	padding: 52rpx 36rpx 40rpx;
-}
-
-.success-icon {
-	width: 108rpx;
-	height: 108rpx;
-	border-radius: 54rpx;
-	background: linear-gradient(135deg, #52C41A, #7ED957);
-	color: #FFF;
-	font-size: 64rpx;
-	font-weight: bold;
+page { background: $bg; min-height: 100vh; }
+.page { min-height: 100vh; padding: 32rpx 26rpx calc(40rpx + env(safe-area-inset-bottom)); box-sizing: border-box; color: $text; }
+button { margin: 0; box-sizing: border-box; font-size: 26rpx; line-height: 1.5; border-radius: 16rpx; &::after { border: none; } }
+.success-card { display: flex; flex-direction: column; align-items: center; padding: 36rpx 28rpx 28rpx; background: #FFFCF7; border: 1rpx solid $line; border-radius: 24rpx; }
+.status-icon {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	margin-bottom: 24rpx;
-}
-
-.success-title {
-	font-size: 40rpx;
-	color: $dark;
-	font-weight: bold;
-}
-
-.success-sub {
-	margin-top: 12rpx;
-	font-size: 26rpx;
-	line-height: 1.45;
-	color: $gray;
-	text-align: center;
-}
-
-.amount-row {
-	display: flex;
-	align-items: baseline;
-	gap: 12rpx;
-	margin-top: 28rpx;
-}
-
-.amount-label {
-	font-size: 24rpx;
-	color: $gray;
-}
-
-.amount-value {
-	font-size: 40rpx;
-	color: $primary;
-	font-weight: bold;
-}
-
-.reward-row {
-	margin-top: 14rpx;
-	padding: 10rpx 18rpx;
-	border-radius: 999rpx;
-	background: #FFF3EA;
-}
-
-.reward-text {
-	font-size: 24rpx;
-	color: $primary;
+	width: 88rpx;
+	height: 88rpx;
+	margin-bottom: 20rpx;
+	border-radius: 28rpx;
+	background: #F0E7DC;
+	color: $muted;
+	font-size: 48rpx;
 	font-weight: 600;
+	&.confirmed, &.issued, &.received { background: #EBF0E5; color: #52744F; }
+	&.pending { background: #F4E5D6; color: #9B4D30; }
+	&.closed, &.notpaid { background: #F1E7DF; color: #92573D; }
 }
-
-.next-card {
-	margin-top: 24rpx;
-	padding: 28rpx;
-}
-
-.next-title {
-	font-size: 30rpx;
-	color: $dark;
-	font-weight: bold;
-	margin-bottom: 6rpx;
-}
-
-.next-sub {
-	display: block;
-	font-size: 24rpx;
-	color: $gray;
-	margin-bottom: 22rpx;
-}
-
-.action-grid {
-	display: grid;
-	grid-template-columns: 1fr 1fr 1fr;
-	gap: 18rpx;
-}
-
-.action-item {
-	height: 132rpx;
-	padding: 0;
-	border: 2rpx solid #F1E4D8;
-	border-radius: 18rpx;
-	background: #FFFDF8;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 8rpx;
-	box-sizing: border-box;
-
-	&.primary {
-		background: #FFF3EA;
-		border-color: rgba(255, 100, 50, 0.28);
-	}
-
-	&.primary-soft {
-		background: #FFF8E8;
-		border-color: rgba(255, 185, 51, 0.32);
-	}
-
-	&.review-action {
-		background: #EEF4EC;
-		border-color: rgba(70, 112, 75, 0.28);
-	}
-}
-
-.share-btn {
-	margin: 0;
-	line-height: normal;
-	color: inherit;
-
-	&::after {
-		border: none;
-	}
-}
-
-.action-icon {
-	font-size: 34rpx;
-}
-
-.action-text {
-	font-size: 25rpx;
-	color: $dark;
-	font-weight: 500;
-}
-
-.tip-card {
-	margin-top: 24rpx;
-	padding: 26rpx 28rpx;
-}
-
-.tip-title {
-	display: block;
-	font-size: 28rpx;
-	color: $dark;
-	font-weight: bold;
-	margin-bottom: 10rpx;
-}
-
-.tip-text {
-	display: block;
-	font-size: 24rpx;
-	line-height: 1.55;
-	color: $gray;
-}
+.success-title { font-size: 38rpx; font-weight: 700; text-align: center; line-height: 1.4; }
+.success-sub { display: block; margin-top: 12rpx; font-size: 26rpx; line-height: 1.6; color: $muted; text-align: center; }
+.order-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 8rpx 14rpx; max-width: 100%; margin-top: 22rpx; font-size: 24rpx; line-height: 1.5; }
+.meta-label { color: $muted; font-size: 24rpx; }
+.order-number { min-width: 0; word-break: break-all; }
+.received-time { display: block; max-width: 100%; margin-top: 10rpx; font-size: 24rpx; line-height: 1.5; color: $muted; text-align: center; overflow-wrap: anywhere; }
+.amount-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 12rpx; margin-top: 16rpx; }
+.amount-value { font-size: 30rpx; font-weight: 600; color: #A54E2D; overflow-wrap: anywhere; }
+.primary-action { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 88rpx; margin-top: 26rpx; padding: 16rpx 22rpx; background: $primary; color: #FFF; font-size: 28rpx; font-weight: 600; }
+.secondary-card { margin-top: 22rpx; }
+.action-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.action-item { display: flex; align-items: center; justify-content: center; flex: 0 0 calc(50% - 6rpx); min-width: 0; min-height: 76rpx; padding: 14rpx 16rpx; background: #F3EDE4; color: $muted; text-align: center; white-space: normal; }
+.reward-text { display: block; padding: 18rpx 8rpx 0; font-size: 24rpx; line-height: 1.6; color: $muted; overflow-wrap: anywhere; }
+.notes-card { margin-top: 22rpx; border-top: 1rpx solid $line; }
+.notes-toggle { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; width: 100%; min-height: 76rpx; padding: 14rpx 8rpx; background: transparent; color: $muted; text-align: left; font-size: 24rpx; }
+.tip-text { display: block; padding: 0 8rpx 20rpx; font-size: 24rpx; line-height: 1.6; color: $muted; }
 </style>

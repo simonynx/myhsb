@@ -15,7 +15,7 @@ function deferred() {
   return { promise, resolve, reject };
 }
 function harness(file) {
-  const requests = [], accountRequests = [], recordRequests = [], recordCalls = [], events = [], navigation = [], titles = [];
+  const requests = [], accountRequests = [], recordRequests = [], recordCalls = [], events = [], navigation = [], titles = [], scrolls = [], actionSheets = [];
   const settings = { throwFetch: false, throwAnalytics: false, rejectAnalytics: false, deferRecords: false, throwRecords: false };
   const Page = moduleValue(file, {
     LOYALTY, mapState: () => ({}), mapActions: () => ({}),
@@ -40,6 +40,8 @@ function harness(file) {
       navigateTo: options => navigation.push(['navigateTo', options.url]),
       switchTab: options => navigation.push(['switchTab', options.url]),
       setNavigationBarTitle: options => titles.push(options.title),
+      pageScrollTo: options => scrolls.push(options),
+      showActionSheet: options => actionSheets.push(options),
     },
   });
   function instance(extra = {}) {
@@ -50,7 +52,7 @@ function harness(file) {
     Object.entries(Page.computed).forEach(([key, getter]) => Object.defineProperty(vm, key, { get: () => getter.call(vm) }));
     return vm;
   }
-  return { Page, instance, requests, accountRequests, recordRequests, recordCalls, events, navigation, titles, settings };
+  return { Page, instance, requests, accountRequests, recordRequests, recordCalls, events, navigation, titles, scrolls, actionSheets, settings };
 }
 const config = { points_to_fen: 2, points_min_use: 100, points_step: 100, points_max_use: 850 };
 const account = { points: 1234, member_level: 2, points_config: config };
@@ -87,15 +89,29 @@ function testPointsPresentation() {
   const h = harness('pages/voucher/points.vue'), vm = h.instance();
   ready(vm, fixtures);
   assert.strictEqual(vm.benefitList.length, 10, 'cash/recharge excluded');
+  assert.strictEqual(new Set(vm.benefitList.map(item => item.object_id)).size, vm.benefitList.length, 'each catalog product appears once');
+  assert.deepStrictEqual(vm.benefitList.filter(item => item.readyBadge).map(item => item.object_id), ['pure-a', 'pure-b'], 'only two eligible products receive a badge, not duplicate cards');
   assert.deepStrictEqual(vm.highlightBenefits.map(item => item.object_id), ['pure-a', 'pure-b']);
   assert.strictEqual(vm.pureBenefits.length, 9, 'not only the two highlights are accessible');
   assert.deepStrictEqual(vm.pureBenefits.map(item => item.object_id), LOYALTY.benefits(fixtures, vm.userInfo, true).filter(item => Number(item.exchange_type) === 2).map(item => item.object_id));
   assert.strictEqual(vm.mixedBenefits.length, 1);
   assert.strictEqual(vm.mixedBenefits[0].priceText, '10积分 + ¥8.99');
+  assert.strictEqual(vm.mixedBenefits[0].kindText, '积分＋现金', 'mixed payment remains explicit even when secondary text is removed');
+  assert(!vm.mixedBenefits[0].readyBadge, 'mixed cash is never badged as a pure-points highlight');
   assert(vm.mixedBenefits[0].stateText.includes('仍需支付现金'));
   assert(vm.benefitList.find(item => item.object_id === 'coupon').deliveryText.includes('我的优惠券'));
   assert(vm.benefitList.find(item => item.object_id === 'physical-blind').deliveryText.includes('门店领取'));
-  ['empty', 'capped', 'locked', 'short'].forEach(id => assert(!vm.benefitList.find(item => item.object_id === id).canExchange));
+  ['empty', 'capped', 'locked', 'short'].forEach(id => {
+    const item = vm.benefitList.find(item => item.object_id === id);
+    assert(!item.canExchange);
+    assert(item.stateText, 'blocker remains visible without expanding any section: ' + id);
+    assert(!item.readyBadge);
+    assert.strictEqual(item.buttonClass, 'secondary-button');
+  });
+  assert(vm.benefitList.find(item => item.object_id === 'empty').stateText.includes('兑完'));
+  assert(vm.benefitList.find(item => item.object_id === 'locked').stateText.includes('等级3'));
+  assert(vm.benefitList.find(item => item.object_id === 'short').stateText.includes('还差3766积分'));
+  assert(vm.benefitList.find(item => item.object_id === 'capped').conditionText.includes('每月限兑1件'));
   assert(vm.benefitList.find(item => item.object_id === 'capped').limitText.includes('每月限兑1件'));
   assert.strictEqual(vm.balanceView.valueText, '按当前规则，最多可抵¥16', 'cap rounded down to 800, not nominal balance cash value');
   vm.userInfo.points = 199;
@@ -143,6 +159,9 @@ function testPointsPresentation() {
   assert.strictEqual(vm.eligibilityKnown, false);
   assert.strictEqual(vm.highlightBenefits.length, 0);
   assert(vm.pureBenefits.find(item => item.object_id === 'pure-a').stateText.includes('账户待更新'));
+  assert(vm.pureBenefits.find(item => item.object_id === 'locked').conditionText.includes('等级3'), 'required membership remains visible while account eligibility is unknown');
+  assert.strictEqual(vm.mixedBenefits[0].kindText, '积分＋现金');
+  assert.strictEqual(vm.mixedBenefits[0].priceText, '10积分 + ¥8.99', 'unknown eligibility never hides the cash portion');
   assert(vm.benefitList.every(item => !item.canExchange));
 }
 function testSupplyPresentation() {
@@ -175,7 +194,20 @@ function testSupplyPresentation() {
   assert(vm.cashGoods.find(item => item.object_id === 'game').purchaseStateText.includes('未满足'));
   assert(vm.cashGoods.find(item => item.object_id === 'limited').limitText.includes('每周限购2件，本期已购2件'));
   assert(vm.cashGoods.find(item => item.object_id === 'limited').purchaseStateText.includes('限购上限'));
-  assert.strictEqual(vm.cashGoods.find(item => item.object_id === 'sold').stockText, '库存：已售罄');
+  assert.strictEqual(vm.cashGoods.find(item => item.object_id === 'sold').stockText, '已售罄');
+  assert.strictEqual(vm.cashGoods.find(item => item.object_id === 'sold').blockedText, '暂时售罄');
+  assert(vm.cashGoods.find(item => item.object_id === 'limited').blockedText.includes('限购上限'));
+  assert(vm.cashGoods.find(item => item.object_id === 'limited').conditionText.includes('每周限购2件，本期已购2件'));
+  assert(vm.cashGoods.find(item => item.object_id === 'game').blockedText.includes('等级未满足'));
+  assert(vm.cashGoods.find(item => item.object_id === 'game').conditionText.includes('等级3'));
+  ['sold', 'limited', 'game'].forEach(id => {
+    const item = vm.cashGoods.find(item => item.object_id === id);
+    assert(item.itemClass.includes('unavailable'));
+    assert.strictEqual(item.buttonClass, 'secondary-button', 'blocked goods do not look ready to buy');
+  });
+  assert.deepStrictEqual(vm.cashGoods.map(item => item.markText), ['食', '盒', '玩', '食', '食']);
+  assert(vm.cashGoods.every(item => item.markClass.endsWith(String(Number(item.goods_type)))));
+  assert.strictEqual(vm.decorateCashGoods(goods('theme', { exchange_type: 1, goods_type: 3 })).markText, '用', 'mark follows the actual goods type');
   vm.goodsList.push(goods('stock', { exchange_type: 1, stock: 4 }));
   assert(vm.cashGoods.find(item => item.object_id === 'stock').stockText.includes('库存4件'));
   vm.openGoods(vm.cashGoods[0], 'button');
@@ -184,6 +216,11 @@ function testSupplyPresentation() {
   assert.strictEqual(h.navigation.length, 0);
   ready(vm, list, false);
   assert.strictEqual(vm.cashGoods[0].purchaseStateText, '登录后确认购买资格');
+  assert(vm.cashGoods.every(item => item.buttonClass === 'secondary-button'), 'unconfirmed guest eligibility is not styled as available to buy');
+  assert(vm.cashGoods.find(item => item.object_id === 'game').conditionText.includes('等级3'));
+  assert(vm.cashGoods.find(item => item.object_id === 'limited').conditionText.includes('每周限购2件'));
+  assert(!vm.cashGoods.find(item => item.object_id === 'limited').conditionText.includes('本期已购'), 'guest cards do not leak cached account purchase counts');
+  assert.strictEqual(vm.cashGoods.find(item => item.object_id === 'sold').blockedText, '暂时售罄');
   vm.openGoods(vm.cashGoods[0], 'button');
   assert.deepStrictEqual(detailData(h), list[0], 'guest goes to existing detail login gate');
   vm.goodsList = [];
@@ -191,6 +228,69 @@ function testSupplyPresentation() {
   assert.deepStrictEqual(vm.filteredGoods, []);
   vm.selectCategory('all');
   assert.strictEqual(vm.selectedCategory, '5');
+}
+function testDisclosuresAndLayout() {
+  const h = harness('pages/voucher/points.vue'), vm = h.instance();
+  assert.strictEqual(vm.rulesExpanded, false, 'usage explanation is closed by default');
+  assert.strictEqual(vm.recordsOpen, false, 'the entire history is closed by default, not merely limited to five rows');
+  assert.strictEqual(vm.recordsExpanded, false);
+  ready(vm, fixtures);
+  assert(vm.pointRules.configured);
+  assert.strictEqual(vm.pointRules.rateText, '1积分抵¥0.02');
+  assert.strictEqual(vm.pointRules.maxText, '每单规则上限850积分，按档取整');
+  vm.toggleUsageRules(); assert.strictEqual(vm.rulesExpanded, true);
+  vm.toggleUsageRules(); assert.strictEqual(vm.rulesExpanded, false);
+  vm.toggleRecordSection(); assert(vm.recordsOpen);
+  vm.toggleRecords(); assert(vm.recordsExpanded);
+  vm.toggleRecordSection(); assert(!vm.recordsOpen && !vm.recordsExpanded, 'closing history resets its more-records state');
+  vm.toggleRecordSection(); assert(vm.recordsOpen && !vm.recordsExpanded, 'reopening starts with five, not twenty');
+  vm.accountInfo = { points: 1234, points_config: { points_to_fen: 2, points_step: 100 } };
+  assert(!vm.pointRules.configured, 'partial rule configuration is not a promise');
+  vm.accountInfo = Object.assign({}, account);
+  vm.accountError = 'refresh failed';
+  assert.strictEqual(vm.pointRules.rateText, '', 'stale account configuration is not published as confirmed');
+  vm.accountError = ''; vm.token = 'another-account';
+  assert.strictEqual(vm.pointRules.maxText, '', 'another account cannot see the old confirmed rule snapshot');
+  vm.hasLogin = false;
+  assert.strictEqual(vm.pointRules.rateText, '', 'guests do not see cached account rules');
+
+  const templates = {};
+  ['points', 'supply'].forEach(page => {
+    const source = fs.readFileSync(path.join(root, 'pages/voucher/' + page + '.vue'), 'utf8');
+    const template = templates[page] = source.match(/<template>([\s\S]*?)<\/template>/)[1];
+    assert.strictEqual((template.match(/\{\{ item\.name \}\}/g) || []).length, 1, 'product title is rendered once: ' + page);
+    assert(!template.includes('item.description') && !template.includes('item.deliveryText'), 'long descriptions and fulfillment paragraphs stay in detail: ' + page);
+    ['#F7F5F1', '#FFFCF7', '#B95730', '#3C332B'].forEach(color => assert(source.includes(color), 'shared warm palette: ' + page));
+    assert(/button \{[^}]*min-height: 76rpx/.test(source), 'all controls keep a minimum 76rpx target: ' + page);
+    assert(source.includes('padding: 24rpx;') && source.includes('border-radius: 24rpx;'));
+  });
+  const points = templates.points, supply = templates.supply;
+  assert.deepStrictEqual(points.match(/v-for="item in [^"]+"/g), ['v-for="item in benefitList"'], 'one points catalog loop, no repeated highlight or mixed listings');
+  assert.deepStrictEqual(supply.match(/v-for="item in [^"]+"/g), ['v-for="item in filteredGoods"'], 'one supply catalog loop');
+  assert(points.includes('class="rules-content" v-if="rulesExpanded"'));
+  assert(points.includes('class="records-content" v-if="recordsOpen"'));
+  const rulesStart = points.indexOf('<view class="rules-card">'), goodsStart = points.indexOf('<view id="benefits"');
+  const rules = points.slice(rulesStart, goodsStart);
+  assert(rules.includes('pointRules.rateText') && rules.includes('pointRules.maxText') && rules.includes('balanceView.usageText'));
+  assert(rules.includes('是否可与优惠券同用以订单规则为准'), 'stacking conditions live inside the disclosure');
+  assert(points.indexOf('本单抵扣额度以订单金额和结算规则为准') < rulesStart, 'actual-order cap caution remains visible while rules are closed');
+  assert(points.indexOf('balanceView.valueText') < rulesStart, 'the helper-derived, rounded cap is not buried in the explanation');
+  assert(points.includes('@tap="goBenefits">兑换福利') && points.includes('@tap="goConsume">消费抵扣'));
+  assert(points.includes('v-if="item.readyBadge">可兑换'));
+  const pointsCard = points.slice(points.indexOf('v-for="item in benefitList"'), points.indexOf('<view class="records-card"'));
+  assert(pointsCard.includes('v-if="!item.canExchange">{{ item.stateText }}'), 'stock, member, cap and point shortfall blockers are not in a closed disclosure');
+  assert(pointsCard.includes('v-if="item.kindText">{{ item.kindText }}') && pointsCard.includes('{{ item.priceText }}'), 'mixed cash label and complete price are visible in the single catalog');
+  assert(pointsCard.indexOf('item.conditionText') < pointsCard.indexOf('@tap.stop='), 'limits are before the action');
+  assert(points.indexOf('class="records-error" v-if="recordsError"') < points.indexOf('class="records-content" v-if="recordsOpen"'), 'history retry is outside the closed body');
+  assert(points.includes("recordsLoading ? '加载中' : recordsCount + '条'"));
+  assert(points.includes('class="record-count" v-if="recordsLoading || recordsToken === identity"'), 'failed or mismatched history does not claim there are zero real records');
+  const supplyCard = supply.slice(supply.indexOf('v-for="item in filteredGoods"'), supply.indexOf('v-if="!filteredGoods.length"'));
+  assert(supplyCard.includes('item.markText') && supplyCard.includes('item.markClass'));
+  assert(supplyCard.includes('v-if="item.blockedText">{{ item.blockedText }}'), 'sold-out, member and purchase-cap blockers are always visible');
+  assert(supplyCard.includes('v-if="!item.soldOut">{{ item.stockText }}'), 'stock is concise and does not repeat sold-out state');
+  assert(supplyCard.indexOf('item.conditionText') < supplyCard.indexOf('@tap.stop='));
+  assert.strictEqual((supply.match(/门票已含/g) || []).length, 1, 'included/free differentiation appears once');
+  assert(supply.includes('额外付费 · 店内领取'));
 }
 async function testLoading(file) {
   const h = harness(file), vm = h.instance();
@@ -325,6 +425,10 @@ async function testPointRecords() {
   assert.strictEqual(h.recordRequests[0].token, vm.token);
   assert(vm.recordsLoading);
   h.recordRequests.shift().resolve({ _status: 0, data: records }); await load;
+  assert.strictEqual(vm.recordsCount, 7, 'collapsed history shows its fetched recent-record count');
+  assert.strictEqual(vm.recordsOpen, false);
+  assert.deepStrictEqual(vm.visibleRecords, [], 'loading does not open history automatically');
+  vm.toggleRecordSection();
   assert.strictEqual(vm.visibleRecords.length, 5);
   assert.strictEqual(vm.visibleRecords[0].deltaText, '-200积分');
   assert(vm.visibleRecords[0].deltaClass.includes('spent'));
@@ -339,10 +443,25 @@ async function testPointRecords() {
   vm.toggleRecords();
   assert.strictEqual(vm.visibleRecords.at(-1).deltaText, '变动待确认');
   assert.strictEqual(vm.visibleRecords.at(-1).balanceText, '');
+  vm.toggleRecordSection();
+  assert.deepStrictEqual(vm.visibleRecords, [], 'closing hides all remarks, balances and record details');
+  vm.toggleRecordSection(); assert.strictEqual(vm.visibleRecords.length, 5, 'reopening resets to five');
+  const twenty = vm.loadPointRecords();
+  const longerRecords = records.concat(Array.from({ length: 18 }, (_, index) => Object.assign({}, records[1], { id: 'extra-' + index })));
+  h.recordRequests.shift().resolve({ _status: 0, data: longerRecords }); await twenty;
+  assert.strictEqual(vm.pointRecords.length, 20, 'history never publishes beyond the existing twenty-record limit');
+  assert.strictEqual(vm.recordsCount, 20);
+  assert.deepStrictEqual(vm.visibleRecords, []);
+  vm.toggleRecordSection(); assert.strictEqual(vm.visibleRecords.length, 5);
+  vm.toggleRecords(); assert.strictEqual(vm.visibleRecords.length, 20, 'more expands five to at most twenty');
+  vm.toggleRecords(); assert.strictEqual(vm.visibleRecords.length, 5);
 
   const failure = vm.loadPointRecords();
   h.recordRequests.shift().reject(new Error('history unavailable')); await failure;
-  assert(vm.recordsError);
+  assert(vm.recordsError, 'an explicit history failure remains actionable even while collapsed');
+  assert.strictEqual(vm.recordsOpen, false);
+  assert.strictEqual(vm.recordsCount, 0);
+  assert.deepStrictEqual(vm.visibleRecords, []);
   assert.strictEqual(vm.goodsError, '');
   assert.strictEqual(vm.goodsList.length, fixtures.length, 'record error cannot block inventory');
   const retry = vm.loadPointRecords();
@@ -363,14 +482,25 @@ async function testPointRecords() {
   currentReq.resolve({ _status: 0, data: records }); await current;
   oldReq.reject(new Error('old error')); await old;
   assert.strictEqual(vm.recordsError, '');
+  assert.strictEqual(vm.recordsCount, 7);
+  assert.deepStrictEqual(vm.visibleRecords, [], 'out-of-order loads cannot open the section');
+  vm.toggleRecordSection();
   assert.strictEqual(vm.visibleRecords[0].id, 'record-0');
+  vm.token = 'unloaded-identity';
+  assert.deepStrictEqual(vm.visibleRecords, [], 'identity mismatch hides records before its watcher runs');
+  assert.strictEqual(vm.recordsCount, 0, 'identity mismatch also hides the old record count');
+  vm.token = 'account-token';
   const previousAccount = vm.loadPointRecords(), previousRequest = h.recordRequests.shift();
   vm.token = 'new-account';
   const newAccount = vm.loadPointRecords(), newRequest = h.recordRequests.shift();
   newRequest.resolve({ _status: 0, data: [Object.assign({}, records[1], { id: 'new-account-record' })] }); await newAccount;
   previousRequest.resolve({ _status: 0, data: records }); await previousAccount;
+  assert.strictEqual(vm.recordsCount, 1);
+  assert.strictEqual(vm.recordsOpen, false);
+  vm.toggleRecordSection();
   assert.strictEqual(vm.visibleRecords[0].id, 'new-account-record');
   vm.hasLogin = false;
+  assert.strictEqual(vm.recordsCount, 0, 'guests cannot see cached account history counts');
   assert.deepStrictEqual(vm.visibleRecords, [], 'old-account records immediately hidden after logout');
   await vm.loadPointRecords(); assert.deepStrictEqual(vm.pointRecords, []);
 
@@ -384,6 +514,9 @@ async function testPointRecords() {
   assert(vm.recordsLoading);
   assert.strictEqual(h.events.at(-1).event.event, 'points_benefits_view', 'history pending cannot block funnel view event');
   showRecords.resolve({ _status: 0, data: records }); await show;
+  assert.strictEqual(vm.recordsCount, 7);
+  assert.deepStrictEqual(vm.visibleRecords, [], 'onShow refresh preserves the closed-by-default history');
+  vm.toggleRecordSection();
   assert.strictEqual(vm.visibleRecords.length, 5);
   const away = vm.loadPointRecords(), awayRequest = h.recordRequests.shift();
   h.Page.onUnload.call(vm);
@@ -394,6 +527,19 @@ async function testPointRecords() {
 function testNavigationAndSafety() {
   const points = harness('pages/voucher/points.vue'), p = points.instance();
   ready(p, fixtures);
+  p.goBenefits(); assert.deepStrictEqual(points.scrolls.pop(), { selector: '#benefits', duration: 250 });
+  p.goConsume();
+  const consumption = points.actionSheets.pop();
+  assert.deepStrictEqual(consumption.itemList, ['买大厅票', '预约房间']);
+  assert.strictEqual(points.navigation.length, 0, 'opening or dismissing the destination picker does not navigate or auto-login');
+  consumption.success({ tapIndex: 0 });
+  assert.deepStrictEqual(points.navigation.pop(), ['navigateTo', '/pages/ticket/buy?count=1']);
+  assert.strictEqual(points.events.at(-1).event.event, 'points_consumption_click');
+  assert.strictEqual(points.events.at(-1).event.destination, 'ticket');
+  consumption.success({ tapIndex: 1 });
+  assert.deepStrictEqual(points.navigation.pop(), ['switchTab', '/pages/tabBar/appoint/appoint']);
+  assert.strictEqual(points.events.at(-1).event.destination, 'appointment');
+  consumption.success({ tapIndex: -1 }); assert.strictEqual(points.navigation.length, 0);
   p.goTicket(); assert.deepStrictEqual(points.navigation.pop(), ['navigateTo', '/pages/ticket/buy?count=1']);
   p.goAppointment(); assert.deepStrictEqual(points.navigation.pop(), ['switchTab', '/pages/tabBar/appoint/appoint']);
   p.goSignIn(); assert.deepStrictEqual(points.navigation.pop(), ['switchTab', '/pages/user/user']);
@@ -427,19 +573,20 @@ function testNavigationAndSafety() {
     assert(source.endsWith('\n'));
   });
   const supplySource = fs.readFileSync(path.join(root, 'pages/voucher/supply.vue'), 'utf8');
-  assert(supplySource.includes('门票已含零食茶水，以下为额外付费商品'));
-  assert(supplySource.includes('门店领取，不配送'));
+  assert(supplySource.includes('门票已含零食茶水，无需另购'));
+  assert(supplySource.includes('额外付费 · 店内领取'));
   const pointsSource = fs.readFileSync(path.join(root, 'pages/voucher/points.vue'), 'utf8');
-  assert(pointsSource.includes('兑换到店福利') && pointsSource.includes('下次消费时抵扣'));
+  assert(pointsSource.includes('兑换福利') && pointsSource.includes('消费抵扣'));
   assert(pointsSource.includes('是否可与优惠券同用以订单规则为准'));
-  assert(pointsSource.includes('这些商品还需支付现金，不是纯积分兑换'));
+  assert(pointsSource.includes('积分＋现金'));
 }
 (async () => {
   testPointsPresentation();
   testSupplyPresentation();
+  testDisclosuresAndLayout();
   await testLoading('pages/voucher/points.vue');
   await testLoading('pages/voucher/supply.vue');
   await testPointRecords();
   testNavigationAndSafety();
-  console.log('Loyalty pages: real page state, guest/eligible/mixed paths, exact caps, physical/coupon association, dynamic categories, routes, silent refresh, load/retry/account races, signed point history and analytics passed');
+  console.log('Loyalty pages: closed disclosures, unique catalog cards, visible mixed prices/blockers, five-to-twenty history, real consumption shortcuts, guest/eligible paths, exact caps, physical/coupon association, dynamic categories, silent refresh, load/retry/account/record races and analytics passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });
