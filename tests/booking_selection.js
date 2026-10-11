@@ -68,8 +68,23 @@ Object.entries(Page.computed).forEach(([key, getter]) => Object.defineProperty(i
   const rootStyle = pickerStyle.match(/\.content\s*\{([^}]*)\}/)[1];
   assert(/height:\s*auto\s*;/.test(rootStyle), 'picker must occupy its content height so the following price card cannot overlap the time grid');
   for (const file of ['pages/product/product.vue', 'pages/tabBar/appoint/appoint.vue']) {
-    const template = fs.readFileSync(path.join(root, file), 'utf8').match(/<template>([\s\S]*?)<\/template>/)[1];
-    assert(/class="panel-times"[\s\S]*?<times[\s\S]*?<\/times>\s*<booking-price\b/.test(template), file + ' must keep the picker and price card in the same scroll area');
+    const source = fs.readFileSync(path.join(root, file), 'utf8');
+    const template = source.match(/<template>([\s\S]*?)<\/template>/)[1];
+    assert(/<scroll-view\b[^>]*class="panel-times"[^>]*:scroll-y="true"[\s\S]*?<times[\s\S]*?<\/times>\s*<booking-price\b[\s\S]*?<\/scroll-view>/.test(template), file + ' must use native scroll-view for picker and price');
+    const overlay = template.match(/<view\b[^>]*class="time-popup"[^>]*>/)[0];
+    assert(!overlay.includes('touchmove'), file + ' must not cancel touches for the whole popup');
+    assert(/<view\b[^>]*class="mask"[^>]*@touchmove\.stop\.prevent/.test(template), file + ' must block background scrolling only on the mask');
+    const styles = source.match(/<style[^>]*>([\s\S]*?)<\/style>/)[1];
+    const scrollStyle = styles.match(/\.panel-times\s*\{([^}]*)\}/)[1];
+    assert(/height:\s*0\s*;/.test(scrollStyle) && /flex:\s*1\s*;/.test(scrollStyle), file + ' native scroll area needs bounded flex height');
+    ['panel-header', 'panel-footer'].forEach(name => {
+      const style = styles.match(new RegExp('\\.' + name + '\\s*\\{([^}]*)\\}'))[1];
+      assert(/flex-shrink:\s*0\s*;/.test(style), file + ' must keep ' + name + ' outside the scrolling area');
+    });
   }
-  console.log('Booking selection: availability, date-switch and popup content-height regressions passed');
+  assert(/\.date-scroll\s*\{[^}]*height:\s*156rpx/.test(pickerStyle), 'horizontal native date scrolling needs an explicit height');
+  assert(/\.cell-time\s*\{[^}]*white-space:\s*nowrap/.test(pickerStyle), 'time labels must not split into orphaned digits');
+  const gridStyle = pickerStyle.match(/\.time-grid\s*\{([^}]*)\}/)[1];
+  assert(!/\bgap\s*:/.test(gridStyle), 'native time-grid spacing must not depend on flex-gap support');
+  console.log('Booking selection: pricing/date state, native popup scrolling and content sizing regressions passed');
 })().catch(error => {console.error(error);process.exitCode = 1;});

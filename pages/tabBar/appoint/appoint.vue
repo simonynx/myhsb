@@ -174,8 +174,8 @@
         </view>
 
         <!-- 时间选择弹窗 -->
-        <view class="time-popup" :class="specClass" @touchmove.stop.prevent="stopPrevent" @click="closePopup">
-            <view class="mask"></view>
+        <view class="time-popup" :class="specClass" @click="closePopup">
+            <view class="mask" @touchmove.stop.prevent="stopPrevent"></view>
             <view class="panel" @click.stop="stopPrevent">
                 <!-- 头部 -->
                 <view class="panel-header">
@@ -190,22 +190,24 @@
                 </view>
 
                 <!-- 时间选择器组件 -->
-                <view class="panel-times">
-                    <times
-                        ref="timesComponent"
-                        @change="getTime"
-                        @selected-date-change="handleTimesSelectDateChange"
-                        :isMultiple="true"
-                        :isQuantum="true"
-                        :timeInterval="1"
-                        :disableTimeSlot="disableTimeSlot"
-                        :beginTime="currentBeginTime"
-                        :endTime="currentEndTime"
-                        :selectedDate="currentSelectDate"
-                        :showSubmitButton="false"
-                    ></times>
-                    <booking-price :room="currentSelectItem" :date="currentSelectDate" :selects="specSelected" />
-                </view>
+                <scroll-view class="panel-times" :scroll-y="true" :show-scrollbar="false">
+                    <view class="panel-scroll-content">
+                        <times
+                            ref="timesComponent"
+                            @change="getTime"
+                            @selected-date-change="handleTimesSelectDateChange"
+                            :isMultiple="true"
+                            :isQuantum="true"
+                            :timeInterval="1"
+                            :disableTimeSlot="disableTimeSlot"
+                            :beginTime="currentBeginTime"
+                            :endTime="currentEndTime"
+                            :selectedDate="currentSelectDate"
+                            :showSubmitButton="false"
+                        ></times>
+                        <booking-price :room="currentSelectItem" :date="currentSelectDate" :selects="specSelected" />
+                    </view>
+                </scroll-view>
 
                 <!-- 底部操作栏 -->
                 <view class="panel-footer">
@@ -1375,13 +1377,17 @@ page {
         bottom: 0;
         background: #fff;
         border-radius: 30rpx 30rpx 0 0;
-        max-height: 88vh;
+        height: 82vh;
+        max-height: calc(100vh - 80rpx);
+        box-sizing: border-box;
         overflow: hidden;
         display: flex;
         flex-direction: column;
     }
 
     .panel-header {
+        flex-shrink: 0;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1463,11 +1469,16 @@ page {
 
     .panel-times {
         flex: 1;
-        overflow-y: auto;
-        padding: 20rpx 0 0;
+        height: 0;
+        min-height: 0;
+        width: 100%;
+        box-sizing: border-box;
     }
+    .panel-scroll-content { padding-top: 20rpx; padding-bottom: 20rpx; }
 
     .panel-footer {
+        flex-shrink: 0;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1597,7 +1608,6 @@ page {
 .card-info .offpeak-tag-deal { background: none; border: 0; padding: 0; font-size: 24rpx; font-weight: 600; color: #9D4724; }
 .card-info .offpeak-tag-window { margin-left: 0; font-size: 22rpx; color: #7D7066; }
 .book-btn { flex-shrink: 0; white-space: nowrap; }
-.time-popup .panel { max-height: 88vh; }
 .time-popup .panel-room-info, .time-popup .panel-meta { min-width: 0; }
 .time-popup .panel-room-info { flex: 1; }
 .time-popup .panel-meta .panel-name { font-size: 28rpx; }
@@ -1608,7 +1618,7 @@ page {
 .time-popup .panel-footer .pf-info .pf-count { font-size: 32rpx; color: #BC4D25; }
 .time-popup .panel-footer .pf-entry { font-size: 22rpx; color: #71645A; margin-top: 4rpx; }
 .time-popup .panel-footer .pf-btns { display: flex; width: 100%; gap: 16rpx; }
-.time-popup .panel-footer .pf-btn { flex: 1; margin: 0; padding: 20rpx 12rpx; text-align: center; }
+.time-popup .panel-footer .pf-btn { flex: 1; min-width: 0; box-sizing: border-box; margin: 0; padding: 0 12rpx; text-align: center; }
 .time-popup .panel-footer .pf-btn.group { background: #FFF7EF; color: #8D5E43; border: 1rpx solid #E7D4C4; }
 .time-popup .panel-footer .pf-btn.book { background: #C9572D; color: #FFF; }
 </style>

@@ -390,7 +390,10 @@ $border: #EEEEEE;
 /* page selector removed - not allowed in component wxss */
 
 .content {
+	width: 100%;
 	height: auto;
+	box-sizing: border-box;
+	flex-shrink: 0;
 	display: flex;
 	flex-direction: column;
 	background: #fff;
@@ -399,7 +402,8 @@ $border: #EEEEEE;
 // 日期横向滚动
 .date-scroll {
 	width: 100%;
-	overflow-x: auto;
+	height: 156rpx;
+	box-sizing: border-box;
 	background: #fff;
 	white-space: nowrap;
 
@@ -472,14 +476,15 @@ $border: #EEEEEE;
 
 // 时间网格
 .time-grid {
-	padding: 12rpx 20rpx 20rpx;
+	padding: 4rpx 12rpx 12rpx;
 	display: flex;
 	flex-wrap: wrap;
-	gap: 16rpx;
+	box-sizing: border-box;
 }
 
 .time-cell {
-	width: calc(33.333% - 11rpx);
+	width: calc(33.333% - 16rpx);
+	margin: 8rpx;
 	box-sizing: border-box;
 	border-radius: 16rpx;
 	display: flex;
@@ -498,6 +503,10 @@ $border: #EEEEEE;
 		font-weight: bold;
 		color: $dark;
 		margin-bottom: 6rpx;
+		white-space: nowrap;
+		word-break: normal;
+		line-height: 1.3;
+		flex-shrink: 0;
 	}
 
 	.cell-status {

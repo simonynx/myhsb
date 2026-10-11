@@ -256,8 +256,8 @@
         </view>
 
         <!-- 时间选择弹窗 -->
-        <view class="time-popup" :class="specClass" @touchmove.stop.prevent @tap="closePopup">
-            <view class="mask"></view>
+        <view class="time-popup" :class="specClass" @tap="closePopup">
+            <view class="mask" @touchmove.stop.prevent></view>
             <view class="panel" @tap.stop>
                 <view class="panel-header">
                     <view class="panel-room-info">
@@ -269,22 +269,24 @@
                     </view>
                     <text class="panel-close yticon icon-guanbi" @tap="closePopup"></text>
                 </view>
-                <view class="panel-times">
-                    <times
-                        ref="timesComponent"
-                        @change="getTime"
-                        @selected-date-change="handleTimesSelectDateChange"
-                        :isMultiple="true"
-                        :isQuantum="true"
-                        :timeInterval="1"
-                        :disableTimeSlot="disableTimeSlot"
-                        :beginTime="currentBeginTime"
-                        :endTime="currentEndTime"
-                        :selectedDate="currentSelectDate"
-                        :showSubmitButton="false"
-                    ></times>
-                    <booking-price :room="room" :date="currentSelectDate" :selects="specSelected" />
-                </view>
+                <scroll-view class="panel-times" :scroll-y="true" :show-scrollbar="false">
+                    <view class="panel-scroll-content">
+                        <times
+                            ref="timesComponent"
+                            @change="getTime"
+                            @selected-date-change="handleTimesSelectDateChange"
+                            :isMultiple="true"
+                            :isQuantum="true"
+                            :timeInterval="1"
+                            :disableTimeSlot="disableTimeSlot"
+                            :beginTime="currentBeginTime"
+                            :endTime="currentEndTime"
+                            :selectedDate="currentSelectDate"
+                            :showSubmitButton="false"
+                        ></times>
+                        <booking-price :room="room" :date="currentSelectDate" :selects="specSelected" />
+                    </view>
+                </scroll-view>
 
                 <!-- 底部操作栏 -->
                 <view class="panel-footer">
@@ -1627,7 +1629,9 @@ page { background: $bg; padding-bottom: 120rpx; }
         left: 0; right: 0; bottom: 0;
         background: #fff;
         border-radius: 16rpx 16rpx 0 0;
-        height: 75vh;
+        height: 82vh;
+        max-height: calc(100vh - 80rpx);
+        box-sizing: border-box;
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -1637,6 +1641,8 @@ page { background: $bg; padding-bottom: 120rpx; }
     &.hide .panel { animation: slideDown 0.25s linear both; }
 
     .panel-header {
+        flex-shrink: 0;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1674,9 +1680,12 @@ page { background: $bg; padding-bottom: 120rpx; }
         .panel-close { font-size: 44rpx; color: $gray; padding: 10rpx; }
     }
 
-    .panel-times { flex: 1; overflow-y: auto; padding: 20rpx 0 0; min-height: 0; }
+    .panel-times { flex: 1; height: 0; min-height: 0; width: 100%; box-sizing: border-box; }
+    .panel-scroll-content { padding-top: 20rpx; padding-bottom: 20rpx; }
 
     .panel-footer {
+        flex-shrink: 0;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -1790,7 +1799,6 @@ page { background: $bg; padding-bottom: 120rpx; }
 .policy-row { display: flex; justify-content: space-between; gap: 16rpx; padding: 16rpx 0; font-size: 24rpx; border-bottom: 1rpx solid #EEE6DE; }
 .policy-note { display: block; margin-top: 12rpx; color: #786A60; font-size: 23rpx; line-height: 1.7; }
 .desc-legacy { max-width: 100%; overflow-x: auto; font-size: 26rpx; line-height: 1.7; }
-.time-popup .panel { max-height: 88vh; }
 .time-popup .panel-header .panel-room-info { min-width: 0; flex: 1; }
 .time-popup .panel-header .panel-meta { min-width: 0; }
 .time-popup .panel-header .panel-meta .panel-price { font-size: 22rpx; color: #7D7066; font-weight: 400; }
@@ -1798,7 +1806,8 @@ page { background: $bg; padding-bottom: 120rpx; }
 .time-popup .panel-footer .pf-info .pf-count { font-size: 32rpx; color: #BC4D25; }
 .time-popup .panel-footer .pf-entry { display: block; font-size: 22rpx; color: #71645A; margin-top: 4rpx; }
 .time-popup .panel-footer .pf-btns { display: flex; width: 100%; gap: 16rpx; }
-.time-popup .panel-footer .pf-btn { flex: 1; margin: 0; padding: 20rpx 12rpx; text-align: center; }
+.time-popup .panel-footer .pf-btn { flex: 1; min-width: 0; box-sizing: border-box; margin: 0; padding: 0 12rpx; text-align: center; }
+.time-popup .panel-footer .pf-btn.book { min-width: 0; }
 .time-popup .panel-footer .pf-btn.group { background: #FFF7EF; color: #8D5E43; border: 1rpx solid #E7D4C4; }
 .time-popup .panel-footer .pf-btn.book { background: #C9572D; color: #FFF; }
 </style>
