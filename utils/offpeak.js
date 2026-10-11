@@ -58,7 +58,8 @@ function isoWeekday(dateStr) {
   const parts = dateStr.split('-');
   if (parts.length !== 3) return 0;
   const date = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-  if (isNaN(date.getTime())) return 0;
+  if (isNaN(date.getTime()) || date.getFullYear() !== Number(parts[0])
+      || date.getMonth() !== Number(parts[1]) - 1 || date.getDate() !== Number(parts[2])) return 0;
   const day = date.getDay();
   return day === 0 ? 7 : day;
 }
@@ -281,7 +282,7 @@ function describeWeekdays(weekdays) {
     if (list[i] !== list[i - 1] + 1) { contiguous = false; break; }
   }
   if (contiguous && list.length > 1) {
-    return '周一至周' + WEEKDAY_TEXT[list[list.length - 1] - 1];
+    return '周' + WEEKDAY_TEXT[list[0] - 1] + '至周' + WEEKDAY_TEXT[list[list.length - 1] - 1];
   }
   if (list.length === 1) return '周' + WEEKDAY_TEXT[list[0] - 1];
   return list.map(function(day) { return '周' + WEEKDAY_TEXT[day - 1]; }).join('、');
@@ -289,7 +290,7 @@ function describeWeekdays(weekdays) {
 
 function formatYuan(fen) {
   const amount = (toInt(fen) || 0) / 100;
-  return amount % 1 === 0 ? String(amount) : amount.toFixed(1).replace(/\.0$/, '');
+  return amount.toFixed(2).replace(/\.?0+$/, '');
 }
 
 function formatHour(hour) {
@@ -346,45 +347,141 @@ function coupleTotalFen(room, rule) {
   return (rule ? toInt(rule.price_per_hour) || 0 : 0) * 2 + person * 2;
 }
 
-/**
- * 全店优惠信息汇总：数据源 = 房间闲时规则（主）+ 全局 Constance 折扣（辅）。
- * 首页横幅/弹窗/角标、预约页日期标记都用它，配哪间房就自动展示哪间房的优惠。
- */
-function promoSummary(rooms, constance) {
-  const meta = weekdayDiscountFromConstance(constance);
+function dateKey(date) {
+  return date.getFullYear() + '-' + ('0' + (date.getMonth() + 1)).slice(-2) + '-' + ('0' + date.getDate()).slice(-2);
+}
+
+function openingRange(room) {
+  const start = toInt(room && room.opening_hours_start);
+  const end = toInt(room && room.opening_hours_end);
+  return start !== null && end !== null && start >= 0 && end <= 24 && start < end ? [start, end] : null;
+}
+
+function segmentViews(segments) {
+  return (segments || []).map(function(seg, i) {
+    return {
+      key: String(seg.start) + '-' + i,
+      timeText: formatHour(seg.start) + '–' + formatHour(seg.end),
+      priceText: formatYuan(seg.price),
+      amountText: formatYuan(seg.price * seg.hours),
+      hours: seg.hours,
+      label: seg.isOffpeak ? '闲时价' : '常规价',
+      className: seg.isOffpeak ? 'rate-row rate-row-promo' : 'rate-row',
+    };
+  });
+}
+
+function dayPriceView(room, dateStr) {
+  const range = openingRange(room);
+  const base = Number(room && room.price_per_hour) || 0;
+  const quote = range ? priceAppointment(room, dateStr, [range]) : null;
+  const rows = quote ? segmentViews(quote.segments) : [];
+  const min = quote && quote.hourPrices.length
+    ? Math.min.apply(null, quote.hourPrices.map(function(item) { return item.price; })) : base;
+  return {
+    rows: rows,
+    hasOffpeak: min < base,
+    price: min,
+    priceText: formatYuan(min),
+    baseText: formatYuan(base),
+    discountText: min < base ? '房费' + discountText(min, base) : '',
+    unitText: min < base ? '/小时起' : '/小时',
+  };
+}
+
+// 仅宣传该日营业时间内、真实连续两小时的合计价；已知不可约小时不参与。
+function bestCoupleDeal(room, dateStr, options) {
+  options = options || {};
+  const range = openingRange(room);
+  const seats = Number(room && room.seats_count);
+  const person = Number(room && room.price_per_person);
+  if (!range || (seats > 0 && seats < 2) || !room || room.enabled === false
+      || room.price_per_person == null || !Number.isFinite(person) || person < 0) return null;
+  const now = options.now || new Date();
+  const today = dateKey(now);
+  let best = null;
+  for (let start = range[0]; start + 2 <= range[1]; start++) {
+    if (dateStr === today && start <= now.getHours()) continue;
+    if (Array.isArray(options.unavailableHours)
+        && (options.unavailableHours.indexOf(start) !== -1 || options.unavailableHours.indexOf(start + 1) !== -1)) continue;
+    const quote = priceAppointment(room, dateStr, [[start, start + 2]]);
+    if (!quote.isOffpeak || quote.saveFee <= 0) continue;
+    const total = quote.roomFee + person * 2;
+    if (!best || total < best.total) {
+      best = { room: room, date: dateStr, start: start, end: start + 2, total: total,
+        totalText: formatYuan(total), windowText: formatHour(start) + '–' + formatHour(start + 2),
+        quote: quote, rule: quote.rule };
+    }
+  }
+  return best;
+}
+
+// 优先展示今日可组成的优惠；否则预告未来七日内最近的一天，不合并不同规则的时段。
+function promoSummary(rooms, constance, options) {
+  options = options || {};
+  const now = options.now || new Date();
   const list = Array.isArray(rooms) ? rooms : [];
-  const weekdayMap = {};
-  let cheapest = null;           // { room, rule, total }
-  let windowStart = null;
-  let windowEnd = null;
+  let cheapest = null;
+  let daysAway = 0;
+  for (let offset = 0; offset < 7 && !cheapest; offset++) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+    const key = dateKey(day);
+    list.forEach(function(room) {
+      const unavailable = room.availabilityDate === key && Array.isArray(room.appoints)
+        ? room.appoints.filter(function(slot) { return slot.status !== 1; }).map(function(slot) { return slot.start; }) : [];
+      const deal = bestCoupleDeal(room, key, { now: now, unavailableHours: unavailable });
+      if (deal && (!cheapest || deal.total < cheapest.total)) cheapest = deal;
+    });
+    if (cheapest) daysAway = offset;
+  }
+  const enabled = !!cheapest;
+  const dateText = !cheapest ? '' : (daysAway === 0 ? '今日' : daysAway === 1 ? '明日' : cheapest.date.slice(5).replace('-', '/') + ' 周' + WEEKDAY_TEXT[isoWeekday(cheapest.date) - 1]);
+  const weekdays = [];
   list.forEach(function(room) {
     normalizeRules(room).forEach(function(rule) {
-      rule.weekdays.forEach(function(d) { weekdayMap[d] = 1; });
-      if (windowStart === null || rule.hour_start < windowStart) windowStart = rule.hour_start;
-      if (windowEnd === null || rule.hour_end > windowEnd) windowEnd = rule.hour_end;
-      const total = coupleTotalFen(room, rule);
-      if (!cheapest || total < cheapest.total) cheapest = { room: room, rule: rule, total: total };
+      rule.weekdays.forEach(function(day) { if (weekdays.indexOf(day) === -1) weekdays.push(day); });
     });
   });
-  if (meta.enabled) meta.weekdays.forEach(function(d) { weekdayMap[d] = 1; });
-  const weekdays = Object.keys(weekdayMap).map(Number).sort(function(a, b) { return a - b; });
-  const enabled = weekdays.length > 0;
-  const now = new Date();
-  const todayIso = now.getDay() === 0 ? 7 : now.getDay();
-  const dealText = cheapest ? '双人2小时 ¥' + formatYuan(cheapest.total) + '起' : '';
-  const fallbackText = meta.enabled ? '包间费' + (formatDiscountText(meta.percent) || '特惠') : '';
   return {
-    enabled: enabled,
-    weekdays: weekdays,
-    isToday: enabled && weekdays.indexOf(todayIso) !== -1,
-    percent: meta.enabled ? meta.percent : 0,
-    // 展示文案：有房间规则用到手价，否则退回全局折扣话术
-    label: meta.enabled ? meta.label : (cheapest ? '工作日包间特惠' : ''),
-    shortLabel: enabled ? describeWeekdays(weekdays) : '',
-    dealText: dealText || fallbackText,
-    hour_start: windowStart === null ? meta.hour_start : windowStart,
-    hour_end: windowEnd === null ? meta.hour_end : windowEnd,
+    enabled: enabled, isToday: enabled && daysAway === 0, daysAway: daysAway,
+    weekdays: weekdays.sort(function(a, b) { return a - b; }),
+    shortLabel: dateText, label: '闲时轻松玩', percent: 0,
+    dealText: cheapest ? '双人2小时 ¥' + cheapest.totalText + '起' : '',
+    conditionText: cheapest ? dateText + ' · ' + cheapest.room.name + ' · ' + cheapest.windowText : '',
+    inclusionText: '含两人入场费 · 不含可选加购',
+    hour_start: cheapest ? cheapest.start : 0, hour_end: cheapest ? cheapest.end : 0,
     cheapest: cheapest,
+  };
+}
+
+function selectionView(room, dateStr, selects) {
+  const pairs = Array.isArray(selects) ? selects.slice().sort(function(a, b) { return String(a[0]).localeCompare(String(b[0])); }) : [];
+  const list = [];
+  let valid = true;
+  pairs.forEach(function(pair, i) {
+    const begin = String(pair && pair[0] || '').split(' ');
+    const end = String(pair && pair[1] || '').split(' ');
+    const b = toInt(begin[1]);
+    let e = toInt(end[1]);
+    const next = new Date(dateStr + 'T12:00:00');
+    next.setDate(next.getDate() + 1);
+    if (end[0] === dateKey(next) && e === 0 && b > 0) e = 24;
+    else if (end[0] !== dateStr) valid = false;
+    if (begin[0] !== dateStr || b === null || e === null || e <= b || e > 24
+        || (i > 0 && pairs[i - 1][1] !== pair[0])) valid = false;
+    else list.push([b, e]);
+  });
+  const quote = priceAppointment(room, dateStr, valid ? list : []);
+  const day = dayPriceView(room, dateStr);
+  return {
+    hasSelection: pairs.length > 0,
+    valid: valid && list.length > 0,
+    quote: quote, day: day, rows: segmentViews(quote.segments),
+    roomText: formatYuan(quote.roomFee), baseText: formatYuan(quote.baseFee),
+    saveText: formatYuan(quote.saveFee), hours: quote.hours,
+    label: quote.hours ? formatHour(list[0][0]) + '–' + formatHour(list[list.length - 1][1]) + ' · ' + quote.hours + '小时' : '',
+    personText: formatYuan(room && room.price_per_person),
+    range: list.length ? [list[0][0], list[list.length - 1][1]] : null,
   };
 }
 
@@ -527,6 +624,11 @@ export default {
   lowestRuleForWeekday: lowestRuleForWeekday,
   coupleTotalFen: coupleTotalFen,
   promoSummary: promoSummary,
+  bestCoupleDeal: bestCoupleDeal,
+  dayPriceView: dayPriceView,
+  selectionView: selectionView,
+  segmentViews: segmentViews,
+  dateKey: dateKey,
   hasOffpeak: hasOffpeak,
   lowestOffpeakPrice: lowestOffpeakPrice,
   isNightRule: isNightRule,

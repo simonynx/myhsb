@@ -5,7 +5,7 @@
             <view class="room-top">
                 <view class="room-heading-copy">
                     <text class="summary-kicker">本次预约</text>
-                    <text class="room-name">{{ currentProduct.name || '包厢' }}</text>
+                    <text class="room-name">{{ currentProduct && currentProduct.name || '包厢' }}</text>
                 </view>
                 <view class="room-badge" v-if="memberLevelName">{{ memberLevelName }}</view>
             </view>
@@ -34,28 +34,8 @@
             </view>
 
             <view class="offpeak-banner" v-if="isOffpeakActive">
-                <view class="offpeak-banner-row">
-                    <text class="offpeak-banner-title">🔥 {{ offpeakTagText }}</text>
-                    <text class="offpeak-banner-save">本单省 ¥{{ offpeakSaveAmount }}</text>
-                </view>
-                <text class="offpeak-banner-sub" v-if="isMixedPrice">分段计价：{{ offpeakSegmentsText }}</text>
-                <text class="offpeak-banner-sub" v-else>小时费 <text class="offpeak-banner-strike">{{ offpeakOriginalHourlyText }}</text> → <text class="offpeak-banner-now">{{ offpeakHourlyText }}</text>/时</text>
-                <text class="offpeak-banner-note" v-if="offpeakBlocksCoupon">已享优惠价，本单不再叠加优惠券</text>
-            </view>
-
-            <view class="room-prices" v-if="currentProduct">
-                <view class="base-price-item">
-                    <text class="base-price-label">包厢费</text>
-                    <text class="base-price-value">¥{{ roomPrice }}<text class="base-price-strike" v-if="isOffpeakActive">¥{{ offpeakOriginalTotalText }}</text></text>
-                    <text class="base-price-note" v-if="isMixedPrice">{{ offpeakSegmentsText }}</text>
-                    <text class="base-price-note" v-else>{{ roomHourlyPriceText }}/小时 × {{ selectedRoomHours }}小时</text>
-                </view>
-                <view class="price-plus">+</view>
-                <view class="base-price-item">
-                    <text class="base-price-label">入场费</text>
-                    <text class="base-price-value">¥{{ peoplePrice }}</text>
-                    <text class="base-price-note">{{ personPriceText }}/人 × {{ numOfPeople }}人</text>
-                </view>
+                <text class="offpeak-banner-title">{{ offpeakQuote.allOffpeak ? '本次房费已享闲时价' : '部分时段已享闲时价' }}</text>
+                <text class="offpeak-banner-note">相比门市房费省 ¥{{ offpeakSaveAmount }}，各项费用见下方账单。</text>
             </view>
         </view>
 
@@ -99,18 +79,33 @@
         <view class="price-section">
             <view class="price-heading">
                 <view class="price-heading-copy">
-                    <text class="section-title">优惠与支付</text>
-                    <text class="section-subtitle">系统会自动计算当前可用权益</text>
+                    <text class="section-title">本次账单</text>
+                    <text class="section-subtitle">价格、优惠和实付一次看清</text>
                 </view>
                 <text class="saving-total" v-if="totalDiscountFen > 0">已省 ¥{{ totalDiscountText }}</text>
             </view>
             <view class="price-list">
-                <view class="order-amount-row">
-                    <view>
-                        <text class="benefit-title">订单金额</text>
-                        <text class="benefit-desc">包厢、入场及已选升级服务</text>
+                <view class="bill-row">
+                    <view><text class="benefit-title">包厢费 · {{ selectedRoomHours }}小时</text>
+                        <view class="bill-detail-toggle" role="button" @tap="priceDetailsOpen = !priceDetailsOpen">{{ priceDetailsOpen ? '收起计费明细 −' : '查看计费明细 +' }}</view>
                     </view>
-                    <text class="order-amount">¥{{ originalPrice }}</text>
+                    <view class="bill-value"><text class="bill-original" v-if="isOffpeakActive">¥{{ offpeakOriginalTotalText }}</text><text>¥{{ roomPrice }}</text></view>
+                </view>
+                <view class="bill-segments" v-if="priceDetailsOpen">
+                    <view class="bill-segment" v-for="row in priceSegmentRows" :key="row.key">
+                        <view><text>{{ row.timeText }} · {{ row.label }}</text><text class="bill-formula">{{ row.hours }}小时 × ¥{{ row.priceText }}</text></view>
+                        <text>¥{{ row.amountText }}</text>
+                    </view>
+                </view>
+                <view class="bill-row">
+                    <view><text class="benefit-title">入场费 · {{ numOfPeople }}人</text><text class="benefit-desc">¥{{ personPriceText }}/人</text></view>
+                    <text class="bill-value">¥{{ peoplePrice }}</text>
+                </view>
+                <view class="bill-row" v-if="selectedAddons.length">
+                    <text class="benefit-title">可选加购 · {{ selectedAddons.length }}项</text><text class="bill-value">¥{{ addonsPrice }}</text>
+                </view>
+                <view class="order-amount-row">
+                    <text class="benefit-title">费用小计</text><text class="order-amount">¥{{ originalPrice }}</text>
                 </view>
 
                 <!-- 次卡/月卡折抵 -->
@@ -121,7 +116,7 @@
                     </view>
                     <view class="benefit-right">
                         <text class="benefit-saving" v-if="hasSubscriptionDiscount">-¥{{ subscriptionDiscountText }}</text>
-                        <text class="benefit-action">{{ subscriptionActionText }} ›</text>
+                        <text class="benefit-action">{{ hoursCardBlocked && availableSubscriptionCount === 0 ? '不适用' : subscriptionActionText + ' ›' }}</text>
                     </view>
                 </view>
                 <view class="subscription-breakdown" v-if="hasSubscriptionDiscount">
@@ -155,7 +150,7 @@
                     </view>
                     <view class="benefit-right">
                         <text class="benefit-saving" v-if="selectedCoupon">-¥{{ couponDiscount }}</text>
-                        <text class="benefit-action">{{ selectedCoupon ? '已选' : (offpeakBlocksCoupon ? '—' : (availableCoupons.length > 0 ? '选择' : '查看')) }} ›</text>
+                        <text class="benefit-action">{{ offpeakBlocksCoupon ? '不适用' : (selectedCoupon ? '已选 ›' : (availableCoupons.length > 0 ? '选择 ›' : '查看 ›')) }}</text>
                     </view>
                 </view>
 
@@ -344,7 +339,7 @@
                 </view>
                 <scroll-view scroll-y class="picker-body">
                     <view class="unavailable-hint" v-if="availableSubscriptionCount === 0">
-                        <text>{{ isOffpeakActive ? (isMixedPrice ? '闲时优惠时段不可用包厢小时卡，门市价时段可正常抵扣' : '本时段已是闲时优惠价，包厢小时卡不可叠加使用（周末或高峰时段可用）') : '暂无可用次卡或月卡' }}</text>
+                        <text>{{ hoursCardBlocked ? cardPolicyText : '本单暂无可用次卡或月卡' }}</text>
                     </view>
                     <view class="subscription-slot-group" v-for="slotView in subscriptionSlotViews" :key="slotView.key">
                         <view class="coupon-group-title">{{ slotView.title }}</view>
@@ -445,6 +440,7 @@ export default {
             submitting: false,
 
             // 次卡/月卡
+            priceDetailsOpen: false,
             mySubscriptions: [],
             selectedSubscriptionBySlot: SUBSCRIPTION.createSelectedState(),
             subscriptionSkippedBySlot: SUBSCRIPTION.createSkippedState(),
@@ -513,6 +509,17 @@ export default {
             return Number(this.currentProduct && this.currentProduct.price_per_hour) || 0;
         },
 
+        priceSegmentRows() {
+            return OFFPEAK.segmentViews(this.offpeakQuote.segments);
+        },
+        hoursCardBlocked() {
+            return this.offpeakQuote.hours > 0 && this.offpeakQuote.hourPrices.every(item => !OFFPEAK.cardAllowed(item.rule));
+        },
+        cardPolicyText() {
+            if (this.hoursCardBlocked) return '所选闲时段不可抵扣小时卡；入场次卡按权益使用';
+            if (this.isOffpeakActive) return '小时卡仅抵扣允许用卡的时段，不扣闲时禁用时段的额度';
+            return '独立包厢常约可用小时卡';
+        },
         isOffpeakActive() {
             return !!(this.offpeakQuote && this.offpeakQuote.isOffpeak);
         },
@@ -774,7 +781,7 @@ export default {
 
         subscriptionSummaryText() {
             if (this.availableSubscriptionCount === 0) {
-                return this.isOffpeakActive ? '闲时优惠价不叠加小时卡' : '独立包厢常约可用小时卡';
+                return this.cardPolicyText;
             }
             return SUBSCRIPTION.getSummaryText(this.subscriptionContext);
         },
@@ -986,6 +993,10 @@ export default {
     },
 
     watch: {
+        offpeakQuote() {
+            this.syncSubscriptionSelection();
+            this.syncCouponSelection();
+        },
         afterMemberPriceFen() {
             this.syncPointUsage();
             this.syncCouponSelection();
@@ -1159,8 +1170,8 @@ export default {
 
         openSubscriptionPicker() {
             if (this.availableSubscriptionCount === 0) {
-                if (this.isOffpeakActive) {
-                    uni.showToast({ title: '闲时优惠价不可叠加包厢小时卡', icon: 'none' });
+                if (this.hoursCardBlocked) {
+                    uni.showToast({ title: '所选闲时时段不可使用包厢小时卡', icon: 'none' });
                     return;
                 }
                 this.goBuySubscription();
@@ -1209,6 +1220,12 @@ export default {
         },
 
         syncCouponSelection() {
+            if (this.offpeakBlocksCoupon) {
+                const removed = !!this.selectedCoupon;
+                this.selectedCoupon = null;
+                this.couponPickerOpen = false;
+                return !removed;
+            }
             const result = COUPON.resolveCouponSelection(
                 this.couponPool,
                 this.selectedCoupon,
@@ -2760,4 +2777,15 @@ page {
         }
     }
 }
+
+.bill-row { display: flex; align-items: center; justify-content: space-between; gap: 24rpx; padding: 22rpx 0; border-bottom: 1rpx solid #F0E8E0; }
+.bill-value { flex-shrink: 0; color: #3E342C; font-size: 28rpx; font-weight: 700; }
+.bill-original { margin-right: 12rpx; color: #897A6E; font-size: 22rpx; font-weight: 400; text-decoration: line-through; }
+.bill-detail-toggle { padding: 14rpx 0 0; font-size: 23rpx; color: #A2512F; }
+.bill-segments { padding: 10rpx 22rpx; background: #FAF6F1; border-radius: 14rpx; }
+.bill-segment { display: flex; justify-content: space-between; gap: 20rpx; padding: 12rpx 0; font-size: 24rpx; color: #51463C; }
+.bill-formula { display: block; margin-top: 4rpx; color: #7A6C60; font-size: 22rpx; }
+.room-card .offpeak-banner { padding: 20rpx 24rpx; border: 1rpx solid #EFD8C5; background: #FFF7ED; border-radius: 16rpx; }
+.room-card .offpeak-banner-title { font-size: 26rpx; }
+.room-card .offpeak-banner-note { font-size: 23rpx; line-height: 1.6; color: #795B44; }
 </style>

@@ -5,15 +5,15 @@
 			<scroll-view class="date-scroll" scroll-x="true">
 				<view class="date-inner">
 					<view
-						v-for="(item,index) in dateArr"
+						v-for="(item,index) in dateViews"
 						:key="index"
 						class="date-pill"
-						:class="{ active: index == dateActive, today: isToday(item.date) }"
+						:class="item.className"
 						@click="selectDateEvent(index,item)"
 					>
 						<text class="pill-week">{{item.week}}</text>
 						<text class="pill-date">{{item.date.split('-')[2]}}</text>
-						<view class="pill-dot" v-if="isToday(item.date)"></view>
+						<view class="pill-dot" v-if="item.isToday"></view>
 					</view>
 				</view>
 			</scroll-view>
@@ -26,15 +26,11 @@
 			<!-- 时间选项 -->
 			<view class="time-grid" v-if="isQuantum || isMultiple">
 				<view
-					v-for="(item,_index) in timeArr"
+					v-for="(item,_index) in timeViews"
 					:key="_index"
 					class="time-cell"
-					:class="{
-						disable: item.disable,
-						active: item.isActive,
-						selected: item.isActive
-					}"
-					@click="handleSelect(_index,item)"
+					:class="item.className"
+					@click="handleSelect(_index,item.source)"
 				>
 					<text class="cell-time">{{item.begin}}~{{item.end}}</text>
 					<text class="cell-status">{{item.disable ? disableText : (item.isActive ? '已选' : '可约')}}</text>
@@ -47,14 +43,11 @@
 			<!-- 单选时间段 -->
 			<view class="time-grid" v-else>
 				<view
-					v-for="(item,_index) in timeArr"
+					v-for="(item,_index) in timeViews"
 					:key="_index"
 					class="time-cell single"
-					:class="{
-						disable: item.disable,
-						active: _index == timeActive
-					}"
-					@click="selectTimeEvent(_index,item)"
+					:class="item.className"
+					@click="selectTimeEvent(_index,item.source)"
 				>
 					<text class="cell-time">{{item.time}}</text>
 					<text class="cell-status">{{item.disable ? disableText : '可预约'}}</text>
@@ -90,6 +83,7 @@
 		name: 'times',
 		model: { prop: "showPop", event: "change" },
 		props: {
+			showSubmitButton: { type: Boolean, default: false },
 			isQuantum: { type: Boolean, default: false },
 			isMultiple: { type: Boolean, default: false },
 			isSection: { type: Boolean, default: false },
@@ -134,6 +128,18 @@
 			this.initOnload();
 		},
 		computed: {
+			dateViews() {
+				return this.dateArr.map((item, index) => Object.assign({}, item, {
+					isToday: item.date === this.nowDate,
+					className: (index === this.dateActive ? 'active ' : '') + (item.date === this.nowDate ? 'today' : ''),
+				}));
+			},
+			timeViews() {
+				return this.timeArr.map((item, index) => Object.assign({}, item, {
+					source: item,
+					className: (item.disable ? 'disable ' : '') + ((this.isQuantum || this.isMultiple ? item.isActive : index === this.timeActive) ? 'active selected' : ''),
+				}));
+			},
 			selectedCount() {
 				let count = 0;
 				for (const date in this.orderTimeArr) {
@@ -156,6 +162,7 @@
 				const prevSelected = this.orderTimeArr[this.selectDate] || [];
 
 				this.dateArr = initData();
+				this.dateActive = this.getCurrentSelectDateIndex();
 				this.timeArr = initTime(this.beginTime, this.endTime, this.timeInterval, this.isQuantum);
 				this.timeQuanBegin = this.timeQuanEnd = "";
 
@@ -181,7 +188,7 @@
 						if (!item.disable) isFullTime = false;
 						// 恢复之前已选的时段：比对 begin~end 是否在 prevSelected 中
 						const slotKey = this.selectDate + ' ' + item.begin + ':00';
-						item.isActive = prevSelected.some(s => s[0] === slotKey);
+						item.isActive = !item.disable && prevSelected.some(s => s[0] === slotKey);
 					} else {
 						if (this.selectDate == nowDate && nowTime >= item.time) {
 							item.disable = true;
@@ -204,6 +211,15 @@
 					}
 				});
 
+				if (this.isQuantum && this.isMultiple && prevSelected.length) {
+					const remaining = this.timeArr.filter(item => item.isActive && !item.disable).map(item => [
+						this.selectDate + ' ' + item.begin + ':00', this.selectDate + ' ' + item.end + ':00',
+					]);
+					if (remaining.length !== prevSelected.length) {
+						this.$set(this.orderTimeArr, this.selectDate, remaining);
+						this.emitChange();
+					}
+				}
 				this.orderDateTime = isFullTime ? '请选择时段' : this.selectDate;
 				this.timeActive = -1;
 				for (let i = 0; i < this.timeArr.length; i++) {
@@ -216,11 +232,13 @@
 			},
 
 			selectDateEvent(index, item) {
+				if (this.selectDate === item.date) return;
 				this.dateActive = index;
 				this.selectDate = item.date;
-				this.initOnload();
 				this.orderTimeArr = {};
+				this.initOnload();
 				this.$emit('selected-date-change', item.date);
+				if (this.isMultiple) this.emitChange();
 			},
 
 			getCurrentSelectDateIndex() {
@@ -381,6 +399,7 @@ $border: #EEEEEE;
 // 日期横向滚动
 .date-scroll {
 	width: 100%;
+	overflow-x: auto;
 	background: #fff;
 	white-space: nowrap;
 
@@ -460,7 +479,8 @@ $border: #EEEEEE;
 }
 
 .time-cell {
-	width: calc(25% - 12rpx);
+	width: calc(33.333% - 11rpx);
+	box-sizing: border-box;
 	border-radius: 16rpx;
 	display: flex;
 	flex-direction: column;
@@ -471,7 +491,7 @@ $border: #EEEEEE;
 	border: 2rpx solid transparent;
 	position: relative;
 	transition: all 0.2s;
-	min-height: 130rpx;
+	min-height: 126rpx;
 
 	.cell-time {
 		font-size: 26rpx;

@@ -38,10 +38,6 @@
 						<text class="notice-dot">🎮</text>
 						<text class="notice-copy">包厢、主机等升级项目按小时另计，周末或多人局建议提前预约。</text>
 					</view>
-					<view class="notice-line" v-if="weekdayDiscount.enabled">
-						<text class="notice-dot">📅</text>
-						<text class="notice-copy">{{ weekdayDiscount.label }}：{{ weekdayDiscount.hourStart }}:00-{{ weekdayDiscount.hourEnd }}:00 预约包厢，{{ weekdayDiscount.dealText }}。</text>
-					</view>
 					<view class="notice-line" v-if="perlerEnabled">
 						<text class="notice-dot">🧩</text>
 						<text class="notice-copy">拼豆一日票{{ perlerDayPriceText }}，含大厅入场和1份标准材料。会员或当天有效的小程序订单按{{ perlerUpgradePriceText }}升级，外部团购由店员核验后按{{ perlerChannelUpgradePriceText }}办理。</text>
@@ -60,20 +56,6 @@
 					</view>
 				</view>
 				<view class="notice-confirm" @tap="closeStoreNotice">知道了</view>
-			</view>
-		</view>
-
-		<!-- 工作日包间费折扣弹窗（每天最多一次） -->
-		<view class="weekday-promo-popup" v-if="weekdayPromoVisible" @tap="closeWeekdayPromo">
-			<view class="weekday-promo-panel" @tap.stop>
-				<view class="weekday-promo-badge">限时特惠</view>
-				<text class="weekday-promo-title">{{ weekdayDiscount.label }}</text>
-				<text class="weekday-promo-desc">预约今天的包厢，{{ weekdayDiscount.dealText }}</text>
-				<text class="weekday-promo-note">{{ weekdayDiscount.noteText }}</text>
-				<view class="weekday-promo-actions">
-					<view class="weekday-promo-secondary" @tap="closeWeekdayPromo">稍后再说</view>
-					<view class="weekday-promo-primary" @tap="goWeekdayPromoReserve">去约包厢</view>
-				</view>
 			</view>
 		</view>
 
@@ -105,24 +87,23 @@
 					<text class="hero-value-separator">·</text>
 					<text class="hero-value-sub">营业时间内不限时</text>
 				</view>
-				<view class="hero-weekday-chip" v-if="weekdayDiscount.enabled" @tap="onWeekdayChipTap">
-					<text class="hero-weekday-chip-dot"></text>
-					<text class="hero-weekday-chip-text">{{ weekdayDiscount.isToday ? '今天' : weekdayDiscount.shortLabel }} · {{ weekdayDiscount.dealText }}</text>
-				</view>
 			</view>
 			<view class="hero-dots" v-if="heroDots.length > 1">
 				<view v-for="dot in heroDots" :key="dot.key" :class="dot.className"></view>
 			</view>
 		</view>
 
-		<!-- 工作日优惠常驻横幅：首页核心活动位，非弹窗、不打扰，点击直达预约 -->
-		<view class="weekday-banner" v-if="weekdayBanner.visible" @tap="goToReserve">
-			<view class="weekday-banner-main">
-				<view class="weekday-banner-badge">{{ weekdayBanner.badgeText }}</view>
-				<text class="weekday-banner-title">🔥 {{ weekdayBanner.title }}</text>
-				<text class="weekday-banner-sub">{{ weekdayBanner.subText }}</text>
+		<view class="weekday-banner" v-if="weekdayDiscount.enabled" @tap="goPromoReserve">
+			<view class="weekday-banner-top">
+				<text class="weekday-banner-badge">闲时轻松玩</text>
+				<text class="weekday-banner-status">{{ weekdayDiscount.isToday ? '今日可享' : '可提前预约' }}</text>
 			</view>
-			<view class="weekday-banner-cta">{{ weekdayBanner.ctaText }} ›</view>
+			<text class="weekday-banner-title">{{ weekdayDiscount.dealText }}</text>
+			<text class="weekday-banner-sub">{{ weekdayDiscount.conditionText }}</text>
+			<view class="weekday-banner-bottom">
+				<text class="weekday-banner-note">含两人入场费 · 不含可选加购</text>
+				<text class="weekday-banner-cta">查看时段 ›</text>
+			</view>
 		</view>
 
 		<!-- 大厅票核心权益：保留首页主线，同时让非桌游服务可被快速看见 -->
@@ -323,48 +304,8 @@
 				const value = this.constance && this.constance.perler_enabled;
 				return value !== false && value !== 0 && value !== '0' && value !== 'false';
 			},
-			// 全店优惠信息：房间闲时规则（主）+ 全局 Constance 折扣（辅），配哪间房就自动展示
 			weekdayDiscount() {
-				const meta = OFFPEAK.promoSummary(this.promoRooms, this.constance);
-				const cheapestRule = meta.cheapest && meta.cheapest.rule;
-				const blocksCoupon = (cheapestRule && cheapestRule.coupon_allowed === false)
-					|| (this.constance && this.constance.weekday_room_discount_enabled === true
-						&& meta.percent > 0 && !OFFPEAK.weekdayDiscountFromConstance(this.constance).coupon_allowed);
-				return {
-					enabled: meta.enabled,
-					isToday: meta.isToday,
-					label: meta.label || '工作日包间特惠',
-					shortLabel: meta.shortLabel,
-					dealText: meta.dealText || '特惠',
-					hourStart: meta.hour_start,
-					hourEnd: meta.hour_end,
-					noteText: '只折包厢小时费，人头费原价；按所选日期时段自动生效'
-						+ (blocksCoupon ? '，不与优惠券叠加' : ''),
-				};
-			},
-			// 首页常驻横幅：当天强提醒"仅限今天"，非当天预告开抢倒计时
-			weekdayBanner() {
-				const meta = OFFPEAK.promoSummary(this.promoRooms, this.constance);
-				if (!meta.enabled) return { visible: false };
-				let daysAway = 0;
-				if (!meta.isToday) {
-					for (let i = 1; i <= 7; i++) {
-						const probe = (new Date().getDay() === 0 ? 7 : new Date().getDay()) - 1 + i;
-						const iso = ((probe - 1) % 7) + 1;
-						if (meta.weekdays.indexOf(iso) !== -1) { daysAway = i; break; }
-					}
-				}
-				const timeText = meta.hour_start + ':00-' + meta.hour_end + ':00';
-				return {
-					visible: true,
-					isToday: meta.isToday,
-					badgeText: meta.isToday ? '仅限今天' : '每周' + meta.shortLabel,
-					title: meta.label || '工作日包间特惠',
-					subText: meta.isToday
-						? '今天预约，' + meta.dealText + '（' + timeText + '）'
-						: ((daysAway === 1 ? '明天开抢' : daysAway + '天后开抢') + ' · ' + meta.dealText),
-					ctaText: meta.isToday ? '去抢包厢' : '去看包厢',
-				};
+				return OFFPEAK.promoSummary(this.promoRooms, this.constance, { now: new Date(this.nowTimestamp) });
 			},
 			playOptions() {
 				const items = [
@@ -539,14 +480,9 @@
 		watch: {
 			constance(value) {
 				if (value) {
-					this.maybeShowWeekdayPromo();
+
 					this.loadData();
 				}
-			},
-			promoRooms() {
-				// 房间规则到位后补一次优惠弹窗判断和角标（pages.json 里预约是第 3 个 tab）
-				this.maybeShowWeekdayPromo();
-				OFFPEAK.syncPromoTabBadge(this.constance, 2, this.promoRooms);
 			},
 			hasLogin(value) {
 				if (value) {
@@ -595,8 +531,8 @@
 				claimableCouponName: '',
 				claimableCouponKey: '',
 				storeNoticeVisible: false,
-				weekdayPromoVisible: false,
-				// 首页优惠展示的数据源：拉一次房间列表即可拿到全部闲时规则
+
+				// 起价以房间开放时间、日期及连续两小时的计价结果为准
 				promoRooms: [],
 				promoRoomsLoadedAt: 0,
 				homeDataLoaded: false,
@@ -621,7 +557,7 @@
 		},
 		onShow() {
 			this.startStoreClock();
-			this.maybeShowWeekdayPromo();
+
 			this.loadPromoRooms();
 			this.schedulePageViewTrack();
 			this.trackHomeBenefitView();
@@ -665,7 +601,7 @@
 			// 有闲时优惠时，用到手价文案做分享钩子（随机一半概率出现，避免每次都是卖货脸）
 			const promo = this.weekdayDiscount;
 			if (promo.enabled && promo.dealText && Math.random() < 0.5) {
-				titles.push('工作日包间特惠！' + promo.dealText + '，快约我');
+				titles.push(promo.conditionText + ' · ' + promo.dealText + '（含两人入场费）');
 			}
 			AUTH.trackEvent({
 				event: 'share_home',
@@ -803,32 +739,28 @@
 			closeStoreNotice() {
 				this.storeNoticeVisible = false;
 			},
-			// 拉一次房间列表取闲时规则，驱动首页横幅/弹窗/角标（10 分钟内复用缓存）
+			// 房间接口返回合并规则与当日占用情况；缓存不代表库存锁定
 			loadPromoRooms() {
 				const now = Date.now();
 				if (this.promoRoomsLoadedAt && now - this.promoRoomsLoadedAt < 10 * 60 * 1000) {
-					OFFPEAK.syncPromoTabBadge(this.constance, 2, this.promoRooms);
+
 					return;
 				}
 				const dateKey = this.formatDateKey(new Date());
 				AUTH.getRoomDataList(this.token, dateKey).then(res => {
 					if (res && res.data && res.data.rooms) {
-						this.promoRooms = res.data.rooms;
+						this.promoRooms = res.data.rooms.map(room => {
+							const appointments = (res.data.appointments || []).filter(item => String(item.room) === String(room.object_id));
+							const booked = [];
+							appointments.forEach(item => (item.time_list || []).forEach(pair => {
+								for (let h = pair[0]; h < pair[1]; h++) booked.push(h);
+							}));
+							return Object.assign({}, room, { availabilityDate: dateKey,
+								appoints: booked.map(h => ({ start: h, status: 3 })) });
+						});
 						this.promoRoomsLoadedAt = Date.now();
 					}
 				}).catch(() => {});
-			},
-			maybeShowWeekdayPromo() {
-				const d = this.weekdayDiscount;
-				if (!d.enabled || !d.isToday) return;
-				// 单 key 存上次展示日期，避免按天累积的存储键无限增长
-				const today = this.formatDateKey(new Date());
-				if (uni.getStorageSync('weekday_promo_last_shown') === today) return;
-				setTimeout(() => {
-					if (this.storeNoticeVisible || this.activeBanner || this.weekdayPromoVisible) return;
-					this.weekdayPromoVisible = true;
-					uni.setStorageSync('weekday_promo_last_shown', today);
-				}, 800);
 			},
 			formatDateKey(date) {
 				const y = date.getFullYear();
@@ -836,19 +768,12 @@
 				const day = ('0' + date.getDate()).slice(-2);
 				return y + '-' + m + '-' + day;
 			},
-			closeWeekdayPromo() {
-				this.weekdayPromoVisible = false;
-			},
-			goWeekdayPromoReserve() {
-				this.weekdayPromoVisible = false;
-				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
-			},
-			onWeekdayChipTap() {
-				if (this.weekdayDiscount.isToday) {
-					this.weekdayPromoVisible = true;
-					return;
-				}
-				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+			goPromoReserve() {
+				const deal = this.weekdayDiscount.cheapest;
+				if (deal) uni.setStorageSync('offpeak_reserve_intent', {
+					date: deal.date, roomId: deal.room.object_id, createdAt: Date.now()
+				});
+				this.goToReserve();
 			},
 			goToReserve() {
 				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
@@ -1651,143 +1576,26 @@ page {
 	color: #615850;
 }
 
-.weekday-promo-popup {
-	position: fixed;
-	left: 0; right: 0; top: 0; bottom: 0;
-	background: rgba(0, 0, 0, 0.45);
-	z-index: 999;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-}
-.weekday-promo-panel {
-	width: 560rpx;
-	background: linear-gradient(165deg, #FFF8EE 0%, #FFE8C8 100%);
-	border-radius: 28rpx;
-	padding: 48rpx 40rpx 36rpx;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-}
-.weekday-promo-badge {
-	font-size: 22rpx;
-	color: #fff;
-	background: #E85D2A;
-	padding: 6rpx 20rpx;
-	border-radius: 999rpx;
-	margin-bottom: 20rpx;
-}
-.weekday-promo-title {
-	font-size: 40rpx;
-	font-weight: 800;
-	color: #8B3A12;
-	text-align: center;
-}
-.weekday-promo-desc {
-	margin-top: 16rpx;
-	font-size: 26rpx;
-	color: #8A5A2B;
-	text-align: center;
-}
-.weekday-promo-note {
-	margin-top: 12rpx;
-	font-size: 22rpx;
-	color: #A07A4A;
-	text-align: center;
-	line-height: 1.5;
-}
-.weekday-promo-actions {
-	margin-top: 32rpx;
-	width: 100%;
-	display: flex;
-}
-.weekday-promo-secondary,
-.weekday-promo-primary {
-	flex: 1;
-	height: 76rpx;
-	border-radius: 999rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	font-size: 28rpx;
-	margin: 0 8rpx;
-}
-.weekday-promo-secondary {
-	background: rgba(255, 255, 255, 0.7);
-	color: #8A5A2B;
-}
-.weekday-promo-primary {
-	background: #E85D2A;
-	color: #fff;
-	font-weight: 700;
-}
-.hero-weekday-chip {
-	margin-top: 16rpx;
-	align-self: flex-start;
-	display: flex;
-	align-items: center;
-	background: rgba(255, 255, 255, 0.18);
-	border: 1rpx solid rgba(255, 255, 255, 0.35);
-	padding: 8rpx 18rpx;
-	border-radius: 999rpx;
-}
-.hero-weekday-chip-dot {
-	width: 12rpx;
-	height: 12rpx;
-	border-radius: 50%;
-	background: #FFD56A;
-	margin-right: 10rpx;
-}
-.hero-weekday-chip-text {
-	font-size: 22rpx;
-	color: #fff;
-	font-weight: 600;
-}
 .weekday-banner {
+	margin: 22rpx 24rpx;
+	padding: 28rpx;
+	border-radius: 24rpx;
+	border: 1rpx solid #EFD8C6;
+	background: linear-gradient(125deg, #FFF8EE, #FFEBD8);
+}
+.weekday-banner-top, .weekday-banner-bottom {
 	display: flex;
 	align-items: center;
-	margin: 20rpx 24rpx 24rpx;
-	padding: 26rpx 28rpx;
-	border-radius: 22rpx;
-	background: linear-gradient(120deg, #E85D2A 0%, #FF9A3D 100%);
-	box-shadow: 0 10rpx 24rpx rgba(232, 93, 42, 0.28);
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12rpx;
 }
-.weekday-banner-main {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-}
-.weekday-banner-badge {
-	align-self: flex-start;
-	font-size: 20rpx;
-	color: #FFE8CC;
-	border: 1rpx solid rgba(255, 255, 255, 0.55);
-	padding: 2rpx 14rpx;
-	border-radius: 999rpx;
-	margin-bottom: 10rpx;
-}
-.weekday-banner-title {
-	font-size: 34rpx;
-	font-weight: 800;
-	color: #fff;
-}
-.weekday-banner-sub {
-	margin-top: 8rpx;
-	font-size: 22rpx;
-	line-height: 1.4;
-	color: rgba(255, 255, 255, 0.92);
-}
-.weekday-banner-cta {
-	align-self: center;
-	flex-shrink: 0;
-	background: #fff;
-	color: #E85D2A;
-	font-size: 26rpx;
-	font-weight: 700;
-	padding: 14rpx 26rpx;
-	border-radius: 999rpx;
-	margin-left: 20rpx;
-}
+.weekday-banner-badge { color: #9A4A26; font-size: 24rpx; font-weight: 700; }
+.weekday-banner-status { color: #7B6B5D; font-size: 22rpx; }
+.weekday-banner-title { display: block; margin-top: 14rpx; font-size: 38rpx; font-weight: 800; color: #C45125; }
+.weekday-banner-sub { display: block; margin: 10rpx 0 20rpx; font-size: 24rpx; color: #6B5442; line-height: 1.6; }
+.weekday-banner-note { flex: 1; min-width: 230rpx; font-size: 22rpx; color: #7B6B5D; }
+.weekday-banner-cta { padding: 12rpx 22rpx; border-radius: 999rpx; background: #C9572D; color: #fff; font-size: 24rpx; font-weight: 700; }
 .notice-confirm {
 	margin-top: 22rpx;
 	height: 76rpx;

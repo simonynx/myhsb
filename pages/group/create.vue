@@ -15,35 +15,16 @@
             <view class="room-meta">
                 <text class="room-name">{{ roomName }}</text>
                 <view class="room-tags">
-                    <text class="tag">📅 {{ date }}</text>
-                    <text class="tag" v-for="(slot, idx) in timeSlots" :key="idx">⏰ {{ slot }}</text>
-                    <text class="tag">🕐 共 {{ duration }} 小时</text>
+                    <text class="tag">{{ date }}</text>
+                    <text class="tag">{{ beginTime }} ~ {{ endTime }}</text>
+                    <text class="tag">共 {{ duration }} 小时</text>
                 </view>
             </view>
         </view>
 
-        <!-- 房间定价（只读参考） -->
-        <view class="price-ref-card">
-            <view class="price-ref-title">🏷️ 房间定价</view>
-            <view class="price-ref-row">
-                <text class="ref-label">{{ isMixedPrice ? '房间每小时（均价）' : '房间每小时' }}</text>
-                <text class="ref-value">
-                    <text class="ref-strike" v-if="isOffpeakApplied">¥{{ (pricePerHour / 100).toFixed(2) }}</text>
-                    ¥{{ (effectiveHourPrice / 100).toFixed(2) }}
-                </text>
-            </view>
-            <view class="price-ref-row" v-if="isMixedPrice">
-                <text class="ref-label">分段计价</text>
-                <text class="ref-value">{{ offpeakSegmentsText }}</text>
-            </view>
-            <view class="price-ref-row" v-if="isOffpeakApplied">
-                <text class="ref-label">本时段</text>
-                <text class="ref-offpeak-tag">🔥 {{ offpeakLabel || '闲时特惠' }}，与组局折扣不叠加</text>
-            </view>
-            <view class="price-ref-row">
-                <text class="ref-label">每人附加费</text>
-                <text class="ref-value">¥{{ (pricePerPersonRef / 100).toFixed(2) }}</text>
-            </view>
+        <view class="pricing-status" v-if="!pricingReady">
+            <text>{{ pricingLoading ? '正在核对当前房价与优惠…' : pricingError }}</text>
+            <text class="pricing-retry" v-if="!pricingLoading" @click="loadCurrentPricing">重新获取</text>
         </view>
 
         <!-- 人数设置 -->
@@ -75,42 +56,52 @@
             </view>
         </view>
 
-        <!-- 费用计算（全员共享部分） -->
-        <view class="cost-card">
-            <view class="cost-title">🧮 组局费用估算</view>
-
-            <view class="cost-formula">
-                <view class="formula-line">
-                    <text class="formula-text" v-if="isMixedPrice">时长费用 = {{ offpeakSegmentsText }}</text>
-                    <text class="formula-text" v-else>时长费用 = ¥{{ (effectiveHourPrice / 100).toFixed(2) }} × {{ duration }}小时</text>
-                    <text class="formula-result">¥{{ timeCost }}</text>
+        <!-- 闲时房费已按段优惠；仅组局优惠作为独立扣减项 -->
+        <view class="cost-card" v-if="pricingReady">
+            <view class="cost-title">组局费用估算</view>
+            <text class="bill-context">{{ pricingBill.contextText }}</text>
+            <view class="bill-section">
+                <view class="bill-row" v-for="row in pricingBill.roomRows" :key="row.key">
+                    <view class="bill-copy">
+                        <text class="bill-label">{{ row.label }}</text>
+                        <text class="bill-formula">{{ row.formula }}</text>
+                    </view>
+                    <view class="bill-amount">
+                        <text class="bill-original" v-if="row.originalYuan">门市 ¥{{ row.originalYuan }}</text>
+                        <text>¥{{ row.amountYuan }}</text>
+                    </view>
                 </view>
-                <view class="formula-line">
-                    <text class="formula-text">人头附加费 = ¥{{ (pricePerPersonRef / 100).toFixed(2) }} × {{ maxMembers }}人</text>
-                    <text class="formula-result">¥{{ personCost }}</text>
+                <view class="bill-row">
+                    <view class="bill-copy">
+                        <text class="bill-label">人头费</text>
+                        <text class="bill-formula">{{ pricingBill.personFormula }}</text>
+                    </view>
+                    <text class="bill-amount">¥{{ pricingBill.personYuan }}</text>
                 </view>
             </view>
-
+            <view class="cost-row" v-if="pricingBill.savingsFen > 0">
+                <text class="cost-label">{{ pricingBill.savingsLabel }}</text>
+                <text class="cost-value discount">{{ pricingBill.savingsText }}</text>
+            </view>
+            <text class="bill-note">{{ pricingBill.note }}</text>
             <view class="cost-divider"></view>
-
-            <!-- 拼团折扣（全员共享） -->
-            <view class="cost-row" v-if="groupDiscountAmount > 0">
-                <text class="cost-label">{{ isOffpeakApplied ? (offpeakLabel || '闲时特惠') + '（已享，不叠加组局折扣）' : '组局折扣（' + groupDiscountPercent + '折）' }}</text>
-                <text class="cost-value discount">-¥{{ (groupDiscountAmount / 100).toFixed(2) }}</text>
-            </view>
-
             <view class="cost-row total">
-                <text class="cost-label">组局总价（折扣后）</text>
-                <text class="cost-value">¥{{ baseCostYuan }}</text>
+                <view class="bill-copy">
+                    <text class="cost-label">组局合计</text>
+                    <text class="bill-formula">发起人会员优惠另计</text>
+                </view>
+                <view class="bill-amount">
+                    <text class="bill-original" v-if="pricingBill.savingsFen > 0">门市合计 ¥{{ pricingBill.originalYuan }}</text>
+                    <text class="cost-value">¥{{ baseCostYuan }}</text>
+                </view>
             </view>
-
             <view class="cost-row suggest">
-                <text class="cost-label">基础人均</text>
-                <text class="cost-value suggest-price">¥{{ basePerPersonYuan }}</text>
+                <text class="cost-label">满 {{ maxMembers }} 人均摊参考</text>
+                <text class="cost-value suggest-price">¥{{ basePerPersonYuan }}/人</text>
             </view>
-
+            <text class="bill-note">按分均摊，尾差计入发起人份额；最终金额以创建结果为准。</text>
             <view class="cost-action" @click="resetToDefault">
-                <text class="cost-action-text">💡 恢复默认均摊</text>
+                <text class="cost-action-text">恢复默认均摊</text>
             </view>
         </view>
 
@@ -127,12 +118,12 @@
                 <text class="advanced-state">{{ showAdvanced ? '收起' : '可选' }}</text>
             </view>
 
-            <block v-if="showAdvanced">
+            <block v-if="showAdvanced && pricingReady">
             <!-- 发起人承担份额（可调） -->
             <view class="setting-item">
                 <view class="setting-left">
                     <text class="setting-icon">👑</text>
-                    <text class="setting-label">发起人承担份额</text>
+                    <text class="setting-label">发起人承担目标</text>
                 </view>
                 <view class="price-input-wrap">
                     <text class="price-prefix">¥</text>
@@ -154,8 +145,8 @@
                 </view>
                 <view class="member-price-readonly">
                     <text class="member-price-amount">¥{{ memberPriceYuan }}</text>
-                    <text v-if="initiatorBaseFen > basePerPersonFen" class="member-price-subsidy">
-                        (发起人补贴 ¥{{ ((initiatorBaseFen - basePerPersonFen) / 100).toFixed(2) }})
+                    <text v-if="initiatorShareFen > basePerPersonFen" class="member-price-subsidy">
+                        (发起人补贴 ¥{{ ((initiatorShareFen - basePerPersonFen) / 100).toFixed(2) }})
                     </text>
                 </view>
             </view>
@@ -163,7 +154,11 @@
             <!-- 发起人折扣明细 -->
             <view class="cost-divider" style="margin: 12rpx 0;"></view>
             <view class="cost-row">
-                <text class="cost-label">会员折扣（{{ memberDiscountPercent < 100 ? memberDiscountPercent + '折' : '无折扣' }}，仅发起人）</text>
+                <text class="cost-label">发起人份额（含尾差）</text>
+                <text class="cost-value">¥{{ initiatorBaseYuan }}</text>
+            </view>
+            <view class="cost-row">
+                <text class="cost-label">会员优惠（{{ memberDiscountText }}，仅发起人）</text>
                 <text class="cost-value" :class="memberDiscountAmount > 0 ? 'discount' : ''">{{ memberDiscountAmount > 0 ? '-¥' + (memberDiscountAmount / 100).toFixed(2) : '-' }}</text>
             </view>
             </block>
@@ -227,10 +222,11 @@
         <view class="bottom-bar">
             <view class="bottom-left">
                 <text class="bottom-label">满员后发起人支付</text>
-                <text class="bottom-price">¥{{ actualInitiatorPaidYuan }}</text>
+                <text class="bottom-price">{{ pricingReady ? '¥' + actualInitiatorPaidYuan : '待核价' }}</text>
             </view>
-            <view class="submit-btn" :class="isTimeTooClose || submitting ? 'disabled' : ''" @click="handleSubmit">
-                <text v-if="isTimeTooClose">⏰ 时间太近了</text>
+            <view class="submit-btn" :class="!pricingReady || isTimeTooClose || submitting ? 'disabled' : ''" @click="handleSubmit">
+                <text v-if="!pricingReady">{{ pricingLoading ? '核对价格中' : '请先获取价格' }}</text>
+                <text v-else-if="isTimeTooClose">⏰ 时间太近了</text>
                 <text v-else-if="submitting">创建中...</text>
                 <text v-else>🚀 发起组局</text>
             </view>
@@ -245,7 +241,7 @@
                 </view>
                 <view class="modal-body">
                     <view class="modal-row">
-                        <text class="modal-label">房间总价</text>
+                        <text class="modal-label">组局合计（会员优惠前）</text>
                         <text class="modal-value">¥{{ baseCostYuan }}</text>
                     </view>
                     <view class="modal-row">
@@ -291,6 +287,7 @@
 <script>
 import { mapState } from 'vuex';
 import AUTH from '../../utils/auth.js';
+import OFFPEAK from '../../utils/offpeak.js';
 
 export default {
     data() {
@@ -301,17 +298,15 @@ export default {
             date: '',
             beginTime: '',
             endTime: '',
-            duration: 1,
-            pricePerHour: 0,
-            offpeakRoomFee: 0,
-            offpeakLabel: '',
-            offpeakSegmentsText: '',
-            pricePerPersonRef: 0,
+            currentRoom: null,
+            pricingLoading: false,
+            pricingReady: false,
+            pricingError: '',
+            pricingLoadedAt: 0,
             maxMembers: 2,
             initiatorInputYuan: '0.00',
             note: '',
             initiatorManuallyChanged: false,
-            timeSlots: [],
             groupDiscountPercent: 100,
             memberDiscountPercent: 100,
             showConfirmModal: false,
@@ -328,54 +323,75 @@ export default {
             const balance = this.userInfo && this.userInfo.account_balance;
             return ((balance || 0) / 100).toFixed(2);
         },
-        roomTotalCostFen() {
-            return (this.pricePerHour * this.duration) + (this.pricePerPersonRef * this.maxMembers);
+        selectedHours() {
+            if (!/^\d{1,2}:00$/.test(this.beginTime) || !/^\d{1,2}:00$/.test(this.endTime)) return [];
+            const begin = Number(this.beginTime.split(':')[0]);
+            const end = Number(this.endTime.split(':')[0]);
+            return begin >= 0 && end <= 24 && end > begin ? [begin, end] : [];
         },
-        timeCost() {
-            return (this.effectiveRoomFeeFen / 100).toFixed(2);
+        duration() {
+            return this.selectedHours.length ? this.selectedHours[1] - this.selectedHours[0] : 0;
         },
-        // 闲时价总额；与后端 room_pricing.compute_group_cost 同一口径
-        // 闲时总额：小时费已按分段计价（跨闲时/门市价各按各价），与后端 compute_group_cost 同口径
-        offpeakCostFen() {
-            if (!(this.offpeakRoomFee > 0)) return 0;
-            return this.offpeakRoomFee + this.pricePerPersonRef * this.maxMembers;
+        pricePerHour() {
+            return Number(this.currentRoom && this.currentRoom.price_per_hour) || 0;
         },
-        discountedCostFen() {
-            if (this.groupDiscountPercent >= 100) return this.roomTotalCostFen;
-            return Math.ceil(this.roomTotalCostFen * this.groupDiscountPercent / 100);
+        pricePerPersonRef() {
+            return Number(this.currentRoom && this.currentRoom.price_per_person) || 0;
         },
-        // 闲时价与组局折扣不叠加，取更低者
-        isOffpeakApplied() {
-            return this.offpeakCostFen > 0 && this.offpeakCostFen < this.discountedCostFen;
+        appointmentPricing() {
+            return OFFPEAK.priceAppointment(this.currentRoom, this.date,
+                this.selectedHours.length ? [this.selectedHours] : []);
         },
-        effectiveRoomFeeFen() {
-            return this.isOffpeakApplied ? this.offpeakRoomFee : this.pricePerHour * this.duration;
+        groupPricing() {
+            return OFFPEAK.resolveGroupCost(this.currentRoom, this.date,
+                this.selectedHours[0], this.selectedHours[1], this.maxMembers, this.groupDiscountPercent);
         },
-        // 分段计价时单价不唯一，展示均价
-        effectiveHourPrice() {
-            return this.duration > 0 ? Math.floor(this.effectiveRoomFeeFen / this.duration) : this.pricePerHour;
-        },
-        isMixedPrice() {
-            return this.isOffpeakApplied && !!this.offpeakSegmentsText;
-        },
-        personCost() {
-            return ((this.pricePerPersonRef * this.maxMembers) / 100).toFixed(2);
-        },
-        roomTotalCost() {
-            return (this.roomTotalCostFen / 100).toFixed(2);
+        // 使用当前房间接口的合并规则，不信任旧链接中的价格、均价或优惠文案。
+        pricingBill() {
+            const quote = this.groupPricing;
+            const yuan = value => (value / 100).toFixed(2);
+            const hour = value => String(value).padStart(2, '0') + ':00';
+            const segments = quote.offpeakApplied ? this.appointmentPricing.segments : [{
+                start: this.selectedHours[0], end: this.selectedHours[1],
+                hours: this.duration, price: this.pricePerHour, label: '门市价',
+            }];
+            const roomRows = segments.map((seg, index) => {
+                const original = this.pricePerHour * seg.hours;
+                const amount = seg.price * seg.hours;
+                return {
+                    key: 'room_' + index,
+                    label: '房费 · ' + hour(seg.start) + '–' + hour(seg.end),
+                    formula: (seg.label || '闲时价') + ' · ¥' + yuan(seg.price) + '/小时 × ' + seg.hours + '小时',
+                    amountFen: amount,
+                    amountYuan: yuan(amount),
+                    originalYuan: amount < original ? yuan(original) : '',
+                };
+            });
+            const personFee = this.pricePerPersonRef * this.maxMembers;
+            const savings = Math.max(0, quote.originalCost - quote.baseCost);
+            return {
+                contextText: this.date + ' · ' + this.beginTime + '–' + this.endTime + ' · 满' + this.maxMembers + '人',
+                roomRows,
+                personFen: personFee,
+                personYuan: yuan(personFee),
+                personFormula: '¥' + yuan(this.pricePerPersonRef) + '/人 × ' + this.maxMembers + '人',
+                originalYuan: yuan(quote.originalCost),
+                savingsFen: savings,
+                deductionFen: quote.offpeakApplied ? 0 : savings,
+                savingsLabel: quote.offpeakApplied ? '闲时优惠（已计入房费）' : '组局优惠（' + this.groupDiscountPercent / 10 + '折）',
+                savingsText: (quote.offpeakApplied ? '已省 ¥' : '-¥') + yuan(savings),
+                note: quote.offpeakApplied
+                    ? '闲时优惠仅调整对应时段房费；与组局优惠择优、不叠加。'
+                    : (savings > 0 ? '组局优惠按门市房费与人头费合计计算，不叠加闲时优惠。' : '按所选日期、时段和目标人数计费。'),
+            };
         },
 
         // ===== 全员共享部分 =====
-        // 拼团折扣后的基础总价（所有人共享）
         baseCostFen() {
-            return this.isOffpeakApplied ? this.offpeakCostFen : this.discountedCostFen;
+            return this.groupPricing.baseCost;
         },
         baseCostYuan() {
             return (this.baseCostFen / 100).toFixed(2);
-        },
-        // 拼团折扣减免金额
-        groupDiscountAmount() {
-            return this.roomTotalCostFen - this.baseCostFen;
         },
         // 基础人均（拼团折扣后）
         basePerPersonFen() {
@@ -392,8 +408,12 @@ export default {
             const val = parseFloat(this.initiatorInputYuan);
             return Math.round((val || 0) * 100);
         },
+        // 后端按提交的成员单价反推发起人份额，尾差不能作为新的优惠或收费。
+        initiatorShareFen() {
+            return this.baseCostFen - this.memberPriceFen * (this.maxMembers - 1);
+        },
         initiatorBaseYuan() {
-            return (this.initiatorBaseFen / 100).toFixed(2);
+            return (this.initiatorShareFen / 100).toFixed(2);
         },
         // 成员人均 = (基础总价 - 发起人基础份额) / (maxMembers - 1)
         memberPriceFen() {
@@ -405,15 +425,18 @@ export default {
             return (this.memberPriceFen / 100).toFixed(2);
         },
 
-        // 会员折扣（只减发起人基础份额）
+        // 会员折扣仅影响发起人；展示口径与后端反推份额一致，不改成员单价。
+        memberDiscountText() {
+            return this.memberDiscountPercent < 100 ? this.memberDiscountPercent / 10 + '折' : '无优惠';
+        },
         memberDiscountAmount() {
             if (this.memberDiscountPercent >= 100) return 0;
-            return Math.floor(this.initiatorBaseFen * (1 - this.memberDiscountPercent / 100));
+            return Math.floor(this.initiatorShareFen * (1 - this.memberDiscountPercent / 100));
         },
 
         // 发起人最终支付（拼团中不使用优惠券）
         actualInitiatorPaidFen() {
-            return this.initiatorBaseFen - this.memberDiscountAmount;
+            return this.initiatorShareFen - this.memberDiscountAmount;
         },
         actualInitiatorPaidYuan() {
             return (this.actualInitiatorPaidFen / 100).toFixed(2);
@@ -441,7 +464,7 @@ export default {
     },
 
     watch: {
-        maxMembers(newVal) {
+        basePerPersonYuan() {
             if (!this.initiatorManuallyChanged) {
                 this.initiatorInputYuan = this.basePerPersonYuan;
             }
@@ -455,30 +478,13 @@ export default {
         this.date = options.date || '';
         this.beginTime = options.begin_time || '';
         this.endTime = options.end_time || '';
-        this.duration = parseInt(options.duration) || 1;
-        this.pricePerHour = parseInt(options.price_per_hour) || 0;
-        this.offpeakRoomFee = parseInt(options.offpeak_room_fee) || 0;
-        this.offpeakLabel = decodeURIComponent(options.offpeak_label || '');
-        this.offpeakSegmentsText = decodeURIComponent(options.offpeak_segments || '');
-        this.pricePerPersonRef = parseInt(options.price_per_person) || 0;
-
-        // 时段列表
-        try {
-            this.timeSlots = JSON.parse(decodeURIComponent(options.time_list || '[]'));
-        } catch (e) {
-            this.timeSlots = [];
-        }
-        if (this.timeSlots.length === 0 && this.beginTime && this.endTime) {
-            this.timeSlots = [this.beginTime + '~' + this.endTime];
-        }
-
         // 获取会员折扣率
         if (this.userInfo && this.userInfo.discount) {
             this.memberDiscountPercent = parseInt(this.userInfo.discount) || 100;
         }
 
-        // 获取拼团折扣率
-        this.loadConfigAndCoupons();
+        // 直达或分享链接也重新获取当前房价和组局配置。
+        this.loadCurrentPricing();
 
         // 默认发起人承担份额 = 基础人均（均摊）
         this.initiatorInputYuan = this.basePerPersonYuan;
@@ -487,9 +493,8 @@ export default {
     },
 
     onShow() {
-        // 刷新余额
         this.nowTimestamp = Date.now();
-        this.loadConfigAndCoupons();
+        this.loadCurrentPricing();
     },
 
     onUnload() {
@@ -515,22 +520,47 @@ export default {
             }
         },
 
-        loadConfigAndCoupons() {
-            // 获取配置（拼团折扣率）
-            AUTH.getConstance(this.token).then(res => {
-                if (res && res._status === 0 && res.data) {
-                    const gd = parseInt(res.data.group_discount_percent);
-                    if (gd && gd > 0) {
-                        this.groupDiscountPercent = gd;
-                        // 如果还没手动修改过，自动更新为新的基础人均
-                        if (!this.initiatorManuallyChanged) {
-                            this.$nextTick(() => {
-                                this.initiatorInputYuan = this.basePerPersonYuan;
-                            });
-                        }
-                    }
+        loadCurrentPricing() {
+            if (this.pricingLoading) return this._pricingRequest;
+            if (this.pricingReady && Date.now() - this.pricingLoadedAt < 1000) return Promise.resolve();
+            if (!this.roomId || !this.date || !this.selectedHours.length) {
+                this.pricingError = '缺少有效的房间或预约时段，请返回重新选择。';
+                return Promise.resolve();
+            }
+            this.pricingLoading = true;
+            this.pricingReady = false;
+            this.pricingError = '';
+            this.cancelConfirm();
+            this._pricingRequest = Promise.all([
+                AUTH.getRoomDetail(this.token, this.roomId),
+                AUTH.getConstance(this.token),
+            ]).then(([roomRes, configRes]) => {
+                if (!roomRes || roomRes._status !== 0 || !roomRes.data
+                    || !configRes || configRes._status !== 0 || !configRes.data) {
+                    throw new Error('pricing_unavailable');
                 }
-            }).catch(() => {});
+                const room = roomRes.data;
+                const validMoney = value => value !== null && value !== undefined && value !== ''
+                    && Number.isFinite(Number(value)) && Number(value) >= 0;
+                if (!validMoney(room.price_per_hour) || !validMoney(room.price_per_person)) {
+                    throw new Error('invalid_room_price');
+                }
+                this.currentRoom = room;
+                this.roomName = roomRes.data.name || this.roomName;
+                this.roomImage = roomRes.data.image1 || this.roomImage;
+                this.groupDiscountPercent = parseInt(configRes.data.group_discount_percent, 10) || 100;
+                this.memberDiscountPercent = parseInt(this.userInfo && this.userInfo.discount, 10) || 100;
+                this.pricingReady = true;
+                this.pricingLoadedAt = Date.now();
+                if (!this.initiatorManuallyChanged) {
+                    this.initiatorInputYuan = this.basePerPersonYuan;
+                }
+            }).catch(() => {
+                this.pricingError = '暂时无法获取当前价格，请重试后发起组局。';
+            }).then(() => {
+                this.pricingLoading = false;
+            });
+            return this._pricingRequest;
         },
 
         changeMembers(delta) {
@@ -579,6 +609,10 @@ export default {
 
         handleSubmit() {
             if (this.submitting) return;
+            if (!this.pricingReady) {
+                uni.showToast({ title: this.pricingLoading ? '正在核对价格，请稍候' : '请先重新获取当前价格', icon: 'none' });
+                return;
+            }
             if (this.isTimeTooClose) {
                 uni.showToast({ title: '距离开始不足2小时，请直接预约或选择更晚时段', icon: 'none' });
                 return;
@@ -685,19 +719,17 @@ export default {
 </script>
 
 <style lang="scss">
-$primary: #FF6432;
-$pink: #FF9ECD;
-$yellow: #FFD93D;
-$green: #6BCB77;
-$blue: #4D96FF;
-$gray: #999;
-$dark: #333;
-$light: #F5F6F7;
-$border: #EEEEEE;
+$primary: #E96B35;
+$pink: #FFB26B;
+$green: #58755D;
+$gray: #867363;
+$dark: #534337;
+$light: #FFF8F0;
+$border: #F0E6D8;
 
 .container {
     min-height: 100vh;
-    background: linear-gradient(180deg, #FFF0F5 0%, #F8F8F8 300rpx);
+    background: linear-gradient(180deg, #FFF4E8 0%, #F8F8F8 300rpx);
     padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
 }
 
@@ -741,7 +773,7 @@ $border: #EEEEEE;
     display: flex;
     align-items: center;
     box-shadow: 0 8rpx 32rpx rgba(255,100,50,0.08);
-    border: 4rpx solid #FFE8F0;
+    border: 4rpx solid #F3DCC9;
 
     .room-img {
         width: 140rpx;
@@ -750,7 +782,7 @@ $border: #EEEEEE;
         margin-right: 24rpx;
         background: $light;
         flex-shrink: 0;
-        border: 4rpx solid #FFF0F5;
+        border: 4rpx solid #FFF4E8;
     }
 
     .room-meta {
@@ -782,54 +814,60 @@ $border: #EEEEEE;
     }
 }
 
-// 房间定价参考
-.price-ref-card {
+// 账单采用暖橙点缀，单价、金额和优惠各有独立层级。
+.pricing-status {
     margin: 0 24rpx 24rpx;
-    background: #fff;
-    border-radius: 32rpx;
-    padding: 28rpx;
-    box-shadow: 0 8rpx 32rpx rgba(77,150,255,0.06);
-    border: 4rpx solid #E8F4FF;
-
-    .price-ref-title {
-        font-size: 30rpx;
-        font-weight: bold;
-        color: $dark;
-        margin-bottom: 16rpx;
-        display: block;
-    }
-
-    .price-ref-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 10rpx 0;
-
-        .ref-label {
-            font-size: 26rpx;
-            color: $gray;
-        }
-
-        .ref-value {
-            font-size: 28rpx;
-            color: $dark;
-            font-weight: bold;
-        }
-
-        .ref-strike {
-            font-size: 24rpx;
-            color: $gray;
-            font-weight: normal;
-            text-decoration: line-through;
-            margin-right: 8rpx;
-        }
-
-        .ref-offpeak-tag {
-            font-size: 24rpx;
-            color: $offpeak-primary;
-            font-weight: bold;
-        }
-    }
+    padding: 24rpx 28rpx;
+    background: #FFF4E8;
+    border-radius: 24rpx;
+    font-size: 26rpx;
+    color: $dark;
+    line-height: 1.6;
+}
+.pricing-retry {
+    display: block;
+    margin-top: 12rpx;
+    color: $primary;
+    font-weight: bold;
+}
+.bill-context, .bill-note {
+    display: block;
+    font-size: 23rpx;
+    color: #867363;
+    line-height: 1.6;
+}
+.bill-section { margin-top: 16rpx; }
+.bill-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20rpx;
+    padding: 16rpx 0;
+}
+.bill-copy {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 6rpx;
+}
+.bill-label { font-size: 28rpx; color: $dark; }
+.bill-formula { font-size: 23rpx; color: #867363; line-height: 1.5; }
+.bill-amount {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+    gap: 6rpx;
+    font-size: 28rpx;
+    color: $dark;
+    font-variant-numeric: tabular-nums;
+}
+.bill-original {
+    font-size: 22rpx;
+    font-weight: normal;
+    color: #867363;
+    text-decoration: line-through;
 }
 
 // 设置卡片
@@ -1061,26 +1099,6 @@ $border: #EEEEEE;
         display: block;
     }
 
-    .cost-formula {
-        .formula-line {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10rpx 0;
-
-            .formula-text {
-                font-size: 26rpx;
-                color: $gray;
-            }
-
-            .formula-result {
-                font-size: 28rpx;
-                color: $dark;
-                font-weight: 500;
-            }
-        }
-    }
-
     .cost-divider {
         height: 2rpx;
         background: $border;
@@ -1106,6 +1124,7 @@ $border: #EEEEEE;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 20rpx;
     padding: 12rpx 0;
 
     &.total {
@@ -1116,14 +1135,14 @@ $border: #EEEEEE;
     }
 
     &.suggest {
-        background: #F6FFED;
+        background: #FFF4E8;
         margin: 12rpx -12rpx 0;
         padding: 16rpx 12rpx;
         border-radius: 16rpx;
 
         .suggest-price {
-            color: $green;
-            font-size: 36rpx;
+            color: $primary;
+            font-size: 32rpx;
         }
     }
 
@@ -1134,6 +1153,8 @@ $border: #EEEEEE;
     }
 
     .cost-value {
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
         font-size: 30rpx;
         color: $dark;
         font-weight: bold;
@@ -1251,7 +1272,7 @@ $border: #EEEEEE;
     padding: 24rpx 30rpx;
     padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
     background: #fff;
-    border-top: 4rpx solid #FFE8F0;
+    border-top: 4rpx solid #F3DCC9;
     box-shadow: 0 -8rpx 32rpx rgba(0,0,0,0.06);
 
     .bottom-left {

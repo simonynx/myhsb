@@ -139,7 +139,7 @@
                             <view class="price-now" v-if="room.offpeakDayText">
                                 <text class="price-yuan offpeak">¥</text>
                                 <text class="price-num offpeak">{{ room.offpeakDayPriceText }}</text>
-                                <text class="price-unit">/小时</text>
+                                <text class="price-unit">/小时起</text>
                                 <text class="price-strike">¥{{ room.price_per_hour / 100 }}/时</text>
                                 <text class="discount-badge" v-if="room.offpeakDiscountText">{{ room.offpeakDiscountText }}</text>
                             </view>
@@ -148,19 +148,20 @@
                                 <text class="price-num">{{ room.price_per_hour / 100 }}</text>
                                 <text class="price-unit">/小时</text>
                             </view>
-                            <view class="offpeak-tag" v-if="room.offpeakDayText">
-                                <text class="offpeak-tag-deal">🔥 双人2小时 ¥{{ room.offpeakDayCoupleText }}</text>
-                                <text class="offpeak-tag-window" v-if="room.offpeakDayWindow">{{ room.offpeakDayWindow }} 闲时</text>
-                            </view>
+
                         </view>
                         <view
                             class="book-btn"
                             :class="room.isFullyBooked ? 'disabled' : 'ready'"
                             @click.stop="handleAppointButtonClick(idx)"
                         >
-                            <text>{{ room.isFullyBooked ? '已满' : (groupIntentVisible ? '选时段组局' : '立即预约') }}</text>
+                            <text>{{ room.isFullyBooked ? '已满' : (groupIntentVisible ? '选时段组局' : '选时段') }}</text>
                         </view>
                     </view>
+                            <view class="offpeak-tag" v-if="room.offpeakDayText">
+                                <text class="offpeak-tag-deal" v-if="room.offpeakDayCoupleText">双人2小时 ¥{{ room.offpeakDayCoupleText }}起 · 含两人入场费</text>
+                                <text class="offpeak-tag-window" v-if="room.offpeakDayWindow">{{ room.offpeakDayWindow }}</text>
+                            </view>
                 </view>
             </view>
 
@@ -182,14 +183,7 @@
                         <image class="panel-thumb" :src="currentSelectItem ? currentSelectItem.image1 : ''" mode="aspectFill" />
                         <view class="panel-meta">
                             <text class="panel-name">{{ currentSelectItem ? currentSelectItem.name : '' }}</text>
-                            <view class="panel-price" v-if="panelHeadOffpeak">
-                                <text class="panel-price-num">¥{{ panelHeadOffpeak.priceText }}</text>
-                                <text class="panel-price-unit">/小时起</text>
-                                <text class="panel-price-strike">¥{{ panelHeadOffpeak.strikeText }}</text>
-                                <text class="panel-price-badge" v-if="panelHeadOffpeak.discountText">{{ panelHeadOffpeak.discountText }}</text>
-                                <text class="panel-price-window">{{ panelHeadOffpeak.windowText }} 闲时</text>
-                            </view>
-                            <text class="panel-price" v-else>¥{{ currentSelectItem ? currentSelectItem.price_per_hour / 100 : 0 }}/小时</text>
+                            <text class="panel-price">{{ currentSelectDate }} · 先选时段，再确认人数</text>
                         </view>
                     </view>
                     <text class="panel-close yticon icon-guanbi" @click="closePopup"></text>
@@ -210,24 +204,22 @@
                         :selectedDate="currentSelectDate"
                         :showSubmitButton="false"
                     ></times>
+                    <booking-price :room="currentSelectItem" :date="currentSelectDate" :selects="specSelected" />
                 </view>
 
                 <!-- 底部操作栏 -->
                 <view class="panel-footer">
                     <view class="pf-info">
-                        <text class="pf-label">已选时段</text>
-                        <text class="pf-count" v-if="specSelected.length">{{ specSelected.length }} 个时段</text>
-                        <text class="pf-count zero" v-else>请选择预约时段</text>
-                        <text class="pf-estimate" v-if="panelEstimate">包厢费 ¥{{ panelEstimate.roomText }}<text class="pf-estimate-strike" v-if="panelEstimate.isOffpeak">¥{{ panelEstimate.baseText }}</text><text class="pf-estimate-save" v-if="panelEstimate.saveText">省¥{{ panelEstimate.saveText }}</text></text>
-                        <text class="pf-estimate-segments" v-if="panelEstimate && panelEstimate.segmentText">{{ panelEstimate.segmentText }}</text>
-                        <text class="pf-social-tip" v-if="specSelected.length">{{ groupValueText }}</text>
+                        <text class="pf-label">{{ panelPricing.valid ? panelPricing.label : '请选择连续时段' }}</text>
+                        <text class="pf-count" v-if="panelPricing.valid">包厢费 ¥{{ panelPricing.roomText }}</text>
+                        <text class="pf-entry" v-if="panelPricing.valid">另加 ¥{{ panelPricing.personText }}/人入场费</text>
                     </view>
                     <view class="pf-btns">
-                        <view :class="groupButtonClass" @click="specSelected.length && handleCreateGroup()">
+                        <view :class="groupButtonClass" @click="panelPricing.valid && handleCreateGroup()">
                             <text>找搭子</text>
                         </view>
-                        <view :class="bookButtonClass" @click="specSelected.length && handleDirectBook()">
-                            <text>直接预约</text>
+                        <view :class="bookButtonClass" @click="panelPricing.valid && handleDirectBook()">
+                            <text>下一步</text>
                         </view>
                     </view>
                 </view>
@@ -242,9 +234,10 @@ import { mapState, mapActions } from 'vuex';
 import AUTH from '../../../utils/auth.js';
 import OFFPEAK from '../../../utils/offpeak.js';
 import times from '@/components/pretty-times/pretty-times.vue';
+import BookingPrice from '../../../components/booking-price/booking-price.vue';
 
 export default {
-    components: { times },
+    components: { times, BookingPrice },
 
     data() {
         return {
@@ -275,120 +268,30 @@ export default {
         selectedDayInfo() {
             return this.weekDays[this.selectedDayIndex] || {};
         },
-        // 所选日期的优惠提示（房间规则优先，退回全局配置），文案预生成、模板不调函数
         selectedDayPromo() {
-            const weekday = OFFPEAK.isoWeekday(this.currentSelectDate);
-            if (!weekday) return { visible: false };
-            let cheapest = null;
-            const rooms = this.roomList || [];
-            for (let i = 0; i < rooms.length; i++) {
-                const rule = OFFPEAK.lowestRuleForWeekday(rooms[i], this.currentSelectDate);
-                if (!rule) continue;
-                const total = OFFPEAK.coupleTotalFen(rooms[i], rule);
-                if (!cheapest || total < cheapest.total) {
-                    cheapest = {
-                        total: total,
-                        roomName: rooms[i].name,
-                        window: rule.hour_start + ':00-' + rule.hour_end + ':00',
-                    };
-                }
-            }
-            if (cheapest) {
-                return {
-                    visible: true,
-                    text: '🔥 本日双人 2 小时 ¥' + OFFPEAK.formatYuan(cheapest.total)
-                        + '起（' + cheapest.roomName + '）· ' + cheapest.window + ' 时段内的小时自动按闲时价，只折包厢费',
-                };
-            }
-            const meta = OFFPEAK.weekdayDiscountFromConstance(this.constance);
-            if (meta.enabled && meta.weekdays.indexOf(weekday) !== -1) {
-                const offText = OFFPEAK.formatDiscountText(meta.percent) || '特惠';
-                return {
-                    visible: true,
-                    text: '🔥 本日包间费' + offText + '：' + meta.hour_start + ':00-' + meta.hour_end
-                        + ':00 时段内的小时自动生效，只折小时费',
-                };
-            }
-            return { visible: false };
+            if (this.roomDataKey !== this.currentSelectDate) return { visible: false };
+            let deal = null;
+            this.roomList.forEach(room => {
+                const candidate = OFFPEAK.bestCoupleDeal(room, this.currentSelectDate, {
+                    unavailableHours: (room.appoints || []).filter(slot => slot.status !== 1).map(slot => slot.start),
+                });
+                if (candidate && (!deal || candidate.total < deal.total)) deal = candidate;
+            });
+            return deal ? { visible: true, text: deal.room.name + ' · 双人2小时 ¥' + deal.totalText
+                + '起（含两人入场费） · ' + deal.windowText } : { visible: false };
         },
-        // 弹窗头部价格：所选日期命中闲时规则时展示闲时价 + 划线门市价
-        panelHeadOffpeak() {
-            const room = this.currentSelectItem;
-            if (!room) return null;
-            const rule = OFFPEAK.lowestRuleForWeekday(room, this.currentSelectDate);
-            if (!rule) return null;
-            return {
-                priceText: OFFPEAK.formatYuan(rule.price_per_hour),
-                strikeText: OFFPEAK.formatYuan(room.price_per_hour),
-                discountText: OFFPEAK.discountText(rule.price_per_hour, room.price_per_hour),
-                windowText: rule.hour_start + ':00-' + rule.hour_end + ':00',
-            };
-        },
-        // 弹窗底部实时估价：已选时段逐小时分段计价
-        panelEstimate() {
-            const room = this.currentSelectItem;
-            if (!room || !this.specSelected.length) return null;
-            let hours = 0;
-            const timeList = [];
-            for (let i = 0; i < this.specSelected.length; i++) {
-                const pair = this.specSelected[i] || [];
-                const b = parseInt(String(pair[0] || '').split(' ')[1], 10);
-                const e = parseInt(String(pair[1] || '').split(' ')[1], 10);
-                if (isNaN(b) || isNaN(e) || e <= b) continue;
-                timeList.push([b, e]);
-                hours += e - b;
-            }
-            if (!hours) return null;
-            // 逐小时分段计价：跨闲时/门市价时各段各按各价，与后端 price_appointment 一致
-            const quote = OFFPEAK.priceAppointment(room, this.currentSelectDate, timeList);
-            return {
-                roomText: OFFPEAK.formatYuan(quote.roomFee),
-                baseText: OFFPEAK.formatYuan(quote.baseFee),
-                isOffpeak: quote.isOffpeak,
-                saveText: quote.saveFee > 0 ? OFFPEAK.formatYuan(quote.saveFee) : '',
-                segmentText: quote.mixed ? OFFPEAK.describeSegments(quote.segments) : '',
-            };
+        panelPricing() {
+            return OFFPEAK.selectionView(this.currentSelectItem, this.currentSelectDate, this.specSelected);
         },
         // 当天任一房间有闲时规则时，时段图例展示"闲时优惠"
         hasOffpeakToday() {
             return (this.roomList || []).some(function(r) { return !!r.offpeakDayText; });
         },
         groupButtonClass() {
-            return this.specSelected.length ? 'pf-btn group' : 'pf-btn group disabled';
+            return this.panelPricing.valid ? 'pf-btn group' : 'pf-btn group disabled';
         },
         bookButtonClass() {
-            return this.specSelected.length ? 'pf-btn book' : 'pf-btn book disabled';
-        },
-        // 组局按首个时段开始到末个时段结束的整段计费
-        selectedHourRange() {
-            let begin = null;
-            let end = null;
-            (this.specSelected || []).forEach(function(pair) {
-                const b = parseInt(String((pair || [])[0] || '').split(' ')[1], 10);
-                const e = parseInt(String((pair || [])[1] || '').split(' ')[1], 10);
-                if (isNaN(b) || isNaN(e) || e <= b) return;
-                if (begin === null || b < begin) begin = b;
-                if (end === null || e > end) end = e;
-            });
-            return begin === null ? null : [begin, end];
-        },
-        selectedDurationHours() {
-            return this.specSelected && this.specSelected.length ? this.specSelected.length : 0;
-        },
-        groupDiscountPercent() {
-            const value = this.constance && parseInt(this.constance.group_discount_percent);
-            return value && value > 0 ? value : 100;
-        },
-        groupValueText() {
-            if (!this.currentSelectItem || !this.selectedDurationHours) return '';
-            const range = this.selectedHourRange;
-            if (!range) return '';
-            // 与后端 compute_group_cost 同口径：分段闲时价与组局折扣取更低者
-            const total = OFFPEAK.resolveGroupCost(this.currentSelectItem, this.currentSelectDate,
-                range[0], range[1], 2, this.groupDiscountPercent).baseCost;
-            if (!total) return '发起2人局，满员后自动锁房';
-            const perPerson = Math.ceil(total / 2 / 100);
-            return '2人局约人均 ¥' + perPerson + ' 起，满员锁房';
+            return this.panelPricing.valid ? 'pf-btn book' : 'pf-btn book disabled';
         },
         appointmentEntrySource() {
             return this.groupIntentSource || 'appointment_panel';
@@ -401,8 +304,17 @@ export default {
 
     onShow() {
         this.loadGroupCreateIntent();
+        uni.removeTabBarBadge({ index: 2, fail: function() {} });
+        const intent = uni.getStorageSync('offpeak_reserve_intent');
+        if (intent) {
+            uni.removeStorageSync('offpeak_reserve_intent');
+            if (Date.now() - intent.createdAt < 5 * 60 * 1000) {
+                const idx = this.weekDays.findIndex(day => this.formatDate(day.fullDate) === intent.date);
+                if (idx >= 0) { this.selectedDayIndex = idx; this.currentSelectDate = intent.date; }
+            }
+        }
         // 优惠日当天给本 tab 挂角标（pages.json 里预约是第 3 个 tab）
-        OFFPEAK.syncPromoTabBadge(this.constance, 2, this.roomList);
+
         // 房间列表无需登录即可浏览
         if (this.weekDays && this.weekDays.length > 0) {
             this.fetchRoomList();
@@ -416,7 +328,7 @@ export default {
         // constance 异步加载完成后补打日期标记和角标
         constance(value) {
             this.markPromoDays();
-            OFFPEAK.syncPromoTabBadge(value, 2, this.roomList);
+
         },
     },
 
@@ -481,11 +393,9 @@ export default {
 
         // 按房间闲时规则 + 全局配置给日期栏打「特惠」标记
         markPromoDays() {
-            const meta = OFFPEAK.promoSummary(this.roomList, this.constance);
-            this.weekDays.forEach(function(d) {
-                const raw = d.fullDate ? d.fullDate.getDay() : 0;
-                const iso = raw === 0 ? 7 : raw;
-                d.isPromo = !!(meta.enabled && meta.weekdays.indexOf(iso) !== -1);
+            this.weekDays.forEach(d => {
+                const key = this.formatDate(d.fullDate);
+                d.isPromo = this.roomList.some(room => OFFPEAK.dayPriceView(room, key).hasOffpeak);
                 d.promoText = '特惠';
             });
         },
@@ -557,27 +467,24 @@ export default {
                         item.statusText = '可预约';
                     }
                     item.isFullyBooked = allBooked;
-                    // 闲时价：按当前选中日期判断哪些窗口可用
-                    item.offpeakDayText = OFFPEAK.describeForWeekday(item, dateKey);
-                    var cheapestRule = OFFPEAK.lowestRuleForWeekday(item, dateKey);
-                    item.offpeakDayPriceText = OFFPEAK.formatYuan(
-                        OFFPEAK.lowestPriceForWeekday(item, dateKey));
-                    item.offpeakDayCoupleText = cheapestRule
-                        ? OFFPEAK.formatYuan(OFFPEAK.coupleTotalFen(item, cheapestRule))
-                        : '';
-                    item.offpeakDiscountText = cheapestRule
-                        ? OFFPEAK.discountText(cheapestRule.price_per_hour, item.price_per_hour)
-                        : '';
-                    item.offpeakDayWindow = cheapestRule
-                        ? (cheapestRule.hour_start + ':00-' + cheapestRule.hour_end + ':00')
-                        : '';
+                    const view = OFFPEAK.dayPriceView(item, dateKey);
+                    const deal = OFFPEAK.bestCoupleDeal(item, dateKey, {
+                        unavailableHours: item.appoints.filter(slot => slot.status !== 1).map(slot => slot.start),
+                    });
+                    item.availabilityDate = dateKey;
+                    item.offpeakDayText = view.hasOffpeak;
+                    item.offpeakDayPriceText = view.priceText;
+                    item.basePriceText = view.baseText;
+                    item.offpeakDayCoupleText = deal ? deal.totalText : '';
+                    item.offpeakDiscountText = view.discountText;
+                    item.offpeakDayWindow = deal ? deal.windowText : '按所选时段计价';
                 });
                 this.roomList = data.rooms || [];
                 this.roomDataKey = dateKey;
                 this.roomLastLoadedAt = Date.now();
                 // 房间规则到位：补打日期标记和角标
                 this.markPromoDays();
-                OFFPEAK.syncPromoTabBadge(this.constance, 2, this.roomList);
+
             }).catch((err) => {
             }).then(() => {
                 if (requestSeq === this.roomRequestSeq) {
@@ -659,6 +566,7 @@ export default {
         },
 
         handleTimesSelectDateChange(date) {
+            this.specSelected = [];
             this.currentSelectDate = date;
             if (this.checkDateHasAdded(date)) return;
             AUTH.getRoomAppointments(this.token, this.currentSelectItem.object_id, date).then(res => {
@@ -1679,4 +1587,28 @@ page {
     from { transform: translateY(0); }
     to { transform: translateY(100%); }
 }
+
+.card-footer { gap: 18rpx; }
+.card-price { min-width: 0; flex: 1; }
+.card-price .price-now { flex-wrap: wrap; row-gap: 10rpx; }
+.card-price .price-strike { color: #88776B; }
+.card-price .discount-badge { background: #F8E8DC; color: #9D4724; font-weight: 600; }
+.card-info .offpeak-tag { flex-direction: column; align-items: flex-start; gap: 6rpx; margin-top: 14rpx; }
+.card-info .offpeak-tag-deal { background: none; border: 0; padding: 0; font-size: 24rpx; font-weight: 600; color: #9D4724; }
+.card-info .offpeak-tag-window { margin-left: 0; font-size: 22rpx; color: #7D7066; }
+.book-btn { flex-shrink: 0; white-space: nowrap; }
+.time-popup .panel { max-height: 88vh; }
+.time-popup .panel-room-info, .time-popup .panel-meta { min-width: 0; }
+.time-popup .panel-room-info { flex: 1; }
+.time-popup .panel-meta .panel-name { font-size: 28rpx; }
+.time-popup .panel-room-info .panel-meta .panel-price { font-size: 22rpx; color: #7D7066; font-weight: 400; }
+.time-popup .panel-times { min-height: 0; }
+.time-popup .panel-footer { flex-direction: column; align-items: stretch; gap: 20rpx; }
+.time-popup .panel-footer .pf-info { position: relative; }
+.time-popup .panel-footer .pf-info .pf-count { font-size: 32rpx; color: #BC4D25; }
+.time-popup .panel-footer .pf-entry { font-size: 22rpx; color: #71645A; margin-top: 4rpx; }
+.time-popup .panel-footer .pf-btns { display: flex; width: 100%; gap: 16rpx; }
+.time-popup .panel-footer .pf-btn { flex: 1; margin: 0; padding: 20rpx 12rpx; text-align: center; }
+.time-popup .panel-footer .pf-btn.group { background: #FFF7EF; color: #8D5E43; border: 1rpx solid #E7D4C4; }
+.time-popup .panel-footer .pf-btn.book { background: #C9572D; color: #FFF; }
 </style>
