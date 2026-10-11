@@ -259,7 +259,7 @@
         <view class="time-popup" :class="specClass" @tap="closePopup">
             <view class="mask" @touchmove.stop.prevent></view>
             <view class="panel" @tap.stop>
-                <view class="panel-header">
+                <view class="panel-header" @touchmove.stop.prevent>
                     <view class="panel-room-info">
                         <image class="panel-thumb" :src="room.image1" mode="aspectFill" />
                         <view class="panel-meta">
@@ -289,7 +289,7 @@
                 </scroll-view>
 
                 <!-- 底部操作栏 -->
-                <view class="panel-footer">
+                <view class="panel-footer" @touchmove.stop.prevent>
                     <view class="pf-info">
                         <text class="pf-label">{{ panelPricing.valid ? panelPricing.label : '请选择连续时段' }}</text>
                         <text class="pf-count" v-if="panelPricing.valid">包厢费 ¥{{ panelPricing.roomText }}</text>

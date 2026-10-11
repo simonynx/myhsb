@@ -78,6 +78,8 @@ Object.entries(Page.computed).forEach(([key, getter]) => Object.defineProperty(i
     const scrollStyle = styles.match(/\.panel-times\s*\{([^}]*)\}/)[1];
     assert(/height:\s*0\s*;/.test(scrollStyle) && /flex:\s*1\s*;/.test(scrollStyle), file + ' native scroll area needs bounded flex height');
     ['panel-header', 'panel-footer'].forEach(name => {
+      const tag = template.match(new RegExp('<view\\b[^>]*class="' + name + '"[^>]*>'))[0];
+      assert(tag.includes('@touchmove.stop.prevent'), file + ' must prevent background drag outside the native scroll area');
       const style = styles.match(new RegExp('\\.' + name + '\\s*\\{([^}]*)\\}'))[1];
       assert(/flex-shrink:\s*0\s*;/.test(style), file + ' must keep ' + name + ' outside the scrolling area');
     });

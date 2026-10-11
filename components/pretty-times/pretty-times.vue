@@ -25,32 +25,38 @@
 
 			<!-- 时间选项 -->
 			<view class="time-grid" v-if="isQuantum || isMultiple">
-				<view
-					v-for="(item,_index) in timeViews"
-					:key="_index"
-					class="time-cell"
-					:class="item.className"
-					@click="handleSelect(_index,item.source)"
-				>
-					<text class="cell-time">{{item.begin}}~{{item.end}}</text>
-					<text class="cell-status">{{item.disable ? disableText : (item.isActive ? '已选' : '可约')}}</text>
-					<view class="cell-check" v-if="item.isActive">
-						<text>✓</text>
+				<view class="time-row" v-for="row in timeRows" :key="row.key">
+					<view class="time-slot" v-for="item in row.slots" :key="item.key">
+						<view
+							v-if="!item.isPlaceholder"
+							class="time-cell"
+							:class="item.className"
+							@click="handleSelect(item.index,item.source)"
+						>
+							<text class="cell-time">{{item.begin}}~{{item.end}}</text>
+							<text class="cell-status">{{item.disable ? disableText : (item.isActive ? '已选' : '可约')}}</text>
+							<view class="cell-check" v-if="item.isActive">
+								<text>✓</text>
+							</view>
+						</view>
 					</view>
 				</view>
 			</view>
 
 			<!-- 单选时间段 -->
 			<view class="time-grid" v-else>
-				<view
-					v-for="(item,_index) in timeViews"
-					:key="_index"
-					class="time-cell single"
-					:class="item.className"
-					@click="selectTimeEvent(_index,item.source)"
-				>
-					<text class="cell-time">{{item.time}}</text>
-					<text class="cell-status">{{item.disable ? disableText : '可预约'}}</text>
+				<view class="time-row" v-for="row in timeRows" :key="row.key">
+					<view class="time-slot" v-for="item in row.slots" :key="item.key">
+						<view
+							v-if="!item.isPlaceholder"
+							class="time-cell single"
+							:class="item.className"
+							@click="selectTimeEvent(item.index,item.source)"
+						>
+							<text class="cell-time">{{item.time}}</text>
+							<text class="cell-status">{{item.disable ? disableText : '可预约'}}</text>
+						</view>
+					</view>
 				</view>
 			</view>
 		</view>
@@ -139,6 +145,23 @@
 					source: item,
 					className: (item.disable ? 'disable ' : '') + ((this.isQuantum || this.isMultiple ? item.isActive : index === this.timeActive) ? 'active selected' : ''),
 				}));
+			},
+			timeRows() {
+				const items = this.timeViews;
+				const rows = [];
+				for (let start = 0; start < items.length; start += 3) {
+					const slots = [];
+					for (let column = 0; column < 3; column++) {
+						const index = start + column;
+						slots.push(Object.assign({}, items[index], {
+							key: 'time-slot-' + index,
+							index,
+							isPlaceholder: index >= items.length,
+						}));
+					}
+					rows.push({ key: 'time-row-' + start, slots });
+				}
+				return rows;
 			},
 			selectedCount() {
 				let count = 0;
@@ -477,14 +500,26 @@ $border: #EEEEEE;
 // 时间网格
 .time-grid {
 	padding: 4rpx 12rpx 12rpx;
+	box-sizing: border-box;
+}
+
+.time-row {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.time-slot {
+	flex: 1;
+	min-width: 0;
+	padding: 8rpx;
 	box-sizing: border-box;
 }
 
 .time-cell {
-	width: calc(33.333% - 16rpx);
-	margin: 8rpx;
+	width: 100%;
+	margin: 0;
 	box-sizing: border-box;
 	border-radius: 16rpx;
 	display: flex;

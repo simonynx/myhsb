@@ -30,13 +30,15 @@ python tests/parity_backend.py && node tests/parity_frontend.js
 node tests/pricing_display.js
 node tests/home_layout.js
 node tests/booking_selection.js
+node tests/booking_grid.js
 node tests/group_pricing_ui.js
 node tests/room_description_test.js
 ```
 
 - `pricing_display.js`：指定日期的连续两小时起价、营业时段、已占用时段、星期文案、金额精度。
 - `home_layout.js`：首页金额精度、闲时起价、拼豆开关、购票/预约入口、自定义导航栏安全区及胶囊避让。
-- `booking_selection.js`：详情页换日期后价格与余位同步；已约满仍可换日期；已选小时变为不可用后同步清除。
+- `booking_selection.js`：详情页换日期后价格与余位同步；已约满仍可换日期；已选小时变为不可用后同步清除；两个弹窗使用原生 `scroll-view`，只在遮罩/头部/底部拦截滑动，并检查内容自然高度、日期条高度和时段文字不拆行。
+- `booking_grid.js`：固定三格行、末行空位、原始选择索引、跨行选择与禁用状态，防止百分比加外边距取整后掉成两列。
 - `group_pricing_ui.js`：拼团房费分段明细、闲时与组局优惠不重复扣减、旧响应回退及刷新失败保护。
 - `room_description_test.js`：后台/小程序解析一致、旧 HTML 安全保留、未编辑不改写，以及无虚构内容的模板。
 
