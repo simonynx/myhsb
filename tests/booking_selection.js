@@ -63,5 +63,13 @@ Object.entries(Page.computed).forEach(([key, getter]) => Object.defineProperty(i
   assert.deepStrictEqual(picker.orderTimeArr, {});
   assert.strictEqual(picker.timeArr.some(slot => slot.isActive), false);
   assert.strictEqual(emitted[emitted.length - 1][1].length, 0);
-  console.log('Booking selection: availability, price and date-switch regressions passed');
+  const pickerSource = fs.readFileSync(path.join(root, 'components/pretty-times/pretty-times.vue'), 'utf8');
+  const pickerStyle = pickerSource.match(/<style[^>]*>([\s\S]*?)<\/style>/)[1];
+  const rootStyle = pickerStyle.match(/\.content\s*\{([^}]*)\}/)[1];
+  assert(/height:\s*auto\s*;/.test(rootStyle), 'picker must occupy its content height so the following price card cannot overlap the time grid');
+  for (const file of ['pages/product/product.vue', 'pages/tabBar/appoint/appoint.vue']) {
+    const template = fs.readFileSync(path.join(root, file), 'utf8').match(/<template>([\s\S]*?)<\/template>/)[1];
+    assert(/class="panel-times"[\s\S]*?<times[\s\S]*?<\/times>\s*<booking-price\b/.test(template), file + ' must keep the picker and price card in the same scroll area');
+  }
+  console.log('Booking selection: availability, date-switch and popup content-height regressions passed');
 })().catch(error => {console.error(error);process.exitCode = 1;});

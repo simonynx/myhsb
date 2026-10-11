@@ -390,7 +390,7 @@ $border: #EEEEEE;
 /* page selector removed - not allowed in component wxss */
 
 .content {
-	height: 100%;
+	height: auto;
 	display: flex;
 	flex-direction: column;
 	background: #fff;
