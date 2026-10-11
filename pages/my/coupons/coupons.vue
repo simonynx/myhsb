@@ -436,8 +436,7 @@
 				});
 			},
 			goCouponMall() {
-				uni.setStorageSync('voucherInitialTab', 'coupon');
-				uni.switchTab({ url: '/pages/voucher/voucher' });
+				uni.navigateTo({ url: '/pages/voucher/claim' });
 			},
 			prepareCoupon(item, isAvailable) {
 				var coupon = Object.assign({}, item);

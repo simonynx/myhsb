@@ -235,12 +235,15 @@ import AUTH from '../../utils/auth.js';
 import COUPON from '../../utils/coupon.js';
 import SUBSCRIPTION from '../../utils/subscription.js';
 import PLATFORM from '../../common/platform.js';
+import MALL_NAV from '../../utils/mallNavigation.js';
 
 export default {
     data() {
         return {
             order: null,
             entry: '1',
+            mallReturnContext: null,
+            subscriptionOrderConfirmed: false,
             overtime: false,
             countdownText: '',
             paying: false,
@@ -626,6 +629,8 @@ export default {
     },
 
     onLoad(options) {
+        this.mallReturnContext = this.parseMallReturnContext(options);
+        this.subscriptionOrderConfirmed = false;
         if (options.data && options.data !== 'null') {
             try {
                 this.order = JSON.parse(decodeURIComponent(options.data));
@@ -658,6 +663,23 @@ export default {
 
     methods: {
         ...mapActions(['getUserInfo', 'loginAndRegister']),
+
+        parseMallReturnContext(options) {
+            if (!options || typeof options.mall_source !== 'string' || typeof options.mall_return_url !== 'string') return null;
+            try {
+                var source = decodeURIComponent(options.mall_source);
+                var route = source === 'ticket_checkout' ? '/pages/ticket/buy'
+                    : source === 'room_checkout' ? '/pages/order/createOrder' : '';
+                if (!route) return null;
+                // uni may already decode the outer query; keep escaped checkout query values intact.
+                var decodedUrl = decodeURIComponent(options.mall_return_url);
+                var returnUrl = options.mall_return_url.charAt(0) === '/' ? options.mall_return_url : decodedUrl;
+                if (returnUrl.split('?')[0] !== route || /[\\\x00-\x20#]/.test(returnUrl)) return null;
+                return { source: source, returnUrl: returnUrl };
+            } catch (e) {
+                return null;
+            }
+        },
 
         formatMoney(amount) {
             return (Number(amount || 0) / 100).toFixed(2);
@@ -741,6 +763,7 @@ export default {
                 }
                 _this.normalizeOrderGoodsInfo(order);
                 _this.order = order;
+                _this.subscriptionOrderConfirmed = order.order_type === 7;
                 _this.initPayment({ entry: '3' });
             }).catch(function(err) {
                 uni.hideLoading();
@@ -1079,6 +1102,13 @@ export default {
         },
 
         goSuccess() {
+            if (this.subscriptionOrderConfirmed && this.order && this.order.order_type === 7 && this.mallReturnContext) {
+                uni.$emit('subscriptionPurchased', {
+                    card_id: this.subscriptionOrderCard.object_id || this.orderGoodsInfo.subscription_card_id || '',
+                    target_type: this.subscriptionOrderTargetType
+                });
+                if (MALL_NAV.resumeCheckout(this.mallReturnContext)) return;
+            }
             const amount = this.orderTotalAmount;
             const id = (this.order && this.order.object_id) || '';
             const orderType = Number(this.order && this.order.order_type);

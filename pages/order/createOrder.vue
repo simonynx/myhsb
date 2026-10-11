@@ -392,6 +392,7 @@ import AUTH from '../../utils/auth.js';
 import COUPON from '../../utils/coupon.js';
 import OFFPEAK from '../../utils/offpeak.js';
 import SUBSCRIPTION from '../../utils/subscription.js';
+import MALL_NAV from '../../utils/mallNavigation.js';
 
 function getHourFromDateTime(value) {
     const text = String(value || '');
@@ -1065,6 +1066,9 @@ export default {
             this.selectTimes.push(`${pre}~${next}`);
         }
 
+        // switchTab 会卸载结算页；仅恢复本地输入，优惠与卡包仍走正常校验。
+        const checkoutDraft = MALL_NAV.takeCheckoutDraft('room_checkout', option && option.mall_return_id);
+        const addonIds = this.restoreCheckoutDraft(checkoutDraft);
         this.singlePersonPrice = this.currentProduct.price_per_person || 0;
         // 夜场闲时价命中时默认展开增值服务，顺手引导加购小食
         if (this.isNightOffpeak) this.addonsOpen = true;
@@ -1072,7 +1076,10 @@ export default {
         this.$store.dispatch('getConstanceInfo').catch(() => {});
         this.loadMyCoupons();
         this.loadMySubscriptions();
-        this.loadRoomAddons();
+        this.loadRoomAddons().then(() => {
+            // 从最新服务目录恢复选择，不能复用购卡前的服务价格。
+            if (addonIds.length) this.selectedAddons = this.roomAddons.filter(addon => addonIds.indexOf(addon.object_id) >= 0);
+        });
     },
 
     onUnload() {
@@ -1083,6 +1090,24 @@ export default {
 
     methods: {
         ...mapActions(['loginAndRegister', 'getUserInfo']),
+
+        getBookingSignature() {
+            const state = this.$store && this.$store.state || {};
+            const selectItem = state.currentSelectItem || {};
+            const room = state.currentRoom || {};
+            const selects = this.currentProduct && this.currentProduct.selects || selectItem.selects || room.selects || [];
+            return JSON.stringify(selects);
+        },
+
+        restoreCheckoutDraft(draft) {
+            if (!draft || !this.currentProduct || draft.roomId !== this.currentProduct.object_id ||
+                draft.bookingSignature !== this.getBookingSignature()) return [];
+            const count = Number(draft.numOfPeople);
+            const max = Number(this.currentProduct.seats_count) || 10;
+            if (Number.isInteger(count) && count >= 1 && count <= max) this.numOfPeople = count;
+            if (typeof draft.desc === 'string') this.desc = draft.desc;
+            return Array.isArray(draft.selectedAddonIds) ? draft.selectedAddonIds : [];
+        },
 
         // 加载我的优惠券
         async loadMyCoupons() {
@@ -1196,7 +1221,17 @@ export default {
                 page_path: 'pages/order/createOrder',
                 source: 'room_checkout'
             }, this.token).catch(function() {});
-            uni.navigateTo({ url: '/pages/user/subscription/buy?source=room_checkout&target_type=2&amount=' + amount });
+            MALL_NAV.openCardMall({
+                source: 'room_checkout', targetType: 2, amount, returnToCheckout: true,
+                returnUrl: '/pages/order/createOrder',
+                returnDraft: {
+                    roomId: this.currentProduct && this.currentProduct.object_id,
+                    bookingSignature: this.getBookingSignature(),
+                    numOfPeople: this.numOfPeople,
+                    desc: this.desc,
+                    selectedAddonIds: this.selectedAddons.map(addon => addon.object_id)
+                }
+            });
         },
 
         // 打开优惠券选择面板

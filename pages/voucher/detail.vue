@@ -1,5 +1,13 @@
 <template>
-	<view class="page-wrapper" v-if="currentGoods">
+	<view class="page-wrapper">
+		<view class="info-card refresh-state" v-if="goodsLoading || goodsError || goodsUnavailable">
+			<text v-if="goodsLoading">正在核对最新商品、价格与库存，请稍候</text>
+			<text v-else-if="goodsUnavailable">商品已下架或暂不可购买</text>
+			<text v-else>{{ goodsError }}</text>
+			<view class="purchase-state-action" v-if="!goodsLoading && goodsId" @tap="refreshGoods">重新加载</view>
+			<view class="purchase-state-action" @tap="goBack">返回</view>
+		</view>
+		<block v-if="currentGoods">
 		<!-- 顶部天空 -->
 		<view class="sky-header">
 			<view class="cloud cloud-1">
@@ -36,6 +44,10 @@
 			<view class="info-row">
 				<text class="info-label">有效期</text>
 				<text class="info-value">{{ validityText }}</text>
+			</view>
+			<view class="info-row" v-if="isCouponGoods">
+				<text class="info-label">到账后查看</text>
+				<text class="info-value" @tap="goMyCoupons">我的优惠券</text>
 			</view>
 			<view class="info-row" v-if="currentGoods.description">
 				<text class="info-label">详情</text>
@@ -105,9 +117,10 @@
 					<text class="hint-text">还差 {{ pointsShortfall }} 积分，攒够后可用积分加现金购买。</text>
 				</view>
 				<view class="price-row final">
-					<text class="row-label">实付金额</text>
+					<text class="row-label">商品组合价</text>
 					<text class="row-value final-price">¥{{ actualPrice }} + {{ currentGoods.points_price || 0 }} 积分</text>
 				</view>
+				<view class="hint-row"><text class="hint-text">积分为额外消耗，不抵扣商品现金部分；实际现金金额按结算核定。</text></view>
 			</block>
 
 			<!-- 纯现金 -->
@@ -152,7 +165,7 @@
 					<text class="price-unit">积分</text>
 				</block>
 				<block v-else-if="currentGoods.exchange_type === 3">
-					<text>实付款</text>
+					<text>组合价</text>
 					<text class="price-tip">¥</text>
 					<text class="price">{{ actualPrice }}</text>
 					<text class="price-tip">+{{ currentGoods.points_price || 0 }}积分</text>
@@ -171,12 +184,14 @@
 				<text>{{ submitButtonText }}</text>
 			</view>
 		</view>
+		</block>
 	</view>
 </template>
 
 <script>
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
+import GOODS_FULFILLMENT from '../../utils/goodsFulfillment.js';
 
 export default {
 	computed: {
@@ -203,13 +218,6 @@ export default {
 			}
 			return ((this.currentGoods.price || 0) / 100).toFixed(2);
 		},
-		pointsDiscountMoney() {
-			if (!this.currentGoods || this.currentGoods.exchange_type !== 3) return '0.00';
-			var pointsPrice = this.currentGoods.points_price || 0;
-			var pointsToFen = (this.safeUserInfo.points_config && this.safeUserInfo.points_config.points_to_fen) || 1;
-			var discount = Math.min(this.currentGoods.price || 0, pointsPrice * pointsToFen);
-			return (discount / 100).toFixed(2);
-		},
 		pointsEnough() {
 			if (!this.currentGoods) return true;
 			// 纯积分或混合商品都需要判断积分
@@ -234,6 +242,8 @@ export default {
 			return Number(this.currentGoods.max_buy_per_user || 0) > 0 && this.userBoughtCount >= Number(this.currentGoods.max_buy_per_user);
 		},
 		purchaseStateTitle() {
+			if (this.goodsLoading) return '正在核对商品';
+			if (this.goodsError || this.goodsUnavailable) return '商品暂不可购买';
 			if (this.soldOut) return '本期已售罄';
 			if (this.limitReached) return '本期限购已达上限';
 			if (!this.memberLevelEnough) return '会员等级暂未达到';
@@ -243,12 +253,14 @@ export default {
 			return '当前可购买';
 		},
 		purchaseStateDescription() {
+			if (this.goodsLoading) return '以最新价格、库存和兑换条件为准';
+			if (this.goodsError || this.goodsUnavailable) return '请重新加载后再下单';
 			if (this.soldOut) return '库存补充后可再次购买，请稍后再来看看';
 			if (this.limitReached) return '本周期购买次数已经用完';
 			if (!this.memberLevelEnough) return '需 ' + this.getMemberLevelName(this.currentGoods.member_level_required) + ' 及以上';
 			if (!this.pointsEnough) return '签到和到店消费都能继续累积积分';
 			if (this.currentGoods && this.currentGoods.exchange_type === 2) {
-				return this.isCouponGoods ? '兑换后自动放入卡券包，下单时选择使用' : '兑换后可在订单列表查看和到店使用';
+				return this.isCouponGoods ? '到账状态请在我的优惠券查看，适用时可用于下次结算' : '门店领取、不配送，出示订单号由店员确认领取';
 			}
 			if (this.currentGoods && this.currentGoods.exchange_type === 3) return '需 ' + Number(this.currentGoods.points_price || 0) + ' 积分 + ¥' + this.actualPrice;
 			return this.canUseBalance ? '支持余额抵扣，剩余金额微信支付' : '确认后进入支付页';
@@ -261,6 +273,9 @@ export default {
 			return !this.pointsEnough && !this.soldOut && !this.limitReached && this.memberLevelEnough;
 		},
 		submitButtonText() {
+			if (this.goodsLoading) return '核对中';
+			if (this.submitting) return '提交中';
+			if (this.goodsError || this.goodsUnavailable) return '暂不可购买';
 			if (this.soldOut) return '已售罄';
 			if (this.limitReached) return '已达上限';
 			if (!this.memberLevelEnough) return '等级不足';
@@ -279,14 +294,14 @@ export default {
 			return this.currentGoods.exchange_type === 1 && this.currentGoods.can_use_balance;
 		},
 		isCouponGoods() {
-			return !!this.currentGoods && Number(this.currentGoods.goods_type) === 5;
+			return GOODS_FULFILLMENT.isCouponGoods(this.currentGoods);
 		},
 		usageScopeText() {
-			if (this.isCouponGoods) return '兑换后放入卡券包，包厢预约或大厅票结算时选择使用';
-			return '到店出示订单即可使用';
+			if (this.isCouponGoods) return '到账后在我的优惠券查看，适用范围和使用门槛以实际到账券为准';
+			return '门店领取，不配送；额外付费商品，与门票包含的免费茶水不同';
 		},
 		validityText() {
-			if (this.isCouponGoods) return '兑换后30天内有效';
+			if (this.isCouponGoods) return '以实际到账券为准';
 			var start = this.currentGoods && this.currentGoods.validity_period_start;
 			var end = this.currentGoods && this.currentGoods.validity_period_end;
 			if (start && end) return this.formatDate(start) + ' ~ ' + this.formatDate(end);
@@ -316,6 +331,7 @@ export default {
 			return map[this.currentGoods.exchange_type] || 'cash';
 		},
 		submitDisabled() {
+			if (this.goodsLoading || this.goodsError || this.goodsUnavailable || this.submitting || !this.goodsVerified) return true;
 			if (!this.currentGoods) return true;
 			if (this.soldOut || !this.memberLevelEnough) return true;
 			// 限购预拦截
@@ -332,25 +348,46 @@ export default {
 	data() {
 		return {
 			currentGoods: null,
+			goodsId: '',
+			goodsLoading: false,
+			goodsVerified: false,
+			goodsError: '',
+			goodsUnavailable: false,
+			submitting: false,
 			useBalance: false,
 			balancePreferenceTouched: false,
 			userBoughtCount: 0,
 		};
 	},
 	onLoad(option) {
+		// Route data identifies the item only: never use its price, stock or rights.
+		option = option || {};
+		this.goodsId = option.id || option.goods_id || '';
 		try {
-			if (option.data) {
-				this.currentGoods = JSON.parse(decodeURIComponent(option.data));
-				this.userBoughtCount = this.currentGoods.user_bought_count || 0;
-				this.useBalance = this.canUseBalance && Number(this.safeUserInfo.account_balance || 0) > 0;
+			if (!this.goodsId && option.data) {
+				var routedGoods;
+				try { routedGoods = JSON.parse(option.data); }
+				catch (e) { routedGoods = JSON.parse(decodeURIComponent(option.data)); }
+				this.goodsId = routedGoods.object_id || '';
 			}
 		} catch (e) {
-			console.error('商品数据解析失败', e);
-			uni.showToast({ title: '商品数据异常', icon: 'none' });
+			this.goodsError = '商品信息异常，请返回重新选择';
 		}
+		this.refreshGoods();
 	},
-	onShow() {
-		if (this.token) {
+		watch: {
+			token() {
+				if (!this._unloaded && this.goodsId && !this.submitting) this.refreshGoods();
+			},
+		},
+		onUnload() {
+			this._unloaded = true;
+			this._goodsRequest = (this._goodsRequest || 0) + 1;
+			this.goodsVerified = false;
+		},
+		onShow() {
+			if (this.goodsId && !this.submitting) this.refreshGoods();
+			if (this.token) {
 			this.getUserInfo(true).then(() => {
 				if (!this.balancePreferenceTouched) {
 					this.useBalance = this.canUseBalance && Number(this.safeUserInfo.account_balance || 0) > 0;
@@ -360,6 +397,47 @@ export default {
 	},
 	methods: {
 		...mapActions(['loginAndRegister', 'getUserInfo']),
+
+		async refreshGoods() {
+			if (this._unloaded) return;
+			var token = this.token;
+			var goodsId = this.goodsId;
+			var request = (this._goodsRequest || 0) + 1;
+			this._goodsRequest = request;
+			this.goodsVerified = false;
+			this.currentGoods = null;
+			this.goodsUnavailable = false;
+			if (!this.goodsId) {
+				this.goodsError = '商品信息异常，请返回重新选择';
+				return;
+			}
+			this.goodsLoading = true;
+			this.goodsError = '';
+			try {
+				var res = await AUTH.getGoodsList(token);
+				if (this._unloaded || request !== this._goodsRequest || token !== this.token || goodsId !== this.goodsId) return;
+				if (!res || res._status !== 0 || !res.data || !Array.isArray(res.data.goods)) throw new Error('invalid goods response');
+				var goods = res.data.goods.find(item => String(item.object_id) === String(this.goodsId));
+				if (!goods || goods.is_active === false || goods.enabled === false) {
+					this.goodsUnavailable = true;
+					return;
+				}
+				this.currentGoods = goods;
+				this.goodsVerified = true;
+				this.userBoughtCount = Number(goods.user_bought_count || 0);
+				if (!this.balancePreferenceTouched) this.useBalance = this.canUseBalance && Number(this.safeUserInfo.account_balance || 0) > 0;
+				AUTH.trackEvent({ event: 'goods_view', page_path: 'pages/voucher/detail', goods_id: goods.object_id,
+					fulfillment_kind: this.isCouponGoods ? 'coupon' : 'pickup', source: 'goods_detail' }, this.token).catch(function() {});
+			} catch (e) {
+				if (!this._unloaded && request === this._goodsRequest && token === this.token) this.goodsError = '商品加载失败，请重试';
+			} finally {
+				if (!this._unloaded && request === this._goodsRequest) this.goodsLoading = false;
+			}
+		},
+
+		goMyCoupons() {
+			uni.navigateTo({ url: '/pages/my/coupons/coupons?tab=unused' });
+		},
 
 		goBack() {
 			uni.navigateBack();
@@ -388,15 +466,21 @@ export default {
 		},
 
 		handleSubmit() {
+			if (this.goodsLoading || this.goodsError || this.goodsUnavailable || !this.goodsVerified || this.submitting) return;
 			if (!this.hasLogin) {
 				uni.showModal({
 					title: '提示',
 					content: '请先登录再下单',
 					success: (res) => {
 						if (res.confirm) {
-							this.loginAndRegister().then(() => {
-								this.getUserInfo();
-							});
+							this.goodsVerified = false;
+							this.loginAndRegister().then(() => this.getUserInfo(true))
+								.then(() => this.refreshGoods()).catch(() => {
+									if (!this._unloaded) {
+										this.goodsError = '登录或账户更新未完成，请点击重试后继续';
+										this.goodsLoading = false;
+									}
+								});
 						}
 					}
 				});
@@ -436,6 +520,8 @@ export default {
 					uni.showToast({ title: '积分不足', icon: 'none' });
 					return;
 				}
+				this.submitting = true;
+				AUTH.trackEvent({ event: 'exchange_click', page_path: 'pages/voucher/detail', goods_id: goods.object_id, fulfillment_kind: this.isCouponGoods ? 'coupon' : 'pickup' }, this.token).catch(function() {});
 				uni.showLoading({ title: '兑换中...' });
 				var param = {
 					order_type: 5,
@@ -448,16 +534,15 @@ export default {
 						uni.showToast({ title: (res && res._reason) || '兑换失败', icon: 'none' });
 						return;
 					}
-					var successContent = Number(goods.goods_type) === 5
-						? '已成功兑换「' + goods.name + '」，优惠券已放入卡券包，下单时可选择使用'
-						: '已成功兑换「' + goods.name + '」，可在订单列表查看';
+					var delivery = GOODS_FULFILLMENT.goodsFulfillmentView(res.data);
+					var successContent = '兑换记录已生成，' + delivery.title + '。请查看订单或实际到账券。';
 					uni.showModal({
 						title: '✨ 兑换成功',
 						content: successContent,
 						showCancel: false,
 						success: () => {
 							this.getUserInfo();
-							var exchangeKind = Number(goods.goods_type) === 5 ? 'coupon' : 'goods';
+							var exchangeKind = this.isCouponGoods ? 'coupon' : 'goods';
 							uni.redirectTo({
 								url: '/pages/pay/success/success?amount=0&id=' + encodeURIComponent(res.data.object_id || '')
 									+ '&type=exchange&kind=' + exchangeKind
@@ -467,11 +552,12 @@ export default {
 				}).catch(() => {
 					uni.hideLoading();
 					uni.showToast({ title: '兑换失败', icon: 'none' });
-				});
+				}).finally(() => { this.submitting = false; });
 				return;
 			}
 
 			// 现金购买 或 积分+现金混合
+			this.submitting = true;
 			uni.showLoading({ title: '创建订单中...' });
 			var param = { order_type: 3, goods_id: goods.object_id };
 			if (goods.exchange_type === 3 && goods.points_price) {
@@ -493,7 +579,7 @@ export default {
 						success: () => {
 							this.getUserInfo();
 							uni.redirectTo({
-								url: '/pages/pay/success/success?amount=' + (goods.price || 0) + '&id=' + encodeURIComponent(res.data.object_id || '') + '&type=order'
+								url: '/pages/pay/success/success?amount=' + (goods.price || 0) + '&id=' + encodeURIComponent(res.data.object_id || '') + '&type=voucher'
 							});
 						},
 					});
@@ -505,7 +591,7 @@ export default {
 			}).catch(err => {
 				uni.hideLoading();
 				uni.showToast({ title: err || '创建订单失败', icon: 'none' });
-			});
+			}).finally(() => { this.submitting = false; });
 		},
 	},
 };
@@ -892,5 +978,13 @@ page {
 			color: #FFF;
 		}
 	}
+}
+.info-card.refresh-state {
+	margin: 32rpx 24rpx;
+	display: flex;
+	flex-direction: column;
+	gap: 24rpx;
+	font-size: 28rpx;
+	line-height: 1.6;
 }
 </style>

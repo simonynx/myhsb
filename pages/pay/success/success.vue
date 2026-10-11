@@ -13,6 +13,14 @@
 			</view>
 		</view>
 
+		<view class="tip-card fulfillment-card" v-if="isGoodsSuccess">
+			<text class="tip-title">{{ fulfillmentTitle }}</text>
+			<text class="tip-text">{{ fulfillmentDescription }}</text>
+			<text class="tip-text" v-if="confirmedOrderNumber">订单号：{{ confirmedOrderNumber }}</text>
+			<text class="tip-text" v-if="fulfillment.receivedAtText">实际领取时间：{{ fulfillment.receivedAtText }}</text>
+			<view class="next-sub" v-if="!orderLoading" @tap="loadOrderBenefit">刷新订单状态</view>
+		</view>
+
 		<view class="next-card">
 			<view class="next-title">接下来可以</view>
 			<view class="next-sub">{{ nextSubtitle }}</view>
@@ -27,7 +35,7 @@
 				</view>
 				<view class="action-item" @click="goVoucher">
 					<text class="action-icon">🌟</text>
-					<text class="action-text">积分换好礼</text>
+					<text class="action-text">查看积分福利</text>
 				</view>
 				<view class="action-item" @click="goCheckIn">
 					<text class="action-icon">⭐</text>
@@ -57,6 +65,7 @@
 
 <script>
 import AUTH from '../../../utils/auth.js';
+import GOODS_FULFILLMENT from '../../../utils/goodsFulfillment.js';
 import { mapState } from 'vuex';
 
 export default {
@@ -68,6 +77,9 @@ export default {
 			orderId: '',
 			type: 'order',
 			exchangeKind: '',
+			confirmedOrder: null,
+			orderLoading: false,
+			orderError: '',
 			inviteCode: '',
 			benefitText: '',
 			benefitRetryCount: 0,
@@ -76,21 +88,44 @@ export default {
 	},
 	computed: {
 		...mapState(['token', 'userInfo']),
+		isGoodsSuccess() {
+			if (this.confirmedOrder) return [3, 5].indexOf(Number(this.confirmedOrder.order_type)) >= 0;
+			return this.type === 'exchange' || this.type === 'voucher';
+		},
+		fulfillment() {
+			return GOODS_FULFILLMENT.goodsFulfillmentView(this.confirmedOrder);
+		},
+		fulfillmentTitle() {
+			if (this.orderLoading) return '正在核对订单与领取状态';
+			if (this.orderError) return '领取状态暂未确认';
+			return this.fulfillment.title;
+		},
+		fulfillmentDescription() {
+			if (this.orderLoading) return '以实际订单和到账记录为准，请稍候。';
+			if (this.orderError) return this.orderError;
+			return this.fulfillment.description;
+		},
+		confirmedOrderNumber() {
+			return this.confirmedOrder && this.confirmedOrder.order_number ? this.confirmedOrder.order_number : '';
+		},
 		amountText() {
 			if (this.type === 'exchange' && Number(this.amount || 0) <= 0) return '';
 			if (!this.amount && this.amount !== 0) return '';
 			return (Number(this.amount || 0) / 100).toFixed(2);
 		},
 		title() {
-			if (this.type === 'exchange') return '兑换成功';
+			if (this.isGoodsSuccess) {
+				if (this.orderLoading) return '核对订单中';
+				if (this.orderError || !this.confirmedOrder) return '订单状态待确认';
+				if (Number(this.confirmedOrder.order_status) !== 1) return this.fulfillment.title;
+				return this.type === 'exchange' ? '兑换成功' : '支付成功';
+			}
 			if (this.type === 'recharge') return '充值成功';
 			if (this.type === 'subscription') return '购买成功';
 			return '支付成功';
 		},
 		subtitle() {
-			if (this.type === 'exchange' && this.exchangeKind === 'coupon') return '优惠券已放入卡券包，下单结算时选择使用';
-			if (this.type === 'exchange' && this.exchangeKind === 'goods') return '兑换记录已生成，到店后出示订单领取';
-			if (this.type === 'exchange') return '兑换权益已到账，可在订单或卡券包中查看';
+			if (this.isGoodsSuccess) return this.fulfillmentDescription;
 			if (this.type === 'recharge') return '余额已经到账，下一次预约可以直接抵扣';
 			if (this.type === 'subscription') return '卡包权益已经到账，有效期从购买当天开始';
 			if (this.type === 'ticket') return '门票已放入票包，可以自己用，也可以转赠好友一起约';
@@ -110,23 +145,24 @@ export default {
 			return parts.join(' · ');
 		},
 		nextSubtitle() {
+			if (this.isGoodsSuccess) return '领取或到账以实际订单为准；积分福利适用时可留给下次，不必马上购买';
 			if (this.type === 'recharge') return '查看余额、预约房间，把这次充值用得更值';
 			if (this.type === 'subscription') return '查看剩余额度，或直接安排下一次到店';
 			if (this.type === 'ticket') return '查看票包、送朋友，或看看组局广场有没有人差位';
 			return '查看订单、领券签到，下次再来更省心';
 		},
 		primaryIcon() {
+			if (this.isGoodsSuccess) return !this.orderLoading && !this.orderError && this.fulfillment.action === 'coupons' ? '🎟️' : '📋';
 			if (this.type === 'recharge') return '💎';
 			if (this.type === 'subscription') return '🎟️';
 			if (this.type === 'ticket') return '🎫';
-			if (this.type === 'exchange' && this.exchangeKind === 'coupon') return '🎟️';
 			return '📋';
 		},
 		primaryText() {
+			if (this.isGoodsSuccess) return !this.orderLoading && !this.orderError ? this.fulfillment.actionText : '去我的订单';
 			if (this.type === 'recharge') return '查看余额';
 			if (this.type === 'subscription') return '查看卡包';
 			if (this.type === 'ticket') return '查看票包';
-			if (this.type === 'exchange' && this.exchangeKind === 'coupon') return '查看卡券';
 			return '查看订单';
 		},
 		secondaryIcon() {
@@ -148,8 +184,7 @@ export default {
 			if (this.type === 'recharge') return '充值本金和赠送余额会一起进入账户；预约消费可使用，次卡/月卡除外。';
 			if (this.type === 'subscription') return '卡包已含套餐优惠，购买时不叠加余额、优惠券、积分或会员折扣。';
 			if (this.type === 'ticket') return '门票未核销且未过期可退；想约朋友时，可在票包里把未使用门票转赠出去。';
-			if (this.type === 'exchange' && this.exchangeKind === 'coupon') return '优惠券有效期和使用门槛以卡券包显示为准，结算时会展示当前可用券。';
-			if (this.type === 'exchange') return '实物商品请凭兑换记录到店领取，领取前可联系店员确认库存。';
+			if (this.isGoodsSuccess) return this.fulfillmentDescription;
 			return '到店后出示订单即可核验；如需布置或补给，建议提前联系店员确认。';
 		},
 		sharePath() {
@@ -224,17 +259,44 @@ export default {
 			}.bind(this)).catch(function() {});
 		},
 		loadOrderBenefit() {
-			if (!this.orderId || this.type === 'recharge' || this.type === 'exchange') return;
+			if (this.type === 'recharge') return;
+			this.benefitText = '';
+			if (!this.orderId) {
+				this.orderError = '缺少订单编号，请去我的订单查看，领取记录待店员确认。';
+				return;
+			}
 			var token = this.token || uni.getStorageSync('token');
-			if (!token) return;
-			AUTH.getOrderList(-1, token).then(function(res) {
-				var data = res && res.data;
+			if (!token) {
+				this.orderError = '请登录后在我的订单核对领取或到账状态。';
+				return;
+			}
+			var request = (this._orderRequest || 0) + 1;
+			this._orderRequest = request;
+			this.orderLoading = true;
+			this.orderError = '';
+			this.confirmedOrder = null;
+			return AUTH.getOrderList(-1, token).then(function(res) {
+				if (request !== this._orderRequest) return;
+				if (!res || res._status !== 0 || !res.data || !Array.isArray(res.data.orders)) throw new Error('invalid order response');
+				var data = res.data;
 				var orders = data && data.orders ? data.orders : [];
 				var order = orders.find(function(item) {
 					return String(item.object_id || '') === String(this.orderId)
 						|| String(item.order_number || '') === String(this.orderId);
 				}.bind(this));
-				if (order) {
+				if (!order) {
+					this.orderError = '暂未找到这笔订单，请去我的订单核对或联系店员。';
+					return;
+				}
+				this.confirmedOrder = order;
+				if (this.isGoodsSuccess) {
+					var summary = this.fulfillment;
+					AUTH.trackEvent({ event: 'goods_delivery_summary', page_path: 'pages/pay/success/success',
+						order_id: order.object_id, fulfillment_kind: summary.kind, fulfillment_status: summary.status,
+						_dedupe_key: 'goods_delivery:' + order.object_id + ':' + summary.status,
+						_dedupe_ttl_ms: 24 * 60 * 60 * 1000 }, token).catch(function() {});
+				}
+				if (Number(order.order_status) === 1) {
 					var goodsInfo = order.goodsInfo || order.goods_info || {};
 					var context = goodsInfo.context || goodsInfo;
 					var growth = context.consume_growth || {};
@@ -253,7 +315,7 @@ export default {
 					if (firstCoupon && firstCoupon.name) {
 						benefitParts.push(firstCoupon.name);
 					}
-					if (context.granted_coupon_id) {
+					if (context.granted_coupon_id && (!this.isGoodsSuccess || this.fulfillment.status === 'issued')) {
 						benefitParts.push('商城兑换券已放入卡券包');
 					}
 					if (benefitParts.length > 0) {
@@ -261,9 +323,12 @@ export default {
 						return;
 					}
 				}
-				this.retryOrderBenefit();
+				if (!this.isGoodsSuccess) this.retryOrderBenefit();
 			}.bind(this)).catch(function() {
-				this.retryOrderBenefit();
+				if (request === this._orderRequest) this.orderError = '订单加载失败，请刷新或去我的订单核对，暂不确认领取或到账。';
+				if (!this.isGoodsSuccess) this.retryOrderBenefit();
+			}.bind(this)).finally(function() {
+				if (request === this._orderRequest) this.orderLoading = false;
 			}.bind(this));
 		},
 		retryOrderBenefit() {
@@ -284,8 +349,12 @@ export default {
 			}.bind(this)).catch(function() {});
 		},
 		goOrder() {
-			if (this.type === 'exchange' && this.exchangeKind === 'coupon') {
-				uni.redirectTo({ url: '/pages/my/coupons/coupons?tab=unused' });
+			if (this.isGoodsSuccess) {
+				if (this.confirmedOrder && !this.orderLoading && !this.orderError && this.fulfillment.action === 'coupons') {
+					uni.redirectTo({ url: '/pages/my/coupons/coupons?tab=unused' });
+				} else {
+					uni.redirectTo({ url: this.orderId ? '/pages/order/order?state=0&id=' + encodeURIComponent(this.orderId) : '/pages/order/order?state=0' });
+				}
 				return;
 			}
 			if (this.type === 'recharge') {
@@ -305,7 +374,7 @@ export default {
 				uni.redirectTo({ url: '/pages/ticket/list' });
 				return;
 			}
-			const url = this.orderId ? '/pages/order/order?state=0&id=' + this.orderId : '/pages/order/order?state=0';
+			const url = this.orderId ? '/pages/order/order?state=0&id=' + encodeURIComponent(this.orderId) : '/pages/order/order?state=0';
 			uni.redirectTo({ url });
 		},
 		goVoucher() {

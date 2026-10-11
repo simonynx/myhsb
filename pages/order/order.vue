@@ -31,8 +31,8 @@
 							<text class="order-number">No.{{ item.order_number }}</text>
 						</view>
 					</view>
-					<view :class="item.statusClass">
-						<text>{{ item.stateTip }}</text>
+					<view class="status-badge" :class="item.order_status === 1 && goodsFulfillmentEntries[item.object_id] ? goodsFulfillmentEntries[item.object_id].className : item.statusClass">
+						<text>{{ item.order_status === 1 && goodsFulfillmentEntries[item.object_id] ? goodsFulfillmentEntries[item.object_id].title : item.stateTip }}</text>
 					</view>
 				</view>
 
@@ -43,6 +43,13 @@
 						<text class="summary-label">{{ row.label }}</text>
 						<text :class="row.valueClass">{{ row.value }}</text>
 					</view>
+				</view>
+
+				<!-- 商品支付与领取分开展示，仅服务端履约记录可确认已领取/到账 -->
+				<view class="goods-fulfillment" v-if="goodsFulfillmentEntries[item.object_id]">
+					<text class="goods-fulfillment-title">{{ goodsFulfillmentEntries[item.object_id].title }}</text>
+					<text class="goods-fulfillment-hint">{{ goodsFulfillmentEntries[item.object_id].description }}</text>
+					<text class="goods-fulfillment-link" v-if="goodsFulfillmentEntries[item.object_id].action === 'coupons'" @tap.stop="goFulfillmentCoupons(item)">我的优惠券 ›</text>
 				</view>
 
 				<view class="order-detail-body" v-if="item.expanded">
@@ -280,6 +287,16 @@
 					<text class="detail-toggle-arrow">{{ item.detailToggleArrow }}</text>
 				</view>
 
+				<!-- 自愿到店补给，不替代订单已有增值服务 -->
+				<view class="supply-entry" v-if="supplyEntryIds[item.object_id]" @tap.stop="goToSupply(item)">
+					<view class="supply-entry-head">
+						<text class="supply-entry-title">到店补给</text>
+						<text class="supply-entry-link">自愿选购 ›</text>
+					</view>
+					<text class="supply-entry-hint">额外付费饮品/餐食 · 门票已含零食茶水</text>
+					<text class="supply-entry-hint">到店自取，不提供配送</text>
+				</view>
+
 				<!-- 操作按钮 -->
 				<view class="action-section" v-if="item.order_status === 0">
 					<view class="countdown-tip" v-if="item.end_time && item.countdownText">{{ item.countdownText }}</view>
@@ -314,6 +331,7 @@
 	import { mapState, mapActions } from 'vuex';
 	import AUTH from '../../utils/auth.js';
 	import SUBSCRIPTION from '../../utils/subscription.js';
+	import GOODS_FULFILLMENT from '../../utils/goodsFulfillment.js';
 	import { formatDate, formatDateTime } from '../../common/util.js';
 
 	const ORDER_TYPE_MAP = {
@@ -341,6 +359,23 @@
 			},
 			currentOrders() {
 				return this.navList[this.tabCurrentIndex] && this.navList[this.tabCurrentIndex].orderList || [];
+			},
+			goodsFulfillmentEntries() {
+				var entries = {};
+				if (!this.hasLogin) return entries;
+				this.currentOrders.forEach(function(item) {
+					if (!item.object_id || [3, 5].indexOf(Number(item.order_type)) === -1) return;
+					entries[item.object_id] = GOODS_FULFILLMENT.goodsFulfillmentView(item);
+				});
+				return entries;
+			},
+			supplyEntryIds() {
+				var ids = {};
+				if (!this.hasLogin) return ids;
+				this.currentOrders.forEach(function(item) {
+					if (this.canShowSupplyEntry(item)) ids[item.object_id] = true;
+				}.bind(this));
+				return ids;
 			},
 			hasMore() {
 				return false; // 目前没有分页
@@ -763,6 +798,44 @@
 					item.perlerUpgradeRemaining = remaining;
 					item.canPerlerUpgrade = remaining > 0;
 				}
+			},
+			canShowSupplyEntry(item) {
+				// SUCCESS 才是已支付；仅预约/门票，不向卡包、商品或退款订单推补给。
+				if (!item || Number(item.order_status) !== 1 || !item.object_id) return false;
+				var type = Number(item.order_type);
+				var goodsInfo = item.goodsInfo || {};
+				if (type === 1) {
+					var date = goodsInfo.date || item.date;
+					var slots = goodsInfo.time_list || item.time_list || [];
+					if (!date || !slots.length) return false;
+					var lastSlot = slots[slots.length - 1];
+					if (!lastSlot || !lastSlot[1]) return false;
+					var end = new Date((date + ' ' + lastSlot[1] + ':00').replace(/-/g, '/'));
+					return isFinite(end.getTime()) && end.getTime() >= Date.now();
+				}
+				if (type !== 6) return false;
+				var variant = item.ticketVariant || item.ticket_variant || goodsInfo.ticket_variant;
+				if (variant === 'perler_upgrade' || item.includes_entry === false || goodsInfo.includes_entry === false) return false;
+				if (!item.verified_at) {
+					if (!item.expire_at) return true;
+					var expiry = new Date(item.expire_at < 1e12 ? item.expire_at * 1000 : item.expire_at);
+					return isFinite(expiry.getTime()) && !this.isExpiredTime(item.expire_at);
+				}
+				// 已核销门票只在到店当天展示，不向历史消费重复推荐。
+				var visit = new Date(item.verified_at < 1e12 ? item.verified_at * 1000 : item.verified_at);
+				var now = new Date();
+				return visit.getFullYear() === now.getFullYear()
+					&& visit.getMonth() === now.getMonth() && visit.getDate() === now.getDate();
+			},
+			goToSupply(item) {
+				if (!this.hasLogin || !this.canShowSupplyEntry(item)) return;
+				uni.navigateTo({ url: '/pages/voucher/supply?source=order&order_id=' + encodeURIComponent(item.object_id) });
+			},
+			goFulfillmentCoupons(item) {
+				if (!this.hasLogin || !item || [3, 5].indexOf(Number(item.order_type)) === -1) return;
+				var view = GOODS_FULFILLMENT.goodsFulfillmentView(item);
+				if (view.action !== 'coupons' || view.status !== 'issued') return;
+				uni.navigateTo({ url: '/pages/my/coupons/coupons?tab=unused' });
 			},
 			goPerlerUpgrade(item) {
 				var source = encodeURIComponent(item.order_number || '');
@@ -1649,6 +1722,86 @@ page {
 
 .detail-toggle-arrow {
 	font-size: 22rpx;
+}
+
+.goods-fulfillment {
+	padding: 16rpx 22rpx;
+	border-top: 1rpx solid #F0ECE7;
+	background: #FAF8F4;
+}
+
+.goods-fulfillment-title {
+	display: block;
+	font-size: 23rpx;
+	color: #57473C;
+}
+
+.goods-fulfillment-hint {
+	display: block;
+	margin-top: 7rpx;
+	font-size: 21rpx;
+	line-height: 1.6;
+	color: #8B8178;
+}
+
+.goods-fulfillment-link {
+	display: block;
+	margin-top: 10rpx;
+	font-size: 22rpx;
+	color: #4E7754;
+}
+
+.status-badge.fulfillment-pending,
+.status-badge.fulfillment-processing {
+	background: #FFF4DE;
+	color: #9A7129;
+}
+
+.status-badge.fulfillment-received,
+.status-badge.fulfillment-issued {
+	background: #EAF4EC;
+	color: #4E7754;
+}
+
+.status-badge.fulfillment-unknown,
+.status-badge.fulfillment-closed,
+.status-badge.fulfillment-notpaid {
+	max-width: 220rpx;
+	white-space: normal;
+	background: #F0ECE7;
+	color: #8B8178;
+}
+
+.supply-entry {
+	padding: 18rpx 22rpx;
+	border-top: 1rpx solid #F0ECE7;
+	background: #FAF8F4;
+}
+
+.supply-entry-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12rpx;
+}
+
+.supply-entry-title {
+	font-size: 24rpx;
+	font-weight: 600;
+	color: #57473C;
+}
+
+.supply-entry-link {
+	font-size: 21rpx;
+	color: #4E7754;
+}
+
+.supply-entry-hint {
+	display: block;
+	margin-top: 7rpx;
+	font-size: 20rpx;
+	line-height: 1.5;
+	color: #8B8178;
 }
 
 .action-section {

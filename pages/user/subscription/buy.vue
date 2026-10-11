@@ -4,107 +4,88 @@
 		<view class="balance-card">
 			<view class="balance-left">
 				<text class="balance-label">卡包专属价</text>
-				<text class="guest-balance">已含套餐优惠，仅支持微信支付</text>
+				<text class="guest-balance">按额度使用 · 微信支付</text>
 			</view>
 			<view class="balance-right" @tap="navToMyCards" v-if="hasLogin">
 				<text class="my-cards-btn">我的卡包 ➔</text>
 			</view>
 		</view>
 
-		<!-- 购卡列表 -->
+		<!-- 已选卡包详情与购买确认 -->
 		<view class="section">
 			<view class="section-header">
 				<view>
-					<text class="section-title">选择适合你的省钱卡</text>
+					<text class="section-title">确认购买卡包</text>
 					<text class="section-subtitle">{{ sectionSummary }}</text>
 				</view>
 			</view>
 
-			<view class="target-tabs" v-if="targetTabs.length > 1">
-				<view
-					class="target-tab"
-					v-for="tab in targetTabs"
-					:key="tab.value"
-					:class="activeTargetType === tab.value ? 'active' : ''"
-					@tap="switchTargetTab(tab.value)"
-				>
-					<text class="target-name">{{ tab.name }}</text>
-					<text class="target-desc">{{ tab.desc }}</text>
-				</view>
-			</view>
-			
 			<view v-if="loading" class="loading-state">
-				<text class="loading-text">加载中...</text>
+				<text class="state-title">正在加载卡包...</text>
+				<text class="state-desc">同步当前卡包与账号购买资格</text>
 			</view>
-			
-			<view v-else-if="displayCards.length === 0" class="empty-state">
-				<text class="empty-text">暂无可购买的卡包</text>
+			<view v-else-if="loadError" class="error-state">
+				<text class="state-title">卡包加载失败</text>
+				<text class="state-desc">{{ loadError }}</text>
+				<view class="retry-btn" @tap="fetchCards">重新加载</view>
 			</view>
-			
-			<view v-else class="card-list">
-				<view 
-					:class="card.itemClass"
-					v-for="(card) in displayCards"
-					:key="card.object_id"
-					@tap="selectCard(card)"
-				>
-					<view :class="card.tagClass">
-						{{ card.badgeText }}
+
+			<view v-else-if="!selectedCard" class="empty-state">
+				<text class="state-title">{{ preferredCardId ? '该卡包已下架或不存在' : '尚未选择卡包' }}</text>
+				<text class="state-desc">请前往商城选择当前可购买的卡包</text>
+				<view class="retry-btn" @tap="goMall">去商城选卡</view>
+			</view>
+
+			<view v-else>
+				<view :class="selectedCardView.itemClass">
+					<view :class="selectedCardView.tagClass">
+						{{ selectedCardView.badgeText }}
 					</view>
-					
+
 					<view class="card-body">
 						<view class="card-title-row">
 							<view class="card-name-wrap">
-								<text class="card-name">{{ card.name }}</text>
-								<text class="recommend-label" v-if="card.recommendLabel">{{ card.recommendLabel }}</text>
+								<text class="card-name">{{ selectedCardView.name }}</text>
+								<text class="recommend-label" v-if="selectedCardView.recommendLabel">{{ selectedCardView.recommendLabel }}</text>
 							</view>
 							<view class="card-prices">
 								<text class="price-symbol">¥</text>
-								<text class="price-val">{{ card.priceText }}</text>
-								<text class="orig-price" v-if="card.originalPriceText">¥{{ card.originalPriceText }}</text>
+								<text class="price-val">{{ selectedCardView.priceFullText }}</text>
+								<text class="orig-price" v-if="selectedCardView.originalPriceText">¥{{ selectedCardView.originalPriceText }}</text>
 							</view>
 						</view>
-						<text class="card-selling-point">{{ card.sellingPoint }}</text>
+						<view class="card-quota">
+							<text class="quota-text">{{ selectedCardView.limitText }}</text>
+							<text class="validity-text">{{ selectedCardView.validityText }}</text>
+						</view>
+						<text class="activation-text">{{ selectedCardView.activationText }}</text>
+						<text class="card-selling-point">{{ selectedCardView.sellingPoint }}</text>
+						<text class="usage-example" v-if="selectedCardView.usageExample">{{ selectedCardView.usageExample }}</text>
 						<view class="card-benefits">
-							<text class="benefit-pill" v-if="card.unitPriceText">{{ card.unitPriceText }}</text>
-							<text class="benefit-save" v-if="card.saveText">{{ card.saveText }}</text>
+							<text class="benefit-pill" v-if="selectedCardView.unitPriceText">{{ selectedCardView.unitPriceText }}</text>
+							<text class="benefit-save" v-if="selectedCardView.saveText">{{ selectedCardView.saveText }}</text>
 						</view>
-						
-						<view class="card-details">
-							<view class="detail-item">
-								<text class="detail-dot">•</text>
-								<text class="detail-text">
-									包含额度：<text class="highlight">{{ card.limitText }}</text>
-								</text>
-							</view>
-							<view class="detail-item">
-								<text class="detail-dot">•</text>
-								<text class="detail-text">
-									可抵扣：<text class="highlight">{{ card.usageText }}</text>
-								</text>
-							</view>
-							<view class="detail-item" v-if="card.roomScopeText">
-								<text class="detail-dot">•</text>
-								<text class="detail-text">适用空间：<text class="highlight">{{ card.roomScopeText }}</text></text>
-							</view>
-							<view class="detail-item">
-								<text class="detail-dot">•</text>
-								<text class="detail-text">有效期：<text class="highlight">{{ card.validityText }}</text></text>
-							</view>
-							<view class="detail-item" v-if="card.orderLimitText">
-								<text class="detail-dot">•</text>
-								<text class="detail-text">每单上限：<text class="highlight">{{ card.orderLimitText }}</text></text>
-							</view>
-							<view class="detail-item" v-if="card.purchaseRuleText">
-								<text class="detail-dot">•</text>
-								<text class="detail-text">购买资格：<text class="highlight">{{ card.purchaseRuleText }}</text></text>
-							</view>
+
+						<view class="important-rules">
+							<text class="restriction-text" v-if="selectedCardView.showRestrictionText">{{ selectedCardView.restrictionText }}</text>
+							<text class="rule-text" v-for="rule in selectedCardView.importantRuleLines" :key="rule.key">{{ rule.text }}</text>
+							<text class="rule-text" v-if="selectedCardView.roomScopeText">适用房间：{{ selectedCardView.roomScopeText }}</text>
+							<text class="rule-text" v-if="selectedCardView.orderLimitText">{{ selectedCardView.orderLimitText }}</text>
+							<text class="purchase-rule" v-if="selectedCardView.purchaseRuleText">{{ selectedCardView.purchaseRuleText }}</text>
+							<text class="purchase-rule" v-if="selectedCardView.unavailable && !selectedCardView.purchaseRuleText">{{ selectedCardView.unavailableReason }}</text>
+						</view>
+						<view class="details-toggle" @tap.stop="toggleCardDetails(selectedCardId)">
+							<text>{{ selectedCardView.detailsExpanded ? '收起使用细则 −' : '查看使用细则 +' }}</text>
+						</view>
+						<view class="card-details" v-if="selectedCardView.detailsExpanded">
+							<text class="rule-text">可抵扣：{{ selectedCardView.usageText }}</text>
+							<text class="rule-text" v-for="rule in selectedCardView.secondaryRuleLines" :key="rule.key">{{ rule.text }}</text>
 						</view>
 					</view>
 				</view>
 			</view>
-			<view class="selection-tip" v-if="!selectedCard">
-				<text>新客卡负责第一次同行体验，常客卡负责后续持续省</text>
+			<view class="selection-tip" v-if="selectedCard">
+				<text>按额度使用，不是无限次或自动续费。</text>
 			</view>
 		</view>
 
@@ -113,7 +94,7 @@
 			<view class="section-header">
 				<view>
 					<text class="section-title">支付方式</text>
-					<text class="section-subtitle">购买后立即生效，不支持余额、优惠券及积分抵扣</text>
+					<text class="section-subtitle">{{ selectedCardView.activationText }}；购卡不支持余额、优惠券及积分抵扣</text>
 				</view>
 			</view>
 			<view class="pay-list">
@@ -122,7 +103,7 @@
 					<image class="pay-icon" src="/static/wxpay.png" mode="aspectFit"></image>
 					<view class="pay-name-wrap">
 						<text class="pay-name">微信支付</text>
-						<text class="pay-desc">支付 ¥{{ formatMoney(selectedCard.price) }}</text>
+						<text class="pay-desc">支付 ¥{{ selectedCardView.priceFullText }}</text>
 					</view>
 					<view class="pay-check">
 						<text class="check-icon">✓</text>
@@ -154,119 +135,160 @@
 import { mapState, mapActions } from 'vuex';
 import AUTH from '../../../utils/auth.js';
 import SUBSCRIPTION from '../../../utils/subscription.js';
+import PRESENTATION from '../../../utils/subscriptionPresentation.js';
+import MALL_NAV from '../../../utils/mallNavigation.js';
 
 export default {
 	data() {
 		return {
 			cards: [],
 			loading: true,
+			loadError: '',
+			cardLoadId: 0,
+			expandedCardIds: [],
 			selectedCardId: '',
 			selectedCard: null,
 			buying: false,
 			preferredAmount: 0,
 			preferredCardId: '',
 			preferredTargetType: 0,
-			activeTargetType: 0,
 			source: 'subscription_mall',
 			returnToCheckout: false,
+			returnUrl: '',
 			pageViewTracked: false
 		};
 	},
 	computed: {
 		...mapState(['hasLogin', 'token']),
-		targetTabs() {
-			var tabs = [
-				{ name: '大厅卡', desc: '同行也能用', value: 1 },
-				{ name: '包厢卡', desc: '抵独立包厢房费', value: 2 },
-			];
-			return tabs.filter(tab => this.cards.some(card => this.getCardTargetType(card) === tab.value));
-		},
-		displayCards() {
-			var cards = this.activeTargetType
-				? this.cards.filter(card => this.getCardTargetType(card) === this.activeTargetType)
-				: this.cards;
-			return cards.map(card => this.buildCardView(card, cards));
-		},
 		selectedCardView() {
 			if (!this.selectedCard) return {};
-			return this.buildCardView(this.selectedCard, this.cards);
+			return this.buildCardView(this.selectedCard);
 		},
 		sectionSummary() {
-			if (this.activeTargetType === 2) return '只抵包厢小时费，每单最多抵4小时';
-			return '同行可共用，新客卡限购，常客卡持续省';
+			if (!this.selectedCard) return '请从商城选卡后确认购买';
+			if (this.getCardTargetType(this.selectedCard) === 2) return '按小时抵房费，留意入场费与闲时限制';
+			return '大厅按人次扣减，持卡账号替同行下单';
 		},
 		purchaseButtonText() {
 			if (this.buying) return '正在下单...';
-			if (this.selectedCard && !this.getCardCanPurchase(this.selectedCard)) return '新客卡每人限购1次';
+			if (this.loading) return '正在加载...';
+			if (this.loadError) return '请重新加载卡包';
+			if (this.selectedCard && !this.getCardCanPurchase(this.selectedCard)) return this.selectedCardView.unavailableReason;
 			return this.hasLogin ? '立即购买' : '登录后购买';
 		},
 		purchaseDisabled() {
-			return this.buying || !this.selectedCard || !this.getCardCanPurchase(this.selectedCard);
+			return this.buying || this.loading || !!this.loadError || !this.selectedCard
+				|| !this.preferredCardId || this.selectedCardId !== this.preferredCardId
+				|| !this.cards.some(card => card.object_id === this.selectedCardId && this.getCardCanPurchase(card));
 		},
 	},
 	onLoad(options) {
-		var amount = Number(options && options.amount || 0);
-		if (amount > 0) this.preferredAmount = amount;
-		if (options && options.card_id) this.preferredCardId = options.card_id;
-		if (options && options.source) {
+		var query = options || {};
+		var amount = Number(query.amount || 0);
+		if (isFinite(amount) && amount > 0) this.preferredAmount = amount;
+		this.preferredCardId = String(query.card_id || '').trim();
+		if (query.source) {
 			try {
-				this.source = decodeURIComponent(options.source);
+				this.source = decodeURIComponent(query.source);
 			} catch (e) {
-				this.source = options.source;
+				this.source = query.source;
 			}
 		}
-		this.returnToCheckout = this.source === 'ticket_checkout' || this.source === 'room_checkout';
-		var targetType = Number(options && options.target_type || 0);
-		if (targetType > 0) this.preferredTargetType = targetType;
-		if (targetType > 0) this.activeTargetType = targetType;
+		if (query.return_url) {
+			try {
+				this.returnUrl = decodeURIComponent(query.return_url);
+			} catch (e) {
+				this.returnUrl = query.return_url;
+			}
+		}
+		this.returnToCheckout = this.source === 'ticket_checkout' || this.source === 'room_checkout'
+			|| query.return_to_checkout === '1';
+		var targetType = Number(query.target_type || 0);
+		if (targetType === 1 || targetType === 2) this.preferredTargetType = targetType;
+		// 旧链接只负责带意图去商城，不请求卡包或创建订单。
+		if (!Object.prototype.hasOwnProperty.call(query, 'card_id')) {
+			this.loading = false;
+			this.goMall();
+			return;
+		}
 		this.fetchCards();
 	},
 	onShow() {
-		if (this.token) {
+		if (this.preferredCardId && this.token) {
 			this.getUserInfo(true).catch(function() {});
 		}
 	},
 	methods: {
 		...mapActions(['loginAndRegister', 'getUserInfo']),
-		formatMoney(amount) {
-			return (Number(amount || 0) / 100).toFixed(2);
+		goMall() {
+			return MALL_NAV.openCardMall({
+				source: this.source,
+				targetType: this.preferredTargetType,
+				amount: this.preferredAmount,
+				returnToCheckout: this.returnToCheckout,
+				returnUrl: this.returnUrl
+			});
 		},
 		fetchCards() {
+			var loadId = ++this.cardLoadId;
 			this.loading = true;
-			AUTH.getSubscriptionCards(this.token).then(res => {
+			this.loadError = '';
+			// 账号资格重新确认前，不允许继续购买旧列表中的卡包。
+			this.cards = [];
+			this.selectedCardId = '';
+			this.selectedCard = null;
+			this.expandedCardIds = [];
+			if (!this.preferredCardId) {
 				this.loading = false;
-				if (res._status === 0 && res.data) {
-					var previousSelectedId = this.selectedCardId;
+				return Promise.resolve();
+			}
+			return AUTH.getSubscriptionCards(this.token).then(res => {
+				if (loadId !== this.cardLoadId) return;
+				this.loading = false;
+				if (res && res._status === 0 && Array.isArray(res.data)) {
 					this.cards = res.data;
-					this.selectedCardId = '';
-					this.selectedCard = null;
-					if (this.cards.length > 0) {
-						if (!this.activeTargetType) {
-							this.activeTargetType = this.preferredTargetType || this.getCardTargetType(this.cards[0]) || 0;
-						}
-						var previousCard = previousSelectedId
-							? this.cards.find(card => card.object_id === previousSelectedId && this.getCardCanPurchase(card))
-							: null;
-						var initialCard = previousCard || this.getInitialCard();
-						if (initialCard) this.selectCard(initialCard, true);
+					var chosenCard = this.cards.find(card => card.object_id === this.preferredCardId);
+					// 不可购买也显示该卡的真实详情；不存在时绝不选另一张。
+					if (chosenCard) {
+						this.selectedCardId = chosenCard.object_id;
+						this.selectedCard = chosenCard;
+						this.trackSubscriptionEvent('subscription_card_select', {
+							card_id: chosenCard.object_id,
+							target_type: this.getCardTargetType(chosenCard),
+							card_price: Number(chosenCard.price) || 0
+						});
 					}
 					this.trackPageView();
 				} else {
-					this.trackSubscriptionEvent('subscription_card_load_fail');
-					uni.showToast({ title: res._reason || '加载失败', icon: 'none' });
+					this.handleCardLoadFailure(res && res._reason || '暂时无法获取卡包，请重试');
 				}
 			}).catch(err => {
-				this.loading = false;
-				this.trackSubscriptionEvent('subscription_card_load_fail');
-				uni.showToast({ title: '加载失败，请检查网络', icon: 'none' });
+				if (loadId !== this.cardLoadId) return;
+				this.handleCardLoadFailure('请检查网络后重新加载');
 			});
+		},
+		handleCardLoadFailure(message) {
+			this.loading = false;
+			this.loadError = message;
+			this.cards = [];
+			this.selectedCardId = '';
+			this.selectedCard = null;
+			this.trackSubscriptionEvent('subscription_card_load_fail');
+			uni.showToast({ title: message, icon: 'none' });
+		},
+		toggleCardDetails(cardId) {
+			if (this.expandedCardIds.indexOf(cardId) >= 0) {
+				this.expandedCardIds = this.expandedCardIds.filter(id => id !== cardId);
+			} else {
+				this.expandedCardIds = this.expandedCardIds.concat(cardId);
+			}
 		},
 		trackPageView() {
 			if (this.pageViewTracked) return;
 			this.pageViewTracked = true;
 			this.trackSubscriptionEvent('subscription_mall_view', {
 				card_count: this.cards.length,
-				target_type: this.activeTargetType || 0,
+				target_type: this.selectedCard ? this.getCardTargetType(this.selectedCard) : this.preferredTargetType,
 				has_login: !!this.hasLogin,
 				_dedupe_key: 'subscription_mall_view:' + this.source,
 				_dedupe_ttl_ms: 30000
@@ -283,178 +305,32 @@ export default {
 			}
 			AUTH.trackEvent(payload, this.token).catch(function() {});
 		},
-		selectCard(card, shouldTrack) {
-			if (!card) return;
-			if (!this.getCardCanPurchase(card)) {
-				uni.showToast({ title: '新客卡每人限购1次，请选择常客卡', icon: 'none' });
-				return;
-			}
-			this.selectedCardId = card.object_id;
-			this.selectedCard = this.cards.find(item => item.object_id === card.object_id) || card;
-			if (shouldTrack !== false) {
-				this.trackSubscriptionEvent('subscription_card_select', {
-					card_id: card.object_id,
-					target_type: this.getCardTargetType(card),
-					card_price: Number(card.price) || 0
-				});
-			}
-		},
-		switchTargetTab(targetType) {
-			if (this.activeTargetType === targetType) return;
-			this.activeTargetType = targetType;
-			if (!this.selectedCard || this.getCardTargetType(this.selectedCard) !== targetType) {
-				this.selectedCardId = '';
-				this.selectedCard = null;
-				if (this.preferredAmount > 0 && this.preferredTargetType === targetType) {
-					var next = this.getInitialCard();
-					if (next) this.selectCard(next, false);
-				}
-			}
-			this.trackSubscriptionEvent('subscription_target_switch', { target_type: targetType });
-		},
 		getCardTargetType(card) {
 			return SUBSCRIPTION.getCardTargetType(card);
 		},
-		isMonthlyCard(card) {
-			return card && this.getCardTargetType(card) === 1 && Number(card.validity_days) <= 31 && Number(card.total_limit) >= 8;
-		},
 		getCardCanPurchase(card) {
-			return !card || card.can_purchase !== false;
-		},
-		getCardBadge(card) {
-			if (!card) return '卡包';
-			if (this.getCardTargetType(card) === 2) return '小时卡';
-			return this.isMonthlyCard(card) ? '月卡' : '次卡';
-		},
-		getCardUnit(card) {
-			return SUBSCRIPTION.getCardUnit(card);
-		},
-		getCardUsageText(card) {
-			if (!card) return '';
-			return SUBSCRIPTION.getCardUsageText(card);
-		},
-		getRecommendationLabel(card, cards) {
-			if (!card) return '';
-			var targetType = this.getCardTargetType(card);
-			var totalLimit = Number(card.total_limit);
-			if (targetType === 1) {
-				if (totalLimit === 3) return '每人限购1次';
-				if (totalLimit === 5) return '轻量常客';
-				if (totalLimit === 8) return '双人月享';
-				if (totalLimit === 10) return '常客推荐';
-			}
-			if (targetType === 2) {
-				if (totalLimit === 4) return '每人限购1次';
-				if (totalLimit === 10) return '常客入门';
-				if (totalLimit === 20) return '固定小队推荐';
-			}
-			return '';
-		},
-		getInitialCard() {
-			var preferredCardId = this.preferredCardId;
-			var found = preferredCardId ? this.cards.find(c => c.object_id === preferredCardId && this.getCardCanPurchase(c)) : null;
-			if (found) return found;
-
-			var candidates = this.cards.filter(c => this.getCardCanPurchase(c));
-			var targetType = this.activeTargetType || this.preferredTargetType;
-			if (targetType) {
-				var typedCards = candidates.filter(c => this.getCardTargetType(c) === targetType);
-				if (typedCards.length > 0) candidates = typedCards;
-			}
-
-			if (this.preferredAmount > 0) {
-				var targetFen = this.preferredAmount > 10000 ? this.preferredAmount : this.preferredAmount * 100;
-				return candidates.reduce((best, card) => {
-					if (!best) return card;
-					return Math.abs(card.price - targetFen) < Math.abs(best.price - targetFen) ? card : best;
-				}, null) || candidates[0];
-			}
-			return null;
-		},
-		getCardUnitPriceText(card) {
-			if (!card || !card.total_limit) return '';
-			var totalLimit = Number(card.total_limit) || 0;
-			var price = Number(card.price) || 0;
-			if (totalLimit <= 0 || price <= 0) return '';
-			var unit = this.getCardUnit(card);
-			var amount = price / totalLimit / 100;
-			var text = amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
-			return '折合 ¥' + text + '/' + unit;
-		},
-		getCardSaveText(card) {
-			if (!card || !card.original_price) return '';
-			var originalPrice = Number(card.original_price) || 0;
-			var price = Number(card.price) || 0;
-			if (originalPrice <= price) return '';
-			var save = (originalPrice - price) / 100;
-			var text = save % 1 === 0 ? save.toFixed(0) : save.toFixed(1);
-			return '比单买省 ¥' + text;
-		},
-		formatPrice(fen, digits) {
-			var amount = (Number(fen) || 0) / 100;
-			if (digits === 2) return amount.toFixed(2);
-			return amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1);
-		},
-		getCardSellingPoint(card) {
-			var targetType = this.getCardTargetType(card);
-			var totalLimit = Number(card && card.total_limit) || 0;
-			if (targetType === 2) {
-				if (totalLimit <= 4) return '先体验一次精选包厢，再决定长期方案';
-				if (totalLimit <= 10) return '至少覆盖3次常规组局，先锁定下次见面';
-				if (totalLimit <= 20) return '固定小队多次组局更合适';
-				return '适合社群活动和长期固定组局';
-			}
-			if (totalLimit <= 3) return '首次3人同行可一单抵完，之后升级常客卡';
-			if (totalLimit <= 5) return '两三次到店慢慢用，首次办卡压力更小';
-			if (totalLimit <= 8) return '双人每周来一次，30天刚好用完';
-			if (totalLimit <= 10) return '每单最多抵3人，保留后续到店额度';
-			return '高频到店或固定小队，单次最省';
-		},
-		getOrderLimitText(card) {
-			var rule = SUBSCRIPTION.getPrimaryUsageRule(card);
-			var maxPerOrder = Number(rule && rule.max_per_order) || 0;
-			if (maxPerOrder <= 0) return '';
-			if (this.getCardTargetType(card) === 2) return '最多抵' + maxPerOrder + '小时包厢费';
-			return '最多抵' + maxPerOrder + '张大厅票';
-		},
-		getPurchaseRuleText(card) {
-			var limit = Number(card && card.purchase_limit_per_user) || 0;
-			if (limit <= 0) return '';
-			return this.getCardCanPurchase(card) ? '新客专享，每人限购' + limit + '次' : '已购买过，不能重复购买';
-		},
-		getRoomScopeText(card) {
-			if (this.getCardTargetType(card) !== 2) return '';
-			var rooms = Array.isArray(card.usable_rooms) ? card.usable_rooms : [];
-			if (rooms.length === 0) return '全部预约空间';
-			return rooms.map(room => room && room.name || '').filter(Boolean).join('、');
+			return !!card && card.can_purchase !== false;
 		},
 		getCardAnalyticsKey(card) {
 			var prefix = this.getCardTargetType(card) === 2 ? 'room' : 'hall';
 			return prefix + '_' + (Number(card && card.total_limit) || 0);
 		},
-		buildCardView(card, cards) {
-			var targetType = this.getCardTargetType(card);
-			var visualClass = targetType === 2 ? 'room' : (this.isMonthlyCard(card) ? 'monthly' : 'times');
-			var unit = this.getCardUnit(card);
+		buildCardView(card) {
+			var presentation = PRESENTATION.buildCardView(card);
 			var canPurchase = this.getCardCanPurchase(card);
-			return Object.assign({}, card, {
-				itemClass: 'card-item' + (this.selectedCardId === card.object_id ? ' active' : '') + (canPurchase ? '' : ' unavailable'),
-				tagClass: 'card-tag ' + visualClass,
-				badgeText: canPurchase ? this.getCardBadge(card) : '已购过',
-				recommendLabel: this.getRecommendationLabel(card, cards),
-				priceText: this.formatPrice(card.price, 0),
-				priceFullText: this.formatPrice(card.price, 2),
-				originalPriceText: Number(card.original_price) > Number(card.price) ? this.formatPrice(card.original_price, 0) : '',
-				unitPriceText: this.getCardUnitPriceText(card),
-				saveText: this.getCardSaveText(card),
-				sellingPoint: this.getCardSellingPoint(card),
-				limitText: (Number(card.total_limit) || 0) + unit,
-				usageText: this.getCardUsageText(card),
-				roomScopeText: this.getRoomScopeText(card),
-				orderLimitText: this.getOrderLimitText(card),
-				purchaseRuleText: this.getPurchaseRuleText(card),
-				analyticsKey: this.getCardAnalyticsKey(card),
-				validityText: (Number(card.validity_days) || 0) + '天，自购买日起算'
+			// 入场与闲时限制不折叠，其余细则预先整理供 WXML 直接绑定。
+			var importantRuleLines = presentation.ruleLines.filter(rule => /入场费|闲时/.test(rule.text));
+			var secondaryRuleLines = presentation.ruleLines.filter(rule => importantRuleLines.indexOf(rule) < 0);
+			return Object.assign({}, card, presentation, {
+				itemClass: 'card-item ' + presentation.visualClass + (this.selectedCardId === card.object_id ? ' active' : '') + (canPurchase ? '' : ' unavailable'),
+				tagClass: 'card-tag ' + presentation.visualClass,
+				unavailable: !canPurchase,
+				unavailableReason: presentation.purchaseRuleText || '当前账号暂不可购买此卡',
+				showRestrictionText: presentation.visualClass !== 'room',
+				detailsExpanded: this.expandedCardIds.indexOf(card.object_id) >= 0,
+				importantRuleLines: importantRuleLines,
+				secondaryRuleLines: secondaryRuleLines,
+				analyticsKey: this.getCardAnalyticsKey(card)
 			});
 		},
 		navToMyCards() {
@@ -462,12 +338,20 @@ export default {
 		},
 		doPurchase() {
 			if (this.buying) return;
-			if (!this.selectedCard) {
-				uni.showToast({ title: '请先选择要购买的卡包', icon: 'none' });
+			if (this.loading || this.loadError) {
+				uni.showToast({ title: this.loading ? '请等待卡包加载完成' : '请重新加载卡包后购买', icon: 'none' });
 				return;
 			}
-			if (!this.getCardCanPurchase(this.selectedCard)) {
-				uni.showToast({ title: '新客卡每人限购1次，请选择常客卡', icon: 'none' });
+			var currentCard = this.cards.find(card => card.object_id === this.selectedCardId);
+			if (!this.selectedCard || !currentCard || !this.preferredCardId || this.selectedCardId !== this.preferredCardId) {
+				this.selectedCardId = '';
+				this.selectedCard = null;
+				uni.showToast({ title: '请去商城选择要购买的卡包', icon: 'none' });
+				return;
+			}
+			this.selectedCard = currentCard;
+			if (!this.getCardCanPurchase(currentCard)) {
+				uni.showToast({ title: this.selectedCardView.unavailableReason, icon: 'none' });
 				return;
 			}
 			this.trackSubscriptionEvent('subscription_buy_click', {
@@ -529,6 +413,14 @@ export default {
 				uni.showToast({ title: '下单失败，请重试', icon: 'none' });
 			});
 		},
+		paymentContinuationUrl(orderNumber) {
+			var url = '/pages/order/payment?parent_sn=' + encodeURIComponent(orderNumber) + '&entry=3';
+			if (this.returnToCheckout && (this.source === 'ticket_checkout' || this.source === 'room_checkout')) {
+				url += '&mall_source=' + encodeURIComponent(this.source)
+					+ '&mall_return_url=' + encodeURIComponent(this.returnUrl);
+			}
+			return url;
+		},
 		payWithWechat(orderNumber) {
 			uni.showLoading({ title: '调起支付...' });
 			this.trackSubscriptionEvent('subscription_payment_launch', {
@@ -556,13 +448,13 @@ export default {
 						cancelText: '稍后',
 						success: (modalRes) => {
 							if (modalRes.confirm) {
-								uni.redirectTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(orderNumber) + '&entry=3' });
+								uni.redirectTo({ url: this.paymentContinuationUrl(orderNumber) });
 							}
 						}
 					});
 					return;
 				}
-				
+
 				var payload = res.data || res;
 				if (payload.payment_completed) {
 					uni.showToast({ title: '购买成功', icon: 'success' });
@@ -572,7 +464,7 @@ export default {
 				}
 				var payment = payload.payment || payload.wxpay || payload;
 				var PLATFORM = require('../../../common/platform.js');
-				
+
 				PLATFORM.requestPayment(payment).then(() => {
 					uni.showToast({ title: '购买成功', icon: 'success' });
 					this.trackSubscriptionEvent('subscription_payment_success', {
@@ -606,7 +498,7 @@ export default {
 						cancelText: '稍后',
 						success: (res) => {
 							if (res.confirm) {
-								uni.redirectTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(orderNumber) + '&entry=3' });
+								uni.redirectTo({ url: this.paymentContinuationUrl(orderNumber) });
 							}
 						}
 					});
@@ -626,7 +518,7 @@ export default {
 					cancelText: '稍后',
 					success: (res) => {
 						if (res.confirm) {
-							uni.redirectTo({ url: '/pages/order/payment?parent_sn=' + encodeURIComponent(orderNumber) + '&entry=3' });
+							uni.redirectTo({ url: this.paymentContinuationUrl(orderNumber) });
 						}
 					}
 				});
@@ -638,12 +530,9 @@ export default {
 					card_id: this.selectedCardId,
 					target_type: this.getCardTargetType(this.selectedCard)
 				});
-				uni.navigateBack({
-					delta: 1,
-					fail: function() {
-						uni.redirectTo({ url: '/pages/user/subscription/my' });
-					}
-				});
+				if (!MALL_NAV.resumeCheckout({ source: this.source, returnUrl: this.returnUrl })) {
+					uni.redirectTo({ url: '/pages/user/subscription/my' });
+				}
 				return;
 			}
 			var amount = Number(this.selectedCard && this.selectedCard.price || 0);
@@ -659,140 +548,70 @@ export default {
 
 <style lang="scss">
 page {
-	background: #FFF8F0;
+	background: #F7F5F1;
+	color: #3C332B;
 }
 .page-wrapper {
 	min-height: 100vh;
-	padding-top: 20rpx;
-	padding-bottom: 40rpx;
+	padding: 20rpx 0 40rpx;
 }
-
-/* ===== 余额卡片 ===== */
 .balance-card {
 	margin: 0 24rpx 20rpx;
-	background: #397267;
-	border-radius: 16rpx;
-	padding: 28rpx 30rpx;
+	padding: 18rpx 24rpx;
 	display: flex;
 	align-items: center;
-	box-shadow: 0 8rpx 24rpx rgba(38, 91, 81, 0.18);
-	box-sizing: border-box;
-
-	.balance-left {
-		flex: 1;
-		.balance-label {
-			display: block;
-			font-size: 24rpx;
-			color: rgba(255,255,255,0.85);
-			margin-bottom: 8rpx;
-		}
-		.balance-amount {
-			display: flex;
-			align-items: baseline;
-			gap: 4rpx;
-			.yuan { font-size: 32rpx; color: #FFF; font-weight: bold; }
-			.num { font-size: 56rpx; font-weight: bold; color: #FFF; }
-		}
-		.guest-balance {
-			display: block;
-			font-size: 30rpx;
-			line-height: 1.45;
-			color: #FFF;
-			font-weight: bold;
-		}
-	}
-	.balance-right {
-		.my-cards-btn {
-			font-size: 26rpx;
-			color: #FFF;
-			background: rgba(255, 255, 255, 0.2);
-			padding: 10rpx 24rpx;
-			border-radius: 999rpx;
-			font-weight: bold;
-		}
-	}
+	gap: 16rpx;
+	border-bottom: 1rpx solid #E5DDD2;
+	.balance-left { flex: 1; min-width: 0; }
+	.balance-label { display: block; font-size: 28rpx; font-weight: bold; }
+	.guest-balance { display: block; margin-top: 6rpx; font-size: 23rpx; color: #796B5F; }
+	.my-cards-btn { font-size: 24rpx; color: #B95730; white-space: nowrap; }
 }
-
-/* ===== 通用区块 ===== */
 .section {
-	margin: 0 24rpx 30rpx;
-	background: #FFF;
-	border-radius: 16rpx;
-	padding: 28rpx;
-	box-shadow: 0 8rpx 32rpx rgba(140, 100, 60, 0.06);
-	border: 1rpx solid rgba(240, 230, 216, 0.6);
+	margin: 0 24rpx 24rpx;
+	background: #FFFCF7;
+	border: 1rpx solid #E5DDD2;
+	border-radius: 18rpx;
+	padding: 24rpx;
 	box-sizing: border-box;
 }
 .section-header {
-	display: flex;
-	align-items: center;
-	margin-bottom: 24rpx;
-	.section-title { display: block; font-size: 32rpx; font-weight: bold; color: #3F352D; }
-	.section-subtitle { display: block; margin-top: 8rpx; font-size: 23rpx; line-height: 1.45; color: #88796C; }
+	margin-bottom: 20rpx;
+	.section-title { display: block; font-size: 30rpx; font-weight: bold; }
+	.section-subtitle { display: block; margin-top: 8rpx; font-size: 23rpx; line-height: 1.5; color: #796B5F; }
 }
-.target-tabs {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 14rpx;
-	margin-bottom: 22rpx;
-}
-.target-tab {
-	border: 2rpx solid #F0E6D8;
-	border-radius: 12rpx;
-	padding: 16rpx 18rpx;
-	background: #FCF9F5;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	box-sizing: border-box;
-	.target-name {
-		font-size: 28rpx;
-		font-weight: bold;
-		color: #5C4B3A;
-	}
-	.target-desc {
-		font-size: 22rpx;
-		color: #A09080;
-	}
-	&.active {
-		border-color: #FF8C42;
-		background: #FFF8F0;
-		.target-name,
-		.target-desc {
-			color: #E8784A;
-		}
-	}
-}
-
-.loading-state, .empty-state {
-	padding: 80rpx 0;
+.loading-state, .error-state, .empty-state {
+	padding: 64rpx 12rpx;
 	text-align: center;
-	color: #A09080;
 	font-size: 26rpx;
+	color: #796B5F;
 }
-
-/* ===== 购卡列表 ===== */
-.card-list {
-	display: flex;
-	flex-direction: column;
-	gap: 20rpx;
+.state-title { display: block; color: #3C332B; font-weight: bold; }
+.state-desc { display: block; margin-top: 12rpx; font-size: 24rpx; line-height: 1.5; }
+.retry-btn {
+	display: inline-block;
+	margin-top: 24rpx;
+	padding: 16rpx 32rpx;
+	border: 1rpx solid #B95730;
+	border-radius: 12rpx;
+	color: #B95730;
+	background: #FFFCF7;
 }
 .card-item {
 	position: relative;
-	border: 2rpx solid #F0E6D8;
-	border-radius: 14rpx;
-	padding: 30rpx 24rpx;
-	background: #FCF9F5;
-	transition: all 0.25s ease;
-	
+	border: 2rpx solid #E5DDD2;
+	border-radius: 16rpx;
+	padding: 44rpx 22rpx 20rpx;
+	box-sizing: border-box;
+	&.hall { background: #FCF3E3; }
+	&.room { background: #EEE8DE; }
 	&.active {
-		border-color: #FF8C42;
-		background: #FFFBF7;
-		box-shadow: 0 4rpx 20rpx rgba(255,140,66,0.12);
+		border-color: #B95730;
+		box-shadow: 0 4rpx 16rpx rgba(185, 87, 48, 0.1);
 	}
 	&.unavailable {
-		opacity: 0.62;
-		background: #F3F1EE;
+		border-style: dashed;
+		background: #F1EDE7;
 	}
 }
 .card-tag {
@@ -800,254 +619,114 @@ page {
 	top: 0;
 	left: 0;
 	font-size: 20rpx;
-	color: #FFF;
 	padding: 6rpx 16rpx;
-	border-radius: 24rpx 0 24rpx 0;
+	border-radius: 14rpx 0 12rpx 0;
 	font-weight: bold;
-	
-	&.times {
-		background: linear-gradient(135deg, #FFB74D, #FF8C42);
-	}
-	&.monthly {
-		background: linear-gradient(135deg, #AB47BC, #7B1FA2);
-	}
-	&.room {
-		background: linear-gradient(135deg, #5C6BC0, #3949AB);
-	}
-}
-.card-body {
-	margin-top: 10rpx;
+	&.hall { background: #EFE0C8; color: #72543B; }
+	&.room { background: #D9CBB9; color: #58483A; }
 }
 .card-title-row {
 	display: flex;
 	justify-content: space-between;
 	align-items: flex-start;
-	margin-bottom: 16rpx;
+	gap: 12rpx;
+	margin-bottom: 12rpx;
 }
 .card-name-wrap {
+	flex: 1;
+	min-width: 0;
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
-	gap: 10rpx;
-	max-width: 68%;
+	gap: 8rpx;
 }
-.card-name {
-	font-size: 32rpx;
-	font-weight: bold;
-	color: #5C4B3A;
-	max-width: 100%;
-}
-.card-selling-point {
-	display: block;
-	margin: -4rpx 0 14rpx;
-	font-size: 24rpx;
-	line-height: 1.45;
-	color: #67594D;
-}
+.card-name { font-size: 30rpx; font-weight: bold; overflow-wrap: anywhere; }
 .recommend-label {
 	font-size: 20rpx;
-	color: #FFF;
-	background: #E8784A;
+	color: #B95730;
+	background: #F5E4D7;
 	border-radius: 6rpx;
-	padding: 4rpx 10rpx;
-	font-weight: bold;
+	padding: 4rpx 8rpx;
 }
 .card-prices {
 	text-align: right;
 	display: flex;
 	align-items: baseline;
-	gap: 6rpx;
-	
-	.price-symbol {
-		font-size: 24rpx;
-		color: #E8784A;
-		font-weight: bold;
-	}
-	.price-val {
-		font-size: 44rpx;
-		font-weight: bold;
-		color: #E8784A;
-	}
-	.orig-price {
-		font-size: 22rpx;
-		color: #BBB;
-		text-decoration: line-through;
-	}
-}
-.card-benefits {
-	display: flex;
-	align-items: center;
 	flex-wrap: wrap;
-	gap: 10rpx;
-	margin-bottom: 16rpx;
+	justify-content: flex-end;
+	gap: 4rpx;
+	max-width: 48%;
+	.price-symbol { font-size: 24rpx; color: #B95730; font-weight: bold; }
+	.price-val { font-size: 42rpx; color: #B95730; font-weight: bold; }
+	.orig-price { font-size: 22rpx; color: #796B5F; text-decoration: line-through; }
 }
-.benefit-pill,
-.benefit-save {
-	font-size: 22rpx;
-	border-radius: 6rpx;
-	padding: 5rpx 10rpx;
+.card-quota { display: flex; flex-wrap: wrap; align-items: baseline; gap: 16rpx; }
+.quota-text { font-size: 30rpx; font-weight: bold; }
+.validity-text { font-size: 26rpx; font-weight: bold; }
+.activation-text { display: block; margin: 6rpx 0 14rpx; font-size: 22rpx; line-height: 1.5; color: #796B5F; }
+.card-selling-point, .usage-example {
+	display: block;
+	font-size: 24rpx;
+	line-height: 1.5;
+	margin-bottom: 8rpx;
 }
-.benefit-pill {
-	color: #5C4B3A;
-	background: #FFF2E8;
-}
-.benefit-save {
-	color: #E8784A;
-	background: #FFF8F0;
-	font-weight: bold;
-}
-.card-details {
-	display: flex;
-	flex-direction: column;
-	gap: 8rpx;
-}
-.detail-item {
-	display: flex;
-	align-items: flex-start;
-	gap: 8rpx;
-	
-	.detail-dot {
-		color: #FF8C42;
-		font-size: 26rpx;
-		line-height: 1;
-	}
-	.detail-text {
-		font-size: 24rpx;
-		color: #8C7966;
-		line-height: 1.4;
-	}
-	.highlight {
-		color: #5C4B3A;
-		font-weight: bold;
-	}
-	.room-tag {
-		background: #FFF2E8;
-		color: #FF8C42;
-		font-size: 20rpx;
-		padding: 4rpx 12rpx;
-		border-radius: 6rpx;
-		margin-right: 8rpx;
-		font-weight: bold;
-	}
-}
-
-.selection-tip {
-	margin-top: 20rpx;
-	padding: 18rpx 20rpx;
-	border-left: 6rpx solid #397267;
-	background: #F0F7F5;
-	border-radius: 8rpx;
-	font-size: 23rpx;
-	line-height: 1.45;
-	color: #527067;
-}
-
-/* ===== 支付选择 ===== */
-.pay-list {
-	background: #FFF;
-	border-radius: 20rpx;
-	overflow: hidden;
-}
+.usage-example { color: #796B5F; }
+.card-benefits { display: flex; flex-wrap: wrap; gap: 8rpx; margin: 12rpx 0; }
+.benefit-pill, .benefit-save { font-size: 22rpx; border-radius: 6rpx; padding: 6rpx 10rpx; background: #FFFCF7; }
+.benefit-save { color: #B95730; }
+.important-rules { border-top: 1rpx solid #DED2C3; padding-top: 12rpx; }
+.restriction-text { display: block; font-size: 24rpx; font-weight: bold; line-height: 1.55; }
+.rule-text { display: block; margin-top: 6rpx; font-size: 23rpx; line-height: 1.55; }
+.purchase-rule { display: block; margin-top: 8rpx; font-size: 23rpx; color: #B95730; font-weight: bold; line-height: 1.5; }
+.details-toggle { padding: 18rpx 0 4rpx; font-size: 24rpx; color: #B95730; }
+.card-details { margin-top: 12rpx; padding-top: 8rpx; border-top: 1rpx dashed #D9CBB9; color: #796B5F; }
+.selection-tip { margin-top: 20rpx; font-size: 23rpx; line-height: 1.5; color: #796B5F; }
+.pay-list { border-radius: 12rpx; overflow: hidden; }
 .pay-item {
 	display: flex;
 	align-items: center;
-	padding: 26rpx 20rpx;
-	border-bottom: 1rpx solid #F5EBE0;
-	transition: background 0.2s;
-	
-	&:last-child { border-bottom: none; }
-	
-	.pay-icon { width: 44rpx; height: 44rpx; margin-right: 16rpx; display: flex; align-items: center; justify-content: center; font-size: 38rpx; }
+	padding: 18rpx 0;
+	.pay-icon { width: 44rpx; height: 44rpx; margin-right: 16rpx; }
 	.pay-name-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-	.pay-name { font-size: 28rpx; color: #5C4B3A; }
-	.pay-desc { margin-top: 4rpx; font-size: 22rpx; color: #8C7966; }
-	.pay-insufficient { font-size: 22rpx; color: #BBB; }
-	switch { flex-shrink: 0; margin-left: 16rpx; }
-	
-	.pay-check {
-		width: 36rpx;
-		height: 36rpx;
-		border-radius: 50%;
-		border: 2rpx solid #DDD;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-	.check-icon { color: #FFF; font-size: 22rpx; font-weight: bold; }
-	
-	&.disabled {
-		opacity: 0.55;
-	}
-	&.active .pay-check {
-		background: #FF8C42;
-		border-color: #FF8C42;
-	}
+	.pay-name { font-size: 28rpx; }
+	.pay-desc { margin-top: 4rpx; font-size: 23rpx; color: #796B5F; }
+	.pay-check { width: 36rpx; height: 36rpx; border-radius: 50%; background: #B95730; display: flex; align-items: center; justify-content: center; }
+	.check-icon { color: #FFFCF7; font-size: 22rpx; font-weight: bold; }
 }
-
-/* ===== 底部悬浮栏 ===== */
 .bottom-area {
 	position: fixed;
 	bottom: 0;
 	left: 0;
 	right: 0;
-	background: #FFF;
-	border-top: 1rpx solid #F5EBE0;
-	padding: 24rpx 32rpx;
-	padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+	background: #FFFCF7;
+	border-top: 1rpx solid #E5DDD2;
+	padding: 22rpx 28rpx;
+	padding-bottom: calc(22rpx + env(safe-area-inset-bottom));
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	box-shadow: 0 -4rpx 16rpx rgba(140, 100, 60, 0.05);
+	gap: 16rpx;
+	box-sizing: border-box;
 	z-index: 100;
 }
 .price-summary {
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
+	flex: 1;
 	min-width: 0;
-
-	.sum-main {
-		display: flex;
-		align-items: baseline;
-	}
-
-	.sum-label {
-		font-size: 26rpx;
-		color: #5C4B3A;
-	}
-	.sum-symbol {
-		font-size: 28rpx;
-		color: #E8784A;
-		font-weight: bold;
-	}
-	.sum-price {
-		font-size: 48rpx;
-		font-weight: bold;
-		color: #E8784A;
-	}
-	.sum-extra {
-		font-size: 22rpx;
-		color: #8C7966;
-		margin-top: 2rpx;
-		max-width: 430rpx;
-		line-height: 1.35;
-	}
+	.sum-main { display: flex; flex-wrap: wrap; align-items: baseline; }
+	.sum-label { font-size: 24rpx; }
+	.sum-symbol { font-size: 26rpx; color: #B95730; font-weight: bold; }
+	.sum-price { font-size: 42rpx; color: #B95730; font-weight: bold; }
+	.sum-extra { display: block; font-size: 22rpx; color: #796B5F; margin-top: 4rpx; line-height: 1.4; }
 }
 .submit-btn {
-	background: #E8784A;
-	color: #FFF;
-	padding: 22rpx 60rpx;
+	background: #C96B3F;
+	color: #FFFCF7;
+	padding: 22rpx 30rpx;
 	border-radius: 12rpx;
-	box-shadow: 0 6rpx 20rpx rgba(255, 140, 66, 0.25);
-	
-	.btn-text {
-		font-size: 28rpx;
-		font-weight: bold;
-	}
-	
-	&.disabled {
-		opacity: 0.6;
-		box-shadow: none;
-	}
+	max-width: 46%;
+	box-sizing: border-box;
+	text-align: center;
+	.btn-text { font-size: 27rpx; font-weight: bold; }
+	&.disabled { opacity: 0.6; }
 }
 </style>

@@ -47,17 +47,13 @@
 					<text class="asset-label">余额</text>
 				</view>
 				<view class="asset-item" @tap="goPointsCenter">
-					<text class="asset-value">{{ hasLogin ? (userInfo && userInfo.points || 0) : '-' }}</text>
-					<text class="asset-label">积分</text>
+					<text class="asset-value">{{ availablePointsText }}</text>
+					<text class="asset-label">{{ hasLogin ? '可用积分' : '积分' }}</text>
 				</view>
-				<view class="asset-item" @tap="goCouponCenter">
-					<text class="asset-value">{{ couponAssetText }}</text>
-					<text class="asset-label">优惠券</text>
-				</view>
-				<view class="asset-item" @tap="goCardPack">
-					<text class="asset-value small">{{ hasLogin ? '查看' : '-' }}</text>
-					<text class="asset-label">卡包</text>
-				</view>
+			</view>
+			<view class="points-retention" v-if="hasLogin" @tap="goPointsCenter">
+				<text class="points-retention-link">积分福利 ›</text>
+				<text class="points-retention-hint">可兑换到店礼或按规则抵扣消费</text>
 			</view>
 		</view>
 
@@ -68,6 +64,28 @@
 				<text class="guest-benefit-sub">签到领积分、查看优惠券、邀请好友拿奖励</text>
 			</view>
 			<view class="guest-benefit-btn" @tap="handleLogin">立即登录</view>
+		</view>
+
+		<!-- 已购卡包与已领优惠券集中展示，不与商城购买入口混淆 -->
+		<view class="surface-section rights-section">
+			<view class="section-head compact">
+				<view>
+					<text class="section-title">我的权益</text>
+					<text class="section-sub">{{ hasLogin ? '已购卡包与已领优惠券' : '登录后查看已拥有的权益' }}</text>
+				</view>
+			</view>
+			<view class="service-grid rights-grid">
+				<view class="service-item" @tap="goCardPack">
+					<text class="service-mark orange">卡</text>
+					<text class="service-name">我的卡包</text>
+					<text class="rights-hint">剩余额度与有效期</text>
+				</view>
+				<view class="service-item" @tap="goCouponCenter">
+					<text class="service-mark green">券</text>
+					<text class="service-name">我的优惠券</text>
+					<text class="rights-hint">已领优惠，下单时使用</text>
+				</view>
+			</view>
 		</view>
 
 		<!-- 订单优先展示 -->
@@ -209,7 +227,7 @@
 				</view>
 				<view class="service-item" @tap="goSubscriptionMall">
 					<text class="service-mark orange">省</text>
-					<text class="service-name">常客省钱卡</text>
+					<text class="service-name">逛商城</text>
 				</view>
 				<view class="service-item" @tap="goReviews">
 					<text class="service-mark green">评</text>
@@ -252,6 +270,7 @@
 
 <script>
 	import AUTH from '../../utils/auth.js'
+	import MALL_NAV from '../../utils/mallNavigation.js'
 	import PLATFORM from '../../common/platform.js'
 	import {
 		mapState,
@@ -298,6 +317,13 @@
 			balanceText() {
 				if (!this.hasLogin) return '-';
 				return '¥' + this.balanceAmountText;
+			},
+			availablePointsText() {
+				if (!this.hasLogin) return '-';
+				var points = this.userInfo && this.userInfo.points;
+				if (points === undefined || points === null || points === '') return '-';
+				points = Number(points);
+				return isFinite(points) && points >= 0 ? String(points) : '-';
 			},
 			totalConsumeText() {
 				if (!this.hasLogin) return '-';
@@ -551,18 +577,11 @@
 			},
 			goCouponCenter() {
 				if (!this.ensureLoggedIn()) return;
-				if (this.claimableCouponCount > 0) {
-					uni.navigateTo({ url: '/pages/my/coupons/coupons?tab=available' });
-				} else if (this.unusedCouponCount > 0) {
-					uni.navigateTo({ url: '/pages/my/coupons/coupons?tab=unused' });
-				} else {
-					uni.navigateTo({ url: '/pages/my/coupons/coupons' });
-				}
+				uni.navigateTo({ url: '/pages/my/coupons/coupons?tab=unused' });
 			},
 			goPointsCenter() {
 				if (!this.ensureLoggedIn()) return;
-				uni.setStorageSync('voucherInitialTab', 'points');
-				uni.switchTab({ url: '/pages/voucher/voucher' });
+				uni.navigateTo({ url: '/pages/voucher/points' });
 			},
 			goSubscriptionMall() {
 				AUTH.trackEvent({
@@ -570,7 +589,7 @@
 					page_path: 'pages/user/user',
 					source: 'user_center'
 				}, this.token).catch(function() {});
-				uni.navigateTo({ url: '/pages/user/subscription/buy?source=user_center' });
+				MALL_NAV.openCardMall({ source: 'user_center' });
 			},
 			goOrderList(state) {
 				if (!this.ensureLoggedIn()) return;
@@ -684,13 +703,11 @@
 				uni.showModal({
 					title: '投骰成功',
 					content: content,
-					confirmText: '看卡券',
+					confirmText: '积分福利',
 					cancelText: '知道了',
 					success: function(res) {
-						if (res.confirm) {
-							uni.switchTab({ url: '/pages/voucher/voucher' });
-						}
-					}
+						if (res.confirm) this.goPointsCenter();
+					}.bind(this)
 				});
 			},
 
@@ -1256,7 +1273,7 @@ page {
 
 .asset-grid {
 	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	margin-top: 26rpx;
 	padding-top: 22rpx;
 	border-top: 1rpx solid rgba(255, 255, 255, 0.16);
@@ -1298,6 +1315,25 @@ page {
 
 .asset-label {
 	margin-top: 6rpx;
+	font-size: 21rpx;
+	color: rgba(255, 255, 255, 0.7);
+}
+
+.points-retention {
+	display: flex;
+	flex-direction: column;
+	gap: 8rpx;
+	margin-top: 20rpx;
+	padding-top: 18rpx;
+	border-top: 1rpx solid rgba(255, 255, 255, 0.16);
+}
+
+.points-retention-link {
+	font-size: 23rpx;
+	color: #FFFFFF;
+}
+
+.points-retention-hint {
 	font-size: 21rpx;
 	color: rgba(255, 255, 255, 0.7);
 }
@@ -1646,6 +1682,17 @@ page {
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	border-top: 1rpx solid #EEEAE5;
 	border-left: 1rpx solid #EEEAE5;
+}
+
+.rights-grid {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rights-hint {
+	margin: 8rpx 12rpx 14rpx;
+	font-size: 20rpx;
+	color: #817B73;
+	text-align: center;
 }
 
 .service-item {

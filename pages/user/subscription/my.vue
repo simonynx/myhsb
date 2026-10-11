@@ -1,99 +1,84 @@
 <template>
 	<view class="page-wrapper">
-		<!-- 自定义导航栏（避免和背景重合） -->
-		<view class="custom-nav">
-			<text class="nav-title">我的卡包</text>
-			<text class="back-btn" @tap="goBack">‹</text>
+		<view class="custom-nav" :style="navStyle">
+			<view class="nav-content" :style="navContentStyle">
+				<view class="back-btn" @tap="goBack"><text>‹</text></view>
+				<text class="nav-title">我的卡包</text>
+			</view>
 		</view>
-		<view class="nav-placeholder"></view>
+		<view class="nav-placeholder" :style="navPlaceholderStyle"></view>
 
-		<!-- 选项卡 -->
+		<view class="wallet-heading">
+			<text class="wallet-title">把好时光，留在卡包里</text>
+			<text class="wallet-caption">先看剩余额度与到期时间，按本单规则用卡</text>
+		</view>
 		<view class="tabs">
-			<view 
-				class="tab-item" 
-				v-for="tab in tabList" 
-				:key="tab.value"
-				:class="currentTab === tab.value ? 'active' : ''"
-				@tap="switchTab(tab.value)"
-			>
-				<text class="tab-text">{{ tab.name }}</text>
+			<view class="tab-item" v-for="tab in tabList" :key="tab.value"
+				:class="currentTab === tab.value ? 'active' : ''" @tap="switchTab(tab.value)">
+				<text>{{ tab.name }}</text>
 			</view>
 		</view>
 
-		<!-- 卡包列表 -->
 		<scroll-view class="scroll-area" scroll-y>
-			<view v-if="loading" class="loading-state">
-				<text class="loading-text">加载中...</text>
+			<view v-if="loading" class="feedback-state">
+				<text class="feedback-title">正在整理你的卡包…</text>
+				<text class="feedback-desc">剩余额度与有效期加载中</text>
 			</view>
-			
-			<view v-else-if="list.length === 0" class="empty-state">
-				<view class="empty-icon">📂</view>
-				<text class="empty-text">这里空空如也~</text>
-				<view class="go-buy-btn" @tap="goBuy">去购买次卡/月卡</view>
+			<view v-else-if="loadError" class="feedback-state">
+				<text class="feedback-title">卡包暂时未能加载</text>
+				<text class="feedback-desc">{{ loadError }}</text>
+				<view class="retry-btn" @tap="fetchData">重新加载</view>
 			</view>
-			
+			<view v-else-if="list.length === 0" class="feedback-state">
+				<text class="feedback-title">{{ emptyText }}</text>
+				<text class="feedback-desc">已购卡包的额度和使用规则会显示在这里</text>
+				<view class="retry-btn" @tap="goBuy">看看次卡 / 小时卡</view>
+			</view>
 			<view v-else class="card-list">
-				<view 
-					:class="sub.cardClass"
-					v-for="sub in list" 
-					:key="sub.object_id"
-				>
-					<!-- 装饰水波纹 -->
-					<view class="card-wave"></view>
-
+				<view v-for="sub in list" :key="sub.object_id" :class="sub.cardClass">
 					<view class="card-header">
-						<view class="card-type-tag">
-							{{ sub.badgeText }}
-						</view>
+						<text class="card-type-tag">{{ sub.badgeText }}</text>
 						<text class="card-status-name">{{ sub.statusText }}</text>
 					</view>
-					
-					<view class="card-body">
-						<text class="card-name">{{ sub.card_template.name }}</text>
-						
-						<view class="limit-section">
-							<text class="limit-num">{{ sub.remaining_limit }}</text>
-							<text class="limit-unit">{{ sub.unitText }}</text>
-							<text class="limit-label">剩余额度</text>
-							<view class="usage-bar-wrap" v-if="sub.total_limit > 0">
-								<view class="usage-bar">
-									<view class="usage-fill" :style="sub.usageBarStyle"></view>
-								</view>
-								<text class="usage-text">已用 {{ sub.used_limit }}/{{ sub.total_limit }}{{ sub.unitText }}</text>
+					<text class="card-name">{{ sub.cardName }}</text>
+					<view class="quota-section">
+						<text class="quota-label">剩余额度</text>
+						<view><text class="limit-num">{{ sub.remaining_limit }}</text><text class="limit-unit">{{ sub.unitText }}</text></view>
+						<view class="usage-bar" v-if="sub.total_limit > 0"><view class="usage-fill" :style="sub.usageBarStyle"></view></view>
+						<text class="usage-text" v-if="sub.total_limit > 0">已用 {{ sub.used_limit }} / 共 {{ sub.total_limit }}{{ sub.unitText }}</text>
+					</view>
+					<view class="expiry-section">
+						<text class="expire-time">有效期至 {{ sub.formatted_expire }}</text>
+						<text class="expire-warning" v-if="sub.expire_warning">{{ sub.expire_warning }}</text>
+						<text class="effective-time" v-if="sub.effectiveText">{{ sub.effectiveText }}</text>
+					</view>
+					<view class="card-rules">
+						<text class="usage-summary">可抵扣：{{ sub.usageText }}</text>
+						<text v-if="sub.restrictionText" class="restriction-text">{{ sub.restrictionText }}</text>
+						<view class="rule-line" v-for="rule in sub.importantRules" :key="rule.key">
+							<text class="rule-dot">·</text><text class="rule-text">{{ rule.text }}</text>
+						</view>
+						<view v-if="sub.secondaryRules.length > 0" class="details-toggle" @tap="toggleDetails(sub)">
+							<text>{{ sub.detailsExpanded ? '收起详细规则 −' : '查看详细规则 +' }}</text>
+						</view>
+						<view v-if="sub.detailsExpanded">
+							<view class="rule-line" v-for="rule in sub.secondaryRules" :key="rule.key">
+								<text class="rule-dot">·</text><text class="rule-text">{{ rule.text }}</text>
 							</view>
+							<text class="validity-detail">{{ sub.validityText }}</text>
 						</view>
 					</view>
-					
-					<view class="card-footer">
-						<view class="footer-desc">
-							<text class="desc-line">可抵扣：{{ sub.usageText }}</text>
-							<text class="desc-line" v-if="sub.target_type_num === 2">
-								适用空间：{{ sub.room_names_limit }}
-							</text>
-						</view>
-						<view class="expire-wrap">
-							<text class="expire-time">有效期至: {{ sub.formatted_expire }}</text>
-							<text class="expire-time warning" v-if="sub.expire_warning">{{ sub.expire_warning }}</text>
-						</view>
+					<view class="card-actions" v-if="sub.canUse">
+						<view class="use-btn" @tap="goUse(sub)">{{ sub.ctaText }}</view>
+						<text class="checkout-hint">在结算页确认实际可用卡包，抵扣以本单规则为准</text>
 					</view>
-
-					<view class="card-rules" v-if="sub.ruleLines.length > 0">
-						<text class="rules-title">使用规则</text>
-						<view class="rule-line" v-for="rule in sub.ruleLines" :key="rule.key">
-							<text class="rule-dot">•</text>
-							<text class="rule-text">{{ rule.text }}</text>
-						</view>
+					<view class="card-actions" v-else-if="sub.canRepurchase">
+						<view class="repurchase-btn" @tap="goBuy">再买一张</view>
 					</view>
 				</view>
 			</view>
 		</scroll-view>
-
-		<!-- 底部操作悬浮按钮 -->
-		<view class="footer-actions">
-			<view class="buy-more-btn" @tap="goBuy">
-				<text class="btn-text">+ 购买更多卡包</text>
-			</view>
-		</view>
+		<view class="footer-actions"><view class="buy-more-btn" @tap="goBuy">购买更多卡包</view></view>
 	</view>
 </template>
 
@@ -101,14 +86,20 @@
 import { mapState } from 'vuex';
 import AUTH from '../../../utils/auth.js';
 import SUBSCRIPTION from '../../../utils/subscription.js';
-import { formatDate } from '../../../common/util.js';
+import PRESENTATION from '../../../utils/subscriptionPresentation.js';
+import MALL_NAV from '../../../utils/mallNavigation.js';
 
 export default {
 	data() {
 		return {
 			list: [],
 			loading: true,
-			currentTab: 1, // 1:使用中, 2:额度已耗尽, 3:已过期
+			loadError: '',
+			requestSeq: 0,
+			currentTab: 1,
+			navStyle: 'padding-top: env(safe-area-inset-top);',
+			navContentStyle: 'height: 44px;',
+			navPlaceholderStyle: 'height: calc(44px + env(safe-area-inset-top));',
 			tabList: [
 				{ name: '使用中', value: 1 },
 				{ name: '已用完', value: 2 },
@@ -117,508 +108,256 @@ export default {
 		};
 	},
 	computed: {
-		...mapState(['token'])
+		...mapState(['token']),
+		emptyText() {
+			return this.currentTab === 1 ? '暂时没有使用中的卡包' : this.currentTab === 2 ? '还没有用完的卡包' : '还没有过期的卡包';
+		}
 	},
 	onLoad() {
-		this.fetchData();
+		this.initNavigation();
+	},
+	onShow() {
+		return this.fetchData();
+	},
+	onUnload() {
+		this.requestSeq++;
 	},
 	methods: {
-		fetchData() {
-			this.loading = true;
-			AUTH.getUserSubscriptions(this.token, this.currentTab).then(res => {
-				this.loading = false;
-				if (res._status === 0 && res.data) {
-					this.list = res.data.map(sub => {
-						let roomNames = '所有包厢通用';
-						const usableRooms = sub.card_template.usable_rooms || [];
-						if (usableRooms.length > 0) {
-							roomNames = usableRooms.map(r => r.name || '').filter(Boolean).join(', ');
-						}
-						return Object.assign({}, sub, {
-							formatted_expire: formatDate(Number(sub.expire_at) || sub.expire_at),
-							room_names_limit: roomNames,
-							target_type_num: SUBSCRIPTION.getCardTargetType(sub.card_template),
-							total_limit: Number(sub.card_template.total_limit) || 0,
-							used_limit: Math.max(0, (Number(sub.card_template.total_limit) || 0) - (Number(sub.remaining_limit) || 0)),
-							used_percent: this.calcUsedPercent(sub),
-							expire_warning: this.getExpireWarning(sub),
-							usageBarStyle: 'width: ' + this.calcUsedPercent(sub) + '%;',
-							badgeText: this.getCardBadge(sub.card_template),
-							unitText: this.getCardUnit(sub.card_template),
-							usageText: this.getCardUsageText(sub.card_template),
-							ruleLines: this.getCardRuleLines(sub.card_template),
-							statusText: this.getStatusText(sub),
-							cardClass: 'card-item ' + this.getCardClass(sub) + ' ' + this.getBgClass(sub)
-						});
-					});
-				} else {
-					uni.showToast({ title: res._reason || '加载数据失败', icon: 'none' });
+		initNavigation() {
+			try {
+				const info = uni.getSystemInfoSync();
+				const top = Math.max(0, Number(info.statusBarHeight) || 0);
+				let height = 44;
+				let side = 56;
+				// #ifdef MP-WEIXIN
+				const capsule = uni.getMenuButtonBoundingClientRect && uni.getMenuButtonBoundingClientRect();
+				if (capsule && capsule.height > 0 && capsule.top >= top) {
+					height = (capsule.top - top) * 2 + capsule.height;
+					if (Number(info.windowWidth) > 0 && Number(capsule.left) > 0) {
+						side = Math.max(side, Number(info.windowWidth) - Number(capsule.left) + 8);
+					}
 				}
-			}).catch(err => {
+				// #endif
+				this.navStyle = 'padding-top: ' + top + 'px;';
+				this.navContentStyle = 'height: ' + height + 'px; padding-left: ' + side + 'px; padding-right: ' + side + 'px;';
+				this.navPlaceholderStyle = 'height: ' + (top + height) + 'px;';
+			} catch (error) {
+				// Unsupported platforms retain the safe-area CSS fallback.
+			}
+		},
+		fetchData() {
+			const request = ++this.requestSeq;
+			const tab = this.currentTab;
+			this.loading = true;
+			this.loadError = '';
+			this.list = [];
+			return Promise.resolve().then(() => AUTH.getUserSubscriptions(this.token, tab)).then(res => {
+				if (request !== this.requestSeq || tab !== this.currentTab) return;
+				if (!res || res._status !== 0 || !Array.isArray(res.data)) {
+					throw new Error(res && res._reason || '请检查网络后重试');
+				}
+				this.list = res.data.map(sub => this.decorateCard(sub));
 				this.loading = false;
-				uni.showToast({ title: '加载失败，请重试', icon: 'none' });
+			}).catch(error => {
+				if (request !== this.requestSeq || tab !== this.currentTab) return;
+				this.loading = false;
+				this.loadError = error && error.message || '请检查网络后重试';
 			});
 		},
 		switchTab(val) {
+			if (this.currentTab === val) return;
 			this.currentTab = val;
-			this.fetchData();
+			return this.fetchData();
+		},
+		parseTimestamp(value) {
+			if (value === null || value === undefined || value === '') return null;
+			if (typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value).trim())) {
+				const numeric = Number(value);
+				const ms = numeric < 100000000000 ? numeric * 1000 : numeric;
+				return isFinite(ms) && ms > 0 && !isNaN(new Date(ms).getTime()) ? ms : null;
+			}
+			const text = String(value).trim();
+			// Parse server-local strings by components, not platform-specific Date parsing.
+			const local = text.match(/^(\d{4})[-/](\d{2})[-/](\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,6}))?)?)?$/);
+			if (local) {
+				const year = Number(local[1]), month = Number(local[2]) - 1, day = Number(local[3]);
+				const hour = Number(local[4] || 0), minute = Number(local[5] || 0), second = Number(local[6] || 0);
+				const millis = Number((local[7] || '').slice(0, 3).padEnd(3, '0'));
+				const date = new Date(year, month, day, hour, minute, second, millis);
+				return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day &&
+					date.getHours() === hour && date.getMinutes() === minute && date.getSeconds() === second ? date.getTime() : null;
+			}
+			if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/i.test(text)) {
+				const ms = Date.parse(text);
+				return isFinite(ms) ? ms : null;
+			}
+			return null;
+		},
+		formatTimestamp(ms) {
+			if (ms === null) return '待确认';
+			const date = new Date(ms);
+			const pad = value => String(value).padStart(2, '0');
+			return date.getFullYear() + '.' + pad(date.getMonth() + 1) + '.' + pad(date.getDate()) + ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes());
+		},
+		getStartValue(sub) {
+			// The API uses start_at. A supplied invalid value must not fall back to the alias.
+			return sub.start_at !== null && sub.start_at !== undefined ? sub.start_at : sub.effective_at;
+		},
+		getAvailability(sub, now) {
+			const expire = this.parseTimestamp(sub.expire_at);
+			const start = this.getStartValue(sub);
+			const hasEffective = start !== null && start !== undefined;
+			const effective = this.parseTimestamp(start);
+			if (Number(sub.status) === 3 || (expire !== null && expire <= now)) return 'expired';
+			if (Number(sub.status) === 2 || Number(sub.remaining_limit) <= 0) return 'used';
+			if (expire === null || (hasEffective && effective === null)) return 'unknown';
+			if (effective !== null && effective > now) return 'future';
+			return Number(sub.status) === 1 && Number(sub.remaining_limit) > 0 ? 'active' : 'unknown';
+		},
+		decorateCard(sub) {
+			const template = sub.card_template || {};
+			const view = PRESENTATION.buildCardView(template);
+			const ruleLines = PRESENTATION.buildRuleLines(template);
+			const now = Date.now();
+			const state = this.getAvailability(sub, now);
+			const expire = this.parseTimestamp(sub.expire_at);
+			const remaining = Math.max(0, Number(sub.remaining_limit) || 0);
+			const total = Math.max(0, Number(template.total_limit) || 0);
+			const used = Math.max(0, total - remaining);
+			const percent = total > 0 ? Math.min(100, Math.floor(used * 100 / total)) : 0;
+			const ticket = PRESENTATION.presentationRule(template, SUBSCRIPTION.SLOT_TICKET);
+			const room = PRESENTATION.presentationRule(template, SUBSCRIPTION.SLOT_ROOM_HOURS);
+			const entry = PRESENTATION.presentationRule(template, SUBSCRIPTION.SLOT_SELF_ENTRY_FEE);
+			const important = rule => /房费|入场费|共用额度|闲时|适用房间/.test(rule.text);
+			const importantRules = ruleLines.filter(important);
+			// The full visible room rules replace the repeated summary, not the limitations.
+			const completeRoomRestrictions = room &&
+				importantRules.some(rule => /入场费/.test(rule.text)) &&
+				importantRules.some(rule => /闲时.*默认不可抵.*允许.*除外.*混合预约/.test(rule.text)) &&
+				importantRules.some(rule => /适用房间/.test(rule.text));
+			const restrictionText = completeRoomRestrictions || importantRules.some(rule => rule.text === view.restrictionText)
+				? '' : view.restrictionText;
+			let warning = '';
+			if (state === 'expired') warning = '已过期，不可使用';
+			else if (state === 'active' && expire - now <= 7 * 86400000) {
+				warning = expire - now <= 86400000 ? '不足24小时到期' : '剩' + Math.ceil((expire - now) / 86400000) + '天到期';
+			}
+			return Object.assign({}, sub, {
+				cardName: template.name || '我的卡包',
+				remaining_limit: remaining,
+				total_limit: total,
+				used_limit: used,
+				usageBarStyle: 'width: ' + percent + '%;',
+				badgeText: view.badgeText,
+				unitText: view.unitText,
+				usageText: view.usageText,
+				validityText: view.validityText,
+				restrictionText,
+				ruleLines,
+				importantRules,
+				secondaryRules: ruleLines.filter(rule => !important(rule)),
+				detailsExpanded: false,
+				formatted_expire: this.formatTimestamp(expire),
+				expire_warning: warning,
+				effectiveText: state === 'future' ? this.formatTimestamp(this.parseTimestamp(this.getStartValue(sub))) + ' 起可用' : '',
+				statusText: { active: '使用中', expired: '已过期', used: '额度已用完', future: '尚未生效', unknown: '有效状态待确认' }[state],
+				cardClass: 'card-item ' + state + ' ' + this.getBgClass(sub, state),
+				canUse: state === 'active' && !!(ticket || room || entry),
+				canRepurchase: state === 'expired' || state === 'used',
+				ctaText: ticket ? '去购大厅票' : '去预约'
+			});
+		},
+		getBgClass(sub, state) {
+			if ((state || this.getAvailability(sub, Date.now())) !== 'active') return 'muted-bg';
+			return PRESENTATION.buildCardView(sub.card_template || {}).visualClass === 'room' ? 'room-bg' : 'hall-bg';
+		},
+		toggleDetails(sub) {
+			sub.detailsExpanded = !sub.detailsExpanded;
+		},
+		goUse(sub) {
+			// Recheck at tap time; navigation never selects a card or bypasses checkout validation.
+			const current = this.decorateCard(sub);
+			if (!current.canUse) {
+				this.list = this.list.map(item => item.object_id === sub.object_id ? current : item);
+				uni.showToast({ title: '此卡暂不可用，请确认有效期和剩余额度', icon: 'none' });
+				return;
+			}
+			if (PRESENTATION.presentationRule(sub.card_template, SUBSCRIPTION.SLOT_TICKET)) {
+				uni.navigateTo({ url: '/pages/ticket/buy?count=1' });
+			} else {
+				uni.switchTab({ url: '/pages/tabBar/appoint/appoint' });
+			}
 		},
 		goBack() {
 			const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
-			if (pages && pages.length > 1) {
-				uni.navigateBack();
-			} else {
-				uni.switchTab({ url: '/pages/user/user' });
-			}
+			if (pages && pages.length > 1) uni.navigateBack();
+			else uni.switchTab({ url: '/pages/user/user' });
 		},
 		goBuy() {
-			AUTH.trackEvent({
-				event: 'subscription_entry_click',
-				page_path: 'pages/user/subscription/my',
-				source: 'my_cards'
-			}, this.token).catch(function() {});
-			uni.navigateTo({ url: '/pages/user/subscription/buy?source=my_cards' });
-		},
-		isMonthlyCard(template) {
-			return template && SUBSCRIPTION.getCardTargetType(template) === 1 && Number(template.validity_days) <= 31 && Number(template.total_limit) >= 8;
-		},
-		getCardBadge(template) {
-			if (!template) return '卡包';
-			if (SUBSCRIPTION.getCardTargetType(template) === 2) return '小时卡';
-			return this.isMonthlyCard(template) ? '月卡' : '次卡';
-		},
-		getCardUnit(template) {
-			return SUBSCRIPTION.getCardUnit(template);
-		},
-		getCardUsageText(template) {
-			if (!template) return '';
-			return SUBSCRIPTION.getCardUsageText(template);
-		},
-		getUsageRuleText(rule) {
-			if (!rule) return '';
-			const maxPerOrder = Number(rule.max_per_order) || 0;
-			if (rule.slot === SUBSCRIPTION.SLOT_TICKET) {
-				return maxPerOrder > 0
-					? '大厅购票：每单最多抵' + maxPerOrder + '张，超出部分正常结算'
-					: '大厅购票：按本单人数和卡内剩余额度抵扣';
-			}
-			if (rule.slot === SUBSCRIPTION.SLOT_SELF_ENTRY_FEE) {
-				return maxPerOrder > 0
-					? '包厢预约：每单最多抵' + maxPerOrder + '位持卡人入场费'
-					: '包厢预约：按同行人数和卡内剩余额度抵入场费';
-			}
-			if (rule.slot === SUBSCRIPTION.SLOT_ROOM_HOURS) {
-				return maxPerOrder > 0
-					? '包厢预约：每单最多抵' + maxPerOrder + '小时包厢费'
-					: '包厢预约：按预约时长和卡内剩余额度抵扣';
-			}
-			return '';
-		},
-		getCardRuleLines(template) {
-			if (!template) return [];
-			const texts = [];
-			const slots = [
-				SUBSCRIPTION.SLOT_TICKET,
-				SUBSCRIPTION.SLOT_SELF_ENTRY_FEE,
-				SUBSCRIPTION.SLOT_ROOM_HOURS
-			];
-			slots.forEach(slot => {
-				const text = this.getUsageRuleText(SUBSCRIPTION.getUsageRule(template, slot));
-				if (text) texts.push(text);
-			});
-
-			if (SUBSCRIPTION.getCardTargetType(template) === 2) {
-				texts.push('仅抵包厢小时费，不含本人及同行入场费');
-			}
-
-			const purchaseLimit = Number(template.purchase_limit_per_user) || 0;
-			if (purchaseLimit > 0) {
-				texts.push('每个账号限购' + purchaseLimit + '次，已购卡权益不受影响');
-			}
-
-			texts.push(template.stackable === false
-				? '同一订单不可与其他卡包同时使用'
-				: '可与其他适用卡包在同一订单使用');
-			texts.push('卡包抵扣后，剩余金额可继续使用会员折扣、适用优惠券和积分');
-
-			return texts.map((text, index) => ({
-				key: 'rule_' + index,
-				text: text
-			}));
-		},
-		calcUsedPercent(sub) {
-			const total = Number(sub.card_template.total_limit) || 0;
-			if (total <= 0) return 0;
-			const used = Math.max(0, total - (Number(sub.remaining_limit) || 0));
-			return Math.min(100, Math.floor(used * 100 / total));
-		},
-		getExpireWarning(sub) {
-			if (sub.status !== 1 || !sub.expire_at) return '';
-			const expireMs = (Number(sub.expire_at) || 0) * 1000;
-			if (!expireMs) return '';
-			const days = Math.ceil((expireMs - Date.now()) / 86400000);
-			if (days < 0) return '已过期';
-			if (days === 0) return '今天到期';
-			if (days <= 7) return '剩' + days + '天到期';
-			return '';
-		},
-		getCardClass(sub) {
-			if (sub.status === 1) return 'active';
-			if (sub.status === 2) return 'used';
-			return 'expired';
-		},
-		getBgClass(sub) {
-			if (sub.status !== 1) return 'grey-bg';
-			if (sub.target_type_num === 2) {
-				return 'room-bg';
-			}
-			return 'hall-bg';
-		},
-		getStatusText(sub) {
-			if (sub.status === 1) return '正常使用中';
-			if (sub.status === 2) return '额度已用完';
-			return '已过期';
+			AUTH.trackEvent({ event: 'subscription_entry_click', page_path: 'pages/user/subscription/my', source: 'my_cards' }, this.token).catch(function() {});
+			MALL_NAV.openCardMall({ source: 'my_cards' });
 		}
 	}
 };
 </script>
 
 <style lang="scss">
-page {
-	background: #FDF8F0;
-}
-.page-wrapper {
-	min-height: 100vh;
-	display: flex;
-	flex-direction: column;
-}
-
-/* ===== 自定义导航栏 ===== */
-.custom-nav {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	height: 88rpx;
-	padding-top: env(safe-area-inset-top);
-	background: #FFF;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	border-bottom: 1rpx solid #F5EBE0;
-	z-index: 999;
-	
-	.nav-title {
-		font-size: 32rpx;
-		font-weight: bold;
-		color: #5C4B3A;
-	}
-	.back-btn {
-		position: absolute;
-		left: 30rpx;
-		top: calc(50% - 20rpx + env(safe-area-inset-top) / 2);
-		font-size: 40rpx;
-		color: #8C7966;
-		padding: 10rpx;
-	}
-}
-.nav-placeholder {
-	height: calc(88rpx + env(safe-area-inset-top));
-}
-
-/* ===== 选项卡 ===== */
-.tabs {
-	display: flex;
-	background: #FFF;
-	border-bottom: 1rpx solid #F5EBE0;
-	
-	.tab-item {
-		flex: 1;
-		text-align: center;
-		padding: 24rpx 0;
-		position: relative;
-		
-		.tab-text {
-			font-size: 28rpx;
-			color: #8C7966;
-			transition: all 0.2s;
-		}
-		
-		&.active {
-			.tab-text {
-				color: #FF8C42;
-				font-weight: bold;
-			}
-			&::after {
-				content: '';
-				position: absolute;
-				bottom: 0;
-				left: 30%;
-				right: 30%;
-				height: 4rpx;
-				background: #FF8C42;
-				border-radius: 2rpx;
-			}
-		}
-	}
-}
-
-/* ===== 滚动区域 ===== */
-.scroll-area {
-	flex: 1;
-	height: 0;
-}
-
-.loading-state {
-	padding: 120rpx 0;
-	text-align: center;
-	color: #A09080;
-	font-size: 26rpx;
-}
-
-.empty-state {
-	padding: 180rpx 40rpx;
-	text-align: center;
-	
-	.empty-icon {
-		font-size: 100rpx;
-		margin-bottom: 24rpx;
-	}
-	.empty-text {
-		font-size: 26rpx;
-		color: #A09080;
-		display: block;
-		margin-bottom: 40rpx;
-	}
-	.go-buy-btn {
-		display: inline-block;
-		background: #E8784A;
-		color: #FFF;
-		padding: 20rpx 48rpx;
-		border-radius: 12rpx;
-		font-size: 28rpx;
-		font-weight: bold;
-		box-shadow: 0 6rpx 20rpx rgba(255, 140, 66, 0.2);
-	}
-}
-
-/* ===== 卡片列表 ===== */
-.card-list {
-	padding: 30rpx 24rpx;
-	display: flex;
-	flex-direction: column;
-	gap: 30rpx;
-}
-
-.card-item {
-	position: relative;
-	border-radius: 16rpx;
-	padding: 36rpx 32rpx;
-	color: #FFF;
-	box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.05);
-	overflow: hidden;
-	box-sizing: border-box;
-	
-	/* 背景渐变色 */
-	&.hall-bg {
-		background: #D87547;
-		box-shadow: 0 10rpx 30rpx rgba(245, 124, 0, 0.22);
-	}
-	&.room-bg {
-		background: #397267;
-		box-shadow: 0 10rpx 30rpx rgba(38, 91, 81, 0.2);
-	}
-	&.grey-bg {
-		background: #7B8B90;
-		box-shadow: 0 10rpx 30rpx rgba(120, 144, 156, 0.15);
-	}
-	
-	/* 装饰波纹 */
-	.card-wave {
-		position: absolute;
-		right: -40rpx;
-		bottom: -40rpx;
-		width: 220rpx;
-		height: 220rpx;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.08);
-		
-		&::after {
-			content: '';
-			position: absolute;
-			left: 20rpx;
-			top: 20rpx;
-			width: 180rpx;
-			height: 180rpx;
-			border-radius: 50%;
-			background: rgba(255, 255, 255, 0.05);
-		}
-	}
-}
-
-.card-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 24rpx;
-	
-	.card-type-tag {
-		background: rgba(255, 255, 255, 0.25);
-		font-size: 20rpx;
-		padding: 4rpx 16rpx;
-		border-radius: 6rpx;
-		font-weight: bold;
-	}
-	.card-status-name {
-		font-size: 22rpx;
-		color: rgba(255, 255, 255, 0.85);
-	}
-}
-
-.card-body {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-end;
-	margin-bottom: 30rpx;
-	
-	.card-name {
-		font-size: 38rpx;
-		font-weight: bold;
-		max-width: 60%;
-		line-height: 1.35;
-	}
-	
-	.limit-section {
-		text-align: right;
-		
-		.limit-num {
-			font-size: 64rpx;
-			font-weight: bold;
-			line-height: 1;
-		}
-		.limit-unit {
-			font-size: 26rpx;
-			font-weight: bold;
-			margin-left: 4rpx;
-		}
-		.limit-label {
-			display: block;
-			font-size: 20rpx;
-			color: rgba(255, 255, 255, 0.8);
-			margin-top: 6rpx;
-		}
-		.usage-bar-wrap {
-			width: 220rpx;
-			margin-top: 14rpx;
-		}
-		.usage-bar {
-			height: 8rpx;
-			border-radius: 999rpx;
-			background: rgba(255, 255, 255, 0.25);
-			overflow: hidden;
-		}
-		.usage-fill {
-			height: 100%;
-			border-radius: 999rpx;
-			background: rgba(255, 255, 255, 0.9);
-		}
-		.usage-text {
-			display: block;
-			margin-top: 6rpx;
-			font-size: 20rpx;
-			color: rgba(255, 255, 255, 0.78);
-			white-space: nowrap;
-		}
-	}
-}
-
-.card-footer {
-	border-top: 1rpx solid rgba(255, 255, 255, 0.15);
-	padding-top: 20rpx;
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-end;
-	
-	.footer-desc {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		gap: 6rpx;
-		margin-right: 16rpx;
-	}
-	.desc-line {
-		font-size: 22rpx;
-		color: rgba(255, 255, 255, 0.9);
-	}
-	.expire-wrap {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 4rpx;
-		flex-shrink: 0;
-	}
-	.expire-time {
-		font-size: 20rpx;
-		color: rgba(255, 255, 255, 0.8);
-		white-space: nowrap;
-		&.warning {
-			color: #FFE7A3;
-			font-weight: bold;
-		}
-	}
-}
-
-.card-rules {
-	margin-top: 18rpx;
-	padding-top: 18rpx;
-	border-top: 1rpx solid rgba(255, 255, 255, 0.15);
-	.rules-title {
-		display: block;
-		margin-bottom: 10rpx;
-		font-size: 22rpx;
-		font-weight: bold;
-		color: #FFF;
-	}
-	.rule-line {
-		display: flex;
-		align-items: flex-start;
-		margin-top: 6rpx;
-	}
-	.rule-dot {
-		width: 20rpx;
-		flex-shrink: 0;
-		font-size: 20rpx;
-		line-height: 1.55;
-		color: rgba(255, 255, 255, 0.7);
-	}
-	.rule-text {
-		min-width: 0;
-		flex: 1;
-		font-size: 21rpx;
-		line-height: 1.55;
-		color: rgba(255, 255, 255, 0.88);
-	}
-}
-
-/* ===== 底部悬浮按钮 ===== */
-.footer-actions {
-	padding: 24rpx 32rpx;
-	padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-	background: #FFF;
-	border-top: 1rpx solid #F5EBE0;
-	z-index: 100;
-}
-.buy-more-btn {
-	background: #E8784A;
-	color: #FFF;
-	padding: 24rpx 0;
-	border-radius: 12rpx;
-	text-align: center;
-	box-shadow: 0 6rpx 20rpx rgba(255, 140, 66, 0.25);
-	
-	.btn-text {
-		font-size: 30rpx;
-		font-weight: bold;
-	}
-}
+page { background: #fbf6ee; }
+.page-wrapper { height: 100vh; display: flex; flex-direction: column; color: #493b32; overflow: hidden; }
+.custom-nav { position: fixed; top: 0; left: 0; right: 0; background: #fbf6ee; z-index: 999; }
+.nav-content { position: relative; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.nav-title { font-size: 32rpx; font-weight: bold; white-space: nowrap; }
+.back-btn { position: absolute; left: 12px; top: 0; bottom: 0; width: 44px; display: flex; align-items: center; justify-content: center; font-size: 56rpx; color: #795347; }
+.nav-placeholder { flex-shrink: 0; }
+.wallet-heading { padding: 28rpx 32rpx 24rpx; flex-shrink: 0; }
+.wallet-title { display: block; font-size: 34rpx; font-weight: bold; line-height: 1.5; }
+.wallet-caption { display: block; margin-top: 8rpx; font-size: 24rpx; line-height: 1.6; color: #79675c; }
+.tabs { display: flex; margin: 0 24rpx 8rpx; padding: 8rpx; background: #efe6da; border-radius: 18rpx; flex-shrink: 0; }
+.tab-item { flex: 1; text-align: center; padding: 18rpx 0; border-radius: 12rpx; font-size: 27rpx; color: #746154; }
+.tab-item.active { background: #fffaf3; color: #98472f; font-weight: bold; box-shadow: 0 3rpx 10rpx rgba(96, 63, 42, .08); }
+.scroll-area { flex: 1; height: 0; min-height: 0; }
+.feedback-state { padding: 110rpx 40rpx; text-align: center; }
+.feedback-title { display: block; font-size: 30rpx; font-weight: bold; line-height: 1.6; }
+.feedback-desc { display: block; margin-top: 16rpx; color: #79675c; font-size: 26rpx; line-height: 1.7; }
+.retry-btn { display: inline-block; margin-top: 32rpx; padding: 22rpx 40rpx; border-radius: 14rpx; background: #a65037; color: #fffaf5; font-size: 28rpx; }
+.card-list { padding: 24rpx; }
+.card-item { margin-bottom: 28rpx; padding: 30rpx; border: 2rpx solid #dfc4ad; border-radius: 24rpx; box-sizing: border-box; box-shadow: 0 8rpx 24rpx rgba(88, 59, 39, .06); }
+.hall-bg { background: #fff1e3; border-color: #dfb299; }
+.room-bg { background: #eee5d8; border-color: #cdbda8; }
+.muted-bg { background: #f0ebe3; border-color: #d7cec2; }
+.card-header { display: flex; justify-content: space-between; align-items: center; gap: 16rpx; margin-bottom: 18rpx; }
+.card-type-tag { padding: 8rpx 16rpx; background: #f3d7c1; color: #84442e; font-size: 23rpx; font-weight: bold; border-radius: 10rpx; }
+.room-bg .card-type-tag { background: #ded0bd; color: #64503e; }
+.muted-bg .card-type-tag { background: #e2d9cd; color: #66574b; }
+.card-status-name { font-size: 24rpx; color: #705b4f; flex-shrink: 0; }
+.card-name { display: block; font-size: 34rpx; font-weight: bold; line-height: 1.5; overflow-wrap: break-word; }
+.quota-section { margin-top: 24rpx; }
+.quota-label { display: block; font-size: 25rpx; color: #705b4f; margin-bottom: 8rpx; }
+.limit-num { font-size: 76rpx; line-height: 1.15; font-weight: bold; color: #a04a31; }
+.room-bg .limit-num { color: #695140; }
+.muted-bg .limit-num { color: #776759; }
+.limit-unit { margin-left: 10rpx; font-size: 28rpx; font-weight: bold; }
+.usage-bar { height: 8rpx; margin-top: 20rpx; background: #e7d5c2; border-radius: 8rpx; overflow: hidden; }
+.usage-fill { height: 100%; background: #b56a4c; border-radius: 8rpx; }
+.room-bg .usage-fill { background: #90745c; }
+.usage-text { display: block; margin-top: 10rpx; font-size: 23rpx; line-height: 1.5; color: #705b4f; }
+.expiry-section { margin-top: 22rpx; padding: 18rpx 20rpx; border-radius: 12rpx; background: rgba(255, 252, 245, .65); }
+.expire-time { display: block; font-size: 27rpx; line-height: 1.6; font-weight: bold; }
+.expire-warning { display: block; margin-top: 4rpx; font-size: 25rpx; line-height: 1.6; color: #a3412b; font-weight: bold; }
+.effective-time { display: block; font-size: 24rpx; line-height: 1.6; color: #705b4f; }
+.card-rules { margin-top: 24rpx; padding-top: 22rpx; border-top: 1rpx solid #dac8b6; }
+.usage-summary { display: block; font-size: 26rpx; font-weight: bold; line-height: 1.6; }
+.restriction-text { display: block; margin-top: 10rpx; font-size: 25rpx; line-height: 1.65; color: #80503c; }
+.rule-line { display: flex; align-items: flex-start; margin-top: 12rpx; }
+.rule-dot { width: 24rpx; flex-shrink: 0; font-size: 28rpx; line-height: 1.55; color: #94684d; }
+.rule-text { flex: 1; min-width: 0; font-size: 24rpx; line-height: 1.7; color: #655347; overflow-wrap: break-word; }
+.details-toggle { padding: 22rpx 0 12rpx; color: #904a33; font-size: 25rpx; font-weight: bold; }
+.validity-detail { display: block; margin-top: 12rpx; font-size: 24rpx; line-height: 1.7; color: #655347; }
+.card-actions { margin-top: 24rpx; }
+.use-btn { padding: 24rpx 20rpx; text-align: center; background: #a65037; color: #fffaf5; border-radius: 14rpx; font-size: 29rpx; font-weight: bold; }
+.room-bg .use-btn { background: #765b45; }
+.checkout-hint { display: block; margin-top: 14rpx; font-size: 23rpx; line-height: 1.65; color: #705b4f; }
+.repurchase-btn { padding: 22rpx 20rpx; border: 1rpx solid #bda895; border-radius: 14rpx; color: #79513d; text-align: center; font-size: 27rpx; font-weight: bold; }
+.footer-actions { padding: 18rpx 24rpx; padding-bottom: calc(18rpx + env(safe-area-inset-bottom)); background: #fbf6ee; border-top: 1rpx solid #e7dacb; flex-shrink: 0; }
+.buy-more-btn { padding: 24rpx 20rpx; border: 2rpx solid #b56a4c; border-radius: 16rpx; text-align: center; color: #904a33; font-size: 29rpx; font-weight: bold; }
 </style>

@@ -442,6 +442,7 @@ import { mapState, mapActions } from 'vuex';
 import AUTH from '../../utils/auth.js';
 import COUPON from '../../utils/coupon.js';
 import SUBSCRIPTION from '../../utils/subscription.js';
+import MALL_NAV from '../../utils/mallNavigation.js';
 import { formatDate } from '../../common/util.js';
 
 export default {
@@ -793,6 +794,8 @@ export default {
         this.ticketCount = count;
       }
     }
+    // 只恢复购卡前的本地人数/模式；票价、券与卡包重新加载。
+    this.restoreCheckoutDraft(MALL_NAV.takeCheckoutDraft('ticket_checkout', options && options.mall_return_id));
     this.loadTicketPrice();
     if (!this.hasLogin) {
       uni.showModal({
@@ -820,6 +823,13 @@ export default {
 
   methods: {
     ...mapActions(['loginAndRegister', 'getUserInfo']),
+
+    restoreCheckoutDraft(draft) {
+      if (!draft) return;
+      if (draft.ticketMode === 'hall' || draft.ticketMode === 'perler_day') this.ticketMode = draft.ticketMode;
+      const count = Number(draft.ticketCount);
+      if (Number.isInteger(count) && count >= 1 && count <= 10) this.ticketCount = count;
+    },
 
     setTicketMode(mode) {
       if (mode !== 'hall' && mode !== 'perler_day') return;
@@ -887,7 +897,15 @@ export default {
         page_path: 'pages/ticket/buy',
         source: 'ticket_checkout'
       }, this.token).catch(function() {});
-      uni.navigateTo({ url: '/pages/user/subscription/buy?source=ticket_checkout&target_type=1&amount=' + amount });
+      let returnUrl = '/pages/ticket/buy?count=' + this.ticketCount + '&mode=' + encodeURIComponent(this.ticketMode);
+      if (this.isUpgradeMode) {
+        returnUrl += '&source_order=' + encodeURIComponent(this.sourceOrderNumber) + '&max_count=' + this.maxUpgradeCount;
+      }
+      MALL_NAV.openCardMall({
+        source: 'ticket_checkout', targetType: 1, amount, returnToCheckout: true,
+        returnUrl,
+        returnDraft: { ticketCount: this.ticketCount, ticketMode: this.ticketMode }
+      });
     },
 
     goGroupSquareFromTicket() {

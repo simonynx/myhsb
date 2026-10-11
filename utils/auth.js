@@ -188,6 +188,10 @@ function getUserProfile(token) {
   return request('/users/me/', 'GET', null, token);
 }
 
+function getPointRecords(token) {
+  return request('/users/point_records/', 'GET', null, token);
+}
+
 function getOrderList(status, token) {
   var data = status >= 0 ? { order_status: status } : null;
   var url = '/users/orders/' + (data ? '?order_status=' + status : '');
@@ -579,6 +583,7 @@ var httpRequest = {
   setSubscribeTemplateConfig: setSubscribeTemplateConfig,
   setUserProflie: setUserProflie,
   getUserProfile: getUserProfile,
+  getPointRecords: getPointRecords,
   getOrderList: getOrderList,
   recharge: recharge,
   setPayPassword: setPayPassword,

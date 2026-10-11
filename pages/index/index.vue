@@ -194,7 +194,7 @@
 						<text class="service-title">常来玩，看看卡包</text>
 						<text class="service-sub">大厅次卡、包厢小时卡，适用范围见详情</text>
 					</view>
-					<text class="service-action">看卡包 ›</text>
+					<text class="service-action">逛商城 ›</text>
 				</view>
 			</view>
 		</view>
@@ -265,6 +265,7 @@
 <script>
 	import AUTH from '../../utils/auth.js'
 	import OFFPEAK from '../../utils/offpeak.js'
+	import MALL_NAV from '../../utils/mallNavigation.js'
 	import { mapState, mapActions, mapMutations } from 'vuex';
 	export default {
 		computed: {
@@ -456,7 +457,7 @@
 				if (this.homePromptType === 'activity') return this.activityCard && this.activityCard.subtitle || '';
 				if (this.homePromptType === 'coupon') return '领取后会在结算时展示可用抵扣';
 				var streak = Number(this.checkInInfo.current_streak || 0);
-				return streak > 0 ? '已连续' + streak + '天，今天继续累积' : '签到积分可以在卡券商城兑换';
+				return streak > 0 ? '已连续' + streak + '天，今天继续累积' : '积分福利：可兑换到店礼或按规则抵扣消费';
 			},
 			homePromptAction() {
 				if (this.homePromptType === 'invite') return this.inviteLandingAction;
@@ -830,12 +831,15 @@
 					page_path: 'pages/index/index',
 					source: 'home_saver'
 				}, this.token).catch(function() {});
-				uni.navigateTo({ url: '/pages/user/subscription/buy?source=home_saver' });
+				MALL_NAV.openCardMall({ source: 'home_saver' });
 			},
 			goToVoucher(source) {
 				if (typeof source !== 'string') source = 'home_coupon_hint';
+				if (source === 'home_points') {
+					uni.navigateTo({ url: '/pages/voucher/points' });
+					return;
+				}
 				var initialTab = 'coupon';
-				if (source === 'home_points') initialTab = 'points';
 				if (source === 'home_upsell' || source === 'home_shop') initialTab = 'shop';
 				uni.setStorageSync('voucherInitialTab', initialTab);
 				AUTH.trackEvent({
@@ -988,14 +992,11 @@
 				uni.showModal({
 					title: '投骰成功',
 					content: content,
-					confirmText: '看卡券',
+					confirmText: '积分福利',
 					cancelText: '知道了',
 					success: function(res) {
-						if (res.confirm) {
-							uni.setStorageSync('voucherInitialTab', 'points');
-							uni.switchTab({ url: '/pages/voucher/voucher' });
-						}
-					}
+						if (res.confirm) this.goToVoucher('home_points');
+					}.bind(this)
 				});
 			},
 			closeInviteLanding() {

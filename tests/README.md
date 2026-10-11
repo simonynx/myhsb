@@ -40,11 +40,51 @@ node tests/room_description_test.js
 - `group_pricing_ui.js`：拼团房费分段明细、闲时与组局优惠不重复扣减、旧响应回退及刷新失败保护。
 - `room_description_test.js`：后台/小程序解析一致、旧 HTML 安全保留、未编辑不改写，以及无虚构内容的模板。
 
+## 商城、领券与个人权益回归
+
+```bash
+node tests/subscription_presentation.js
+node tests/voucher_mall.js
+node tests/subscription_buy.js
+node tests/subscription_owned.js
+node tests/coupon_claim.js
+node tests/mall_navigation.js
+node tests/mall_entries.js
+node tests/subscription_payment_return.js
+```
+
+- `subscription_presentation.js`：统一额度、金额精度、有效期、账号共享和闲时限制说明，覆盖非默认额度与限购配置。
+- `voucher_mall.js`：卡包主线、紧凑积分摘要、独立福利/补给/领券入口、指定套餐跳转、加载失败重试及迟到响应保护。
+- `subscription_buy.js`：单套餐确认、无效/下架卡不自动替换、限购提示、登录刷新、继续支付上下文及支付请求协议保持。
+- `subscription_owned.js`：剩余额度、到期与未生效校验、使用入口、异步切换分类、重试和导航栏安全区。
+
+- `coupon_claim.js`：游客可浏览、主动登录后领取、券类型/活动资格、领取结果、重试与并发保护。
+- `mall_navigation.js`：指定卡详情路由、安全结算返回、一次性草稿标识及超时清理。
+- `mall_entries.js`：首页/个人权益入口、原订单人数与备注恢复、加购重新映射以及放弃购卡后不污染新订单。
+- `subscription_payment_return.js`：已保留的购卡订单继续支付成功后恢复原结算；普通订单与失败/取消不误跳转。
+
+## 积分回访、到店补给与领取履约
+
+```bash
+node tests/loyalty_presentation.js
+node tests/loyalty_pages.js
+node tests/loyalty_entries.js
+node tests/goods_fulfillment_ui.js
+```
+
+- `loyalty_presentation.js`：积分步长/上限与整数配置、游客资格、积分＋现金和真实发券关联，不按商品类别猜测优惠券。
+- `loyalty_pages.js`：积分福利与真实变动记录、静默账户刷新、动态补给分类、加载失败重试与身份切换保护。
+- `loyalty_entries.js`：签到/积分直达福利、有效到店订单补给入口、真实领取状态与财务状态分离。
+- `goods_fulfillment_ui.js`：商品详情权威刷新、到账必须有服务端证据、历史记录未知、退款不可领和盲盒/券区分。
+
 后端对应的独立检查在 `moyu/tests/`：
 
 ```bash
 python tests/test_segment_billing.py
 python tests/test_room_description_widgets.py
+python tests/test_goods_fulfillment.py
 ```
+
+`test_goods_fulfillment.py` 使用真实履约服务和隔离的 Django Admin/序列化代码检查快照、幂等交付、权限、CSRF和退款保护；实际数据库回归准备在 `user/test_goods_fulfillment.py`，需在项目对应版本的 Django 与测试数据库中另行执行。
 
 这些测试不能替代生产版本 Django 的完整测试或微信开发者工具编译；页面上线前仍需检查实际小程序运行环境。
