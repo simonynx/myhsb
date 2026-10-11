@@ -59,8 +59,12 @@
 			</view>
 		</view>
 
+		<view class="home-navbar" :style="homeNavbarStyle">
+			<text class="home-navbar-name">{{ storeNameText }}</text>
+		</view>
+
 		<!-- 真实门店首屏 -->
-		<view class="home-hero">
+		<view :class="heroClass">
 			<swiper class="hero-media" v-if="carouselList.length > 0" circular autoplay interval="5000" @change="swiperChange">
 				<swiper-item v-for="(img, idx) in carouselList" :key="idx">
 					<image class="hero-image" :src="img" mode="aspectFill" />
@@ -68,7 +72,6 @@
 			</swiper>
 			<view class="hero-fallback" v-else>
 				<image class="hero-logo" src="/static/logo_small.jpg" mode="aspectFit" />
-				<text class="hero-fallback-text">桌游 · 漫画 · 拼豆 · 包厢</text>
 			</view>
 			<view class="hero-scrim"></view>
 			<view class="hero-topbar">
@@ -79,13 +82,17 @@
 				<text class="hero-hours">{{ businessHoursText }}</text>
 			</view>
 			<view class="hero-content">
-				<text class="hero-kicker">福州 · 桌游 × 漫画 × 拼豆体验店</text>
-				<text class="hero-title">{{ storeNameText }}</text>
-				<text class="hero-subtitle">大厅不限时自由玩，也可以预约独立包厢</text>
+				<text class="hero-kicker">福州 · 朋友的线下据点</text>
+				<text class="hero-title">给日常，放个小假</text>
+				<text class="hero-subtitle">{{ heroPlayText }}</text>
 				<view class="hero-value-line">
 					<text class="hero-value-main">大厅 {{ ticketPriceText }}</text>
 					<text class="hero-value-separator">·</text>
 					<text class="hero-value-sub">营业时间内不限时</text>
+				</view>
+				<view class="hero-actions">
+					<view class="hero-book" hover-class="home-action-pressed" @tap="goToReserve">约个包厢 <text>↗</text></view>
+					<view class="hero-location" hover-class="home-action-pressed" @tap="openLocation">怎么去门店 ›</view>
 				</view>
 			</view>
 			<view class="hero-dots" v-if="heroDots.length > 1">
@@ -98,7 +105,10 @@
 				<text class="weekday-banner-badge">闲时轻松玩</text>
 				<text class="weekday-banner-status">{{ weekdayDiscount.isToday ? '今日可享' : '可提前预约' }}</text>
 			</view>
-			<text class="weekday-banner-title">{{ weekdayDiscount.dealText }}</text>
+			<view class="weekday-banner-offer">
+				<text class="weekday-banner-title">双人 · 2小时</text>
+				<view class="weekday-banner-price"><text class="weekday-price-currency">¥</text><text class="weekday-price-value">{{ promoPriceText }}</text><text class="weekday-price-unit">起</text></view>
+			</view>
 			<text class="weekday-banner-sub">{{ weekdayDiscount.conditionText }}</text>
 			<view class="weekday-banner-bottom">
 				<text class="weekday-banner-note">含两人入场费 · 不含可选加购</text>
@@ -106,49 +116,29 @@
 			</view>
 		</view>
 
-		<!-- 大厅票核心权益：保留首页主线，同时让非桌游服务可被快速看见 -->
-		<view class="hall-benefits">
-			<view class="hall-benefits-head">
-				<text class="hall-benefits-title">大厅票已包含</text>
-				<text class="hall-benefits-note">进店后不用重复加购</text>
-			</view>
-			<view class="hall-benefits-list">
-				<view class="hall-benefit-item">
-					<text class="hall-benefit-dot"></text>
-					<text>桌游畅玩</text>
-				</view>
-				<view class="hall-benefit-item">
-					<text class="hall-benefit-dot"></text>
-					<text>漫画小说</text>
-				</view>
-				<view class="hall-benefit-item">
-					<text class="hall-benefit-dot"></text>
-					<text>零食茶水自助</text>
-				</view>
-				<view class="hall-benefit-item">
-					<text class="hall-benefit-dot"></text>
-					<text>营业时段不限时</text>
-				</view>
-			</view>
-		</view>
-
 		<!-- 三个核心消费场景 -->
 		<view class="play-section">
 			<view class="section-heading">
 				<view>
-					<text class="section-kicker">先选一种玩法</text>
+					<text class="section-kicker">一个人放空 · 和朋友小聚</text>
 					<text class="section-title">今天想怎么玩？</text>
 				</view>
-				<text class="section-heading-note">到店也能调整</text>
+				<text class="section-heading-note">选好玩法就出发</text>
 			</view>
 			<view class="play-grid">
 				<view v-for="option in playOptions" :key="option.key" :class="option.className" @tap="handleSceneTap(option)">
 					<view class="play-option-head">
-						<text class="play-option-mark">{{ option.mark }}</text>
+						<view :class="option.iconClass" aria-hidden="true">
+							<view class="play-icon-detail a"></view><view class="play-icon-detail b"></view>
+							<view class="play-icon-detail c"></view><view class="play-icon-detail d"></view>
+						</view>
 						<text class="play-option-badge">{{ option.badge }}</text>
 					</view>
 					<text class="play-option-name">{{ option.name }}</text>
 					<text class="play-option-desc">{{ option.desc }}</text>
+					<view class="play-inclusions" v-if="option.key === 'hall'">
+						<text>桌游畅玩</text><text>漫画小说</text><text>零食茶水</text>
+					</view>
 					<view class="play-option-foot">
 						<text class="play-option-price">{{ option.price }}</text>
 						<text class="play-option-action">{{ option.actionText }} ›</text>
@@ -171,12 +161,22 @@
 			</view>
 		</view>
 
+		<view class="social-section" @tap="goToGroupSquare">
+			<view class="social-mark">局</view>
+			<view class="social-copy">
+				<text class="social-kicker">不想一个人开场</text>
+				<text class="social-title">好玩的局，一起凑</text>
+				<text class="social-desc">找搭子，或发起自己的包厢局</text>
+			</view>
+			<text class="social-action">去组局 ›</text>
+		</view>
+
 		<!-- 到店后的次级服务 -->
 		<view class="service-section">
 			<view class="section-heading compact">
 				<view>
-					<text class="section-kicker">临时改变计划也没关系</text>
-					<text class="section-title">到店后继续加</text>
+					<text class="section-kicker">玩得尽兴，也花得明白</text>
+					<text class="section-title">还有这些小便利</text>
 				</view>
 			</view>
 			<view class="service-list">
@@ -191,22 +191,40 @@
 				<view class="service-row saver" @tap="goToSubscriptionMall">
 					<text class="service-mark">省</text>
 					<view class="service-copy">
-						<text class="service-title">常来就别每次原价</text>
-						<text class="service-sub">大厅次卡按人数抵，包厢小时卡按时长省</text>
+						<text class="service-title">常来玩，看看卡包</text>
+						<text class="service-sub">大厅次卡、包厢小时卡，适用范围见详情</text>
 					</view>
 					<text class="service-action">看卡包 ›</text>
 				</view>
 			</view>
 		</view>
 
-		<view class="social-section" @tap="goToGroupSquare">
-			<view class="social-mark">局</view>
-			<view class="social-copy">
-				<text class="social-kicker">不想一个人开场</text>
-				<text class="social-title">看看今天谁还差位</text>
-				<text class="social-desc">找桌游搭子、主机队友，或发起自己的包厢局</text>
+		<view class="review-section" v-if="reviews.length > 0">
+			<view class="section-heading compact">
+				<view>
+					<text class="section-kicker">来自真实消费</text>
+					<text class="section-title">到店玩家评价</text>
+					<text class="section-summary">{{ reviewSummaryText }}</text>
+				</view>
+				<text class="section-link" @tap="goToMyReviews">查看全部 ›</text>
 			</view>
-			<text class="social-action">去组局 ›</text>
+			<view class="home-review-list">
+				<view class="review-card" v-for="rev in reviews" :key="rev.key">
+					<view class="review-header">
+						<view class="review-avatar">{{ rev.avatarText }}</view>
+						<view class="review-meta">
+							<text class="review-name">{{ rev.displayName }}</text>
+							<view class="review-stars">
+								<text v-for="s in 5" :key="s" :class="s <= rev.ratingNumber ? 'star filled' : 'star'">★</text>
+							</view>
+						</view>
+						<text class="review-badge">{{ rev.badgeText }}</text>
+					</view>
+					<text class="review-tag-line" v-if="rev.tagText">{{ rev.tagText }}</text>
+					<text class="review-text">{{ rev.contentText }}</text>
+					<text class="review-time">{{ rev.shortTime }}</text>
+				</view>
+			</view>
 		</view>
 
 		<view class="store-section">
@@ -240,33 +258,6 @@
 			</view>
 		</view>
 
-		<view class="review-section" v-if="reviews.length > 0">
-			<view class="section-heading compact">
-				<view>
-					<text class="section-kicker">来自真实消费</text>
-					<text class="section-title">到店玩家评价</text>
-					<text class="section-summary">{{ reviewSummaryText }}</text>
-				</view>
-				<text class="section-link" @tap="goToMyReviews">查看全部 ›</text>
-			</view>
-			<view class="home-review-list">
-				<view class="review-card" v-for="rev in reviews" :key="rev.key">
-					<view class="review-header">
-						<view class="review-avatar">{{ rev.avatarText }}</view>
-						<view class="review-meta">
-							<text class="review-name">{{ rev.displayName }}</text>
-							<view class="review-stars">
-								<text v-for="s in 5" :key="s" :class="s <= rev.ratingNumber ? 'star filled' : 'star'">★</text>
-							</view>
-						</view>
-						<text class="review-badge">{{ rev.badgeText }}</text>
-					</view>
-					<text class="review-tag-line" v-if="rev.tagText">{{ rev.tagText }}</text>
-					<text class="review-text">{{ rev.contentText }}</text>
-					<text class="review-time">{{ rev.shortTime }}</text>
-				</view>
-			</view>
-		</view>
 
 	</view>
 </template>
@@ -283,22 +274,22 @@
 				return price ? parseInt(price) : 3800;
 			},
 			ticketPriceText() {
-				return '¥' + (this.ticketPriceFen / 100).toFixed(0) + '/人';
+				return '¥' + OFFPEAK.formatYuan(this.ticketPriceFen) + '/人';
 			},
 			perlerDayPriceFen() {
 				const price = this.constance && this.constance.perler_day_price;
 				return price ? parseInt(price) : 6900;
 			},
 			perlerDayPriceText() {
-				return '¥' + (this.perlerDayPriceFen / 100).toFixed(0) + '/人';
+				return '¥' + OFFPEAK.formatYuan(this.perlerDayPriceFen) + '/人';
 			},
 			perlerUpgradePriceText() {
 				const price = this.constance && this.constance.perler_upgrade_price;
-				return '¥' + ((parseInt(price) || 3100) / 100).toFixed(0) + '/人';
+				return '¥' + OFFPEAK.formatYuan(parseInt(price) || 3100) + '/人';
 			},
 			perlerChannelUpgradePriceText() {
 				const price = this.constance && this.constance.perler_channel_upgrade_price;
-				return '¥' + ((parseInt(price) || 3900) / 100).toFixed(0) + '/人';
+				return '¥' + OFFPEAK.formatYuan(parseInt(price) || 3900) + '/人';
 			},
 			perlerEnabled() {
 				const value = this.constance && this.constance.perler_enabled;
@@ -307,14 +298,24 @@
 			weekdayDiscount() {
 				return OFFPEAK.promoSummary(this.promoRooms, this.constance, { now: new Date(this.nowTimestamp) });
 			},
+			heroClass() {
+				return this.carouselList.length ? 'home-hero' : 'home-hero no-photo';
+			},
+			heroPlayText() {
+				return this.perlerEnabled ? '桌游 · 漫画 · 主机 · 拼豆' : '桌游 · 漫画 · 主机 · 朋友小聚';
+			},
+			promoPriceText() {
+				const deal = this.weekdayDiscount.cheapest;
+				return deal ? deal.totalText : '';
+			},
 			playOptions() {
 				const items = [
 					{
 						key: 'hall',
-						mark: '票',
-						badge: '一票待一天',
+						iconClass: 'play-icon dice',
+						badge: '营业时段不限时',
 						name: '大厅自由畅玩',
-						desc: '桌游、漫画小说、茶水零食都包含，一个人或朋友同行都合适',
+						desc: '营业时段不限时，独自放松或和朋友开一局',
 						price: this.ticketPriceText,
 						actionText: '买票入场',
 						action: 'ticket',
@@ -323,23 +324,23 @@
 					},
 					{
 						key: 'room',
-						mark: '房',
-						badge: '安静私密',
+						iconClass: 'play-icon controller',
+						badge: '独立空间',
 						name: '预约包厢',
-						desc: '主机、聚会、团建，按小时选择合适空间',
-						price: '按小时',
+						desc: '主机、聚会，选好房间和时段',
+						price: '按时段计费',
 						actionText: '选房间',
 						action: 'reserve',
 						className: this.perlerEnabled ? 'play-option room' : 'play-option room full',
 					},
 				];
 				if (this.perlerEnabled) {
-					items.splice(1, 0, {
+					items.push({
 						key: 'perler',
-						mark: '豆',
+						iconClass: 'play-icon pixels',
 						badge: '含大厅入场',
-						name: '拼豆一日',
-						desc: '标准材料1份，不限制作时间，成品可以带走',
+						name: '拼豆慢慢玩',
+						desc: '含1份标准材料，成品可以带走',
 						price: this.perlerDayPriceText,
 						actionText: '买拼豆票',
 						action: 'perler',
@@ -511,7 +512,8 @@
 		},
 		data() {
 			return {
-				swiperCurrent: 0,
+					homeNavbarStyle: '',
+					swiperCurrent: 0,
 				nowTimestamp: Date.now(),
 				activeBanner: null,
 				activityCard: null,
@@ -568,8 +570,9 @@
 			}
 			this.scheduleDeferredRefresh(false);
 		},
-		onLoad(options) {
-			this.captureInviteCode(options);
+			onLoad(options) {
+				this.initHomeNavbar();
+				this.captureInviteCode(options);
 			if (!this.constance) {
 				this.getConstanceInfo().catch(() => {});
 			} else {
@@ -641,7 +644,25 @@
 		methods: {
 			...mapActions(['loginAndRegister', 'getConstanceInfo', 'getReviewList']),
 			...mapMutations(['setPendingInviteCode']),
-			startStoreClock() {
+				initHomeNavbar() {
+					try {
+						const info = uni.getSystemInfoSync();
+						const statusHeight = Math.max(0, Number(info.statusBarHeight) || 0);
+						let height = statusHeight + 44;
+						let right = 16;
+						if (typeof uni.getMenuButtonBoundingClientRect === 'function') {
+							const menu = uni.getMenuButtonBoundingClientRect();
+							if (menu && menu.height > 0 && menu.top >= statusHeight && menu.bottom > menu.top) {
+								height = menu.bottom + Math.max(4, menu.top - statusHeight);
+								if (info.windowWidth > menu.left && menu.left > 0) right = info.windowWidth - menu.left + 12;
+							}
+						}
+						this.homeNavbarStyle = 'padding-top:' + statusHeight + 'px;height:' + height + 'px;padding-right:' + right + 'px;';
+					} catch (e) {
+						this.homeNavbarStyle = '';
+					}
+				},
+				startStoreClock() {
 				this.stopStoreClock();
 				this.nowTimestamp = Date.now();
 				this._storeClockTimer = setInterval(function() {
@@ -1577,25 +1598,42 @@ page {
 }
 
 .weekday-banner {
-	margin: 22rpx 24rpx;
-	padding: 28rpx;
+	margin: 20rpx 24rpx 0;
+	padding: 24rpx;
 	border-radius: 24rpx;
-	border: 1rpx solid #EFD8C6;
-	background: linear-gradient(125deg, #FFF8EE, #FFEBD8);
+	border: 1rpx solid #EBD3B9;
+	background: linear-gradient(120deg, #FFF7E9, #F6E6CE);
 }
-.weekday-banner-top, .weekday-banner-bottom {
+
+.weekday-banner-top,
+.weekday-banner-bottom {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: 12rpx;
 }
-.weekday-banner-badge { color: #9A4A26; font-size: 24rpx; font-weight: 700; }
-.weekday-banner-status { color: #7B6B5D; font-size: 22rpx; }
-.weekday-banner-title { display: block; margin-top: 14rpx; font-size: 38rpx; font-weight: 800; color: #C45125; }
-.weekday-banner-sub { display: block; margin: 10rpx 0 20rpx; font-size: 24rpx; color: #6B5442; line-height: 1.6; }
-.weekday-banner-note { flex: 1; min-width: 230rpx; font-size: 22rpx; color: #7B6B5D; }
-.weekday-banner-cta { padding: 12rpx 22rpx; border-radius: 999rpx; background: #C9572D; color: #fff; font-size: 24rpx; font-weight: 700; }
+
+.weekday-banner-badge { color: #9A4A26; font-size: 23rpx; font-weight: 700; }
+.weekday-banner-status { color: #78614B; font-size: 22rpx; }
+
+.weekday-banner-offer {
+	display: flex;
+	align-items: baseline;
+	gap: 20rpx;
+	flex-wrap: wrap;
+	margin-top: 10rpx;
+}
+
+.weekday-banner-title { font-size: 30rpx; font-weight: 800; color: #513A28; }
+.weekday-banner-price { display: flex; align-items: baseline; gap: 4rpx; color: #AB4D26; }
+.weekday-price-currency { font-size: 28rpx; font-weight: 700; }
+.weekday-price-value { font-size: 50rpx; font-weight: 800; line-height: 1.15; }
+.weekday-price-unit { font-size: 22rpx; margin-left: 4rpx; }
+.weekday-banner-sub { display: block; margin: 10rpx 0 14rpx; font-size: 23rpx; color: #73583F; line-height: 1.5; overflow-wrap: anywhere; }
+.weekday-banner-note { flex: 1; min-width: 250rpx; font-size: 21rpx; line-height: 1.5; color: #78614B; }
+.weekday-banner-cta { padding: 12rpx 18rpx; border-radius: 12rpx; background: #B95730; color: #FFF; font-size: 23rpx; font-weight: 700; }
+
 .notice-confirm {
 	margin-top: 22rpx;
 	height: 76rpx;
@@ -1609,10 +1647,29 @@ page {
 	justify-content: center;
 }
 
+.home-navbar {
+	display: flex;
+	align-items: center;
+	padding: env(safe-area-inset-top) 220rpx 0 28rpx;
+	height: calc(env(safe-area-inset-top) + 88rpx);
+	box-sizing: border-box;
+}
+
+.home-navbar-name {
+	font-size: 28rpx;
+	font-weight: 800;
+	color: #514234;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .home-hero {
 	position: relative;
-	height: 690rpx;
-	background: #D9D4CC;
+	height: 540rpx;
+	margin: 16rpx 24rpx 0;
+	border-radius: 30rpx;
+	background: #E7DCCF;
 	overflow: hidden;
 }
 
@@ -1627,23 +1684,36 @@ page {
 }
 
 .hero-fallback {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	background: #EFE4D5;
+	background: linear-gradient(135deg, #F2DBC0, #F9EDDA 65%, #E5EADD);
+}
+
+.hero-fallback::before,
+.hero-fallback::after {
+	content: '';
+	position: absolute;
+	width: 240rpx;
+	height: 240rpx;
+	border: 2rpx solid rgba(165, 121, 79, 0.16);
+	border-radius: 50%;
+	right: -76rpx;
+	top: 98rpx;
+}
+
+.hero-fallback::after {
+	width: 180rpx;
+	height: 180rpx;
+	right: -46rpx;
+	top: 128rpx;
 }
 
 .hero-logo {
-	width: 180rpx;
-	height: 180rpx;
-	border-radius: 16rpx;
-}
-
-.hero-fallback-text {
-	margin-top: 22rpx;
-	font-size: 24rpx;
-	color: #67594E;
+	position: absolute;
+	top: 110rpx;
+	right: 28rpx;
+	width: 104rpx;
+	height: 104rpx;
+	border-radius: 26rpx;
+	transform: rotate(8deg);
 }
 
 .hero-scrim {
@@ -1652,32 +1722,36 @@ page {
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: linear-gradient(180deg, rgba(24, 20, 17, 0.42) 0%, rgba(24, 20, 17, 0.04) 38%, rgba(24, 20, 17, 0.78) 100%);
+	background: linear-gradient(180deg, rgba(28, 25, 21, 0.2), rgba(28, 25, 21, 0.06) 20%, rgba(28, 25, 21, 0.84) 100%);
 	pointer-events: none;
 }
 
+.no-photo .hero-scrim { background: none; }
+
 .hero-topbar {
 	position: absolute;
-	top: calc(env(safe-area-inset-top) + 24rpx);
+	top: 24rpx;
 	left: 24rpx;
 	right: 24rpx;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	gap: 12rpx;
 	z-index: 2;
 }
 
 .store-status {
-	height: 52rpx;
-	padding: 0 16rpx;
+	min-height: 46rpx;
+	padding: 0 14rpx;
 	display: flex;
 	align-items: center;
-	gap: 10rpx;
-	border-radius: 8rpx;
+	gap: 8rpx;
+	border-radius: 999rpx;
 	background: rgba(255, 255, 255, 0.94);
 	font-size: 22rpx;
 	font-weight: 700;
 	color: #3E352E;
+	flex-shrink: 0;
 }
 
 .store-status-dot {
@@ -1695,46 +1769,49 @@ page {
 .store-status.closed { color: #86493F; }
 
 .hero-hours {
-	height: 52rpx;
-	padding: 0 16rpx;
-	display: flex;
-	align-items: center;
-	border-radius: 8rpx;
-	background: rgba(31, 27, 24, 0.62);
-	font-size: 21rpx;
+	padding: 10rpx 14rpx;
+	border-radius: 999rpx;
+	background: rgba(31, 27, 24, 0.54);
+	font-size: 22rpx;
 	color: #FFF;
+	text-align: right;
+}
+
+.no-photo .hero-hours {
+	background: rgba(255, 255, 255, 0.6);
+	color: #675649;
 }
 
 .hero-content {
 	position: absolute;
-	left: 30rpx;
-	right: 30rpx;
-	bottom: 54rpx;
+	left: 28rpx;
+	right: 28rpx;
+	bottom: 46rpx;
 	z-index: 2;
 }
 
 .hero-kicker {
 	display: block;
-	font-size: 22rpx;
+	font-size: 23rpx;
 	font-weight: 700;
 	color: #F3CE9B;
 }
 
 .hero-title {
 	display: block;
-	margin-top: 8rpx;
-	font-size: 50rpx;
-	line-height: 1.18;
+	margin-top: 12rpx;
+	font-size: 48rpx;
+	line-height: 1.28;
 	font-weight: 800;
 	color: #FFF;
-	letter-spacing: 0;
+	letter-spacing: 1rpx;
 }
 
 .hero-subtitle {
 	display: block;
 	margin-top: 12rpx;
-	font-size: 25rpx;
-	line-height: 1.48;
+	font-size: 24rpx;
+	line-height: 1.5;
 	color: rgba(255, 255, 255, 0.9);
 }
 
@@ -1743,11 +1820,11 @@ page {
 	align-items: baseline;
 	flex-wrap: wrap;
 	gap: 10rpx;
-	margin-top: 20rpx;
+	margin-top: 18rpx;
 }
 
 .hero-value-main {
-	font-size: 30rpx;
+	font-size: 27rpx;
 	font-weight: 800;
 	color: #FFF;
 }
@@ -1755,13 +1832,60 @@ page {
 .hero-value-separator,
 .hero-value-sub {
 	font-size: 22rpx;
-	color: rgba(255, 255, 255, 0.82);
+	color: rgba(255, 255, 255, 0.85);
 }
+
+.no-photo .hero-kicker { color: #93603F; }
+.no-photo .hero-title { color: #473629; }
+.no-photo .hero-subtitle,
+.no-photo .hero-value-separator,
+.no-photo .hero-value-sub { color: #75604E; }
+.no-photo .hero-value-main { color: #9A4A26; }
+
+.hero-actions {
+	display: flex;
+	align-items: center;
+	gap: 14rpx;
+	margin-top: 24rpx;
+}
+
+.hero-book,
+.hero-location {
+	min-height: 76rpx;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	padding: 16rpx 24rpx;
+	border-radius: 18rpx;
+	font-size: 25rpx;
+	font-weight: 700;
+}
+
+.hero-book {
+	flex: 1;
+	background: #EAB78D;
+	color: #402C1E;
+	gap: 28rpx;
+}
+
+.hero-book text { font-size: 32rpx; }
+
+.hero-location {
+	flex: 1;
+	border: 1rpx solid rgba(255, 255, 255, 0.36);
+	background: rgba(255, 255, 255, 0.08);
+	color: #FFF;
+}
+
+.no-photo .hero-book { background: #B95730; color: #FFF; }
+.no-photo .hero-location { color: #665240; border-color: #CFB99F; background: rgba(255, 255, 255, 0.4); }
+.home-action-pressed { opacity: 0.8; }
 
 .hero-dots {
 	position: absolute;
 	right: 28rpx;
-	bottom: 22rpx;
+	bottom: 18rpx;
 	display: flex;
 	align-items: center;
 	gap: 8rpx;
@@ -1769,65 +1893,16 @@ page {
 }
 
 .hero-dot {
-	width: 10rpx;
-	height: 10rpx;
+	width: 8rpx;
+	height: 8rpx;
 	border-radius: 50%;
 	background: rgba(255, 255, 255, 0.45);
 }
 
 .hero-dot.active {
-	width: 30rpx;
-	border-radius: 5rpx;
+	width: 24rpx;
+	border-radius: 4rpx;
 	background: #FFF;
-}
-
-.hall-benefits {
-	padding: 20rpx 24rpx 22rpx;
-	background: #FFF;
-	border-bottom: 1rpx solid #E9E3DC;
-}
-
-.hall-benefits-head {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 18rpx;
-}
-
-.hall-benefits-title {
-	font-size: 25rpx;
-	font-weight: 800;
-	color: #332D28;
-}
-
-.hall-benefits-note {
-	font-size: 20rpx;
-	color: #91877F;
-}
-
-.hall-benefits-list {
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 10rpx 22rpx;
-	margin-top: 13rpx;
-}
-
-.hall-benefit-item {
-	display: flex;
-	align-items: center;
-	min-width: 0;
-	font-size: 22rpx;
-	line-height: 1.45;
-	color: #5E554E;
-}
-
-.hall-benefit-dot {
-	width: 8rpx;
-	height: 8rpx;
-	margin-right: 12rpx;
-	border-radius: 50%;
-	background: #4E7754;
-	flex-shrink: 0;
 }
 
 .play-section,
@@ -1835,7 +1910,7 @@ page {
 .store-section,
 .review-section {
 	margin: 0 24rpx;
-	padding-top: 38rpx;
+	padding-top: 32rpx;
 }
 
 .section-heading {
@@ -1852,9 +1927,8 @@ page {
 
 .section-kicker {
 	display: block;
-	font-size: 20rpx;
-	font-weight: 700;
-	color: #B05E37;
+	font-size: 22rpx;
+	color: #92755C;
 }
 
 .section-title {
@@ -1869,8 +1943,8 @@ page {
 
 .section-heading-note,
 .section-summary {
-	font-size: 21rpx;
-	color: #8B8178;
+	font-size: 22rpx;
+	color: #786E63;
 }
 
 .section-summary {
@@ -1887,138 +1961,188 @@ page {
 
 .play-grid {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 14rpx;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 16rpx;
 }
 
 .play-option {
 	min-width: 0;
-	min-height: 286rpx;
-	padding: 22rpx;
+	min-height: 312rpx;
+	padding: 24rpx;
 	box-sizing: border-box;
-	border: 1rpx solid #DDD7CF;
-	border-radius: 16rpx;
+	border: 1rpx solid #E5DDD2;
+	border-radius: 24rpx;
 	background: #FFF;
 	display: flex;
 	flex-direction: column;
 }
 
 .play-option.hall,
-.play-option.full {
-	grid-column: 1 / -1;
-}
+.play-option.full { grid-column: 1 / -1; }
 
 .play-option.hall {
-	min-height: 260rpx;
-	background: #C96B3F;
-	border-color: #C96B3F;
-	color: #FFF;
+	min-height: 0;
+	position: relative;
+	padding-right: 132rpx;
+	background: #FFFCF7;
 }
 
-.play-option.perler {
-	background: #EEF7F4;
-	border-color: #BFDCD4;
-}
-
-.play-option.room {
-	background: #FFF;
-}
+.play-option.perler { background: #EDF3EB; border-color: #D7E2D3; }
+.play-option.room { background: #F2ECE4; border-color: #E2D7C9; }
 
 .play-option-head {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12rpx;
+	gap: 10rpx;
 }
 
-.play-option-mark {
-	width: 54rpx;
-	height: 54rpx;
-	border-radius: 8rpx;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	background: #F1E8DE;
-	font-size: 24rpx;
-	font-weight: 800;
-	color: #6F5A49;
+.play-option.hall .play-option-head {
+	position: absolute;
+	right: 24rpx;
+	top: 28rpx;
 }
 
-.hall .play-option-mark {
-	background: rgba(255, 255, 255, 0.18);
-	color: #FFF;
-}
-
-.perler .play-option-mark {
-	background: #2F8275;
-	color: #FFF;
-}
+.play-option.hall .play-option-badge { display: none; }
 
 .play-option-badge {
-	font-size: 19rpx;
-	font-weight: 700;
-	color: #85766A;
+	font-size: 21rpx;
+	color: #756454;
 }
 
-.hall .play-option-badge {
-	color: rgba(255, 255, 255, 0.82);
+.perler .play-option-badge { color: #547352; }
+
+.play-icon {
+	position: relative;
+	width: 64rpx;
+	height: 58rpx;
+	box-sizing: border-box;
+	flex-shrink: 0;
+	color: #926448;
 }
 
-.perler .play-option-badge {
-	color: #31766B;
+.play-icon.dice {
+	width: 68rpx;
+	height: 68rpx;
+	border: 3rpx solid #C98659;
+	background: #F6E4D1;
+	border-radius: 18rpx;
+	transform: rotate(10deg);
 }
+
+.dice .play-icon-detail {
+	position: absolute;
+	width: 9rpx;
+	height: 9rpx;
+	border-radius: 50%;
+	background: #AB6941;
+}
+
+.dice .a { top: 15rpx; left: 15rpx; }
+.dice .b { top: 15rpx; right: 15rpx; }
+.dice .c { bottom: 15rpx; left: 15rpx; }
+.dice .d { bottom: 15rpx; right: 15rpx; }
+
+.play-icon.controller {
+	margin-top: 6rpx;
+	height: 46rpx;
+	border: 3rpx solid #B48D6F;
+	border-radius: 18rpx 18rpx 14rpx 14rpx;
+	background: #E6D6C6;
+}
+
+.controller .a,
+.controller .b { position: absolute; background: #87644D; border-radius: 2rpx; }
+.controller .a { left: 11rpx; top: 18rpx; width: 20rpx; height: 4rpx; }
+.controller .b { left: 19rpx; top: 10rpx; width: 4rpx; height: 20rpx; }
+.controller .c,
+.controller .d { position: absolute; width: 7rpx; height: 7rpx; border-radius: 50%; background: #B57550; }
+.controller .c { right: 11rpx; top: 11rpx; }
+.controller .d { right: 18rpx; top: 22rpx; }
+
+.pixels .play-icon-detail {
+	position: absolute;
+	width: 19rpx;
+	height: 19rpx;
+	border-radius: 4rpx;
+	background: #91AD85;
+}
+
+.pixels .a { top: 3rpx; left: 23rpx; background: #D8B17B; }
+.pixels .b { top: 25rpx; left: 1rpx; }
+.pixels .c { top: 25rpx; left: 23rpx; background: #597E54; }
+.pixels .d { top: 25rpx; left: 45rpx; }
 
 .play-option-name {
 	display: block;
-	margin-top: 18rpx;
+	margin-top: 16rpx;
 	font-size: 30rpx;
-	line-height: 1.25;
+	line-height: 1.3;
 	font-weight: 800;
-	color: #332D28;
+	color: #3C332B;
 }
 
-.hall .play-option-name { color: #FFF; }
+.hall .play-option-name { margin-top: 0; }
 
 .play-option-desc {
 	display: block;
-	margin-top: 8rpx;
-	font-size: 21rpx;
-	line-height: 1.48;
-	color: #786E66;
+	margin-top: 10rpx;
+	font-size: 23rpx;
+	line-height: 1.55;
+	color: #776C60;
 	flex: 1;
 }
 
-.hall .play-option-desc {
-	max-width: 560rpx;
-	color: rgba(255, 255, 255, 0.86);
+.play-inclusions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10rpx;
+	margin-top: 16rpx;
+}
+
+.play-inclusions text {
+	padding: 5rpx 10rpx;
+	border-radius: 8rpx;
+	background: #F5EEE4;
+	font-size: 21rpx;
+	color: #80654D;
 }
 
 .play-option-foot {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12rpx;
-	margin-top: 18rpx;
+	flex-wrap: wrap;
+	gap: 10rpx;
+	margin-top: 22rpx;
 }
+
+.hall .play-option-foot { margin-right: -108rpx; }
 
 .play-option-price {
-	font-size: 27rpx;
+	font-size: 26rpx;
 	font-weight: 800;
-	color: #B05E37;
+	color: #9A4A26;
 }
 
-.hall .play-option-price { color: #FFF; }
-.perler .play-option-price { color: #246E63; }
+.perler .play-option-price { color: #476B44; }
+.room .play-option-price { color: #76604E; font-size: 23rpx; }
 
 .play-option-action {
-	font-size: 21rpx;
+	font-size: 23rpx;
 	font-weight: 700;
-	color: #B05E37;
+	color: #9A4A26;
 	white-space: nowrap;
 }
 
-.hall .play-option-action { color: #FFF; }
-.perler .play-option-action { color: #246E63; }
+.hall .play-option-action {
+	padding: 12rpx 22rpx;
+	border-radius: 12rpx;
+	background: #BB6037;
+	color: #FFF;
+}
+
+.perler .play-option-action { color: #476B44; }
 
 .home-prompt {
 	margin: 28rpx 24rpx 0;
@@ -2169,13 +2293,13 @@ page {
 }
 
 .social-section {
-	margin: 38rpx 24rpx 0;
+	margin: 28rpx 24rpx 0;
 	padding: 24rpx;
 	display: flex;
 	align-items: center;
 	gap: 18rpx;
 	border: 1rpx solid #CED7CE;
-	border-radius: 16rpx;
+	border-radius: 24rpx;
 	background: #EDF3ED;
 }
 
@@ -2218,7 +2342,7 @@ page {
 
 .store-panel {
 	border: 1rpx solid #DDD7CF;
-	border-radius: 16rpx;
+	border-radius: 24rpx;
 	background: #FFF;
 	overflow: hidden;
 }
@@ -2304,7 +2428,7 @@ page {
 	padding: 22rpx;
 	box-sizing: border-box;
 	border: 1rpx solid #DDD7CF;
-	border-radius: 14rpx;
+	border-radius: 22rpx;
 	background: #FFF;
 	box-shadow: none;
 }
@@ -2386,4 +2510,17 @@ page {
 	color: #A39A92;
 }
 
+@media screen and (max-width: 360px) {
+	.hero-title { font-size: 45rpx; }
+	.hero-book, .hero-location { padding-left: 16rpx; padding-right: 16rpx; }
+	.play-option { padding: 22rpx; }
+	.play-option.hall { padding-right: 112rpx; }
+	.hall .play-option-foot { margin-right: -90rpx; }
+	.play-option-head { flex-wrap: wrap; }
+	.social-section { gap: 12rpx; padding: 22rpx; }
+	.social-mark { width: 48rpx; height: 48rpx; }
+	.social-title { font-size: 27rpx; }
+	.service-row { flex-wrap: wrap; }
+	.service-action { margin-left: 72rpx; }
+}
 </style>

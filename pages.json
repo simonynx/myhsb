@@ -16,8 +16,8 @@
 			"path": "pages/index/index",
 			"style": {
 				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#FF8C42",
-				"navigationBarTextStyle": "white",
+				"navigationBarBackgroundColor": "#F7F5F1",
+				"navigationBarTextStyle": "black",
 				"navigationStyle": "custom"
 			}
 		},
